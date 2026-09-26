@@ -16,6 +16,10 @@ import { AppError } from './core/errors/app-error.js';
 import { healthRouter } from './features/health/health.routes.js';
 import { createAuthRouter } from './features/auth/auth.routes.js';
 import { createUsersRouter } from './features/users/users.routes.js';
+import { createTasksRouter } from './features/tasks/tasks.routes.js';
+import { createProjectsRouter } from './features/projects/projects.routes.js';
+import { createRecurringTasksRouter } from './features/recurring-tasks/recurring-tasks.routes.js';
+import { createTimerSessionsRouter } from './features/timer-sessions/timer-sessions.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
@@ -79,6 +83,46 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/users',
     createUsersRouter({
       controller: container.usersController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Tasks routes
+  v1Router.use(
+    '/tasks',
+    createTasksRouter({
+      controller: container.tasksController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Projects routes
+  v1Router.use(
+    '/projects',
+    createProjectsRouter({
+      controller: container.projectsController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Recurring Tasks routes
+  v1Router.use(
+    '/recurring-tasks',
+    createRecurringTasksRouter({
+      controller: container.recurringTasksController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Timer Sessions routes
+  v1Router.use(
+    '/timer-sessions',
+    createTimerSessionsRouter({
+      controller: container.timerSessionsController,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

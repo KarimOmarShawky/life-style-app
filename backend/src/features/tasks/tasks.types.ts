@@ -1,16 +1,41 @@
 /**
  * src/features/tasks/tasks.types.ts
  *
- * Implements Section 6.4 & 14.4–14.7: Tasks, Projects, Recurring Tasks, and Timer Sessions domain types.
+ * Implements Section 6.4 & 14.4: Tasks Domain Types.
  */
 
-export interface TaskEntity {
+export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled';
+export type TaskPriority = 'none' | 'low' | 'medium' | 'high';
+
+export interface TaskRow {
   id: string;
-  userId: string;
+  user_id: string;
   title: string;
   description: string | null;
-  status: 'todo' | 'in_progress' | 'done' | 'cancelled';
-  priority: number;
+  status: TaskStatus;
+  priority: number; // 0=none, 1=low, 2=medium, 3=high
+  due_date: Date | string | null;
+  due_time: string | null;
+  planned_date: Date | string | null;
+  is_focus: boolean;
+  estimate_minutes: number | null;
+  project_id: string | null;
+  recurring_task_id: string | null;
+  occurrence_date: Date | string | null;
+  is_customized: boolean;
+  completed_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+  version: number;
+}
+
+export interface TaskDto {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
   dueDate: string | null;
   dueTime: string | null;
   plannedDate: string | null;
@@ -19,56 +44,26 @@ export interface TaskEntity {
   projectId: string | null;
   recurringTaskId: string | null;
   occurrenceDate: string | null;
-  isCustomized: boolean;
-  completedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   version: number;
+  trackedSeconds?: number;
 }
 
-export interface ProjectEntity {
-  id: string;
-  userId: string;
-  name: string;
-  description: string | null;
-  status: 'active' | 'on_hold' | 'completed' | 'archived';
-  color: string | null;
-  goalId: string | null;
-  dueDate: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
-  version: number;
-}
-
-export interface RecurringTaskEntity {
-  id: string;
-  userId: string;
-  title: string;
-  description: string | null;
-  projectId: string | null;
-  priority: number;
-  estimateMinutes: number | null;
-  dueTime: string | null;
-  reminderOffsetMinutes: number | null;
-  status: 'active' | 'paused' | 'ended';
-  generatedThrough: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
-  version: number;
-}
-
-export interface TimerSessionEntity {
-  id: string;
-  userId: string;
-  taskId: string;
-  startedAt: Date;
-  endedAt: Date | null;
-  mode: 'stopwatch' | 'countdown';
-  plannedSeconds: number | null;
-  endReason: 'stopped' | 'completed' | 'auto_closed' | null;
-  createdAt: Date;
-  updatedAt: Date;
+export interface ListTasksFilter {
+  status?: TaskStatus[] | undefined;
+  priority?: number[] | undefined;
+  projectId?: string | 'none' | undefined;
+  dueFrom?: string | undefined;
+  dueTo?: string | undefined;
+  plannedDate?: string | undefined;
+  overdue?: boolean | undefined;
+  isFocus?: boolean | undefined;
+  completedFrom?: string | undefined;
+  completedTo?: string | undefined;
+  sort?: 'dueDate' | 'priority' | 'createdAt' | 'updatedAt' | undefined;
+  order?: 'asc' | 'desc' | undefined;
+  limit?: number | undefined;
+  cursor?: string | undefined;
 }

@@ -48,6 +48,30 @@ import type { UsersRepository } from './features/users/users.repository.js';
 import { UsersService } from './features/users/users.service.js';
 import { UsersController } from './features/users/users.controller.js';
 
+// Tasks Module
+import { PgTasksRepository } from './features/tasks/tasks.repository.pg.js';
+import type { TasksRepository } from './features/tasks/tasks.repository.js';
+import { TasksService } from './features/tasks/tasks.service.js';
+import { TasksController } from './features/tasks/tasks.controller.js';
+
+// Projects Module
+import { PgProjectsRepository } from './features/projects/projects.repository.pg.js';
+import type { ProjectsRepository } from './features/projects/projects.repository.js';
+import { ProjectsService } from './features/projects/projects.service.js';
+import { ProjectsController } from './features/projects/projects.controller.js';
+
+// Recurring Tasks Module
+import { PgRecurringTasksRepository } from './features/recurring-tasks/recurring-tasks.repository.pg.js';
+import type { RecurringTasksRepository } from './features/recurring-tasks/recurring-tasks.repository.js';
+import { RecurringTasksService } from './features/recurring-tasks/recurring-tasks.service.js';
+import { RecurringTasksController } from './features/recurring-tasks/recurring-tasks.controller.js';
+
+// Timer Sessions Module
+import { PgTimerSessionsRepository } from './features/timer-sessions/timer-sessions.repository.pg.js';
+import type { TimerSessionsRepository } from './features/timer-sessions/timer-sessions.repository.js';
+import { TimerSessionsService } from './features/timer-sessions/timer-sessions.service.js';
+import { TimerSessionsController } from './features/timer-sessions/timer-sessions.controller.js';
+
 export interface AppContainer {
   clock: Clock;
   idGenerator: IdGenerator;
@@ -69,6 +93,18 @@ export interface AppContainer {
   usersRepository: UsersRepository;
   usersService: UsersService;
   usersController: UsersController;
+  tasksRepository: TasksRepository;
+  tasksService: TasksService;
+  tasksController: TasksController;
+  projectsRepository: ProjectsRepository;
+  projectsService: ProjectsService;
+  projectsController: ProjectsController;
+  recurringTasksRepository: RecurringTasksRepository;
+  recurringTasksService: RecurringTasksService;
+  recurringTasksController: RecurringTasksController;
+  timerSessionsRepository: TimerSessionsRepository;
+  timerSessionsService: TimerSessionsService;
+  timerSessionsController: TimerSessionsController;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -117,6 +153,32 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const usersService = overrides?.usersService ?? new UsersService(usersRepository, auditLogger);
   const usersController = overrides?.usersController ?? new UsersController(usersService);
 
+  // Phase P4 Features
+  const tasksRepository = overrides?.tasksRepository ?? new PgTasksRepository(db);
+  const projectsRepository = overrides?.projectsRepository ?? new PgProjectsRepository(db);
+  const recurringTasksRepository =
+    overrides?.recurringTasksRepository ?? new PgRecurringTasksRepository(db);
+  const timerSessionsRepository =
+    overrides?.timerSessionsRepository ?? new PgTimerSessionsRepository(db);
+
+  const tasksService =
+    overrides?.tasksService ?? new TasksService(tasksRepository, projectsRepository, clock);
+  const projectsService = overrides?.projectsService ?? new ProjectsService(projectsRepository, db);
+  const recurringTasksService =
+    overrides?.recurringTasksService ??
+    new RecurringTasksService(recurringTasksRepository, projectsRepository, clock);
+  const timerSessionsService =
+    overrides?.timerSessionsService ??
+    new TimerSessionsService(timerSessionsRepository, tasksRepository, clock);
+
+  const tasksController = overrides?.tasksController ?? new TasksController(tasksService);
+  const projectsController =
+    overrides?.projectsController ?? new ProjectsController(projectsService);
+  const recurringTasksController =
+    overrides?.recurringTasksController ?? new RecurringTasksController(recurringTasksService);
+  const timerSessionsController =
+    overrides?.timerSessionsController ?? new TimerSessionsController(timerSessionsService);
+
   const container: AppContainer = {
     clock,
     idGenerator,
@@ -137,7 +199,19 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     authController,
     usersRepository,
     usersService,
-    usersController
+    usersController,
+    tasksRepository,
+    tasksService,
+    tasksController,
+    projectsRepository,
+    projectsService,
+    projectsController,
+    recurringTasksRepository,
+    recurringTasksService,
+    recurringTasksController,
+    timerSessionsRepository,
+    timerSessionsService,
+    timerSessionsController
   };
 
   if (!overrides) {

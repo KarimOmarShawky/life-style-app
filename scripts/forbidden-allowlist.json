@@ -1,0 +1,10 @@
+{
+  "description": "Allowlist for ADR-039 Forbidden-Dependency Guard. Entries here document permitted false positives or dev-only transitive dependencies explicitly authorized by specification decisions.",
+  "allowlist": [
+    {
+      "dependency": "formidable",
+      "scope": "devDependencies (transitive via supertest)",
+      "justification": "Specification §19.1 explicitly mandates Supertest for backend integration testing ('Vitest + Supertest + Testcontainers'). Supertest depends on superagent, which transitively includes formidable. It is strictly absent from production dependencies and runtime application code."
+    }
+  ]
+}

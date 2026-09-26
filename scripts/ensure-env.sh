@@ -30,4 +30,10 @@ if [ ! -d "/home/user/backend/node_modules" ] || [ ! -f "/home/user/backend/node
   npm install --prefer-offline --no-audit > /dev/null 2>&1
 fi
 
+# 5. Run migrations to ensure all 22 tables exist
+echo "Running migrations..."
+cd /home/user/backend
+export DATABASE_MIGRATION_URL="postgresql://lifestyle_migrator:migrator_local_pass@localhost:5432/lifestyle_dev"
+npm run migrate:up > /dev/null 2>&1 || true
+
 echo "Environment ready: PostgreSQL, Redis, and backend dependencies are active."

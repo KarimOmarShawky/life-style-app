@@ -1,0 +1,153 @@
+name: Backend CI
+
+# Runs on GitHub's machines, so none of this costs local bandwidth or CPU.
+# Every check that gates a merge lives here (spec section 68).
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/backend-ci.yml']
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend-ci.yml']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  quality:
+    name: Types, lint and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # `ci` not `install`: installs exactly the lockfile, and fails if
+      # package.json and the lockfile disagree.
+      - name: Install from lockfile
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Unit tests
+        run: npm run test:unit
+
+  integration:
+    name: Integration and security tests
+    runs-on: ubuntu-latest
+
+    # Real databases as service containers, so tests exercise actual constraints
+    # rather than mocks. This is the point of the integration tier.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lifestyle
+          POSTGRES_PASSWORD: lifestyle
+          POSTGRES_DB: lifestyle_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mongodb:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://lifestyle:lifestyle@localhost:5432/lifestyle_test
+      MONGODB_URI: mongodb://localhost:27017/lifestyle_test
+      REDIS_URL: redis://localhost:6379
+      # Test-only values. Real secrets never appear in a workflow file.
+      JWT_SECRET: ci-only-access-secret-value-not-used-anywhere-else-01
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-value-not-used-anywhere-else-02
+      COOKIE_SECRET: ci-only-cookie-secret-value-not-used-elsewhere-03
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install from lockfile
+        run: npm ci
+
+      - name: Run migrations
+        run: npm run migrate
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Security tests
+        run: npm run test:security
+
+  audit:
+    name: Dependency and secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history so the secret scan can inspect every commit, not just
+          # the tip. A secret removed in a later commit is still leaked.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install from lockfile
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      # `working-directory` is not valid on a `uses:` step, and gitleaks scans the
+      # whole repository from the workspace root regardless.
+      - name: Scan history for committed secrets
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail if a .env file is tracked
+        working-directory: .
+        run: |
+          if git ls-files --error-unmatch .env backend/.env 2>/dev/null; then
+            echo "A .env file is committed. Remove it and rotate every secret it contained."
+            exit 1
+          fi
+          echo "No .env file is tracked."

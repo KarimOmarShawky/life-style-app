@@ -1,0 +1,38 @@
+# Secrets. Never commit these.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+firebase-credentials.json
+*-service-account.json
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+.npm/
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/Pods/
+*.apk
+*.aab
+
+# Archived Django scaffold (see decision DD-001). Safe to delete entirely.
+.archive/
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

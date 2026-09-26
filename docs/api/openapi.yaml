@@ -1,0 +1,3157 @@
+openapi: 3.1.0
+
+info:
+  title: LifeStyle API
+  version: 0.1.0
+  description: |
+    Backend for the LifeStyle app: tasks, habits, notes, money and reminders.
+
+    ## Response envelope
+
+    Every response carries a `success` boolean, so a client branches once before
+    parsing anything else.
+
+    Success: `{ "success": true, "data": ... }`
+    Failure: `{ "success": false, "error": { "code": "...", "message": "..." } }`
+
+    The `code` is a stable contract; the `message` is for humans and may change.
+
+    ## Authentication
+
+    Send `Authorization: Bearer <accessToken>`. Access tokens last 15 minutes.
+    When one expires the API returns `TOKEN_EXPIRED`; exchange the refresh token
+    at `/auth/refresh` and retry. Any other 401 means the session is over.
+
+    Refresh tokens are single-use. Each refresh returns a new one and invalidates
+    the old. Presenting an already-used refresh token is treated as theft: the
+    entire session family is revoked and `TOKEN_REUSE_DETECTED` is returned.
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development
+  - url: https://api.example.com/api/v1
+    description: Production
+
+tags:
+  - name: Projects
+    description: Grouping for tasks. Deleting a project does not delete its tasks.
+  - name: Tasks
+    description: Tasks, their status and priority, and optional time tracking.
+  - name: Habits
+    description: >-
+      Repeating intentions and the days they were done. Streaks are computed from
+      the log rows, never stored.
+  - name: Goals
+    description: >-
+      Longer intentions with a milestone checklist. A milestone may be backed by
+      a task, in which case the task decides whether it is done.
+  - name: Notes
+    description: >-
+      Free-form notes, stored in MongoDB. They may link to a project or a task,
+      which live in PostgreSQL; see the link fields for what that implies.
+  - name: Expenses
+    description: >-
+      Money spent, and the reports over it. Amounts are exact decimals carried as
+      STRINGS, never JSON numbers; see the Amount schema for why.
+  - name: Subscriptions
+    description: >-
+      Recurring charges. The stored renewal date is an anchor: the date it next
+      bills is derived from it and today, so it is never stale.
+  - name: Budgets
+    description: >-
+      A monthly limit for one category. What has been spent against it is summed
+      from your expenses on every read and never stored.
+  - name: Events
+    description: >-
+      Calendar entries. An event may be attached to a task or a habit, and an
+      all-day event is stored as the whole UTC day rather than as a flag the
+      client has to interpret.
+  - name: Reminders
+    description: >-
+      One queue for every kind of reminder. Nothing is pushed: ask what is due,
+      show it, then acknowledge, dismiss or snooze each one.
+  - name: Dashboard
+    description: >-
+      The home summary: one request that answers "what is on me today" across
+      tasks, habits, events, reminders, money and goals.
+  - name: Authentication
+    description: Registration, sign-in, token lifecycle and password management.
+  - name: Health
+    description: Liveness and readiness probes. No authentication.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserProfile:
+      type: object
+      required: [id, email, displayName, role, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: [string, 'null']
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    AuthTokens:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, tokenType]
+      properties:
+        accessToken:
+          type: string
+          description: JWT. Send as a Bearer token. Short-lived.
+        refreshToken:
+          type: string
+          description: |
+            Single-use. Store in platform secure storage (Keychain, Keystore),
+            never in plain SharedPreferences.
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds.
+          example: 900
+        tokenType:
+          type: string
+          enum: [Bearer]
+
+    AuthResult:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        tokens:
+          $ref: '#/components/schemas/AuthTokens'
+
+    FieldIssue:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          example: body.password
+        message:
+          type: string
+          example: password must be at least 12 characters
+
+    Error:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - MALFORMED_JSON
+                - PAYLOAD_TOO_LARGE
+                - UNAUTHORIZED
+                - INVALID_CREDENTIALS
+                - TOKEN_EXPIRED
+                - TOKEN_INVALID
+                - TOKEN_REVOKED
+                - TOKEN_REUSE_DETECTED
+                - ACCOUNT_LOCKED
+                - ACCOUNT_DISABLED
+                - FORBIDDEN
+                - INSUFFICIENT_PERMISSIONS
+                - NOT_FOUND
+                - CONFLICT
+                - ALREADY_EXISTS
+                - RATE_LIMITED
+                - DATABASE_ERROR
+                - SERVICE_UNAVAILABLE
+                - INTERNAL_ERROR
+            message:
+              type: string
+            issues:
+              type: array
+              items:
+                $ref: '#/components/schemas/FieldIssue'
+            requestId:
+              type: string
+              description: Quote this when reporting a problem.
+
+    Project:
+      type: object
+      required: [id, name, description, taskCount, openTaskCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        taskCount:
+          type: integer
+          description: Every task filed under this project.
+        openTaskCount:
+          type: integer
+          description: Tasks not yet done.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Task:
+      type: object
+      required:
+        [id, projectId, title, description, dueDate, priority, status, isRecurring,
+         recurrenceRule, hasTimer, isOverdue, totalTrackedSeconds, isTimerRunning,
+         timerStartedAt, completedAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: Null when the task is ungrouped.
+        title: { type: string, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        dueDate: { type: [string, 'null'], format: date-time }
+        priority: { type: string, enum: [low, medium, high] }
+        status: { type: string, enum: [todo, in_progress, done] }
+        isRecurring: { type: boolean }
+        recurrenceRule:
+          type: [string, 'null']
+          description: Required when isRecurring is true, forbidden otherwise.
+        hasTimer:
+          type: boolean
+          description: Timing is opt-in. The timer cannot start unless this is true.
+        isOverdue:
+          type: boolean
+          description: >-
+            Derived, never stored: past its due date and not done. A completed
+            task is never overdue, however late it was finished.
+        totalTrackedSeconds:
+          type: integer
+          description: >-
+            Sum of completed sessions only. A running session is excluded, so
+            this value does not appear to tick upward on a static page.
+        isTimerRunning: { type: boolean }
+        timerStartedAt: { type: [string, 'null'], format: date-time }
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+          description: >-
+            Set by the server when status becomes done and cleared when it moves
+            away. Not accepted from a client.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    TimerSession:
+      type: object
+      required: [id, startTime, endTime, durationSeconds]
+      properties:
+        id: { type: string, format: uuid }
+        startTime: { type: string, format: date-time }
+        endTime: { type: [string, 'null'], format: date-time }
+        durationSeconds:
+          type: [integer, 'null']
+          description: Null while the session is still running.
+
+    Note:
+      type: object
+      required:
+        [id, projectId, taskId, title, content, tags, isArchived, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          pattern: '^[0-9a-f]{24}$'
+          description: >-
+            A MongoDB ObjectId, not a UUID. Notes are the one resource stored
+            outside PostgreSQL, so their ids have a different shape.
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: >-
+            A PostgreSQL project. There is no foreign key across the database
+            boundary, so this reads as null if the project has since been
+            deleted, even though an id is still stored. POST /notes/reconcile
+            clears those for good.
+        taskId:
+          type: [string, 'null']
+          format: uuid
+          description: A PostgreSQL task, with the same caveat as projectId.
+        title: { type: string, minLength: 1, maxLength: 200 }
+        content:
+          type: string
+          maxLength: 100000
+          description: >-
+            Stored verbatim, including leading whitespace: indentation in a note
+            body is typed on purpose.
+        tags:
+          type: array
+          maxItems: 25
+          items: { type: string, minLength: 1, maxLength: 40 }
+          description: >-
+            Lowercased and deduplicated on write, so "Work" and "work" are one
+            tag. A PATCH replaces the whole array rather than merging.
+        isArchived:
+          type: boolean
+          description: >-
+            Archived notes are excluded from the default listing. Pass
+            archived=true to list them instead; the two sets are never mixed.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Habit:
+      type: object
+      required:
+        [id, title, frequency, isArchived, currentStreak, longestStreak,
+         totalCompletions, lastCompletedDate, isCompletedForCurrentPeriod,
+         createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        frequency:
+          type: string
+          enum: [daily, weekly, custom]
+          description: The rhythm a streak is measured in.
+        isArchived:
+          type: boolean
+          description: >-
+            Archived habits keep their history and are excluded from the default
+            listing. Pass archived=true to list them instead.
+        currentStreak:
+          type: [integer, 'null']
+          description: >-
+            Consecutive completed periods ending at the current one or the one
+            before it. A daily habit not yet done today keeps its streak; two
+            missed periods break it. Null for `custom`, which has no fixed period
+            for "consecutive" to mean anything against.
+        longestStreak:
+          type: [integer, 'null']
+          description: The longest run ever recorded. Null for `custom`.
+        totalCompletions:
+          type: integer
+          description: Days logged as completed. Entries marked not completed are excluded.
+        lastCompletedDate: { type: [string, 'null'], format: date }
+        isCompletedForCurrentPeriod:
+          type: boolean
+          description: Today for a daily habit, this week for a weekly one.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    HabitLog:
+      type: object
+      required: [id, date, completed]
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        completed:
+          type: boolean
+          description: >-
+            False means "recorded as not done", which is different from having no
+            entry at all. Only the second disappears from the history.
+
+    Milestone:
+      type: object
+      required: [id, goalId, taskId, title, isDone, position, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        goalId: { type: string, format: uuid }
+        taskId:
+          type: [string, 'null']
+          format: uuid
+          description: >-
+            The task that backs this milestone, if any. A task may back at most
+            one milestone.
+        title: { type: string, minLength: 1, maxLength: 200 }
+        isDone:
+          type: boolean
+          description: >-
+            DERIVED when taskId is set: the milestone is done when its task is
+            done, and setting this field directly is refused with 409. Stored
+            otherwise.
+        position: { type: integer, minimum: 0, maximum: 10000 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Goal:
+      type: object
+      required:
+        [id, title, description, targetDate, status, milestoneCount,
+         doneMilestoneCount, progressPercent, isOverdue, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        targetDate: { type: [string, 'null'], format: date }
+        status: { type: string, enum: [active, achieved, abandoned] }
+        milestoneCount: { type: integer }
+        doneMilestoneCount: { type: integer }
+        progressPercent:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 100
+          description: >-
+            Whole percent, rounded. Null when the goal has no milestones: progress
+            is undefined rather than zero when nothing has been measured.
+        isOverdue:
+          type: boolean
+          description: >-
+            Derived: active, past its target date. An achieved or abandoned goal
+            is never overdue, however late it was finished.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    GoalDetail:
+      allOf:
+        - $ref: '#/components/schemas/Goal'
+        - type: object
+          required: [milestones]
+          properties:
+            milestones:
+              type: array
+              items: { $ref: '#/components/schemas/Milestone' }
+
+    ReconcileResult:
+      type: object
+      required: [projectLinksCleared, taskLinksCleared]
+      properties:
+        projectLinksCleared: { type: integer }
+        taskLinksCleared: { type: integer }
+
+    Amount:
+      type: string
+      pattern: '^\d{1,12}(\.\d{1,2})?$'
+      description: >-
+        An exact decimal amount, as a STRING. Never a JSON number: a JSON number
+        is parsed into an IEEE-754 double, which cannot represent 0.10 exactly,
+        so sums drift and a spending report stops reconciling. Responses always
+        carry two decimal places. Requests accept a string or a number, but a
+        number with more than two decimal places is rejected rather than rounded
+        — send a string to be sure of what you stored.
+      examples: ['1234.50', '0.10']
+
+    Currency:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      default: EGP
+      description: >-
+        A three-letter code, uppercased on the way in. Not checked against a list
+        of real currencies. Every total in this API is grouped by it: amounts in
+        different currencies are never added together.
+      examples: [EGP, USD]
+
+    Expense:
+      type: object
+      required:
+        [id, amount, currency, category, spentOn, note, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        amount: { $ref: '#/components/schemas/Amount' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        category: { type: string, maxLength: 60 }
+        spentOn:
+          type: string
+          format: date
+          description: The day the money was spent. Lists are ordered by this, not by createdAt.
+        note: { type: [string, 'null'], maxLength: 1000 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CurrencyTotal:
+      type: object
+      required: [currency, total, count]
+      properties:
+        currency: { $ref: '#/components/schemas/Currency' }
+        total: { $ref: '#/components/schemas/Amount' }
+        count: { type: integer }
+
+    CategoryTotal:
+      allOf:
+        - $ref: '#/components/schemas/CurrencyTotal'
+        - type: object
+          required: [category]
+          properties:
+            category:
+              type: string
+              description: >-
+                Grouping is case-insensitive, so "Food" and "food" are one row.
+                The label is one of the spellings you actually used.
+
+    ExpenseSummary:
+      type: object
+      required: [from, to, totals, byCategory]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        totals:
+          type: array
+          items: { $ref: '#/components/schemas/CurrencyTotal' }
+          description: One row per currency. There is deliberately no single total.
+        byCategory:
+          type: array
+          items: { $ref: '#/components/schemas/CategoryTotal' }
+
+    Subscription:
+      type: object
+      required:
+        [id, name, amount, currency, renewalDate, nextRenewalDate,
+         daysUntilRenewal, billingCycle, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 120 }
+        amount: { $ref: '#/components/schemas/Amount' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        renewalDate:
+          type: string
+          format: date
+          description: >-
+            The stored anchor, which you set and can edit. It is NOT advanced when
+            it passes, so it may be years in the past.
+        nextRenewalDate:
+          type: [string, 'null']
+          format: date
+          description: >-
+            When this actually bills next, derived from the anchor and today on
+            every read. Null when isActive is false: a cancelled subscription has
+            no next billing date.
+        daysUntilRenewal:
+          type: [integer, 'null']
+          description: Days from today to nextRenewalDate. Null when inactive.
+        billingCycle: { type: string, enum: [monthly, yearly] }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    SubscriptionCost:
+      type: object
+      required: [currency, monthlyEquivalent, monthlyTotal, yearlyTotal, count]
+      properties:
+        currency: { $ref: '#/components/schemas/Currency' }
+        monthlyEquivalent:
+          allOf: [{ $ref: '#/components/schemas/Amount' }]
+          description: >-
+            Monthly charges plus yearly charges divided by twelve. The division
+            runs at full precision and the ROUNDING HAPPENS ONCE on the sum, so
+            two yearly subscriptions of 100.00 report 16.67 rather than 16.66.
+        monthlyTotal:
+          allOf: [{ $ref: '#/components/schemas/Amount' }]
+          description: Exact total of the monthly subscriptions, unrounded.
+        yearlyTotal:
+          allOf: [{ $ref: '#/components/schemas/Amount' }]
+          description: Exact total of the yearly subscriptions, unrounded.
+        count: { type: integer }
+
+    SubscriptionSummary:
+      type: object
+      required: [costs]
+      properties:
+        costs:
+          type: array
+          items: { $ref: '#/components/schemas/SubscriptionCost' }
+
+    Budget:
+      type: object
+      required:
+        [id, category, monthlyLimit, currency, month, spent, remaining,
+         percentUsed, isOverBudget, expenseCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { type: string, maxLength: 60 }
+        monthlyLimit: { $ref: '#/components/schemas/Amount' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          description: The month this budget covers, as YYYY-MM.
+        spent:
+          allOf: [{ $ref: '#/components/schemas/Amount' }]
+          description: >-
+            Summed from your expenses on every read, never stored. An expense
+            counts when its month, its category (case-insensitively) and its
+            CURRENCY all match this budget.
+        remaining:
+          type: string
+          description: monthlyLimit minus spent. Negative when over budget.
+        percentUsed:
+          type: integer
+          description: >-
+            Floored, so 99.6% reads as 99 rather than claiming nothing is left.
+            Not capped at 100: going over is what you need to see.
+        isOverBudget: { type: boolean }
+        expenseCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Event:
+      type: object
+      required:
+        [id, title, description, startTime, endTime, allDay, linkedType,
+         linkedId, linkedTitle, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        startTime: { type: string, format: date-time }
+        endTime:
+          type: string
+          format: date-time
+          description: Never before startTime.
+        allDay:
+          type: boolean
+          description: >-
+            When true, startTime and endTime have been rewritten to cover the
+            whole UTC day: 00:00:00.000Z to 23:59:59.999Z. This is done by the
+            server at write time, so the flag and the times can never disagree.
+            The day is the UTC day; there is no per-user timezone yet.
+        linkedType:
+          type: [string, 'null']
+          enum: [task, habit, null]
+          description: Supplied and cleared together with linkedId.
+        linkedId: { type: [string, 'null'], format: uuid }
+        linkedTitle:
+          type: [string, 'null']
+          description: >-
+            Resolved when the response is built. Null with a non-null linkedId
+            means the linked item has since been deleted — a different thing
+            from not being linked at all, which is why the id is still returned.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Reminder:
+      type: object
+      required:
+        [id, entityType, entityId, entityTitle, remindAt, offsetDescription,
+         status, sentAt, attempts, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        entityType:
+          type: string
+          enum: [task, habit, subscription, event]
+        entityId: { type: string, format: uuid }
+        entityTitle:
+          type: [string, 'null']
+          description: >-
+            Null means the item this reminder points at has been deleted. Such a
+            reminder is never returned by /reminders/due, but it is still
+            readable and deletable.
+        remindAt: { type: string, format: date-time }
+        offsetDescription:
+          type: [string, 'null']
+          maxLength: 100
+          description: >-
+            Free text such as "15 minutes before". Stored and returned, never
+            interpreted: remindAt is the truth.
+        status:
+          type: string
+          enum: [pending, sent, dismissed, failed]
+          description: >-
+            `failed` is reserved for a future delivery worker and cannot be
+            reached through this API. Status is moved by the action endpoints,
+            not by PATCH.
+        sentAt:
+          type: [string, 'null']
+          format: date-time
+          description: Set when the reminder is acknowledged; cleared by a snooze.
+        attempts:
+          type: integer
+          description: >-
+            Delivery attempts. Always 0 today — nothing here pushes a
+            notification, so nothing can fail to — and reserved for a worker.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DashboardTask:
+      type: object
+      required: [id, title, priority, status, dueDate, isOverdue]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        priority: { type: string, enum: [low, medium, high] }
+        status: { type: string, enum: [todo, in_progress] }
+        dueDate: { type: string, format: date-time }
+        isOverdue:
+          type: boolean
+          description: True when the task was due before today began.
+
+    DashboardHabit:
+      type: object
+      required: [id, title, frequency]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        frequency: { type: string, enum: [daily, weekly, custom] }
+
+    DashboardEvent:
+      type: object
+      required: [id, title, startTime, endTime, allDay]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        allDay: { type: boolean }
+
+    DashboardReminder:
+      type: object
+      required: [id, entityType, entityId, entityTitle, remindAt]
+      properties:
+        id: { type: string, format: uuid }
+        entityType: { type: string, enum: [task, habit, subscription, event] }
+        entityId: { type: string, format: uuid }
+        entityTitle:
+          type: string
+          description: >-
+            Never null here. A reminder whose item has been deleted is not due,
+            so it cannot appear in this list.
+        remindAt: { type: string, format: date-time }
+
+    DashboardSpending:
+      type: object
+      required: [currency, today, month]
+      properties:
+        currency: { $ref: '#/components/schemas/Currency' }
+        today: { $ref: '#/components/schemas/Amount' }
+        month: { $ref: '#/components/schemas/Amount' }
+
+    Dashboard:
+      type: object
+      required: [date, tasks, habits, events, reminders, money, goals]
+      properties:
+        date:
+          type: string
+          description: >-
+            The UTC day this summarises. There is no per-user timezone in the
+            schema yet, so "today" is the UTC today; see DD-024 and DD-027.
+        tasks:
+          type: object
+          required: [overdue, dueToday, completedToday, items]
+          properties:
+            overdue:
+              type: integer
+              description: Open tasks that were due before today began.
+            dueToday: { type: integer }
+            completedToday: { type: integer }
+            items:
+              type: array
+              maxItems: 10
+              description: >-
+                Overdue and due-today tasks together, soonest first, capped at
+                ten. `overdue + dueToday` is the real total.
+              items: { $ref: '#/components/schemas/DashboardTask' }
+        habits:
+          type: object
+          required: [tracked, completed, items]
+          properties:
+            tracked:
+              type: integer
+              description: Habits not archived.
+            completed:
+              type: integer
+              description: >-
+                Satisfied for the period they are CURRENTLY in, which for a
+                weekly habit means anywhere this week — the same rule
+                `isCompletedForCurrentPeriod` uses on the habit itself.
+            items:
+              type: array
+              maxItems: 10
+              description: The ones still outstanding, oldest first, capped at ten.
+              items: { $ref: '#/components/schemas/DashboardHabit' }
+        events:
+          type: object
+          required: [today, items]
+          properties:
+            today:
+              type: integer
+              description: >-
+                Events OVERLAPPING today, so one that began yesterday and is
+                still running is included.
+            items:
+              type: array
+              maxItems: 10
+              items: { $ref: '#/components/schemas/DashboardEvent' }
+        reminders:
+          type: object
+          required: [due, items]
+          properties:
+            due:
+              type: integer
+              description: >-
+                Identical to the length of GET /reminders/due, orphan filter
+                included.
+            items:
+              type: array
+              maxItems: 5
+              items: { $ref: '#/components/schemas/DashboardReminder' }
+        money:
+          type: object
+          required: [spending, budgetsOverLimit]
+          properties:
+            spending:
+              type: array
+              description: >-
+                One row per currency spent in this month. Never summed across
+                currencies; see the Amount schema.
+              items: { $ref: '#/components/schemas/DashboardSpending' }
+            budgetsOverLimit:
+              type: integer
+              description: >-
+                Budgets for this month whose spending exceeds their limit, on the
+                same terms GET /budgets uses.
+        goals:
+          type: object
+          required: [active, dueSoon]
+          properties:
+            active: { type: integer }
+            dueSoon:
+              type: integer
+              description: Active goals with a target date within the next 30 days.
+
+    Pagination:
+      type: object
+      required: [nextCursor, hasMore]
+      properties:
+        nextCursor:
+          type: [string, 'null']
+          description: >-
+            Pass back as the cursor query parameter for the next page. Null on
+            the last page. Opaque: do not construct one by hand.
+        hasMore: { type: boolean }
+
+  responses:
+    ValidationError:
+      description: The request body failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: VALIDATION_ERROR
+              message: The request contains invalid data.
+              issues:
+                - field: body.password
+                  message: password must be at least 12 characters
+
+    Unauthorized:
+      description: Missing, invalid or expired credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: Authentication is required.
+
+    NotFound:
+      description: >-
+        The resource does not exist, or belongs to another user. These two cases
+        are deliberately indistinguishable so that identifiers cannot be
+        enumerated.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: NOT_FOUND
+              message: Task was not found.
+
+    RateLimited:
+      description: Too many requests. Check the Retry-After header.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: RATE_LIMITED
+              message: Too many requests. Please slow down.
+
+    ServiceUnavailable:
+      description: >-
+        A dependency this endpoint needs is unavailable. The request was valid
+        and may succeed later. Only note endpoints can return this, and only when
+        MongoDB is unreachable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: SERVICE_UNAVAILABLE
+              message: The service is temporarily unavailable.
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /projects:
+    get:
+      tags: [Projects]
+      summary: List your projects
+      description: >-
+        Newest first, cursor-paginated. Only your own projects are ever returned;
+        there is no parameter that widens this.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - name: cursor
+          in: query
+          schema: { type: string }
+          description: The nextCursor from a previous page.
+      responses:
+        '200':
+          description: A page of projects.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Project' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Projects]
+      summary: Create a project
+      description: >-
+        Names are unique per user, enforced by a database index rather than a
+        pre-check, so two simultaneous creates cannot both succeed. Two different
+        users may use the same name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: [string, 'null'], maxLength: 2000 }
+            example: { name: Graduation Project, description: Final year work }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: You already have a project with this name.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /projects/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Projects]
+      summary: Get one project
+      responses:
+        '200':
+          description: The project.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Projects]
+      summary: Update a project
+      description: >-
+        Send only the fields you are changing. At least one is required. Sending
+        description as null CLEARS it; omitting it leaves it unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Another project of yours already uses this name.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Projects]
+      summary: Delete a project
+      description: >-
+        Tasks in the project are NOT deleted. They become ungrouped, with
+        projectId set to null. Deleting a container should not destroy its
+        contents.
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: List your tasks
+      description: >-
+        Newest first, cursor-paginated, with optional filters. Filters narrow the
+        result; none of them can widen it beyond your own tasks.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [todo, in_progress, done] } }
+        - { name: priority, in: query, schema: { type: string, enum: [low, medium, high] } }
+        - { name: projectId, in: query, schema: { type: string, format: uuid } }
+        - name: dueBefore
+          in: query
+          schema: { type: string, format: date-time }
+          description: Only tasks due at or before this instant.
+        - name: overdue
+          in: query
+          schema: { type: string, enum: ['true', 'false'] }
+          description: Past their due date and not done. Powers the Home screen.
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 100 }
+          description: >-
+            Case-insensitive substring of the title. Wildcards are escaped, so a
+            search for "%" matches a literal percent sign.
+      responses:
+        '200':
+          description: A page of tasks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Task' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: >-
+            A bad filter, an unknown query parameter, a limit above 100, or a
+            malformed cursor.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      description: >-
+        Unknown properties are rejected. The server assigns ownership and derives
+        completedAt from status; neither can be supplied by a client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: [string, 'null'], maxLength: 5000 }
+                projectId:
+                  type: [string, 'null']
+                  format: uuid
+                  description: Must be one of your own projects.
+                dueDate: { type: [string, 'null'], format: date-time }
+                priority: { type: string, enum: [low, medium, high], default: medium }
+                status: { type: string, enum: [todo, in_progress, done], default: todo }
+                isRecurring: { type: boolean, default: false }
+                recurrenceRule:
+                  type: [string, 'null']
+                  maxLength: 200
+                  description: Required when isRecurring is true, forbidden otherwise.
+                hasTimer: { type: boolean, default: false }
+            example:
+              title: Finish Database Assignment
+              priority: high
+              dueDate: '2026-09-30T18:00:00Z'
+              hasTimer: true
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Task' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: >-
+            Validation failed. Also returned when projectId does not refer to one
+            of your projects; the message is identical whether that project
+            belongs to someone else or does not exist.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /tasks/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Tasks]
+      summary: Get one task
+      responses:
+        '200':
+          description: The task.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Task' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Tasks]
+      summary: Update a task
+      description: >-
+        Send only the fields you are changing. Setting status to done stamps
+        completedAt; moving away from done clears it. Setting isRecurring to
+        false also clears the recurrence rule.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: [string, 'null'], maxLength: 5000 }
+                projectId: { type: [string, 'null'], format: uuid }
+                dueDate: { type: [string, 'null'], format: date-time }
+                priority: { type: string, enum: [low, medium, high] }
+                status: { type: string, enum: [todo, in_progress, done] }
+                isRecurring: { type: boolean }
+                recurrenceRule: { type: [string, 'null'], maxLength: 200 }
+                hasTimer: { type: boolean }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Task' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      description: Its timer sessions are deleted with it; they have no meaning alone.
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /tasks/{id}/timer/start:
+    post:
+      tags: [Tasks]
+      summary: Start the timer
+      description: >-
+        Requires hasTimer to be true on the task. A partial unique index permits
+        only one running session per task, so a double tap returns 409 rather
+        than creating two overlapping sessions.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Started. Returns the task with isTimerRunning true.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Task' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A timer is already running, or the task has not enabled one.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /tasks/{id}/timer/stop:
+    post:
+      tags: [Tasks]
+      summary: Stop the timer
+      description: >-
+        Stopping when nothing is running is a 409, not a silent success, so a
+        client cannot mistake a no-op for a recorded session.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Stopped. Returns the task with updated tracked time.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Task' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: No timer is running for this task.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /tasks/{id}/timer/sessions:
+    get:
+      tags: [Tasks]
+      summary: Session history for a task
+      description: Most recent first, capped at 100 sessions.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The sessions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/TimerSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /habits:
+    get:
+      tags: [Habits]
+      summary: List your habits
+      description: >-
+        Newest first, cursor-paginated. Streaks for the whole page are computed
+        in one database statement, so page size does not multiply the cost.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - name: archived
+          in: query
+          schema: { type: string, enum: ['true', 'false'], default: 'false' }
+        - name: asOf
+          in: query
+          schema: { type: string, format: date }
+          description: >-
+            The date streaks are measured against. Defaults to the server's UTC
+            date. A client in another timezone passes its own local date so the
+            numbers agree with the calendar the user is looking at.
+      responses:
+        '200':
+          description: A page of habits.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Habit' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Habits]
+      summary: Create a habit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                frequency: { type: string, enum: [daily, weekly, custom] }
+            example: { title: Read for 20 minutes, frequency: daily }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Habit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /habits/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Habits]
+      summary: Get one habit
+      parameters:
+        - { name: asOf, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: The habit.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Habit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    patch:
+      tags: [Habits]
+      summary: Update a habit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                frequency: { type: string, enum: [daily, weekly, custom] }
+                isArchived: { type: boolean }
+            example: { isArchived: true }
+      responses:
+        '200':
+          description: The updated habit.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Habit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Habits]
+      summary: Delete a habit and its history
+      description: >-
+        Unlike a project's tasks, the log entries go too. A log has no meaning
+        without the habit it belongs to. Archive instead to keep the history.
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /habits/{id}/logs:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Habits]
+      summary: Read a habit's history
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Entries, newest first, at most 400.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/HabitLog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Habits]
+      summary: Mark a day
+      description: >-
+        Idempotent: a unique index on (habit, date) means two taps update one
+        entry rather than counting twice. The date may be at most one day ahead of
+        the server's UTC date, which covers every timezone and nothing further.
+
+        Returns the whole habit, because both streaks, the total and the
+        current-period flag all change as a result.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Defaults to today.
+                completed:
+                  type: boolean
+                  description: Defaults to true. False records an explicit miss.
+            example: { date: '2026-09-24', completed: true }
+      responses:
+        '200':
+          description: The habit, with its numbers recomputed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Habit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /habits/{id}/logs/{date}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: date, in: path, required: true, schema: { type: string, format: date } }
+
+    delete:
+      tags: [Habits]
+      summary: Remove a day's entry entirely
+      description: >-
+        Different from marking it not completed. "I did not do it" and "I never
+        said" are different states, and only the second should vanish.
+      responses:
+        '200':
+          description: The habit, with its numbers recomputed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Habit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /goals:
+    get:
+      tags: [Goals]
+      summary: List your goals
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [active, achieved, abandoned] } }
+      responses:
+        '200':
+          description: A page of goals.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Goal' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Goals]
+      summary: Create a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: [string, 'null'], maxLength: 2000 }
+                targetDate: { type: [string, 'null'], format: date }
+                status: { type: string, enum: [active, achieved, abandoned] }
+            example: { title: Graduate with honours, targetDate: '2027-06-30' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Goal' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /goals/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Goals]
+      summary: Get one goal with its checklist
+      responses:
+        '200':
+          description: The goal and its milestones, ordered by position.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/GoalDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    patch:
+      tags: [Goals]
+      summary: Update a goal
+      description: >-
+        Status is never changed automatically. Completing every milestone does not
+        mark a goal achieved; deciding a goal is finished is the user's call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: [string, 'null'], maxLength: 2000 }
+                targetDate: { type: [string, 'null'], format: date }
+                status: { type: string, enum: [active, achieved, abandoned] }
+            example: { status: achieved }
+      responses:
+        '200':
+          description: The updated goal.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Goal' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Goals]
+      summary: Delete a goal and its milestones
+      description: >-
+        Milestones go with it; a checklist item has no meaning without its goal.
+        Any task backing a milestone is left untouched.
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /goals/{id}/milestones:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    post:
+      tags: [Goals]
+      summary: Add a milestone
+      description: >-
+        A taskId must refer to one of your own tasks, and that task must not
+        already back another milestone.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                taskId: { type: [string, 'null'], format: uuid }
+                position: { type: integer, minimum: 0, maximum: 10000 }
+            example: { title: Submit dissertation draft, position: 10 }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Milestone' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: That task already backs another milestone.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /goals/{id}/milestones/{milestoneId}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: milestoneId, in: path, required: true, schema: { type: string, format: uuid } }
+
+    patch:
+      tags: [Goals]
+      summary: Update a milestone
+      description: >-
+        Setting isDone on a milestone backed by a task is refused with 409:
+        completion comes from the task, so the value would be ignored on every
+        later read. Sending taskId null unlinks the task and keeps the completion
+        state that was being displayed, so progress does not jump backwards.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                taskId: { type: [string, 'null'], format: uuid }
+                position: { type: integer, minimum: 0, maximum: 10000 }
+                isDone: { type: boolean }
+            example: { isDone: true }
+      responses:
+        '200':
+          description: The updated milestone.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Milestone' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            This milestone is completed by its task, or that task already backs
+            another milestone.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Goals]
+      summary: Remove a milestone
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /notes:
+    get:
+      tags: [Notes]
+      summary: List your notes
+      description: >-
+        Newest first, cursor-paginated. Archived and live notes are never mixed:
+        the archived parameter picks one set or the other. Only your own notes
+        are ever returned, and no filter widens that.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - name: cursor
+          in: query
+          schema: { type: string }
+          description: The nextCursor from a previous page.
+        - name: archived
+          in: query
+          schema: { type: string, enum: ['true', 'false'], default: 'false' }
+          description: Which set to list. Any other value is rejected.
+        - name: tag
+          in: query
+          schema: { type: string, maxLength: 40 }
+          description: Exact tag match, lowercased before comparison.
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+          description: >-
+            Case-insensitive substring of the title or the body. Treated as
+            literal text, so punctuation such as "c++" searches for itself.
+        - { name: projectId, in: query, schema: { type: string, format: uuid } }
+        - { name: taskId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: A page of notes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Note' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+    post:
+      tags: [Notes]
+      summary: Create a note
+      description: >-
+        projectId and taskId are validated against PostgreSQL before the note is
+        written. A reference to something that does not exist, or that belongs to
+        another user, is rejected as 422 with the same message in both cases, so
+        this cannot be used to discover which ids exist.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                content: { type: string, maxLength: 100000 }
+                tags:
+                  type: array
+                  items: { type: string, minLength: 1, maxLength: 40 }
+                projectId: { type: [string, 'null'], format: uuid }
+                taskId: { type: [string, 'null'], format: uuid }
+            example:
+              title: Reading list
+              content: Chapters 4 and 5 before Thursday.
+              tags: [study, term2]
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Note' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /notes/tags:
+    get:
+      tags: [Notes]
+      summary: List every tag you have used
+      description: Sorted alphabetically. Intended for a filter menu.
+      responses:
+        '200':
+          description: Your distinct tags.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /notes/reconcile:
+    post:
+      tags: [Notes]
+      summary: Clear links to deleted projects and tasks
+      description: >-
+        Reads already hide a link whose PostgreSQL row is gone; this removes the
+        stored id. Safe to call repeatedly: a second run reports zero. Scoped to
+        your own notes.
+      responses:
+        '200':
+          description: How many links were cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/ReconcileResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /notes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[0-9a-f]{24}$' }
+        description: An ObjectId. A UUID is rejected as 422, not 404.
+
+    get:
+      tags: [Notes]
+      summary: Get one note
+      responses:
+        '200':
+          description: The note.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Note' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+    patch:
+      tags: [Notes]
+      summary: Update a note
+      description: >-
+        Send only what changes. A field left out is untouched; null on a link
+        clears it. tags replaces the whole array.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                content: { type: string, maxLength: 100000 }
+                tags:
+                  type: array
+                  items: { type: string, minLength: 1, maxLength: 40 }
+                projectId: { type: [string, 'null'], format: uuid }
+                taskId: { type: [string, 'null'], format: uuid }
+                isArchived: { type: boolean }
+            example: { isArchived: true }
+      responses:
+        '200':
+          description: The updated note.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Note' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+    delete:
+      tags: [Notes]
+      summary: Delete a note
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /expenses:
+    get:
+      tags: [Expenses]
+      summary: List your expenses, newest spending first
+      description: >-
+        Ordered by spentOn, not by when the row was entered, so receipts typed in
+        later still read in date order. The cursor is built from that same key.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - name: category
+          in: query
+          description: Matched case-insensitively, the same way budgets match.
+          schema: { type: string, maxLength: 60 }
+        - { name: currency, in: query, schema: { $ref: '#/components/schemas/Currency' } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: A page of expenses.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Expense' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Expenses]
+      summary: Record an expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, category]
+              additionalProperties: false
+              properties:
+                amount: { $ref: '#/components/schemas/Amount' }
+                currency: { $ref: '#/components/schemas/Currency' }
+                category: { type: string, minLength: 1, maxLength: 60 }
+                spentOn:
+                  type: string
+                  format: date
+                  description: Defaults to today.
+                note: { type: [string, 'null'], maxLength: 1000 }
+            example: { amount: '249.99', category: groceries, spentOn: '2026-09-24' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Expense' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /expenses/summary:
+    get:
+      tags: [Expenses]
+      summary: Spending over a range, grouped by currency and by category
+      description: >-
+        Defaults to the current month. Giving only one end completes the other
+        from that end's own month, so the meaning of a one-sided range does not
+        depend on when it was asked. The range may not exceed 366 days.
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: The report. Empty arrays when there is nothing to report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/ExpenseSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: The range runs backwards, or is longer than 366 days.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /expenses/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Expenses]
+      summary: Get one expense
+      responses:
+        '200':
+          description: The expense.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Expense' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Expenses]
+      summary: Update an expense
+      description: >-
+        Moving an expense between categories, months or currencies changes which
+        budget counts it. Nothing needs to be invalidated: budget spending is
+        summed on read.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                amount: { $ref: '#/components/schemas/Amount' }
+                currency: { $ref: '#/components/schemas/Currency' }
+                category: { type: string, minLength: 1, maxLength: 60 }
+                spentOn: { type: string, format: date }
+                note: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Expense' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Expenses]
+      summary: Delete an expense
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /subscriptions:
+    get:
+      tags: [Subscriptions]
+      summary: List your subscriptions
+      description: >-
+        Paged by creation time rather than by the next renewal date, because the
+        derived date changes as the day changes and a cursor issued yesterday
+        could then skip or repeat a row. Use /subscriptions/upcoming for the
+        "what is due soon" question.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: active, in: query, schema: { type: string, enum: ['true', 'false'] } }
+      responses:
+        '200':
+          description: A page of subscriptions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Subscription' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Subscriptions]
+      summary: Add a subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, amount, renewalDate]
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                amount: { $ref: '#/components/schemas/Amount' }
+                currency: { $ref: '#/components/schemas/Currency' }
+                renewalDate:
+                  type: string
+                  format: date
+                  description: >-
+                    The anchor. Any past date works: the next billing date is
+                    derived from it, so you need not keep it current.
+                billingCycle: { type: string, enum: [monthly, yearly], default: monthly }
+                isActive: { type: boolean, default: true }
+            example: { name: Music, amount: '119.00', renewalDate: '2024-03-15' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /subscriptions/upcoming:
+    get:
+      tags: [Subscriptions]
+      summary: Subscriptions billing within a window, soonest first
+      description: >-
+        Active subscriptions only, ordered by the derived next renewal date. Not
+        paginated: at most 100 are returned, which is far more than anyone has.
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 365, default: 30 }
+      responses:
+        '200':
+          description: What renews in the window.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /subscriptions/summary:
+    get:
+      tags: [Subscriptions]
+      summary: What your active subscriptions cost per month
+      responses:
+        '200':
+          description: One row per currency. Empty when nothing is active.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/SubscriptionSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /subscriptions/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Subscriptions]
+      summary: Get one subscription
+      responses:
+        '200':
+          description: The subscription.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Subscriptions]
+      summary: Update a subscription
+      description: >-
+        Setting isActive to false clears nextRenewalDate and daysUntilRenewal;
+        setting it back to true restores them, computed from the anchor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                amount: { $ref: '#/components/schemas/Amount' }
+                currency: { $ref: '#/components/schemas/Currency' }
+                renewalDate: { type: string, format: date }
+                billingCycle: { type: string, enum: [monthly, yearly] }
+                isActive: { type: boolean }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Subscriptions]
+      summary: Delete a subscription
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /budgets:
+    get:
+      tags: [Budgets]
+      summary: List your budgets with what has been spent against them
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - name: month
+          in: query
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+      responses:
+        '200':
+          description: A page of budgets.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Budget' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Budgets]
+      summary: Set a monthly limit for a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, monthlyLimit, month]
+              additionalProperties: false
+              properties:
+                category: { type: string, minLength: 1, maxLength: 60 }
+                monthlyLimit: { $ref: '#/components/schemas/Amount' }
+                currency: { $ref: '#/components/schemas/Currency' }
+                month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+            example: { category: groceries, monthlyLimit: '4000.00', month: '2026-09' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Budget' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: >-
+            A budget for that category already exists in that month. Categories
+            are compared case-insensitively, so "Food" collides with "food".
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /budgets/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Budgets]
+      summary: Get one budget
+      responses:
+        '200':
+          description: The budget, with spending recomputed as of now.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Budget' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Budgets]
+      summary: Update a budget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                category: { type: string, minLength: 1, maxLength: 60 }
+                monthlyLimit: { $ref: '#/components/schemas/Amount' }
+                currency: { $ref: '#/components/schemas/Currency' }
+                month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+      responses:
+        '200':
+          description: Updated, with spending recomputed for the new scope.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Budget' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The new category and month collide with another budget.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Budgets]
+      summary: Delete a budget
+      description: The expenses it was measuring are untouched.
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /events:
+    get:
+      tags: [Events]
+      summary: List your events, earliest first
+      description: >-
+        Ordered by start time ascending, unlike every other list in this API,
+        because a calendar is read forwards.
+
+        `from` and `to` select an OVERLAP, not a containment: an event that was
+        already running when the window opened is returned. A conference running
+        Monday to Friday appears in a query for Wednesday. Either end may be
+        given alone.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - name: from
+          in: query
+          description: Include events that have not finished before this instant.
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          description: Include events that have not started after this instant.
+          schema: { type: string, format: date-time }
+        - name: linkedType
+          in: query
+          description: Only events attached to this kind of item.
+          schema: { type: string, enum: [task, habit] }
+      responses:
+        '200':
+          description: A page of events.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Event' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Events]
+      summary: Create an event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, startTime, endTime]
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: [string, 'null'], maxLength: 2000 }
+                startTime: { type: string, format: date-time }
+                endTime: { type: string, format: date-time }
+                allDay:
+                  type: boolean
+                  default: false
+                  description: >-
+                    When true the times you send are snapped to the whole UTC day
+                    they fall in. Send them anyway; the day is taken from them.
+                linkedType: { type: [string, 'null'], enum: [task, habit, null] }
+                linkedId: { type: [string, 'null'], format: uuid }
+            example:
+              title: Report review
+              startTime: '2026-09-24T09:00:00Z'
+              endTime: '2026-09-24T10:00:00Z'
+              linkedType: task
+              linkedId: 6f1c9b2e-1f4a-4a7f-9a3e-2b8d5f0c7a11
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: >-
+            Invalid, including: endTime before startTime; linkedType without
+            linkedId or the reverse; or a linkedId that is not one of YOUR tasks
+            or habits. The last case reports the same message whether the item is
+            missing or belongs to someone else.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /events/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Events]
+      summary: Get one event
+      responses:
+        '200':
+          description: The event, with its link resolved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Events]
+      summary: Update an event
+      description: >-
+        Setting `allDay` to true snaps the STORED times to their whole UTC day,
+        even when the request carries no times. Sending `linkedType` and
+        `linkedId` as null together clears the link.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: [string, 'null'], maxLength: 2000 }
+                startTime: { type: string, format: date-time }
+                endTime: { type: string, format: date-time }
+                allDay: { type: boolean }
+                linkedType: { type: [string, 'null'], enum: [task, habit, null] }
+                linkedId: { type: [string, 'null'], format: uuid }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: >-
+            Invalid, including moving one end of the event past the stored other
+            end. That case is reported against `endTime`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+    delete:
+      tags: [Events]
+      summary: Delete an event
+      description: >-
+        Reminders pointing at this event are deleted with it, in the same
+        transaction. Nothing else is touched: a linked task or habit is left
+        alone.
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /reminders:
+    get:
+      tags: [Reminders]
+      summary: List your reminders, most recently scheduled first
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, sent, dismissed, failed] }
+        - name: entityType
+          in: query
+          schema: { type: string, enum: [task, habit, subscription, event] }
+        - name: entityId
+          in: query
+          description: Every reminder for one item.
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: A page of reminders.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Reminder' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    post:
+      tags: [Reminders]
+      summary: Schedule a reminder for a task, habit, subscription or event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entityType, entityId, remindAt]
+              additionalProperties: false
+              properties:
+                entityType: { type: string, enum: [task, habit, subscription, event] }
+                entityId: { type: string, format: uuid }
+                remindAt: { type: string, format: date-time }
+                offsetDescription: { type: [string, 'null'], maxLength: 100 }
+            example:
+              entityType: event
+              entityId: 6f1c9b2e-1f4a-4a7f-9a3e-2b8d5f0c7a11
+              remindAt: '2026-09-24T08:45:00Z'
+              offsetDescription: 15 minutes before
+      responses:
+        '201':
+          description: Created, pending.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Reminder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: >-
+            A pending reminder for that item at that exact instant already
+            exists. Two identical notifications is the thing being prevented.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: >-
+            Invalid, including an entityId that is not one of YOUR items of that
+            type. The type and the id are checked together, so your own task's id
+            presented as a habit is rejected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /reminders/due:
+    get:
+      tags: [Reminders]
+      summary: What has come due
+      description: |
+        The delivery queue. Pending reminders whose time has passed, OLDEST
+        FIRST, so a device that was off for a day shows what it missed in the
+        order it was missed.
+
+        Reminders whose item has been deleted are excluded: firing one would open
+        a notification onto something that no longer exists.
+
+        Not paginated. The set changes as you acknowledge what you were given, so
+        a cursor into it would describe a queue that no longer exists — take what
+        is due, deal with it, ask again.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: Reminders ready to show, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Reminder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /reminders/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+
+    get:
+      tags: [Reminders]
+      summary: Get one reminder
+      responses:
+        '200':
+          description: The reminder, with its item's title resolved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Reminder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Reminders]
+      summary: Reschedule a reminder or change its note
+      description: >-
+        Content only. Status is moved by the three action endpoints below, which
+        keep it consistent with `sentAt`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                remindAt: { type: string, format: date-time }
+                offsetDescription: { type: [string, 'null'], maxLength: 100 }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Reminder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Another pending reminder for that item already has that instant.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+    delete:
+      tags: [Reminders]
+      summary: Delete a reminder
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /reminders/{id}/acknowledge:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reminders]
+      summary: Mark a reminder as shown
+      description: >-
+        Sets the status to `sent` and records `sentAt`. Idempotent: calling it
+        again on an already-sent reminder returns the same row with the same
+        timestamp, so retrying on a flaky connection is safe.
+      responses:
+        '200':
+          description: Acknowledged.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Reminder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            The reminder was dismissed. Acknowledging something already thrown
+            away is a contradiction, not a retry; snooze it instead.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /reminders/{id}/dismiss:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reminders]
+      summary: Dismiss a reminder
+      description: >-
+        Allowed from any state and idempotent, so a second tap — or the same tap
+        from another device — is not an error.
+      responses:
+        '200':
+          description: Dismissed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Reminder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /reminders/{id}/snooze:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reminders]
+      summary: Push a reminder back into the queue
+      description: >-
+        Measured from NOW, not from the original time, so "in ten minutes" means
+        ten minutes from the tap. Returns the reminder to `pending` and clears
+        `sentAt`. Allowed from any state, including dismissed, so a mis-tap can
+        be undone.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                minutes:
+                  type: integer
+                  minimum: 1
+                  maximum: 10080
+                  default: 10
+      responses:
+        '200':
+          description: Rescheduled and pending.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Reminder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The new instant collides with another pending reminder for that item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Everything that is on you today
+      description: |
+        One request instead of six. Computed fresh every time rather than cached:
+        a summary that lags a write shows a home screen contradicting the screen
+        the user just came from, which is worse than a slightly slower response
+        (DD-027).
+
+        Every number is a full count and every list is capped, so the counts are
+        what you act on and the lists are a preview.
+
+        The day is the UTC day.
+      responses:
+        '200':
+          description: The summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/Dashboard' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Create an account
+      security: []
+      description: |
+        Creates an account and returns a signed-in session.
+
+        Unknown properties are REJECTED rather than ignored, so sending
+        `{"role": "admin"}` returns 422. Role is assigned by the server and can
+        never be set by a client.
+
+        Rate limited to 10 attempts per 15 minutes per IP and email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                password:
+                  type: string
+                  minLength: 12
+                  description: |
+                    At least 12 characters, at most 72 bytes, and must contain a
+                    lowercase letter, an uppercase letter and a digit.
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+            example:
+              email: someone@example.com
+              password: CorrectHorse9Battery
+              displayName: Sam
+      responses:
+        '201':
+          description: Account created and signed in.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/AuthResult'
+        '409':
+          description: An account with this email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Sign in
+      security: []
+      description: |
+        Returns a token pair on success.
+
+        Every failure returns the same `INVALID_CREDENTIALS` response whether the
+        email is unknown, the password is wrong, or the account is disabled. This
+        is deliberate: distinguishing them would let an attacker enumerate
+        accounts. Timing is equalized for the same reason.
+
+        After 5 consecutive failures the account locks for 15 minutes and returns
+        `ACCOUNT_LOCKED` with a Retry-After header.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+            example:
+              email: someone@example.com
+              password: CorrectHorse9Battery
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/AuthResult'
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Invalid credentials.
+        '423':
+          description: Account temporarily locked after repeated failures.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Exchange a refresh token for a new pair
+      security: []
+      description: |
+        Rotates the refresh token. The token supplied is invalidated and a new
+        one returned, so each refresh token is usable exactly once.
+
+        Accepts the token in the body or in the HttpOnly cookie, body first.
+
+        Presenting an already-rotated token returns `TOKEN_REUSE_DETECTED` and
+        revokes every token in the session, forcing a fresh sign-in.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New token pair issued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/AuthResult'
+        '401':
+          description: |
+            The token is invalid, expired, revoked, or was reused. Check `code`
+            to tell them apart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: End the current session
+      description: |
+        Revokes the refresh token for this session and clears the cookie.
+
+        The access token already issued stays cryptographically valid until it
+        expires, at most 15 minutes. When Redis is configured the session is also
+        added to a denylist, which closes that window immediately.
+      responses:
+        '204':
+          description: Signed out.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/change-password:
+    post:
+      tags: [Authentication]
+      summary: Change the password
+      description: |
+        Requires the current password. On success EVERY session for this user is
+        revoked, including this one, so the client must sign in again. That is
+        intentional: a password change usually follows a suspected compromise.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              additionalProperties: false
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 12
+      responses:
+        '204':
+          description: Password changed and all sessions revoked.
+        '401':
+          description: The current password is incorrect.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get the signed-in user
+      responses:
+        '200':
+          description: The authenticated user's profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Process health
+      security: []
+      description: Cheap check that the process is up. Touches no dependencies.
+      responses:
+        '200':
+          description: The process is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+
+  /readiness:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      security: []
+      description: |
+        Reports whether this instance should receive traffic.
+
+        `ready` means everything configured is reachable. `degraded` still
+        returns 200: MongoDB or Redis is down, so notes, the audit log or shared
+        rate limiting are affected, but the instance can serve requests.
+        `unavailable` returns 503 and means PostgreSQL is unreachable.
+      responses:
+        '200':
+          description: Ready or degraded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ready, degraded]
+                  dependencies:
+                    type: object
+                    properties:
+                      postgres:
+                        type: string
+                        enum: [up, down, not_configured]
+                      mongodb:
+                        type: string
+                        enum: [up, down, not_configured]
+                      redis:
+                        type: string
+                        enum: [up, down, not_configured]
+        '503':
+          description: PostgreSQL is unreachable; do not route traffic here.

@@ -1,0 +1,15 @@
+# Everything the image does not need. Keeping this tight matters for more than
+# size: node_modules built on a developer's machine can contain binaries for the
+# wrong libc, and .env must never reach an image that might be pushed anywhere.
+.env
+.env.*
+!.env.example
+node_modules
+dist
+coverage
+test
+*.log
+.git
+.github
+.vscode
+.idea

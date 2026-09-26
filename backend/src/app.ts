@@ -6,19 +6,22 @@
  * Request ID -> Security Headers -> Body Limit -> Content-Type -> Health / API Routes -> Error Handler.
  */
 
-import express, { type Express } from 'express';
+import express, { type Express, Router } from 'express';
 import { getEnv } from './config/env.js';
 import { requestIdMiddleware } from './core/middleware/request-id.js';
 import { helmetSecurityMiddleware, enforceJsonContentType } from './core/middleware/security.js';
 import { globalErrorHandler } from './core/middleware/error-handler.js';
+import { createRateLimitMiddleware } from './core/middleware/rate-limiter.js';
 import { AppError } from './core/errors/app-error.js';
 import { healthRouter } from './features/health/health.routes.js';
+import { createAuthRouter } from './features/auth/auth.routes.js';
+import { createUsersRouter } from './features/users/users.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
   const env = getEnv();
   // Ensure container is initialized
-  buildContainer(containerOverrides);
+  const container = buildContainer(containerOverrides);
 
   const app: Express = express();
 
@@ -49,12 +52,46 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     });
   });
 
-  // 7. Catch-all 404 handler for unknown routes
+  // 7. API v1 Routers
+  const v1Router = Router();
+
+  // Global unauthenticated IP rate limit per Section 8.3: 120 req / 60 s
+  const globalIpLimiter = createRateLimitMiddleware({
+    limiter: container.rateLimiter,
+    limit: 120,
+    windowSeconds: 60,
+    keyGenerator: (req) => `global:ip:${req.ip || 'unknown'}`
+  });
+  v1Router.use(globalIpLimiter);
+
+  // Mount Auth routes
+  v1Router.use(
+    '/auth',
+    createAuthRouter({
+      controller: container.authController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Users routes
+  v1Router.use(
+    '/users',
+    createUsersRouter({
+      controller: container.usersController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  app.use('/api/v1', v1Router);
+
+  // 8. Catch-all 404 handler for unknown routes
   app.use((_req, _res, next) => {
     next(AppError.notFound('Endpoint not found'));
   });
 
-  // 8. Centralized global error handler (Section 15.3)
+  // 9. Centralized global error handler (Section 15.3)
   app.use(globalErrorHandler);
 
   return app;

@@ -78,6 +78,12 @@ import type { HabitsRepository } from './features/habits/habits.repository.js';
 import { HabitsService } from './features/habits/habits.service.js';
 import { HabitsController } from './features/habits/habits.controller.js';
 
+// Calendar Module
+import { PgCalendarRepository } from './features/calendar/calendar.repository.pg.js';
+import type { CalendarRepository } from './features/calendar/calendar.repository.js';
+import { CalendarService } from './features/calendar/calendar.service.js';
+import { CalendarController } from './features/calendar/calendar.controller.js';
+
 export interface AppContainer {
   clock: Clock;
   idGenerator: IdGenerator;
@@ -114,6 +120,9 @@ export interface AppContainer {
   habitsRepository: HabitsRepository;
   habitsService: HabitsService;
   habitsController: HabitsController;
+  calendarRepository: CalendarRepository;
+  calendarService: CalendarService;
+  calendarController: CalendarController;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -193,6 +202,12 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const habitsService = overrides?.habitsService ?? new HabitsService(habitsRepository, db, clock);
   const habitsController = overrides?.habitsController ?? new HabitsController(habitsService);
 
+  // Phase P6 Calendar Feature
+  const calendarRepository = overrides?.calendarRepository ?? new PgCalendarRepository(db);
+  const calendarService = overrides?.calendarService ?? new CalendarService(calendarRepository);
+  const calendarController =
+    overrides?.calendarController ?? new CalendarController(calendarService);
+
   const container: AppContainer = {
     clock,
     idGenerator,
@@ -228,7 +243,10 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     timerSessionsController,
     habitsRepository,
     habitsService,
-    habitsController
+    habitsController,
+    calendarRepository,
+    calendarService,
+    calendarController
   };
 
   if (!overrides) {

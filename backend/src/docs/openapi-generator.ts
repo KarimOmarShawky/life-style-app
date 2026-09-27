@@ -1223,6 +1223,323 @@ paths:
         '404':
           description: Check-in or habit not found
 
+  # Phase P6: Calendar & Events Endpoints
+  /events:
+    get:
+      summary: List Calendar Events
+      security:
+        - BearerAuth: []
+      description: Returns calendar events matching optional date range filters, ordered chronologically by startAt.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: includeDeleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+                required:
+                  - events
+    post:
+      summary: Create Calendar Event
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event:
+                    $ref: '#/components/schemas/Event'
+                required:
+                  - event
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /events/conflicts:
+    get:
+      summary: Check Event Conflicts
+      security:
+        - BearerAuth: []
+      description: Identifies overlapping calendar events for a proposed time interval.
+      parameters:
+        - name: startAt
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: endAt
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: excludeEventId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Conflict check results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /events/agenda:
+    get:
+      summary: Daily Agenda View
+      security:
+        - BearerAuth: []
+      description: Returns all calendar events occurring on a specific date in the user timezone.
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Calendar date (YYYY-MM-DD) in user timezone. Defaults to today.
+      responses:
+        '200':
+          description: Daily agenda summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaResponse'
+
+  /events/{id}:
+    get:
+      summary: Get Calendar Event
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event:
+                    $ref: '#/components/schemas/Event'
+                required:
+                  - event
+        '404':
+          description: Event not found
+    patch:
+      summary: Update Calendar Event
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event:
+                    $ref: '#/components/schemas/Event'
+                required:
+                  - event
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Event not found
+        '409':
+          description: Version conflict (optimistic lock mismatch)
+    delete:
+      summary: Delete Calendar Event (Soft-Delete)
+      security:
+        - BearerAuth: []
+      description: Soft-deletes event and cancels any associated pending reminders.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event soft-deleted
+        '404':
+          description: Event not found
+
+  /events/{id}/restore:
+    post:
+      summary: Restore Calendar Event
+      security:
+        - BearerAuth: []
+      description: Restores a soft-deleted event if within the 30-day restore window.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event:
+                    $ref: '#/components/schemas/Event'
+                required:
+                  - event
+        '404':
+          description: Event not found
+        '410':
+          description: Event soft-delete restore window has expired
+
+  /events/{id}/reminders:
+    get:
+      summary: List Event Reminders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reminders for event
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reminder'
+                required:
+                  - reminders
+        '404':
+          description: Event not found
+    post:
+      summary: Add Reminder to Event
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReminderRequest'
+      responses:
+        '201':
+          description: Reminder created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder:
+                    $ref: '#/components/schemas/Reminder'
+                required:
+                  - reminder
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Event not found
+
+  /events/{id}/reminders/{reminderId}:
+    delete:
+      summary: Delete Event Reminder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: reminderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Reminder deleted
+        '404':
+          description: Reminder or event not found
+
 components:
   securitySchemes:
     BearerAuth:
@@ -2370,6 +2687,273 @@ components:
         - totalFailed
         - completionRate
         - habits
+
+    # Phase P6 Domain Schemas
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Product Architecture Review
+        description:
+          type: string
+          nullable: true
+          example: Review LifeStyle App architecture
+        location:
+          type: string
+          nullable: true
+          example: Meeting Room A
+        startAt:
+          type: string
+          format: date-time
+          example: '2026-10-01T10:00:00.000Z'
+        endAt:
+          type: string
+          format: date-time
+          example: '2026-10-01T11:00:00.000Z'
+        allDay:
+          type: boolean
+          example: false
+        timezone:
+          type: string
+          example: UTC
+        version:
+          type: integer
+          example: 1
+        reminders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reminder'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - userId
+        - title
+        - startAt
+        - endAt
+        - allDay
+        - timezone
+        - version
+        - createdAt
+        - updatedAt
+
+    CreateReminderRequest:
+      type: object
+      properties:
+        channel:
+          type: string
+          enum: [push, in_app, email]
+          default: push
+        offsetMinutes:
+          type: integer
+          minimum: 0
+          maximum: 43200
+          nullable: true
+          example: 15
+        remindAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - channel
+
+    CreateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Team Sync
+        description:
+          type: string
+          maxLength: 5000
+          nullable: true
+        location:
+          type: string
+          maxLength: 300
+          nullable: true
+        startAt:
+          type: string
+          format: date-time
+          example: '2026-10-01T14:00:00.000Z'
+        endAt:
+          type: string
+          format: date-time
+          example: '2026-10-01T15:00:00.000Z'
+        allDay:
+          type: boolean
+          default: false
+        timezone:
+          type: string
+          maxLength: 64
+          example: UTC
+        reminders:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateReminderRequest'
+      required:
+        - title
+        - startAt
+        - endAt
+        - timezone
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+          nullable: true
+        location:
+          type: string
+          maxLength: 300
+          nullable: true
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        allDay:
+          type: boolean
+        timezone:
+          type: string
+          maxLength: 64
+        version:
+          type: integer
+
+    Reminder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+          nullable: true
+        taskId:
+          type: string
+          format: uuid
+          nullable: true
+        habitId:
+          type: string
+          format: uuid
+          nullable: true
+        subscriptionId:
+          type: string
+          format: uuid
+          nullable: true
+        entityType:
+          type: string
+          example: event
+        entityId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          example: user
+        remindAt:
+          type: string
+          format: date-time
+        offsetMinutes:
+          type: integer
+          nullable: true
+        channel:
+          type: string
+          enum: [push, in_app, email]
+        status:
+          type: string
+          enum: [pending, processing, sent, failed, cancelled]
+        nextAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        attemptCount:
+          type: integer
+        lastErrorCode:
+          type: string
+          nullable: true
+        lastErrorMessage:
+          type: string
+          nullable: true
+        dedupeKey:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - entityType
+        - entityId
+        - source
+        - remindAt
+        - channel
+        - status
+        - attemptCount
+        - createdAt
+        - updatedAt
+
+    ConflictResponse:
+      type: object
+      properties:
+        hasConflict:
+          type: boolean
+          example: true
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+      required:
+        - hasConflict
+        - conflicts
+
+    AgendaResponse:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2026-10-01'
+        totalEvents:
+          type: integer
+          example: 3
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+      required:
+        - date
+        - totalEvents
+        - events
 
     PageMeta:
       type: object

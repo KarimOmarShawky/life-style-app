@@ -23,6 +23,7 @@ import { createTimerSessionsRouter } from './features/timer-sessions/timer-sessi
 import { createHabitsRouter } from './features/habits/habits.routes.js';
 import { createCalendarRouter } from './features/calendar/calendar.routes.js';
 import { createGoalsRouter } from './features/goals/goals.routes.js';
+import { createNotesRouter } from './features/notes/notes.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
@@ -156,6 +157,16 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/goals',
     createGoalsRouter({
       controller: container.goalsController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Notes routes
+  v1Router.use(
+    '/notes',
+    createNotesRouter({
+      controller: container.notesController,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

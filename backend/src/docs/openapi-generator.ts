@@ -1875,6 +1875,326 @@ paths:
         '404':
           description: Milestone or goal not found
 
+  # Phase P8: Notes & Linking Endpoints
+  /notes:
+    get:
+      summary: List Notes
+      security:
+        - BearerAuth: []
+      description: Returns user notes ordered by isPinned DESC, updatedAt DESC. Omits body and includes 200-char excerpt. Supports tag, isPinned, entity-link filters, and full-text search via q.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: isPinned
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: taskId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: goalId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: habitId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NoteListItem'
+                required:
+                  - notes
+    post:
+      summary: Create Note
+      security:
+        - BearerAuth: []
+      description: Creates a new note with optional title, body, tags (<=20), and links. At least title or body must be present.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteRequest'
+      responses:
+        '201':
+          description: Note created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note:
+                    $ref: '#/components/schemas/Note'
+                required:
+                  - note
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Quota exceeded
+
+  /notes/tags:
+    get:
+      summary: List Note Tags
+      security:
+        - BearerAuth: []
+      description: Returns aggregated tag counts for active notes owned by the caller.
+      responses:
+        '200':
+          description: List of tags with counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TagCount'
+                required:
+                  - tags
+
+  /notes/{id}:
+    get:
+      summary: Get Note
+      security:
+        - BearerAuth: []
+      description: Returns note details, including full body and polymorphic entity links.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Note details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note:
+                    $ref: '#/components/schemas/Note'
+                required:
+                  - note
+        '404':
+          description: Note not found
+    patch:
+      summary: Update Note
+      security:
+        - BearerAuth: []
+      description: Updates note title, body, tags, isPinned, or links. Supports optimistic locking via version.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoteRequest'
+      responses:
+        '200':
+          description: Note updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note:
+                    $ref: '#/components/schemas/Note'
+                required:
+                  - note
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Note not found
+        '409':
+          description: Version conflict
+    delete:
+      summary: Delete Note
+      security:
+        - BearerAuth: []
+      description: Soft-deletes a note. Retains links for 30-day restoration window.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Note soft-deleted
+        '404':
+          description: Note not found
+
+  /notes/{id}/restore:
+    post:
+      summary: Restore Note
+      security:
+        - BearerAuth: []
+      description: Restores a soft-deleted note if within the 30-day window.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Note restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note:
+                    $ref: '#/components/schemas/Note'
+                required:
+                  - note
+        '404':
+          description: Note not found
+        '409':
+          description: Note is not deleted
+        '410':
+          description: Note soft-delete restore window has expired
+
+  /notes/{id}/links:
+    get:
+      summary: List Note Links
+      security:
+        - BearerAuth: []
+      description: Lists all polymorphic entity links for the specified note.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of note links
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NoteLink'
+                required:
+                  - links
+        '404':
+          description: Note not found
+    post:
+      summary: Add Note Link
+      security:
+        - BearerAuth: []
+      description: Links note to an owned task, project, goal, habit, or event.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteLinkRequest'
+      responses:
+        '201':
+          description: Note link created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  link:
+                    $ref: '#/components/schemas/NoteLink'
+                required:
+                  - link
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Note or target entity not found
+        '409':
+          description: Entity already linked to this note
+
+  /notes/{id}/links/{linkId}:
+    delete:
+      summary: Delete Note Link
+      security:
+        - BearerAuth: []
+      description: Removes a polymorphic link from a note.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: linkId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Note link deleted
+        '404':
+          description: Note or link not found
+
 components:
   securitySchemes:
     BearerAuth:
@@ -3544,6 +3864,250 @@ components:
           type: integer
         version:
           type: integer
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+          example: Meeting Notes
+        body:
+          type: string
+          example: Project roadmap discussion.
+        excerpt:
+          type: string
+          example: Project roadmap discussion.
+        tags:
+          type: array
+          items:
+            type: string
+          example: ['work', 'roadmap']
+        isPinned:
+          type: boolean
+          example: false
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/NoteLink'
+        version:
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - userId
+        - title
+        - body
+        - excerpt
+        - tags
+        - isPinned
+        - version
+        - createdAt
+        - updatedAt
+        - deletedAt
+
+    NoteListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+          example: Meeting Notes
+        excerpt:
+          type: string
+          example: Project roadmap discussion.
+        tags:
+          type: array
+          items:
+            type: string
+          example: ['work', 'roadmap']
+        isPinned:
+          type: boolean
+          example: false
+        version:
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - userId
+        - title
+        - excerpt
+        - tags
+        - isPinned
+        - version
+        - createdAt
+        - updatedAt
+        - deletedAt
+
+    NoteLink:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        noteId:
+          type: string
+          format: uuid
+        entityType:
+          type: string
+          enum: [task, project, goal, habit, event]
+        entityId:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+          nullable: true
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+        goalId:
+          type: string
+          format: uuid
+          nullable: true
+        habitId:
+          type: string
+          format: uuid
+          nullable: true
+        eventId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - noteId
+        - entityType
+        - entityId
+        - taskId
+        - projectId
+        - goalId
+        - habitId
+        - eventId
+        - createdAt
+
+    CreateNoteLinkRequest:
+      type: object
+      properties:
+        entityType:
+          type: string
+          enum: [task, project, goal, habit, event]
+        entityId:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        goalId:
+          type: string
+          format: uuid
+        habitId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+
+    CreateNoteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          nullable: true
+        body:
+          type: string
+          maxLength: 100000
+          default: ''
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 40
+          maxItems: 20
+        isPinned:
+          type: boolean
+          default: false
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateNoteLinkRequest'
+
+    UpdateNoteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          nullable: true
+        body:
+          type: string
+          maxLength: 100000
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 40
+          maxItems: 20
+        isPinned:
+          type: boolean
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateNoteLinkRequest'
+        version:
+          type: integer
+
+    TagCount:
+      type: object
+      properties:
+        tag:
+          type: string
+          example: work
+        count:
+          type: integer
+          example: 5
+      required:
+        - tag
+        - count
 
     PageMeta:
       type: object

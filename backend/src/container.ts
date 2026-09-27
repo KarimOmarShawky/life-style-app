@@ -90,6 +90,12 @@ import type { GoalsRepository } from './features/goals/goals.repository.js';
 import { GoalsService } from './features/goals/goals.service.js';
 import { GoalsController } from './features/goals/goals.controller.js';
 
+// Notes Module
+import { PgNotesRepository } from './features/notes/notes.repository.pg.js';
+import type { NotesRepository } from './features/notes/notes.repository.js';
+import { NotesService } from './features/notes/notes.service.js';
+import { NotesController } from './features/notes/notes.controller.js';
+
 export interface AppContainer {
   clock: Clock;
   idGenerator: IdGenerator;
@@ -132,6 +138,9 @@ export interface AppContainer {
   goalsRepository: GoalsRepository;
   goalsService: GoalsService;
   goalsController: GoalsController;
+  notesRepository: NotesRepository;
+  notesService: NotesService;
+  notesController: NotesController;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -222,6 +231,11 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const goalsService = overrides?.goalsService ?? new GoalsService(goalsRepository);
   const goalsController = overrides?.goalsController ?? new GoalsController(goalsService);
 
+  // Phase P8 Notes Feature
+  const notesRepository = overrides?.notesRepository ?? new PgNotesRepository(db);
+  const notesService = overrides?.notesService ?? new NotesService(notesRepository);
+  const notesController = overrides?.notesController ?? new NotesController(notesService);
+
   const container: AppContainer = {
     clock,
     idGenerator,
@@ -263,7 +277,10 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     calendarController,
     goalsRepository,
     goalsService,
-    goalsController
+    goalsController,
+    notesRepository,
+    notesService,
+    notesController
   };
 
   if (!overrides) {

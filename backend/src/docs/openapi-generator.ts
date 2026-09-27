@@ -1540,6 +1540,341 @@ paths:
         '404':
           description: Reminder or event not found
 
+  # Phase P7: Goals & Milestones Endpoints
+  /goals:
+    get:
+      summary: List Goals
+      security:
+        - BearerAuth: []
+      description: Returns user goals with optional status, progressType, and soft-delete filters.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/GoalStatus'
+        - name: progressType
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/GoalProgressType'
+        - name: includeDeleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goals:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Goal'
+                required:
+                  - goals
+    post:
+      summary: Create Goal
+      security:
+        - BearerAuth: []
+      description: Creates a new numeric or milestones goal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalRequest'
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goal:
+                    $ref: '#/components/schemas/Goal'
+                required:
+                  - goal
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /goals/{id}:
+    get:
+      summary: Get Goal
+      security:
+        - BearerAuth: []
+      description: Returns goal details, including progress percentage and milestones if applicable.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Goal details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goal:
+                    $ref: '#/components/schemas/Goal'
+                required:
+                  - goal
+        '404':
+          description: Goal not found
+    patch:
+      summary: Update Goal
+      security:
+        - BearerAuth: []
+      description: Updates goal properties, progress values, or lifecycle status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalRequest'
+      responses:
+        '200':
+          description: Goal updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goal:
+                    $ref: '#/components/schemas/Goal'
+                required:
+                  - goal
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Goal not found
+        '409':
+          description: Version conflict
+    delete:
+      summary: Delete Goal (Soft-Delete)
+      security:
+        - BearerAuth: []
+      description: Soft-deletes a goal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Goal soft-deleted
+        '404':
+          description: Goal not found
+
+  /goals/{id}/restore:
+    post:
+      summary: Restore Goal
+      security:
+        - BearerAuth: []
+      description: Restores a soft-deleted goal if within 30-day restore window.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Goal restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goal:
+                    $ref: '#/components/schemas/Goal'
+                required:
+                  - goal
+        '404':
+          description: Goal not found
+        '410':
+          description: Goal soft-delete restore window has expired
+
+  /goals/{id}/milestones:
+    get:
+      summary: List Milestones
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Milestones list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  milestones:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Milestone'
+                required:
+                  - milestones
+        '404':
+          description: Goal not found
+    post:
+      summary: Create Milestone
+      security:
+        - BearerAuth: []
+      description: Adds a milestone to a milestone-type goal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMilestoneRequest'
+      responses:
+        '201':
+          description: Milestone created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  milestone:
+                    $ref: '#/components/schemas/Milestone'
+                required:
+                  - milestone
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Goal not found
+
+  /goals/{id}/milestones/{milestoneId}:
+    get:
+      summary: Get Milestone
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: milestoneId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Milestone details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  milestone:
+                    $ref: '#/components/schemas/Milestone'
+                required:
+                  - milestone
+        '404':
+          description: Milestone or goal not found
+    patch:
+      summary: Update Milestone
+      security:
+        - BearerAuth: []
+      description: Updates milestone title, dueDate, sortOrder, or completion status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: milestoneId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMilestoneRequest'
+      responses:
+        '200':
+          description: Milestone updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  milestone:
+                    $ref: '#/components/schemas/Milestone'
+                required:
+                  - milestone
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Milestone or goal not found
+        '409':
+          description: Version conflict
+    delete:
+      summary: Delete Milestone
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: milestoneId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Milestone deleted
+        '404':
+          description: Milestone or goal not found
+
 components:
   securitySchemes:
     BearerAuth:
@@ -2954,6 +3289,261 @@ components:
         - date
         - totalEvents
         - events
+
+    # Phase P7 Domain Schemas
+    GoalStatus:
+      type: string
+      enum:
+        - active
+        - paused
+        - achieved
+        - abandoned
+
+    GoalProgressType:
+      type: string
+      enum:
+        - milestones
+        - numeric
+
+    Milestone:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        goalId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Complete System Architecture
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-06-30'
+        completed:
+          type: boolean
+          example: false
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sortOrder:
+          type: integer
+          example: 1
+        version:
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - goalId
+        - title
+        - completed
+        - sortOrder
+        - version
+        - createdAt
+        - updatedAt
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Launch Production Platform
+        description:
+          type: string
+          nullable: true
+          example: Complete all MVP development phases
+        status:
+          $ref: '#/components/schemas/GoalStatus'
+        progressType:
+          $ref: '#/components/schemas/GoalProgressType'
+        targetValue:
+          type: string
+          nullable: true
+          example: '100.0000'
+        currentValue:
+          type: string
+          nullable: true
+          example: '25.0000'
+        unit:
+          type: string
+          nullable: true
+          example: '%'
+        progressPercentage:
+          type: number
+          example: 25.0
+        totalMilestones:
+          type: integer
+          nullable: true
+          example: 4
+        completedMilestones:
+          type: integer
+          nullable: true
+          example: 1
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+        startDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-01-01'
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+        achievedAt:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - userId
+        - title
+        - status
+        - progressType
+        - progressPercentage
+        - version
+        - createdAt
+        - updatedAt
+
+    CreateGoalRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Read 24 Books
+        description:
+          type: string
+          maxLength: 5000
+          nullable: true
+        progressType:
+          $ref: '#/components/schemas/GoalProgressType'
+        targetValue:
+          type: string
+          nullable: true
+          example: '24.0000'
+        currentValue:
+          type: string
+          nullable: true
+          example: '0.0000'
+        unit:
+          type: string
+          maxLength: 30
+          nullable: true
+          example: books
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+      required:
+        - title
+        - progressType
+
+    UpdateGoalRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+          nullable: true
+        status:
+          $ref: '#/components/schemas/GoalStatus'
+        targetValue:
+          type: string
+          nullable: true
+        currentValue:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          maxLength: 30
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+        version:
+          type: integer
+
+    CreateMilestoneRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Phase 1 Completion
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        sortOrder:
+          type: integer
+          default: 0
+      required:
+        - title
+
+    UpdateMilestoneRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        completed:
+          type: boolean
+        sortOrder:
+          type: integer
+        version:
+          type: integer
 
     PageMeta:
       type: object

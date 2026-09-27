@@ -22,6 +22,7 @@ import { createRecurringTasksRouter } from './features/recurring-tasks/recurring
 import { createTimerSessionsRouter } from './features/timer-sessions/timer-sessions.routes.js';
 import { createHabitsRouter } from './features/habits/habits.routes.js';
 import { createCalendarRouter } from './features/calendar/calendar.routes.js';
+import { createGoalsRouter } from './features/goals/goals.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
@@ -145,6 +146,16 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/events',
     createCalendarRouter({
       controller: container.calendarController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Goals routes
+  v1Router.use(
+    '/goals',
+    createGoalsRouter({
+      controller: container.goalsController,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

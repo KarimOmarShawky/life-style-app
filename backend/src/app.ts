@@ -20,6 +20,7 @@ import { createTasksRouter } from './features/tasks/tasks.routes.js';
 import { createProjectsRouter } from './features/projects/projects.routes.js';
 import { createRecurringTasksRouter } from './features/recurring-tasks/recurring-tasks.routes.js';
 import { createTimerSessionsRouter } from './features/timer-sessions/timer-sessions.routes.js';
+import { createHabitsRouter } from './features/habits/habits.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
@@ -123,6 +124,16 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/timer-sessions',
     createTimerSessionsRouter({
       controller: container.timerSessionsController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Habits routes
+  v1Router.use(
+    '/habits',
+    createHabitsRouter({
+      controller: container.habitsController,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

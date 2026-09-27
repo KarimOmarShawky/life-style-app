@@ -72,6 +72,12 @@ import type { TimerSessionsRepository } from './features/timer-sessions/timer-se
 import { TimerSessionsService } from './features/timer-sessions/timer-sessions.service.js';
 import { TimerSessionsController } from './features/timer-sessions/timer-sessions.controller.js';
 
+// Habits Module
+import { PgHabitsRepository } from './features/habits/habits.repository.pg.js';
+import type { HabitsRepository } from './features/habits/habits.repository.js';
+import { HabitsService } from './features/habits/habits.service.js';
+import { HabitsController } from './features/habits/habits.controller.js';
+
 export interface AppContainer {
   clock: Clock;
   idGenerator: IdGenerator;
@@ -105,6 +111,9 @@ export interface AppContainer {
   timerSessionsRepository: TimerSessionsRepository;
   timerSessionsService: TimerSessionsService;
   timerSessionsController: TimerSessionsController;
+  habitsRepository: HabitsRepository;
+  habitsService: HabitsService;
+  habitsController: HabitsController;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -179,6 +188,11 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const timerSessionsController =
     overrides?.timerSessionsController ?? new TimerSessionsController(timerSessionsService);
 
+  // Phase P5 Habits Feature
+  const habitsRepository = overrides?.habitsRepository ?? new PgHabitsRepository(db);
+  const habitsService = overrides?.habitsService ?? new HabitsService(habitsRepository, db, clock);
+  const habitsController = overrides?.habitsController ?? new HabitsController(habitsService);
+
   const container: AppContainer = {
     clock,
     idGenerator,
@@ -211,7 +225,10 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     recurringTasksController,
     timerSessionsRepository,
     timerSessionsService,
-    timerSessionsController
+    timerSessionsController,
+    habitsRepository,
+    habitsService,
+    habitsController
   };
 
   if (!overrides) {

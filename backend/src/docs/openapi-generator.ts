@@ -928,6 +928,301 @@ paths:
         '409':
           description: Timer session not running
 
+  /habits:
+    get:
+      summary: List Habits
+      security:
+        - BearerAuth: []
+      description: Returns all active (and optionally archived) habits ordered by sortOrder.
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Habits list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  habits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Habit'
+                required:
+                  - habits
+    post:
+      summary: Create Habit
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHabitRequest'
+      responses:
+        '201':
+          description: Habit created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  habit:
+                    $ref: '#/components/schemas/Habit'
+                required:
+                  - habit
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /habits/progress/today:
+    get:
+      summary: Today Habits Progress
+      security:
+        - BearerAuth: []
+      description: Returns daily habit completion metrics and individual habit progress items for a given date.
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Calendar date (YYYY-MM-DD) in user timezone. Defaults to today.
+      responses:
+        '200':
+          description: Today progress summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  progress:
+                    $ref: '#/components/schemas/TodayProgress'
+                required:
+                  - progress
+
+  /habits/{id}:
+    get:
+      summary: Get Habit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Habit details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  habit:
+                    $ref: '#/components/schemas/Habit'
+                required:
+                  - habit
+        '404':
+          description: Habit not found
+    patch:
+      summary: Update Habit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHabitRequest'
+      responses:
+        '200':
+          description: Habit updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  habit:
+                    $ref: '#/components/schemas/Habit'
+                required:
+                  - habit
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Habit not found
+    delete:
+      summary: Delete Habit (Soft-Delete)
+      security:
+        - BearerAuth: []
+      description: Soft-deletes a habit. Can be restored within 30 days.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Habit soft-deleted
+        '404':
+          description: Habit not found
+
+  /habits/{id}/restore:
+    post:
+      summary: Restore Habit
+      security:
+        - BearerAuth: []
+      description: Restores a soft-deleted habit if within the 30-day restore window.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Habit restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  habit:
+                    $ref: '#/components/schemas/Habit'
+                required:
+                  - habit
+        '404':
+          description: Habit not found
+        '410':
+          description: Habit soft-delete restore window has expired
+
+  /habits/{id}/checkins:
+    get:
+      summary: List Habit Check-ins
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: fromDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Check-in records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkins:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HabitCheckin'
+                required:
+                  - checkins
+        '404':
+          description: Habit not found
+
+  /habits/{id}/checkins/{date}:
+    put:
+      summary: Record or Update Habit Check-in
+      security:
+        - BearerAuth: []
+      description: Records, toggles, or updates a check-in on a specific date. Future dates and unscheduled dates are rejected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutCheckinRequest'
+      responses:
+        '200':
+          description: Check-in saved and habit streaks updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkin:
+                    $ref: '#/components/schemas/HabitCheckin'
+                  habit:
+                    $ref: '#/components/schemas/Habit'
+                required:
+                  - checkin
+                  - habit
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Habit not found
+    delete:
+      summary: Delete Habit Check-in
+      security:
+        - BearerAuth: []
+      description: Removes a check-in for a given date and recalculates streak values.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '204':
+          description: Check-in deleted
+        '404':
+          description: Check-in or habit not found
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1740,6 +2035,341 @@ components:
       required:
         - success
         - error
+
+    HabitFrequencyType:
+      type: string
+      enum:
+        - daily
+        - weekly
+        - monthly
+        - days_per_week
+        - days_per_month
+
+    HabitRecurrenceRule:
+      type: object
+      properties:
+        frequencyType:
+          $ref: '#/components/schemas/HabitFrequencyType'
+        interval:
+          type: integer
+          example: 1
+        daysOfWeek:
+          type: array
+          items:
+            type: integer
+          example: [1, 2, 3, 4, 5]
+        daysOfMonth:
+          type: array
+          items:
+            type: integer
+        targetDays:
+          type: integer
+      required:
+        - frequencyType
+
+    HabitCheckinStatus:
+      type: string
+      enum:
+        - done
+        - skip
+        - fail
+
+    Habit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Morning Meditation
+        description:
+          type: string
+          nullable: true
+          example: 10 minutes mindful breathing
+        color:
+          type: string
+          example: '#4F46E5'
+        icon:
+          type: string
+          nullable: true
+        recurrence:
+          $ref: '#/components/schemas/HabitRecurrenceRule'
+        targetPerDay:
+          type: integer
+          example: 1
+        unit:
+          type: string
+          example: times
+        timeOfDay:
+          type: string
+          nullable: true
+          enum: [anytime, morning, afternoon, evening]
+        reminderTime:
+          type: string
+          nullable: true
+          example: '07:30'
+        startDate:
+          type: string
+          format: date
+          example: '2026-01-01'
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        isArchived:
+          type: boolean
+          example: false
+        sortOrder:
+          type: integer
+          example: 0
+        currentStreak:
+          type: integer
+          example: 5
+        longestStreak:
+          type: integer
+          example: 14
+        totalCompletions:
+          type: integer
+          example: 42
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - userId
+        - title
+        - color
+        - recurrence
+        - targetPerDay
+        - unit
+        - startDate
+        - isArchived
+        - sortOrder
+        - currentStreak
+        - longestStreak
+        - totalCompletions
+        - createdAt
+        - updatedAt
+
+    HabitCheckin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        habitId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+          example: '2026-03-30'
+        status:
+          $ref: '#/components/schemas/HabitCheckinStatus'
+        value:
+          type: number
+          nullable: true
+          example: 1
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - habitId
+        - date
+        - status
+        - createdAt
+        - updatedAt
+
+    CreateHabitRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Drink Water
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#3B82F6'
+        icon:
+          type: string
+          maxLength: 100
+          nullable: true
+        recurrence:
+          $ref: '#/components/schemas/HabitRecurrenceRule'
+        targetPerDay:
+          type: integer
+          minimum: 1
+          default: 1
+        unit:
+          type: string
+          maxLength: 50
+          default: times
+        timeOfDay:
+          type: string
+          enum: [anytime, morning, afternoon, evening]
+          nullable: true
+        reminderTime:
+          type: string
+          pattern: '^([01]\\d|2[0-3]):[0-5]\\d$'
+          nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        sortOrder:
+          type: integer
+          default: 0
+      required:
+        - title
+        - recurrence
+        - startDate
+
+    UpdateHabitRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        icon:
+          type: string
+          maxLength: 100
+          nullable: true
+        recurrence:
+          $ref: '#/components/schemas/HabitRecurrenceRule'
+        targetPerDay:
+          type: integer
+          minimum: 1
+        unit:
+          type: string
+          maxLength: 50
+        timeOfDay:
+          type: string
+          enum: [anytime, morning, afternoon, evening]
+          nullable: true
+        reminderTime:
+          type: string
+          pattern: '^([01]\\d|2[0-3]):[0-5]\\d$'
+          nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        isArchived:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    PutCheckinRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/HabitCheckinStatus'
+        value:
+          type: number
+          minimum: 0
+          nullable: true
+        notes:
+          type: string
+          maxLength: 1000
+          nullable: true
+      required:
+        - status
+
+    TodayHabitProgressItem:
+      type: object
+      properties:
+        habitId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/HabitCheckinStatus'
+          nullable: true
+        scheduled:
+          type: boolean
+        targetValue:
+          type: integer
+        actualValue:
+          type: number
+        currentStreak:
+          type: integer
+      required:
+        - habitId
+        - title
+        - status
+        - scheduled
+        - targetValue
+        - actualValue
+        - currentStreak
+
+    TodayProgress:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        totalScheduled:
+          type: integer
+        totalDone:
+          type: integer
+        totalSkipped:
+          type: integer
+        totalFailed:
+          type: integer
+        completionRate:
+          type: number
+          example: 0.8
+        habits:
+          type: array
+          items:
+            $ref: '#/components/schemas/TodayHabitProgressItem'
+      required:
+        - date
+        - totalScheduled
+        - totalDone
+        - totalSkipped
+        - totalFailed
+        - completionRate
+        - habits
 
     PageMeta:
       type: object

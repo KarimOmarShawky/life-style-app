@@ -2178,6 +2178,708 @@ paths:
         '404':
           description: Note or link not found
 
+  # Phase P9: Money Endpoints
+  /money/categories:
+    get:
+      summary: List Categories
+      security:
+        - BearerAuth: []
+      description: Returns active and optionally archived categories for the user.
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [expense, income]
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                required:
+                  - categories
+    post:
+      summary: Create Category
+      security:
+        - BearerAuth: []
+      description: Creates a new transaction category (expense or income).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  category:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - category
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Category name taken or quota exceeded
+
+  /money/categories/{id}:
+    get:
+      summary: Get Category
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  category:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - category
+        '404':
+          description: Category not found
+    patch:
+      summary: Update Category
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  category:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - category
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Category not found
+        '409':
+          description: Category name taken or version conflict
+    delete:
+      summary: Archive Category
+      security:
+        - BearerAuth: []
+      description: Archives category (soft archival, never hard deleted).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Category archived
+        '404':
+          description: Category not found
+
+  /money/transactions:
+    get:
+      summary: List Transactions
+      security:
+        - BearerAuth: []
+      description: Returns paginated list of transactions with filtering and cursor pagination.
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [expense, income]
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: currency
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: minAmount
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: maxAmount
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [occurredOn, amount]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of transactions with pagination meta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                  - transactions
+                  - meta
+    post:
+      summary: Create Transaction
+      security:
+        - BearerAuth: []
+      description: Creates a financial transaction. Requires Idempotency-Key header.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+                required:
+                  - transaction
+        '200':
+          description: Idempotent replay of existing transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+                required:
+                  - transaction
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Idempotency key reused or quota exceeded
+
+  /money/transactions/{id}:
+    get:
+      summary: Get Transaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+                required:
+                  - transaction
+        '404':
+          description: Transaction not found
+    patch:
+      summary: Update Transaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionRequest'
+      responses:
+        '200':
+          description: Transaction updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+                required:
+                  - transaction
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Transaction not found
+        '409':
+          description: Version conflict
+    delete:
+      summary: Delete Transaction
+      security:
+        - BearerAuth: []
+      description: Soft-deletes a transaction with audit logging.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Transaction deleted
+        '404':
+          description: Transaction not found
+
+  /money/subscriptions:
+    get:
+      summary: List Subscriptions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, paused, cancelled]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subscription'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                  - subscriptions
+                  - meta
+    post:
+      summary: Create Subscription
+      security:
+        - BearerAuth: []
+      description: Creates a recurring subscription with drift-free anchor date cycle math.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription:
+                    $ref: '#/components/schemas/Subscription'
+                required:
+                  - subscription
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Quota exceeded
+
+  /money/subscriptions/{id}:
+    get:
+      summary: Get Subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription:
+                    $ref: '#/components/schemas/Subscription'
+                required:
+                  - subscription
+        '404':
+          description: Subscription not found
+    patch:
+      summary: Update Subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubscriptionRequest'
+      responses:
+        '200':
+          description: Subscription updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription:
+                    $ref: '#/components/schemas/Subscription'
+                required:
+                  - subscription
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Subscription not found
+        '409':
+          description: Version conflict
+    delete:
+      summary: Delete Subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Subscription deleted
+        '404':
+          description: Subscription not found
+
+  /money/subscriptions/{id}/pay:
+    post:
+      summary: Mark Subscription as Paid
+      security:
+        - BearerAuth: []
+      description: Atomically inserts linked expense transaction, advances next billing date cursor, and writes audit rows.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaySubscriptionRequest'
+      responses:
+        '201':
+          description: Payment transaction recorded and subscription cursor advanced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+                  subscription:
+                    $ref: '#/components/schemas/Subscription'
+                required:
+                  - transaction
+                  - subscription
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Subscription not found
+        '409':
+          description: Subscription not active or already paid for period
+
+  /money/budgets:
+    get:
+      summary: List Budgets
+      security:
+        - BearerAuth: []
+      description: Returns active budgets with real-time usage for the current calendar month in user timezone.
+      responses:
+        '200':
+          description: List of budgets with current usage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budgets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Budget'
+                required:
+                  - budgets
+    post:
+      summary: Create Budget
+      security:
+        - BearerAuth: []
+      description: Creates a monthly budget for a category or overall expense.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetRequest'
+      responses:
+        '201':
+          description: Budget created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budget:
+                    $ref: '#/components/schemas/Budget'
+                required:
+                  - budget
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Budget already exists or quota exceeded
+
+  /money/budgets/{id}:
+    get:
+      summary: Get Budget
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Budget details with usage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budget:
+                    $ref: '#/components/schemas/Budget'
+                required:
+                  - budget
+        '404':
+          description: Budget not found
+    patch:
+      summary: Update Budget
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBudgetRequest'
+      responses:
+        '200':
+          description: Budget updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budget:
+                    $ref: '#/components/schemas/Budget'
+                required:
+                  - budget
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Budget not found
+        '409':
+          description: Version conflict
+    delete:
+      summary: Delete Budget
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Budget deleted
+        '404':
+          description: Budget not found
+
+  /money/reports/summary:
+    get:
+      summary: Get Financial Report Summary
+      security:
+        - BearerAuth: []
+      description: Returns aggregated income, expense, net totals, category breakdown, and time series.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: currency
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: groupBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [none, day, week, month]
+      responses:
+        '200':
+          description: Financial report summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportSummary'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -4091,6 +4793,559 @@ components:
       required:
         - tag
         - count
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [expense, income]
+        name:
+          type: string
+          example: Food & Dining
+        icon:
+          type: string
+          nullable: true
+          example: utensils
+        color:
+          type: string
+          nullable: true
+          example: '#FF5722'
+        archived:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+      required:
+        - id
+        - kind
+        - name
+        - archived
+        - createdAt
+        - updatedAt
+        - version
+
+    CreateCategoryRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [expense, income]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        icon:
+          type: string
+          nullable: true
+        color:
+          type: string
+          nullable: true
+      required:
+        - kind
+        - name
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        icon:
+          type: string
+          nullable: true
+        color:
+          type: string
+          nullable: true
+        archived:
+          type: boolean
+        version:
+          type: integer
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [expense, income]
+        amount:
+          type: string
+          example: '12.50'
+        currency:
+          type: string
+          example: USD
+        occurredOn:
+          type: string
+          format: date
+          example: '2026-09-28'
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        merchant:
+          type: string
+          nullable: true
+        subscriptionId:
+          type: string
+          format: uuid
+          nullable: true
+        billingDate:
+          type: string
+          format: date
+          nullable: true
+        source:
+          type: string
+          enum: [manual]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+      required:
+        - id
+        - kind
+        - amount
+        - currency
+        - occurredOn
+        - source
+        - createdAt
+        - updatedAt
+        - version
+
+    CreateTransactionRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [expense, income]
+        amount:
+          type: string
+          example: '12.50'
+        currency:
+          type: string
+          example: USD
+        occurredOn:
+          type: string
+          format: date
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        merchant:
+          type: string
+          maxLength: 150
+          nullable: true
+        subscriptionId:
+          type: string
+          format: uuid
+          nullable: true
+        billingDate:
+          type: string
+          format: date
+          nullable: true
+      required:
+        - kind
+        - amount
+        - currency
+        - occurredOn
+
+    UpdateTransactionRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [expense, income]
+        amount:
+          type: string
+        currency:
+          type: string
+        occurredOn:
+          type: string
+          format: date
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        merchant:
+          type: string
+          nullable: true
+        version:
+          type: integer
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Netflix
+        amount:
+          type: string
+          example: '15.99'
+        currency:
+          type: string
+          example: USD
+        billingUnit:
+          type: string
+          enum: [week, month, year]
+        billingInterval:
+          type: integer
+          example: 1
+        anchorDate:
+          type: string
+          format: date
+          example: '2026-01-31'
+        nextBillingDate:
+          type: string
+          format: date
+          example: '2026-02-28'
+        status:
+          type: string
+          enum: [active, paused, cancelled]
+        cancelledOn:
+          type: string
+          format: date
+          nullable: true
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        reminderDaysBefore:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        monthlyEquivalent:
+          type: string
+          example: '15.9900'
+        daysUntilNextBilling:
+          type: integer
+          example: 12
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+      required:
+        - id
+        - name
+        - amount
+        - currency
+        - billingUnit
+        - billingInterval
+        - anchorDate
+        - nextBillingDate
+        - status
+        - monthlyEquivalent
+        - daysUntilNextBilling
+        - createdAt
+        - updatedAt
+        - version
+
+    CreateSubscriptionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        amount:
+          type: string
+        currency:
+          type: string
+        billingUnit:
+          type: string
+          enum: [week, month, year]
+        billingInterval:
+          type: integer
+          minimum: 1
+          maximum: 12
+          default: 1
+        anchorDate:
+          type: string
+          format: date
+        nextBillingDate:
+          type: string
+          format: date
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        reminderDaysBefore:
+          type: integer
+          minimum: 0
+          maximum: 30
+          nullable: true
+        notes:
+          type: string
+          maxLength: 1000
+          nullable: true
+      required:
+        - name
+        - amount
+        - currency
+        - billingUnit
+        - anchorDate
+
+    UpdateSubscriptionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        amount:
+          type: string
+        currency:
+          type: string
+        billingUnit:
+          type: string
+          enum: [week, month, year]
+        billingInterval:
+          type: integer
+        anchorDate:
+          type: string
+          format: date
+        nextBillingDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, paused, cancelled]
+        cancelledOn:
+          type: string
+          format: date
+          nullable: true
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        reminderDaysBefore:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        version:
+          type: integer
+
+    PaySubscriptionRequest:
+      type: object
+      properties:
+        amount:
+          type: string
+        occurredOn:
+          type: string
+          format: date
+
+    BudgetUsage:
+      type: object
+      properties:
+        periodStart:
+          type: string
+          format: date
+          example: '2026-09-01'
+        periodEnd:
+          type: string
+          format: date
+          example: '2026-09-30'
+        spent:
+          type: string
+          example: '250.00'
+        remaining:
+          type: string
+          example: '750.00'
+        percentUsed:
+          type: number
+          example: 25.0
+        overspent:
+          type: boolean
+          example: false
+      required:
+        - periodStart
+        - periodEnd
+        - spent
+        - remaining
+        - percentUsed
+        - overspent
+
+    Budget:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        amountLimit:
+          type: string
+          example: '1000.00'
+        currency:
+          type: string
+          example: USD
+        period:
+          type: string
+          enum: [monthly]
+          example: monthly
+        usage:
+          $ref: '#/components/schemas/BudgetUsage'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+      required:
+        - id
+        - categoryId
+        - amountLimit
+        - currency
+        - period
+        - createdAt
+        - updatedAt
+        - version
+
+    CreateBudgetRequest:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        amountLimit:
+          type: string
+        currency:
+          type: string
+        period:
+          type: string
+          enum: [monthly]
+          default: monthly
+      required:
+        - amountLimit
+        - currency
+
+    UpdateBudgetRequest:
+      type: object
+      properties:
+        amountLimit:
+          type: string
+        version:
+          type: integer
+
+    ReportCategoryItem:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [expense, income]
+        total:
+          type: string
+        count:
+          type: integer
+        share:
+          type: number
+      required:
+        - categoryId
+        - name
+        - kind
+        - total
+        - count
+        - share
+
+    ReportSeriesItem:
+      type: object
+      properties:
+        periodStart:
+          type: string
+          format: date
+        income:
+          type: string
+        expense:
+          type: string
+      required:
+        - periodStart
+        - income
+        - expense
+
+    ReportSummary:
+      type: object
+      properties:
+        currency:
+          type: string
+          example: USD
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        totals:
+          type: object
+          properties:
+            income:
+              type: string
+            expense:
+              type: string
+            net:
+              type: string
+          required:
+            - income
+            - expense
+            - net
+        byCategory:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportCategoryItem'
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportSeriesItem'
+      required:
+        - currency
+        - from
+        - to
+        - totals
+        - byCategory
 
     PageMeta:
       type: object

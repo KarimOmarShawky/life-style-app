@@ -96,6 +96,12 @@ import type { NotesRepository } from './features/notes/notes.repository.js';
 import { NotesService } from './features/notes/notes.service.js';
 import { NotesController } from './features/notes/notes.controller.js';
 
+// Money Module
+import { PgMoneyRepository } from './features/money/money.repository.pg.js';
+import type { MoneyRepository } from './features/money/money.repository.js';
+import { MoneyService } from './features/money/money.service.js';
+import { MoneyController } from './features/money/money.controller.js';
+
 export interface AppContainer {
   clock: Clock;
   idGenerator: IdGenerator;
@@ -141,6 +147,9 @@ export interface AppContainer {
   notesRepository: NotesRepository;
   notesService: NotesService;
   notesController: NotesController;
+  moneyRepository: MoneyRepository;
+  moneyService: MoneyService;
+  moneyController: MoneyController;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -236,6 +245,11 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const notesService = overrides?.notesService ?? new NotesService(notesRepository);
   const notesController = overrides?.notesController ?? new NotesController(notesService);
 
+  // Phase P9 Money Feature
+  const moneyRepository = overrides?.moneyRepository ?? new PgMoneyRepository(db);
+  const moneyService = overrides?.moneyService ?? new MoneyService(moneyRepository);
+  const moneyController = overrides?.moneyController ?? new MoneyController(moneyService);
+
   const container: AppContainer = {
     clock,
     idGenerator,
@@ -280,7 +294,10 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     goalsController,
     notesRepository,
     notesService,
-    notesController
+    notesController,
+    moneyRepository,
+    moneyService,
+    moneyController
   };
 
   if (!overrides) {

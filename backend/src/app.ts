@@ -1,94 +1,197 @@
 /**
- * Express application assembly.
+ * src/app.ts
  *
- * MIDDLEWARE ORDER IS SECURITY-RELEVANT. It runs top to bottom:
- *
- *   1. trust proxy      so req.ip is the real client, not the load balancer
- *   2. request id       so every later log line and error is correlatable
- *   3. security headers before anything can produce a response
- *   4. CORS             before routes, so preflights are answered correctly
- *   5. body parsing     with a size cap, before anything reads the body
- *   6. rate limiting    before route handlers do real work
- *   7. routes
- *   8. 404 handler      after all routes, so it only catches genuine misses
- *   9. error handler    last: Express only treats 4-arity middleware as this
- *
- * Exported separately from server.ts so integration tests can drive the app with
- * supertest without binding a port.
+ * Implements Section 4.6: Express Application Builder.
+ * Assembles middleware in strict sequence:
+ * Request ID -> Security Headers -> Body Limit -> Content-Type -> Health / API Routes -> Error Handler.
  */
-import express, { type Express } from 'express';
-import cookieParser from 'cookie-parser';
 
-import { config, isProduction } from '@/config';
-import { errorHandler } from '@/core/middleware/error-handler';
-import { notFoundHandler } from '@/core/middleware/not-found';
-import { generalLimiter } from '@/core/middleware/rate-limit';
-import { requestIdMiddleware } from '@/core/middleware/request-id';
-import { corsMiddleware, securityHeaders } from '@/core/security/http-security';
-import { createAuthRouter } from '@/features/auth/auth.routes';
-import { createDocsRouter } from '@/features/docs/docs.routes';
-import { createHealthRouter } from '@/features/health/health.routes';
-import { createGoalRouter } from '@/features/goals/goal.routes';
-import { createHabitRouter } from '@/features/habits/habit.routes';
-import {
-  createBudgetRouter,
-  createExpenseRouter,
-  createSubscriptionRouter,
-} from '@/features/money/money.routes';
-import { createNoteRouter } from '@/features/notes/note.routes';
-import { createProjectRouter } from '@/features/projects/project.routes';
-import { createDashboardRouter } from '@/features/dashboard/dashboard.routes';
-import { createEventRouter, createReminderRouter } from '@/features/schedule/schedule.routes';
-import { createTaskRouter } from '@/features/tasks/task.routes';
+import express, { type Express, Router } from 'express';
+import { getEnv } from './config/env.js';
+import { requestIdMiddleware } from './core/middleware/request-id.js';
+import { helmetSecurityMiddleware, enforceJsonContentType } from './core/middleware/security.js';
+import { globalErrorHandler } from './core/middleware/error-handler.js';
+import { createRateLimitMiddleware } from './core/middleware/rate-limiter.js';
+import { AppError } from './core/errors/app-error.js';
+import { healthRouter } from './features/health/health.routes.js';
+import { createAuthRouter } from './features/auth/auth.routes.js';
+import { createUsersRouter } from './features/users/users.routes.js';
+import { createTasksRouter } from './features/tasks/tasks.routes.js';
+import { createProjectsRouter } from './features/projects/projects.routes.js';
+import { createRecurringTasksRouter } from './features/recurring-tasks/recurring-tasks.routes.js';
+import { createTimerSessionsRouter } from './features/timer-sessions/timer-sessions.routes.js';
+import { createHabitsRouter } from './features/habits/habits.routes.js';
+import { createCalendarRouter } from './features/calendar/calendar.routes.js';
+import { createGoalsRouter } from './features/goals/goals.routes.js';
+import { createNotesRouter } from './features/notes/notes.routes.js';
+import { createMoneyRouter } from './features/money/money.routes.js';
+import { buildContainer, type AppContainer } from './container.js';
 
-export function createApp(): Express {
-  const app = express();
+export function createApp(containerOverrides?: Partial<AppContainer>): Express {
+  const env = getEnv();
+  // Ensure container is initialized
+  const container = buildContainer(containerOverrides);
 
-  // Required for correct req.ip behind a proxy, which rate limiting and the
-  // audit trail both depend on. Set to 1 rather than `true`: trusting every hop
-  // lets a client forge X-Forwarded-For and defeat IP-based limits entirely.
-  app.set('trust proxy', 1);
-  app.disable('x-powered-by');
-  app.set('etag', false);
+  const app: Express = express();
 
+  // Trust proxy hops per Section 16.2
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
+
+  // 1. Request ID and AsyncLocalStorage logger context (Section 4.6, 16.5)
   app.use(requestIdMiddleware);
-  app.use(securityHeaders());
-  app.use(corsMiddleware());
 
-  // The size cap is the first line against memory-exhaustion payloads. 100kb is
-  // generous for this API, whose largest body is a note.
-  app.use(express.json({ limit: '100kb', strict: true }));
-  app.use(express.urlencoded({ extended: false, limit: '100kb' }));
-  app.use(cookieParser(config.COOKIE_SECRET));
+  // 2. HTTP Hardening headers with Helmet (Section 16.2)
+  app.use(helmetSecurityMiddleware);
 
-  // Health endpoints are mounted BEFORE the rate limiter: an orchestrator polling
-  // liveness every few seconds must never be throttled into a false restart.
-  app.use(createHealthRouter());
+  // 3. Health check endpoints (Section 4.8) — Unauthenticated, unversioned, excluded from body parser & rate limits
+  app.use('/health', healthRouter);
 
-  app.use(generalLimiter);
+  // 4. Request body limit: 100 KB JSON ceiling (Section 15.4, 16.2)
+  app.use(express.json({ limit: '100kb' }));
 
-  app.use(`${config.API_PREFIX}/auth`, createAuthRouter());
-  app.use(`${config.API_PREFIX}/projects`, createProjectRouter());
-  app.use(`${config.API_PREFIX}/tasks`, createTaskRouter());
-  app.use(`${config.API_PREFIX}/notes`, createNoteRouter());
-  app.use(`${config.API_PREFIX}/habits`, createHabitRouter());
-  app.use(`${config.API_PREFIX}/goals`, createGoalRouter());
-  app.use(`${config.API_PREFIX}/expenses`, createExpenseRouter());
-  app.use(`${config.API_PREFIX}/subscriptions`, createSubscriptionRouter());
-  app.use(`${config.API_PREFIX}/budgets`, createBudgetRouter());
-  app.use(`${config.API_PREFIX}/events`, createEventRouter());
-  app.use(`${config.API_PREFIX}/reminders`, createReminderRouter());
-  app.use(`${config.API_PREFIX}/dashboard`, createDashboardRouter());
+  // 5. Content-Type validation on mutating requests (Section 16.2)
+  app.use(enforceJsonContentType);
 
-  if (!isProduction) {
-    // Mounted only outside production. The spec allows Swagger UI, but exposing
-    // the full surface of an API publicly is free reconnaissance for an attacker
-    // (spec section 40); enable it in production deliberately, behind auth.
-    app.use('/docs', createDocsRouter());
-  }
+  // 6. Root status endpoint
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      name: 'LifeStyle API',
+      version: '1.0.1',
+      status: 'healthy'
+    });
+  });
 
-  app.use(notFoundHandler);
-  app.use(errorHandler);
+  // 7. API v1 Routers
+  const v1Router = Router();
+
+  // Global unauthenticated IP rate limit per Section 8.3: 120 req / 60 s
+  const globalIpLimiter = createRateLimitMiddleware({
+    limiter: container.rateLimiter,
+    limit: 120,
+    windowSeconds: 60,
+    keyGenerator: (req) => `global:ip:${req.ip || 'unknown'}`
+  });
+  v1Router.use(globalIpLimiter);
+
+  // Mount Auth routes
+  v1Router.use(
+    '/auth',
+    createAuthRouter({
+      controller: container.authController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Users routes
+  v1Router.use(
+    '/users',
+    createUsersRouter({
+      controller: container.usersController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Tasks routes
+  v1Router.use(
+    '/tasks',
+    createTasksRouter({
+      controller: container.tasksController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Projects routes
+  v1Router.use(
+    '/projects',
+    createProjectsRouter({
+      controller: container.projectsController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Recurring Tasks routes
+  v1Router.use(
+    '/recurring-tasks',
+    createRecurringTasksRouter({
+      controller: container.recurringTasksController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Timer Sessions routes
+  v1Router.use(
+    '/timer-sessions',
+    createTimerSessionsRouter({
+      controller: container.timerSessionsController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Habits routes
+  v1Router.use(
+    '/habits',
+    createHabitsRouter({
+      controller: container.habitsController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Calendar Events routes
+  v1Router.use(
+    '/events',
+    createCalendarRouter({
+      controller: container.calendarController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Goals routes
+  v1Router.use(
+    '/goals',
+    createGoalsRouter({
+      controller: container.goalsController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Notes routes
+  v1Router.use(
+    '/notes',
+    createNotesRouter({
+      controller: container.notesController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Money routes
+  v1Router.use(
+    '/money',
+    createMoneyRouter({
+      controller: container.moneyController,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  app.use('/api/v1', v1Router);
+
+  // 8. Catch-all 404 handler for unknown routes
+  app.use((_req, _res, next) => {
+    next(AppError.notFound('Endpoint not found'));
+  });
+
+  // 9. Centralized global error handler (Section 15.3)
+  app.use(globalErrorHandler);
 
   return app;
 }

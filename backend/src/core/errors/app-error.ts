@@ -1,174 +1,187 @@
 /**
- * AppError: the single error type the application throws deliberately.
+ * src/core/errors/app-error.ts
  *
- * Spec section 24. The central idea is the split between what the CLIENT sees
- * and what the LOGS see:
- *
- *   - `code` and `message` are client-safe and cross the network.
- *   - `metadata` never leaves the process. It is for the log line only, which is
- *     where the offending user id, constraint name or driver code belongs.
- *
- * `isOperational` marks an error we anticipated and handled (bad input, missing
- * row, wrong password). A non-operational error is a bug or a broken dependency:
- * the global handler logs those at `error` level with the stack, and returns a
- * generic message so internals never reach the client (spec section 25).
+ * Implements Section 15.2 & 15.4: AppError and Error Code Catalogue.
+ * Serves as the single domain exception class for expected operational conditions.
  */
-import { ErrorCode, ERROR_MESSAGE, ERROR_STATUS, type ErrorCodeValue } from './error-codes';
 
-/** A single field-level validation failure, safe to return to the client. */
-export interface FieldIssue {
-  readonly field: string;
-  readonly message: string;
-}
+export type ErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'INVALID_OR_EXPIRED_CODE'
+  | 'UNAUTHENTICATED'
+  | 'TOKEN_EXPIRED'
+  | 'INVALID_CREDENTIALS'
+  | 'INVALID_REFRESH_TOKEN'
+  | 'ACCOUNT_DISABLED'
+  | 'ACCOUNT_PENDING_DELETION'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'EMAIL_ALREADY_REGISTERED'
+  | 'VERSION_CONFLICT'
+  | 'TIMER_ALREADY_RUNNING'
+  | 'TIMER_NOT_RUNNING'
+  | 'IDEMPOTENCY_KEY_REUSED'
+  | 'SUBSCRIPTION_NOT_ACTIVE'
+  | 'ALREADY_PAID_FOR_PERIOD'
+  | 'CATEGORY_NAME_TAKEN'
+  | 'BUDGET_ALREADY_EXISTS'
+  | 'REMINDER_NOT_EDITABLE'
+  | 'NOT_DELETED'
+  | 'NOT_PENDING_DELETION'
+  | 'QUOTA_EXCEEDED'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'UNSUPPORTED_MEDIA_TYPE'
+  | 'RATE_LIMITED'
+  | 'INTERNAL_ERROR'
+  | 'SERVICE_UNAVAILABLE';
 
-export interface AppErrorOptions {
-  /** Overrides the default HTTP status for the code. */
-  readonly status?: number;
-  /** Overrides the default client-safe message. Must not contain internals. */
-  readonly message?: string;
-  /** Per-field problems. Only ever set for validation failures. */
-  readonly issues?: readonly FieldIssue[];
-  /** Internal detail for logs. NEVER serialized to the client. */
-  readonly metadata?: Readonly<Record<string, unknown>>;
-  /** The underlying error, preserved for the log's stack chain. */
-  readonly cause?: unknown;
-  /** Expected condition (true) versus bug or broken dependency (false). */
-  readonly isOperational?: boolean;
-  /** Seconds the client should wait before retrying. Sets Retry-After. */
-  readonly retryAfterSeconds?: number;
+export interface FieldError {
+  field: string;
+  code?: string;
+  message: string;
 }
 
 export class AppError extends Error {
-  public readonly code: ErrorCodeValue;
-  public readonly status: number;
-  public readonly issues: readonly FieldIssue[];
-  public readonly metadata: Readonly<Record<string, unknown>>;
+  public readonly httpStatus: number;
+  public readonly code: ErrorCode;
+  public readonly safeMessage: string;
   public readonly isOperational: boolean;
-  public readonly retryAfterSeconds: number | undefined;
-  public readonly timestamp: string;
+  public readonly details?: FieldError[];
+  public readonly meta?: Record<string, unknown>;
 
-  constructor(code: ErrorCodeValue, options: AppErrorOptions = {}) {
-    super(options.message ?? ERROR_MESSAGE[code]);
-
+  constructor(options: {
+    httpStatus: number;
+    code: ErrorCode;
+    safeMessage: string;
+    isOperational?: boolean | undefined;
+    details?: FieldError[] | undefined;
+    meta?: Record<string, unknown> | undefined;
+  }) {
+    super(options.safeMessage);
     this.name = 'AppError';
-    this.code = code;
-    this.status = options.status ?? ERROR_STATUS[code];
-    this.issues = options.issues ?? [];
-    this.metadata = options.metadata ?? {};
+    this.httpStatus = options.httpStatus;
+    this.code = options.code;
+    this.safeMessage = options.safeMessage;
     this.isOperational = options.isOperational ?? true;
-    this.retryAfterSeconds = options.retryAfterSeconds;
-    this.timestamp = new Date().toISOString();
-
-    if (options.cause !== undefined) {
-      this.cause = options.cause;
+    if (options.details) {
+      this.details = options.details;
     }
-
-    Error.captureStackTrace(this, AppError);
+    if (options.meta) {
+      this.meta = options.meta;
+    }
+    Error.captureStackTrace(this, this.constructor);
   }
 
-  /** True when this error represents a client mistake rather than a server fault. */
-  public get isClientError(): boolean {
-    return this.status >= 400 && this.status < 500;
-  }
-
-  /**
-   * The client-facing shape. Note what is absent: metadata, cause, and stack.
-   * Serialization is the boundary where internal detail is dropped, so there is
-   * no way to leak it by forgetting to strip a field at a call site.
-   */
-  public toClientJSON(requestId?: string): {
-    success: false;
-    error: {
-      code: ErrorCodeValue;
-      message: string;
-      issues?: readonly FieldIssue[];
-      requestId?: string;
-    };
-  } {
-    return {
-      success: false,
-      error: {
-        code: this.code,
-        message: this.message,
-        ...(this.issues.length > 0 ? { issues: this.issues } : {}),
-        ...(requestId !== undefined ? { requestId } : {}),
-      },
-    };
-  }
-
-  // --- Named constructors -------------------------------------------------
-  // These exist so call sites read as intent ("this is a conflict") rather than
-  // as configuration, and so the common cases cannot pick a wrong status code.
-
-  static validation(issues: readonly FieldIssue[], message?: string): AppError {
-    return new AppError(ErrorCode.VALIDATION_ERROR, {
-      issues,
-      ...(message !== undefined ? { message } : {}),
+  // Factory methods for standardized errors
+  public static validation(details: FieldError[], safeMessage = 'Validation failed'): AppError {
+    return new AppError({
+      httpStatus: 400,
+      code: 'VALIDATION_ERROR',
+      safeMessage,
+      details
     });
   }
 
-  static unauthorized(code: ErrorCodeValue = ErrorCode.UNAUTHORIZED, message?: string): AppError {
-    return new AppError(code, { ...(message !== undefined ? { message } : {}) });
-  }
-
-  static forbidden(message?: string, metadata?: Readonly<Record<string, unknown>>): AppError {
-    return new AppError(ErrorCode.FORBIDDEN, {
-      ...(message !== undefined ? { message } : {}),
-      ...(metadata !== undefined ? { metadata } : {}),
+  public static unauthenticated(
+    safeMessage = 'Authentication required',
+    code: ErrorCode = 'UNAUTHENTICATED'
+  ): AppError {
+    return new AppError({
+      httpStatus: 401,
+      code,
+      safeMessage
     });
   }
 
-  /**
-   * Resource not found.
-   *
-   * Security note: authorization failures on a resource the caller may not even
-   * know exists should also use this, not `forbidden`. Returning 403 for "exists
-   * but not yours" and 404 for "does not exist" tells an attacker which ids are
-   * real, which is the enumeration half of an IDOR (spec section 16).
-   */
-  static notFound(resource = 'Resource', metadata?: Readonly<Record<string, unknown>>): AppError {
-    return new AppError(ErrorCode.NOT_FOUND, {
-      message: `${resource} was not found.`,
-      ...(metadata !== undefined ? { metadata } : {}),
+  public static forbidden(
+    safeMessage = 'Action forbidden',
+    code: ErrorCode = 'FORBIDDEN'
+  ): AppError {
+    return new AppError({
+      httpStatus: 403,
+      code,
+      safeMessage
     });
   }
 
-  static conflict(message?: string, metadata?: Readonly<Record<string, unknown>>): AppError {
-    return new AppError(ErrorCode.CONFLICT, {
-      ...(message !== undefined ? { message } : {}),
-      ...(metadata !== undefined ? { metadata } : {}),
+  public static notFound(safeMessage = 'Resource not found'): AppError {
+    return new AppError({
+      httpStatus: 404,
+      code: 'NOT_FOUND',
+      safeMessage
     });
   }
 
-  static rateLimited(retryAfterSeconds: number): AppError {
-    return new AppError(ErrorCode.RATE_LIMITED, { retryAfterSeconds });
+  public static conflict(
+    code: ErrorCode = 'CONFLICT',
+    safeMessage = 'Resource conflict'
+  ): AppError {
+    return new AppError({
+      httpStatus: 409,
+      code,
+      safeMessage
+    });
   }
 
-  static database(cause: unknown, metadata?: Readonly<Record<string, unknown>>): AppError {
-    return new AppError(ErrorCode.DATABASE_ERROR, {
-      cause,
+  public static payloadTooLarge(
+    safeMessage = 'Payload exceeds maximum allowed size of 100 KB'
+  ): AppError {
+    return new AppError({
+      httpStatus: 413,
+      code: 'PAYLOAD_TOO_LARGE',
+      safeMessage
+    });
+  }
+
+  public static unsupportedMediaType(
+    safeMessage = 'Content-Type must be application/json'
+  ): AppError {
+    return new AppError({
+      httpStatus: 415,
+      code: 'UNSUPPORTED_MEDIA_TYPE',
+      safeMessage
+    });
+  }
+
+  public static rateLimited(
+    retryAfterSeconds: number,
+    safeMessage = 'Too many requests'
+  ): AppError {
+    return new AppError({
+      httpStatus: 429,
+      code: 'RATE_LIMITED',
+      safeMessage,
+      meta: { retryAfterSeconds }
+    });
+  }
+
+  public static database(cause: unknown, safeMessage = 'A database error occurred'): AppError {
+    return new AppError({
+      httpStatus: 500,
+      code: 'INTERNAL_ERROR',
+      safeMessage,
       isOperational: false,
-      ...(metadata !== undefined ? { metadata } : {}),
+      meta: { internalCause: String(cause) }
     });
   }
 
-  static internal(cause?: unknown, metadata?: Readonly<Record<string, unknown>>): AppError {
-    return new AppError(ErrorCode.INTERNAL_ERROR, {
+  public static internal(cause?: unknown, safeMessage = 'Internal server error'): AppError {
+    return new AppError({
+      httpStatus: 500,
+      code: 'INTERNAL_ERROR',
+      safeMessage,
       isOperational: false,
-      ...(cause !== undefined ? { cause } : {}),
-      ...(metadata !== undefined ? { metadata } : {}),
+      meta: cause ? { internalCause: String(cause) } : undefined
     });
   }
 
-  static serviceUnavailable(service: string): AppError {
-    return new AppError(ErrorCode.SERVICE_UNAVAILABLE, {
-      metadata: { service },
-      isOperational: true,
+  public static serviceUnavailable(safeMessage = 'Service temporarily unavailable'): AppError {
+    return new AppError({
+      httpStatus: 503,
+      code: 'SERVICE_UNAVAILABLE',
+      safeMessage,
+      isOperational: true
     });
   }
-}
-
-/** Type guard usable across module boundaries and after a serialization round trip. */
-export function isAppError(error: unknown): error is AppError {
-  return error instanceof AppError;
 }

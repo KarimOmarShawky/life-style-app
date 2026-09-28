@@ -1,422 +1,557 @@
 /**
- * Authentication business logic (spec sections 10, 23, 45).
+ * src/features/auth/auth.service.ts
  *
- * Dependencies arrive through the constructor rather than being imported
- * directly (spec section 5). `AuthService` depends on the PasswordHasher and
- * TokenService INTERFACES, so unit tests substitute fakes and a future move from
- * bcrypt to argon2, or from JWT to something else, touches one wiring file.
- *
- * Read the login path with account enumeration in mind: every branch that could
- * distinguish "no such account" from "wrong password" is deliberately collapsed
- * into one response and one timing profile (spec section 23).
+ * Implements Section 8.2–8.6: Authentication Business Logic.
+ * Covers registration, login, strict refresh rotation with reuse revocation (ADR-041),
+ * single & all-session logout, forgot/reset password with 6-digit OTP, and password change.
  */
-import { AppError, ErrorCode } from '@/core/errors';
-import { createLogger } from '@/core/logger';
-import type { PasswordHasher } from '@/core/security/password-hasher';
-import { TIMING_EQUALIZER_HASH } from '@/core/security/password-hasher';
-import type { TokenService } from '@/core/security/token-service';
-import { AuditAction, recordAudit } from '@/infrastructure/database/mongodb/audit-log.service';
-import { CacheKey, cacheSet } from '@/infrastructure/database/redis/cache';
 
-import * as repository from './auth.repository';
-import { toAuthResult, toUserProfile } from './auth.mapper';
+import type pg from 'pg';
+import type { AuthRepository } from './auth.repository.js';
+import type { PasswordHasher } from '../../core/security/password-hasher.js';
+import type { TokenService } from '../../core/security/token-service.js';
+import type { OtpStore } from '../../core/security/otp-service.js';
+import type { EmailSender } from '../../infrastructure/external/email-sender.js';
+import type { AuditLogger } from '../../infrastructure/database/postgres/audit-logger.js';
+import { generateRefreshToken, hashRefreshToken } from '../../core/security/refresh-token.js';
+import { toUserDto, formatTokensDto } from './auth.dto.js';
 import type {
-  AuthResult,
-  AuthTokens,
-  LoginInput,
   RegisterInput,
-  RequestOrigin,
-  UserProfile,
-  UserRecord,
-} from './auth.types';
+  LoginInput,
+  ResetPasswordInput,
+  ChangePasswordInput
+} from './auth.validation.js';
+import type { AuthResponseDto, TokensDto } from './auth.types.js';
+import { AppError } from '../../core/errors/app-error.js';
 
-const log = createLogger('auth.service');
-
-export interface AuthServiceConfig {
-  readonly maxFailedAttempts: number;
-  readonly lockoutSeconds: number;
-  readonly accessTtlSeconds: number;
+export interface RequestMeta {
+  ip?: string | undefined;
+  userAgent?: string | undefined;
+  requestId?: string | undefined;
 }
 
 export class AuthService {
   constructor(
-    private readonly hasher: PasswordHasher,
-    private readonly tokens: TokenService,
-    private readonly settings: AuthServiceConfig,
+    private readonly repo: AuthRepository,
+    private readonly pool: pg.Pool,
+    private readonly passwordHasher: PasswordHasher,
+    private readonly tokenService: TokenService,
+    private readonly otpStore: OtpStore,
+    private readonly emailSender: EmailSender,
+    private readonly auditLogger: AuditLogger
   ) {}
 
-  /**
-   * Registers a new account.
-   *
-   * Uniqueness is left to the database's unique index rather than being checked
-   * first: a check-then-insert races, and two simultaneous signups with the same
-   * email would both pass it (spec section 32). The duplicate surfaces as
-   * ALREADY_EXISTS from the constraint.
-   *
-   * That response does disclose that an email is taken. It is the one place this
-   * API accepts that trade-off, because a registration form that silently
-   * succeeds on a taken address is unusable. Password reset, where no such
-   * excuse exists, stays silent.
-   */
-  public async register(input: RegisterInput, origin: RequestOrigin): Promise<AuthResult> {
-    const passwordHash = await this.hasher.hash(input.password);
+  public async register(input: RegisterInput, meta?: RequestMeta): Promise<AuthResponseDto> {
+    const passwordHash = await this.passwordHasher.hash(input.password);
 
-    let user: UserRecord;
+    const client = await this.pool.connect();
     try {
-      user = await repository.insertUser({
-        email: input.email,
-        passwordHash,
-        displayName: input.displayName ?? null,
+      await client.query('BEGIN');
+
+      const user = await this.repo.createUser(
+        {
+          email: input.email,
+          passwordHash,
+          displayName: input.displayName,
+          timezone: input.timezone,
+          locale: input.locale,
+          defaultCurrency: input.defaultCurrency
+        },
+        client
+      );
+
+      // Seed default categories
+      await this.repo.createDefaultCategories(user.id, client);
+
+      // Create session (90 days absolute cap)
+      const now = new Date();
+      const absoluteExpiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+      const session = await this.repo.createSession(
+        {
+          userId: user.id,
+          absoluteExpiresAt,
+          devicePlatform: input.device?.platform ?? 'unknown',
+          deviceName: input.device?.name,
+          appVersion: input.device?.appVersion,
+          createdIp: meta?.ip
+        },
+        client
+      );
+
+      // Create initial refresh token (30 days sliding TTL, capped at absolute session expiry)
+      const { rawToken, tokenHash } = generateRefreshToken();
+      const refreshExpiresAt = new Date(
+        Math.min(now.getTime() + 30 * 24 * 60 * 60 * 1000, absoluteExpiresAt.getTime())
+      );
+
+      await this.repo.createRefreshToken(
+        {
+          sessionId: session.id,
+          userId: user.id,
+          tokenHash,
+          expiresAt: refreshExpiresAt
+        },
+        client
+      );
+
+      await client.query('COMMIT');
+
+      // Audit event
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: user.id,
+        sessionId: session.id,
+        eventType: 'auth.register',
+        outcome: 'success',
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
       });
-    } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === '23505') {
-        recordAudit({
-          action: AuditAction.USER_REGISTERED,
-          outcome: 'failure',
-          ipAddress: origin.ipAddress,
-          userAgent: origin.userAgent,
-          metadata: { reason: 'email_taken' },
-        });
-        throw new AppError(ErrorCode.ALREADY_EXISTS, {
-          message: 'An account with this email already exists.',
-        });
+
+      // Sign Access Token
+      const signedAccess = await this.tokenService.signAccessToken({
+        sub: user.id,
+        sid: session.id
+      });
+
+      return {
+        user: toUserDto(user),
+        tokens: formatTokensDto({
+          accessToken: signedAccess.token,
+          accessTokenExpiresAt: signedAccess.expiresAt,
+          refreshToken: rawToken,
+          refreshTokenExpiresAt: refreshExpiresAt
+        })
+      };
+    } catch (err: unknown) {
+      await client.query('ROLLBACK');
+      const pgErr = err as { code?: string };
+      if (pgErr.code === '23505') {
+        throw AppError.conflict('EMAIL_ALREADY_REGISTERED', 'Email address is already registered');
       }
-      throw error;
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const tokens = await this.issueSession(user, origin);
-
-    recordAudit({
-      action: AuditAction.USER_REGISTERED,
-      outcome: 'success',
-      actorId: user.id,
-      ipAddress: origin.ipAddress,
-      userAgent: origin.userAgent,
-    });
-
-    log.info({ userId: user.id }, 'User registered');
-    return toAuthResult(user, tokens);
   }
 
-  /**
-   * Authenticates a user.
-   *
-   * Every failure returns INVALID_CREDENTIALS with the same message, and the
-   * unknown-email path still performs a bcrypt comparison against a dummy hash
-   * so the response time does not reveal whether the account exists.
-   */
-  public async login(input: LoginInput, origin: RequestOrigin): Promise<AuthResult> {
-    const user = await repository.findUserByEmail(input.email);
+  public async login(input: LoginInput, meta?: RequestMeta): Promise<AuthResponseDto> {
+    const user = await this.repo.findUserByEmail(input.email);
 
     if (!user) {
-      // Burn equivalent time, then fail identically to a wrong password.
-      await this.hasher.verify(input.password, TIMING_EQUALIZER_HASH);
-      recordAudit({
-        action: AuditAction.LOGIN_FAILED,
+      await this.passwordHasher.dummyVerify();
+      await this.auditLogger.log({
+        actorType: 'system',
+        eventType: 'auth.login.failed',
         outcome: 'failure',
-        ipAddress: origin.ipAddress,
-        userAgent: origin.userAgent,
-        metadata: { reason: 'unknown_email' },
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+        metadata: { reason: 'user_not_found' }
       });
-      throw new AppError(ErrorCode.INVALID_CREDENTIALS);
+      throw AppError.unauthenticated('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const retryAfter = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000);
-      recordAudit({
-        action: AuditAction.LOGIN_FAILED,
+    const isValidPassword = await this.passwordHasher.verify(input.password, user.password_hash);
+    if (!isValidPassword) {
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: user.id,
+        eventType: 'auth.login.failed',
         outcome: 'failure',
-        actorId: user.id,
-        ipAddress: origin.ipAddress,
-        userAgent: origin.userAgent,
-        metadata: { reason: 'account_locked' },
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+        metadata: { reason: 'wrong_password' }
       });
-      throw new AppError(ErrorCode.ACCOUNT_LOCKED, { retryAfterSeconds: retryAfter });
+      throw AppError.unauthenticated('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
-    const passwordMatches = await this.hasher.verify(input.password, user.passwordHash);
+    if (user.status === 'disabled') {
+      throw AppError.forbidden('Account has been disabled by an administrator', 'ACCOUNT_DISABLED');
+    }
 
-    if (!passwordMatches) {
-      const { attempts, lockedUntil } = await repository.registerFailedLogin(
-        user.id,
-        this.settings.maxFailedAttempts,
-        this.settings.lockoutSeconds,
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const now = new Date();
+      const absoluteExpiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+      const session = await this.repo.createSession(
+        {
+          userId: user.id,
+          absoluteExpiresAt,
+          devicePlatform: input.device?.platform ?? 'unknown',
+          deviceName: input.device?.name,
+          appVersion: input.device?.appVersion,
+          createdIp: meta?.ip
+        },
+        client
       );
 
-      recordAudit({
-        action: AuditAction.LOGIN_FAILED,
-        outcome: 'failure',
-        actorId: user.id,
-        ipAddress: origin.ipAddress,
-        userAgent: origin.userAgent,
-        metadata: { reason: 'wrong_password', attempts },
+      const { rawToken, tokenHash } = generateRefreshToken();
+      const refreshExpiresAt = new Date(
+        Math.min(now.getTime() + 30 * 24 * 60 * 60 * 1000, absoluteExpiresAt.getTime())
+      );
+
+      await this.repo.createRefreshToken(
+        {
+          sessionId: session.id,
+          userId: user.id,
+          tokenHash,
+          expiresAt: refreshExpiresAt
+        },
+        client
+      );
+
+      await this.repo.updateLastLogin(user.id);
+      await client.query('COMMIT');
+
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: user.id,
+        sessionId: session.id,
+        eventType: 'auth.login.succeeded',
+        outcome: 'success',
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
       });
 
-      if (lockedUntil && lockedUntil > new Date()) {
-        recordAudit({
-          action: AuditAction.ACCOUNT_LOCKED,
-          outcome: 'success',
-          actorId: user.id,
-          ipAddress: origin.ipAddress,
-          metadata: { attempts },
+      const signedAccess = await this.tokenService.signAccessToken({
+        sub: user.id,
+        sid: session.id
+      });
+
+      return {
+        user: toUserDto(user),
+        tokens: formatTokensDto({
+          accessToken: signedAccess.token,
+          accessTokenExpiresAt: signedAccess.expiresAt,
+          refreshToken: rawToken,
+          refreshTokenExpiresAt: refreshExpiresAt
+        })
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  public async refresh(refreshToken: string, meta?: RequestMeta): Promise<TokensDto> {
+    const tokenHash = hashRefreshToken(refreshToken);
+    const record = await this.repo.findRefreshTokenWithSession(tokenHash);
+
+    if (!record) {
+      throw AppError.unauthenticated('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
+    }
+
+    const { token, session, user } = record;
+    const now = new Date();
+
+    // 1. Dead session or dead token
+    if (
+      session.revokedAt !== null ||
+      session.absoluteExpiresAt <= now ||
+      token.revoked_at !== null
+    ) {
+      throw AppError.unauthenticated('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
+    }
+
+    // 2. Reuse detection (ADR-041, Section 8.2.5)
+    if (token.rotated_at !== null) {
+      await this.repo.revokeSession(session.id, 'reuse_detected');
+      await this.repo.deleteSessionPushDevices(session.id);
+
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: user.id,
+        sessionId: session.id,
+        eventType: 'auth.refresh.reuse_detected',
+        outcome: 'failure',
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      });
+
+      throw AppError.unauthenticated('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
+    }
+
+    // 3. Expired token
+    if (token.expires_at <= now) {
+      throw AppError.unauthenticated('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
+    }
+
+    // 4. Disabled user
+    if (user.status === 'disabled') {
+      throw AppError.unauthenticated('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
+    }
+
+    // 5. Rotate atomically
+    const { rawToken: newRawToken, tokenHash: newTokenHash } = generateRefreshToken();
+    const newRefreshExpiresAt = new Date(
+      Math.min(now.getTime() + 30 * 24 * 60 * 60 * 1000, session.absoluteExpiresAt.getTime())
+    );
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const rotated = await this.repo.rotateRefreshToken(
+        token.id,
+        {
+          sessionId: session.id,
+          userId: user.id,
+          tokenHash: newTokenHash,
+          expiresAt: newRefreshExpiresAt
+        },
+        client
+      );
+
+      if (!rotated) {
+        // Lost race: treat as reuse and revoke
+        await this.repo.revokeSession(session.id, 'reuse_detected', client);
+        await this.repo.deleteSessionPushDevices(session.id, client);
+        await client.query('COMMIT');
+
+        await this.auditLogger.log({
+          actorType: 'user',
+          actorUserId: user.id,
+          sessionId: session.id,
+          eventType: 'auth.refresh.reuse_detected',
+          outcome: 'failure',
+          requestId: meta?.requestId,
+          ip: meta?.ip,
+          userAgent: meta?.userAgent
         });
-        log.warn({ userId: user.id, attempts }, 'Account locked after repeated failures');
+
+        throw AppError.unauthenticated('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
       }
 
-      // Same error as an unknown email: the client cannot tell the two apart.
-      throw new AppError(ErrorCode.INVALID_CREDENTIALS);
-    }
+      await client.query('COMMIT');
 
-    if (!user.isActive) {
-      // Checked only AFTER the password verifies, so a disabled account is not
-      // discoverable without the correct credentials.
-      recordAudit({
-        action: AuditAction.LOGIN_FAILED,
-        outcome: 'failure',
-        actorId: user.id,
-        ipAddress: origin.ipAddress,
-        metadata: { reason: 'account_disabled' },
+      const signedAccess = await this.tokenService.signAccessToken({
+        sub: user.id,
+        sid: session.id
       });
-      throw new AppError(ErrorCode.ACCOUNT_DISABLED);
+
+      return formatTokensDto({
+        accessToken: signedAccess.token,
+        accessTokenExpiresAt: signedAccess.expiresAt,
+        refreshToken: newRawToken,
+        refreshTokenExpiresAt: newRefreshExpiresAt
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    await repository.clearFailedLogins(user.id);
-
-    // Opportunistic upgrade: if the cost factor was raised since this password
-    // was set, re-hash now that the plaintext is available (spec section 12).
-    if (this.hasher.needsRehash(user.passwordHash)) {
-      const upgraded = await this.hasher.hash(input.password);
-      await repository.updatePasswordHash(user.id, upgraded);
-      log.info({ userId: user.id }, 'Password hash upgraded to current cost factor');
-    }
-
-    const tokens = await this.issueSession(user, origin);
-
-    recordAudit({
-      action: AuditAction.LOGIN_SUCCEEDED,
-      outcome: 'success',
-      actorId: user.id,
-      ipAddress: origin.ipAddress,
-      userAgent: origin.userAgent,
-    });
-
-    return toAuthResult(user, tokens);
   }
 
-  /**
-   * Exchanges a refresh token for a new pair, rotating the old one.
-   *
-   * REUSE DETECTION. Rotation means each refresh token is single-use. If a token
-   * that has already been rotated is presented again, either it was stolen and
-   * the thief is using it, or it was stolen and the legitimate user is. There is
-   * no way to tell which, so the whole session family is revoked and both
-   * parties must sign in again. That converts a silent, indefinite session
-   * hijack into a visible, bounded one (spec section 58).
-   */
-  public async refresh(refreshToken: string, origin: RequestOrigin): Promise<AuthResult> {
-    const claims = this.tokens.verifyRefreshToken(refreshToken);
-    const stored = await repository.findRefreshTokenById(claims.jti);
-
-    if (!stored) {
-      throw new AppError(ErrorCode.TOKEN_INVALID, {
-        metadata: { reason: 'refresh token not found', jti: claims.jti },
-      });
+  public async logout(
+    options: { refreshToken?: string | undefined; accessToken?: string | undefined },
+    meta?: RequestMeta
+  ): Promise<void> {
+    if (!options.refreshToken && !options.accessToken) {
+      throw AppError.validation([
+        {
+          field: 'refreshToken',
+          message: 'At least one of refreshToken or Authorization Bearer header must be supplied'
+        }
+      ]);
     }
 
-    if (stored.revokedAt !== null) {
-      const revokedCount = await repository.revokeSession(stored.sessionId, 'reuse_detected');
-      await cacheSet(CacheKey.revokedSession(stored.sessionId), true, 86_400);
+    let revokedSessionId: string | null = null;
+    let revokedUserId: string | null = null;
 
-      recordAudit({
-        action: AuditAction.TOKEN_REUSE_DETECTED,
-        outcome: 'failure',
-        actorId: stored.userId,
-        targetId: stored.sessionId,
-        ipAddress: origin.ipAddress,
-        userAgent: origin.userAgent,
-        metadata: { previousReason: stored.revokedReason, sessionsRevoked: revokedCount },
-      });
-
-      log.warn(
-        { userId: stored.userId, sessionId: stored.sessionId },
-        'Refresh token reuse detected; session family revoked',
-      );
-
-      throw new AppError(ErrorCode.TOKEN_REUSE_DETECTED);
+    if (options.accessToken) {
+      try {
+        const payload = await this.tokenService.verifyAccessToken(options.accessToken);
+        revokedSessionId = payload.sid;
+        revokedUserId = payload.sub;
+      } catch {
+        // Bearer invalid, fall through to refresh token check
+      }
     }
 
-    if (stored.expiresAt <= new Date()) {
-      throw new AppError(ErrorCode.TOKEN_EXPIRED);
+    if (!revokedSessionId && options.refreshToken) {
+      const tokenHash = hashRefreshToken(options.refreshToken);
+      const record = await this.repo.findRefreshTokenWithSession(tokenHash);
+      if (record) {
+        revokedSessionId = record.session.id;
+        revokedUserId = record.user.id;
+      }
     }
 
-    const user = await repository.findUserById(stored.userId);
-    if (!user || !user.isActive) {
-      await repository.revokeSession(stored.sessionId, 'admin');
-      throw new AppError(ErrorCode.ACCOUNT_DISABLED);
+    if (revokedSessionId && revokedUserId) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await this.repo.revokeSession(revokedSessionId, 'logout', client);
+        await this.repo.deleteSessionPushDevices(revokedSessionId, client);
+        await client.query('COMMIT');
+
+        await this.auditLogger.log({
+          actorType: 'user',
+          actorUserId: revokedUserId,
+          sessionId: revokedSessionId,
+          eventType: 'auth.logout',
+          outcome: 'success',
+          requestId: meta?.requestId,
+          ip: meta?.ip,
+          userAgent: meta?.userAgent
+        });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     }
-
-    // A password change invalidates every token issued before it.
-    //
-    // Both sides are compared in WHOLE SECONDS. A JWT `iat` is defined in
-    // seconds, so a token minted at 12:00:00.000 carries iat=12:00:00 while
-    // `password_changed_at` keeps millisecond precision from the same insert,
-    // e.g. 12:00:00.224. Comparing raw values makes every token issued at
-    // registration look older than the password it was issued with, and the
-    // very first refresh fails with TOKEN_REVOKED.
-    //
-    // The residual sub-second window is harmless: changePassword explicitly
-    // revokes every session row, so this check is a secondary defence rather
-    // than the mechanism doing the work.
-    const passwordChangedAtSeconds = Math.floor(user.passwordChangedAt.getTime() / 1000);
-    if (claims.iat < passwordChangedAtSeconds) {
-      await repository.revokeSession(stored.sessionId, 'password_changed');
-      throw new AppError(ErrorCode.TOKEN_REVOKED, {
-        message: 'Your password changed. Please sign in again.',
-      });
-    }
-
-    const issued = this.tokens.issueTokenPair({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      sessionId: stored.sessionId,
-    });
-
-    const rotated = await repository.rotateRefreshToken({
-      oldTokenId: stored.id,
-      newTokenId: issued.refreshTokenId,
-      userId: user.id,
-      sessionId: stored.sessionId,
-      newToken: issued.refreshToken,
-      expiresAt: issued.refreshExpiresAt,
-      ipAddress: origin.ipAddress,
-      userAgent: origin.userAgent,
-    });
-
-    if (!rotated) {
-      // Lost the race against a concurrent refresh with the same token. Treat it
-      // as reuse: the conservative reading is the safe one.
-      await repository.revokeSession(stored.sessionId, 'reuse_detected');
-      throw new AppError(ErrorCode.TOKEN_REUSE_DETECTED);
-    }
-
-    recordAudit({
-      action: AuditAction.TOKEN_REFRESHED,
-      outcome: 'success',
-      actorId: user.id,
-      targetId: stored.sessionId,
-      ipAddress: origin.ipAddress,
-    });
-
-    return toAuthResult(user, {
-      accessToken: issued.accessToken,
-      refreshToken: issued.refreshToken,
-      expiresIn: this.settings.accessTtlSeconds,
-      tokenType: 'Bearer',
-    });
   }
 
-  /**
-   * Ends a session.
-   *
-   * The refresh token is revoked in PostgreSQL immediately. The access token
-   * cannot be revoked, since it is stateless, so the session id is also written
-   * to a short-lived Redis denylist that `authenticate` consults. Without Redis
-   * the already-issued access token stays valid until it expires, which is why
-   * the access lifetime is only 15 minutes.
-   */
-  public async logout(sessionId: string, userId: string, origin: RequestOrigin): Promise<void> {
-    const revoked = await repository.revokeSession(sessionId, 'logout');
-    await cacheSet(CacheKey.revokedSession(sessionId), true, this.settings.accessTtlSeconds);
+  public async logoutAll(userId: string, meta?: RequestMeta): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await this.repo.revokeAllUserSessions(userId, 'logout_all', undefined, client);
+      await this.repo.deleteAllUserPushDevices(userId, undefined, client);
+      await client.query('COMMIT');
 
-    recordAudit({
-      action: AuditAction.LOGOUT,
-      outcome: 'success',
-      actorId: userId,
-      targetId: sessionId,
-      ipAddress: origin.ipAddress,
-      metadata: { tokensRevoked: revoked },
-    });
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: userId,
+        eventType: 'auth.logout_all',
+        outcome: 'success',
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
-  /**
-   * Changes a password and ends every other session.
-   *
-   * Signing out other devices is the point: a password change usually follows a
-   * suspected compromise, and leaving existing sessions alive would leave the
-   * attacker signed in (spec section 58).
-   */
+  public async forgotPassword(email: string, meta?: RequestMeta): Promise<void> {
+    const user = await this.repo.findUserByEmail(email);
+
+    if (user && user.status !== 'disabled') {
+      const allowed = await this.otpStore.checkCooldown(user.id);
+      if (allowed) {
+        const code = await this.otpStore.generateAndStoreCode(user.id);
+        await this.emailSender.sendPasswordResetEmail(user.email, code);
+
+        await this.auditLogger.log({
+          actorType: 'user',
+          actorUserId: user.id,
+          eventType: 'auth.password.reset.requested',
+          outcome: 'success',
+          requestId: meta?.requestId,
+          ip: meta?.ip,
+          userAgent: meta?.userAgent
+        });
+      }
+    }
+  }
+
+  public async resetPassword(input: ResetPasswordInput, meta?: RequestMeta): Promise<void> {
+    const user = await this.repo.findUserByEmail(input.email);
+
+    if (!user || user.status === 'disabled') {
+      await this.passwordHasher.dummyVerify();
+      throw new AppError({
+        httpStatus: 400,
+        code: 'INVALID_OR_EXPIRED_CODE',
+        safeMessage: 'Invalid or expired password reset code'
+      });
+    }
+
+    const isValid = await this.otpStore.verifyAndConsumeCode(user.id, input.code);
+    if (!isValid) {
+      throw new AppError({
+        httpStatus: 400,
+        code: 'INVALID_OR_EXPIRED_CODE',
+        safeMessage: 'Invalid or expired password reset code'
+      });
+    }
+
+    const passwordHash = await this.passwordHasher.hash(input.newPassword);
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await this.repo.updateUserPassword(user.id, passwordHash, client);
+      await this.repo.revokeAllUserSessions(user.id, 'password_reset', undefined, client);
+      await this.repo.deleteAllUserPushDevices(user.id, undefined, client);
+      await client.query('COMMIT');
+
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: user.id,
+        eventType: 'auth.password.reset.completed',
+        outcome: 'success',
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   public async changePassword(
     userId: string,
-    currentPassword: string,
-    newPassword: string,
-    origin: RequestOrigin,
+    currentSessionId: string,
+    input: ChangePasswordInput,
+    meta?: RequestMeta
   ): Promise<void> {
-    const user = await repository.findUserById(userId);
+    const user = await this.repo.findUserById(userId);
     if (!user) {
-      throw AppError.notFound('User');
+      throw AppError.notFound('User not found');
     }
 
-    const matches = await this.hasher.verify(currentPassword, user.passwordHash);
-    if (!matches) {
-      recordAudit({
-        action: AuditAction.PASSWORD_CHANGED,
-        outcome: 'failure',
-        actorId: userId,
-        ipAddress: origin.ipAddress,
-        metadata: { reason: 'wrong_current_password' },
+    const isMatch = await this.passwordHasher.verify(input.currentPassword, user.password_hash);
+    if (!isMatch) {
+      throw AppError.unauthenticated('Invalid current password', 'INVALID_CREDENTIALS');
+    }
+
+    const passwordHash = await this.passwordHasher.hash(input.newPassword);
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await this.repo.updateUserPassword(userId, passwordHash, client);
+      // Revoke all OTHER sessions, keeping current session
+      await this.repo.revokeAllUserSessions(userId, 'password_change', currentSessionId, client);
+      await this.repo.deleteAllUserPushDevices(userId, currentSessionId, client);
+      await client.query('COMMIT');
+
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: userId,
+        sessionId: currentSessionId,
+        eventType: 'auth.password.changed',
+        outcome: 'success',
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
       });
-      throw new AppError(ErrorCode.INVALID_CREDENTIALS, {
-        message: 'The current password is incorrect.',
-      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const newHash = await this.hasher.hash(newPassword);
-    await repository.updatePasswordHash(userId, newHash);
-    const revoked = await repository.revokeAllUserSessions(userId, 'password_changed');
-
-    recordAudit({
-      action: AuditAction.PASSWORD_CHANGED,
-      outcome: 'success',
-      actorId: userId,
-      ipAddress: origin.ipAddress,
-      metadata: { sessionsRevoked: revoked },
-    });
-
-    log.info({ userId, sessionsRevoked: revoked }, 'Password changed; all sessions revoked');
-  }
-
-  public async getProfile(userId: string): Promise<UserProfile> {
-    const user = await repository.findUserById(userId);
-    if (!user) {
-      throw AppError.notFound('User');
-    }
-    return toUserProfile(user);
-  }
-
-  /** Issues a fresh token pair and persists the refresh half. */
-  private async issueSession(user: UserRecord, origin: RequestOrigin): Promise<AuthTokens> {
-    const issued = this.tokens.issueTokenPair({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
-
-    await repository.insertRefreshToken({
-      id: issued.refreshTokenId,
-      userId: user.id,
-      sessionId: issued.sessionId,
-      token: issued.refreshToken,
-      expiresAt: issued.refreshExpiresAt,
-      ipAddress: origin.ipAddress,
-      userAgent: origin.userAgent,
-    });
-
-    return {
-      accessToken: issued.accessToken,
-      refreshToken: issued.refreshToken,
-      expiresIn: this.settings.accessTtlSeconds,
-      tokenType: 'Bearer',
-    };
   }
 }

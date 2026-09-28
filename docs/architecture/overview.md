@@ -1,124 +1,62 @@
-# System architecture
+# System Architecture Overview
+
+> **Specification Reference:** Section 4.1 & ADR-001–003
+
+## 1. High-Level Topology
+
+The LifeStyle App backend operates as a single codebase with two executable process targets:
+1. **API Process (`server.ts`):** Serves stateless HTTP/HTTPS REST traffic from mobile native clients.
+2. **Worker Process (`worker.ts`):** Consumes asynchronous queues (BullMQ), runs scheduled tasks, executes maintenance sweeps, and dispatches background reminders.
 
 ```mermaid
-graph TD
-    FL["Flutter app<br/>Dart"]
-    FL -->|HTTPS| MW
-
-    subgraph API["Node.js + Express + TypeScript"]
-        MW["Middleware<br/>request id, helmet, CORS,<br/>body parse, rate limit"]
-        MW --> AUTH["authenticate<br/>authorize"]
-        AUTH --> CTL[Controllers]
-        CTL --> SVC[Services]
-        SVC --> REP[Repositories]
-        ERR["Global error handler"]
+flowchart LR
+    subgraph Client
+        F[Flutter App<br/>iOS & Android]
     end
 
-    REP --> PG[(PostgreSQL)]
-    REP --> MG[(MongoDB)]
-    SVC --> RD[(Redis)]
+    subgraph Edge
+        LB[Load Balancer<br/>TLS Termination]
+    end
 
-    MW -.-> ERR
-    CTL -.-> ERR
-    SVC -.-> ERR
-    REP -.-> ERR
+    subgraph Backend[Backend: One Codebase, Two Processes]
+        API[API Process<br/>Express 5 + TypeScript]
+        W[Worker Process<br/>BullMQ Workers]
+    end
+
+    PG[(PostgreSQL 16<br/>Source of Truth)]
+    R[(Redis 7<br/>Rate limits, Queues, OTP)]
+    MAIL[Mailpit / SMTP]
+    FCM[Push Service / FCM]
+
+    F -- HTTPS --> LB --> API
+    API --> PG
+    API --> R
+    W --> PG
+    W --> R
+    W --> MAIL
+    W --> FCM
+    API -. Enqueue .-> R
 ```
 
-Every failure path converges on one error handler, which is what makes the
-response shape uniform and makes it impossible to leak internals from a forgotten
-catch block.
+---
 
-## Layers and what belongs in each
+## 2. Component Responsibilities
 
-| Layer | Responsibility | Must not |
-|---|---|---|
-| Route | Wire path to middleware chain and controller | Contain logic |
-| Middleware | Cross-cutting concerns: identity, validation, limits | Know about a feature's domain |
-| Controller | Read request, call service, send response | Contain business rules or touch a database |
-| Service | Business rules, orchestration, transactions | Know about HTTP |
-| Repository | Queries and persistence | Contain business rules or perform authorization |
+| Component | Responsibility | Constraints |
+| :--- | :--- | :--- |
+| **Flutter App** | Native mobile UI, offline local view state, token storage | No browser runtime, no cookies, Bearer tokens only |
+| **API Process** | Input validation, ownership authorization, transaction execution | Stateless, horizontally scalable, max 30s drain |
+| **Worker Process** | Asynchronous job execution, reminder dispatching, retention purging | Idempotent consumers, isolated DB connections |
+| **PostgreSQL 16** | Sole source of truth for all business entities | ACID, composite FKs, soft deletes, least-privilege roles |
+| **Redis 7** | Ephemeral infrastructure state | Safe to lose/rebuild; strictly zero primary business data |
 
-The one deliberate exception: repositories push ownership predicates into their
-WHERE clauses. That is authorization leaking downward on purpose, because a
-filter the database applies cannot be forgotten at a new call site.
+---
 
-## Request lifecycle
+## 3. Core Operating Loop
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant M as Middleware
-    participant Ct as Controller
-    participant S as Service
-    participant R as Repository
-    participant D as Database
-    participant E as Error handler
-
-    C->>M: HTTP request
-    M->>M: assign request id, open async context
-    M->>M: security headers, CORS, parse body
-    M->>M: rate limit
-    M->>M: authenticate, set req.user
-    M->>M: validate and REPLACE body/query/params
-    M->>Ct: clean, typed input
-    Ct->>S: call with primitives
-    S->>R: query or transaction
-    R->>D: parameterized SQL
-    D-->>R: rows
-    R-->>S: domain record
-    S-->>Ct: result
-    Ct-->>C: { success: true, data }
-
-    Note over M,E: any throw at any layer
-    S--xE: AppError or unknown error
-    E->>E: normalize, log, strip internals
-    E-->>C: { success: false, error }
-```
-
-The correlation id assigned in the first step is carried by async context, so
-every log line from every layer of that request shares it without any function
-needing a `requestId` parameter.
-
-## Feature layout
-
-```
-src/
-├── config/          validated environment, single source
-├── core/
-│   ├── errors/      AppError, code catalogue, normalization
-│   ├── logger/      Pino, redaction, async request context
-│   ├── middleware/  request id, auth, validate, rate limit, error handler
-│   ├── security/    password hasher, token service, HTTP headers
-│   ├── utils/       response envelope
-│   └── container.ts composition root
-├── infrastructure/
-│   └── database/
-│       ├── postgres/  pool, transactions, migrations
-│       ├── mongodb/   connection, models, audit writer
-│       └── redis/     client, cache helpers
-├── features/
-│   ├── auth/        controller, service, repository, routes, validation, types, mapper
-│   ├── health/      liveness and readiness
-│   └── docs/        Swagger UI
-├── app.ts
-└── server.ts
-```
-
-A feature owns its full vertical slice. There is no global `controllers/` or
-`models/` directory, which is what the specification means by feature-based.
-
-## Dependency inversion in practice
-
-```mermaid
-graph LR
-    AS[AuthService] --> PH["PasswordHasher<br/>interface"]
-    AS --> TS["TokenService<br/>interface"]
-    PH -.implemented by.-> BC[BcryptPasswordHasher]
-    TS -.implemented by.-> JW[JwtTokenService]
-    CR[container.ts] -->|binds| BC
-    CR -->|binds| JW
-```
-
-`AuthService` never imports bcrypt or jsonwebtoken. `container.ts` is the only
-file that binds an interface to an implementation, so swapping bcrypt for argon2
-is one line there. Tests exploit the same seam to inject fast fakes.
+The system enables the five-step productivity loop:
+* **PLAN:** Daily Plan, Calendar Events, Projects, Goals, Recurring Tasks.
+* **FOCUS:** Active task execution, single running Timer Session per user.
+* **DO:** Task completions, Habit check-ins, Notes capture.
+* **TRACK:** Streaks, milestones, money transactions, subscription renewals.
+* **REVIEW:** Aggregated Dashboard metrics, financial summaries, progress tracking.

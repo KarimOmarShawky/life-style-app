@@ -1,0 +1,100 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-gate:
+    name: Backend Quality & Security Gate (Phase P1)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lifestyle_dev
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_local_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js runtime (Active LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Step 13 - Forbidden-Dependency Guard (ADR-039)
+        run: node scripts/check-forbidden.mjs
+
+      - name: Step 1 - Install dependencies with lockfile (npm ci)
+        working-directory: backend
+        run: npm ci
+
+      - name: Step 2 - Code Style & Lint (ESLint & Prettier)
+        working-directory: backend
+        run: |
+          npm run format:check
+          npm run lint
+
+      - name: Step 3 - Static Type-Check (Strict TypeScript)
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Step 8 - OpenAPI Drift Check
+        working-directory: backend
+        run: |
+          npm run openapi:generate
+          git diff --exit-code ../docs/api/openapi.yaml
+
+      - name: Initialize Database Roles
+        run: |
+          PGPASSWORD=postgres_local_pass psql -h localhost -U postgres -d lifestyle_dev -f backend/src/infrastructure/database/postgres/init-roles.sql
+
+      - name: Step 7 - Migration Reversibility Check (up -> down -> up)
+        working-directory: backend
+        env:
+          DATABASE_MIGRATION_URL: postgresql://lifestyle_migrator:migrator_local_pass@localhost:5432/lifestyle_dev
+        run: |
+          npm run migrate:up
+          npm run migrate:down
+          npm run migrate:up
+
+      - name: Step 4, 5, 6 - Unit, Integration & Security Tests
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          DATABASE_URL: postgresql://lifestyle_app:app_local_pass@localhost:5432/lifestyle_dev
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: test-secret-at-least-32-characters-long-for-hs256
+          OTP_HMAC_SECRET: test-otp-secret-at-least-32-characters-long
+          LOG_LEVEL: silent
+        run: npm test
+
+      - name: Step 9 - Dependency Security Audit
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high

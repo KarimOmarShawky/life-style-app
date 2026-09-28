@@ -1,0 +1,16 @@
+{
+  "name": "lifestyle-app",
+  "version": "1.0.1",
+  "description": "LifeStyle App - Personal Life Operating System Monorepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:forbidden": "node scripts/check-forbidden.mjs",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build",
+    "backend:test": "npm --prefix backend test",
+    "backend:lint": "npm --prefix backend run lint",
+    "backend:typecheck": "npm --prefix backend run typecheck",
+    "ci": "npm run check:forbidden && npm --prefix backend run typecheck && npm --prefix backend run lint && npm --prefix backend run test"
+  }
+}

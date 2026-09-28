@@ -1,0 +1,202 @@
+/**
+ * tests/integration/users-flow.test.ts
+ *
+ * Implements Acceptance Tests:
+ * - AC-AUTH-10: Middleware lifecycle enforcement (active, disabled, pending_deletion exemptions)
+ * - AC-AUTH-11: User profile, devices, deletion scheduling/cancellation, and GDPR export
+ */
+
+import { describe, it, expect, beforeEach } from 'vitest';
+import request from 'supertest';
+import { createApp } from '../../src/app.js';
+import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
+import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
+import { getContainer } from '../../src/container.js';
+
+describe('Users Flow Integration Tests', () => {
+  const app = createApp();
+  const pool = getPgPool();
+  const redis = getRedisClient();
+
+  beforeEach(async () => {
+    await pool.query('DELETE FROM users');
+    await redis.flushdb();
+    const container = getContainer();
+    if ('clear' in container.rateLimiter && typeof container.rateLimiter.clear === 'function') {
+      container.rateLimiter.clear();
+    }
+  });
+
+  async function registerUser(email = 'user@example.com') {
+    const res = await request(app).post('/api/v1/auth/register').send({
+      email,
+      password: 'ValidUserPassword123!',
+      displayName: 'Test User',
+      timezone: 'UTC',
+      defaultCurrency: 'USD'
+    });
+    return res.body;
+  }
+
+  it('AC-AUTH-11: GET /users/me returns authenticated user profile omitting password_hash', async () => {
+    const { user, tokens } = await registerUser();
+
+    const res = await request(app)
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toBeDefined();
+    expect(res.body.user.id).toBe(user.id);
+    expect(res.body.user.email).toBe(user.email);
+    expect(res.body.user.password_hash).toBeUndefined();
+    expect(res.body.user.status).toBe('active');
+  });
+
+  it('AC-AUTH-11: PATCH /users/me updates profile settings', async () => {
+    const { tokens } = await registerUser();
+
+    const updatePayload = {
+      displayName: 'Updated Name',
+      timezone: 'Europe/Paris',
+      locale: 'fr',
+      weekStart: 7,
+      defaultCurrency: 'EUR',
+      pushShowTitles: false
+    };
+
+    const res = await request(app)
+      .patch('/api/v1/users/me')
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send(updatePayload);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.displayName).toBe('Updated Name');
+    expect(res.body.user.timezone).toBe('Europe/Paris');
+    expect(res.body.user.locale).toBe('fr');
+    expect(res.body.user.weekStart).toBe(7);
+    expect(res.body.user.defaultCurrency).toBe('EUR');
+    expect(res.body.user.pushShowTitles).toBe(false);
+  });
+
+  it('AC-AUTH-11: PUT and DELETE /users/me/devices manages push device tokens', async () => {
+    const { user, tokens } = await registerUser();
+
+    // Register push device
+    const regDevice = await request(app)
+      .put('/api/v1/users/me/devices')
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({
+        pushToken: 'test-push-token-abc',
+        platform: 'ios',
+        appVersion: '1.0.0'
+      });
+
+    expect(regDevice.status).toBe(200);
+    expect(regDevice.body.status).toBe('registered');
+
+    const dbDevice = await pool.query('SELECT * FROM push_devices WHERE user_id = $1', [user.id]);
+    expect(dbDevice.rows.length).toBe(1);
+    const deviceId = dbDevice.rows[0].id;
+
+    // Delete device
+    const delDevice = await request(app)
+      .delete(`/api/v1/users/me/devices/${deviceId}`)
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(delDevice.status).toBe(204);
+
+    const dbDeviceAfter = await pool.query('SELECT * FROM push_devices WHERE id = $1', [deviceId]);
+    expect(dbDeviceAfter.rows.length).toBe(0);
+
+    // Deleting unknown device returns 404
+    const delNotFound = await request(app)
+      .delete(`/api/v1/users/me/devices/${deviceId}`)
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(delNotFound.status).toBe(404);
+  });
+
+  it('AC-AUTH-11: POST /users/me/export returns comprehensive GDPR export payload', async () => {
+    const { user, tokens } = await registerUser();
+
+    const res = await request(app)
+      .post('/api/v1/users/me/export')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.exportedAt).toBeDefined();
+    expect(res.body.profile.id).toBe(user.id);
+    expect(res.body.profile.email).toBe(user.email);
+    expect(Array.isArray(res.body.sessions)).toBe(true);
+    expect(Array.isArray(res.body.categories)).toBe(true);
+    expect(Array.isArray(res.body.pushDevices)).toBe(true);
+  });
+
+  it('AC-AUTH-10 & AC-AUTH-11: Deletion schedule, cancellation, and pending_deletion endpoint restrictions', async () => {
+    const { tokens } = await registerUser();
+
+    // 1. Request deletion (starts 14-day grace period)
+    const delReq = await request(app)
+      .post('/api/v1/users/me/deletion')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(delReq.status).toBe(200);
+    expect(delReq.body.status).toBe('pending_deletion');
+    expect(delReq.body.deletionScheduledFor).toBeDefined();
+
+    // 2. Normal mutating endpoints should now be blocked with 403 ACCOUNT_PENDING_DELETION
+    const patchBlocked = await request(app)
+      .patch('/api/v1/users/me')
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ displayName: 'Blocked Name' });
+
+    expect(patchBlocked.status).toBe(403);
+    expect(patchBlocked.body.error.code).toBe('ACCOUNT_PENDING_DELETION');
+
+    // 3. Exempt endpoints: GET /users/me, POST /users/me/export are allowed
+    const meAllowed = await request(app)
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(meAllowed.status).toBe(200);
+    expect(meAllowed.body.user.status).toBe('pending_deletion');
+
+    const exportAllowed = await request(app)
+      .post('/api/v1/users/me/export')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(exportAllowed.status).toBe(200);
+
+    // 4. Cancel deletion
+    const cancelRes = await request(app)
+      .delete('/api/v1/users/me/deletion')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(cancelRes.status).toBe(200);
+    expect(cancelRes.body.status).toBe('active');
+
+    // 5. Now normal mutating endpoints should work again
+    const patchAllowed = await request(app)
+      .patch('/api/v1/users/me')
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ displayName: 'Unblocked Name' });
+
+    expect(patchAllowed.status).toBe(200);
+    expect(patchAllowed.body.user.displayName).toBe('Unblocked Name');
+  });
+
+  it('AC-AUTH-10: Disabled account is blocked with 403 ACCOUNT_DISABLED', async () => {
+    const { user, tokens } = await registerUser();
+
+    // Administratively disable account in DB
+    await pool.query("UPDATE users SET status = 'disabled' WHERE id = $1", [user.id]);
+
+    const res = await request(app)
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('ACCOUNT_DISABLED');
+  });
+});

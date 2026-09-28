@@ -1,70 +1,89 @@
 /**
- * Auth routes (spec section 17).
+ * src/features/auth/auth.routes.ts
  *
- * Middleware order is deliberate and security-relevant:
- *
- *   authLimiter -> validate -> controller
- *
- * The limiter runs BEFORE validation so that a flood of malformed requests is
- * rejected without paying for schema parsing. The exception is that its key
- * reads `req.body.email`, which at that point is still the raw parsed JSON; the
- * value is defensively stringified and truncated in the key generator.
- *
- * `authenticate` appears only on routes that need an identity. Login and refresh
- * must NOT require it: they are how an identity is obtained in the first place.
+ * Implements Section 14.2 & Section 8.3: Auth Routes with Route-Specific Rate Limiters.
  */
-import { Router } from 'express';
 
-import { getContainer } from '@/core/container';
-import { createAuthenticate } from '@/core/middleware/authenticate';
-import { asyncHandler } from '@/core/middleware/async-handler';
-import { authLimiter } from '@/core/middleware/rate-limit';
-import { validate } from '@/core/middleware/validate';
+import { Router, type RequestHandler } from 'express';
+import type { AuthController } from './auth.controller.js';
+import { type RateLimiter, createRateLimitMiddleware } from '../../core/middleware/rate-limiter.js';
 
-import {
-  changePasswordSchema,
-  loginSchema,
-  refreshSchema,
-  registerSchema,
-} from './auth.validation';
+export interface AuthRouterOptions {
+  controller: AuthController;
+  authenticate: RequestHandler;
+  rateLimiter: RateLimiter;
+}
 
-export function createAuthRouter(): Router {
+export function createAuthRouter(options: {
+  controller: AuthController;
+  authenticate: RequestHandler;
+  rateLimiter: RateLimiter;
+}): Router {
   const router = Router();
-  const { authController, tokenService } = getContainer();
-  const authenticate = createAuthenticate(tokenService);
+  const { controller, authenticate, rateLimiter } = options;
 
-  router.post(
-    '/register',
-    authLimiter,
-    validate({ body: registerSchema }),
-    asyncHandler(authController.register),
-  );
+  // Rate Limiting per Section 8.3:
+  // Register: 5 requests / 60 min by IP
+  const registerLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    limit: 5,
+    windowSeconds: 3600,
+    keyGenerator: (req) => `register:ip:${req.ip || 'unknown'}`
+  });
 
-  router.post(
-    '/login',
-    authLimiter,
-    validate({ body: loginSchema }),
-    asyncHandler(authController.login),
-  );
+  // Login: 15 requests / 15 min by IP
+  const loginIpLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    limit: 15,
+    windowSeconds: 900,
+    keyGenerator: (req) => `login:ip:${req.ip || 'unknown'}`
+  });
 
-  router.post(
-    '/refresh',
-    authLimiter,
-    validate({ body: refreshSchema }),
-    asyncHandler(authController.refresh),
-  );
+  // Login: 5 requests / 15 min by Email + IP
+  const loginAccountLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    limit: 5,
+    windowSeconds: 900,
+    keyGenerator: (req) => {
+      const email =
+        typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : 'unknown';
+      return `login:account:${email}:${req.ip || 'unknown'}`;
+    }
+  });
 
-  router.post('/logout', authenticate, asyncHandler(authController.logout));
+  // Refresh: 60 requests / 60s by IP
+  const refreshLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    limit: 60,
+    windowSeconds: 60,
+    keyGenerator: (req) => `refresh:ip:${req.ip || 'unknown'}`
+  });
 
-  router.post(
-    '/change-password',
-    authenticate,
-    authLimiter,
-    validate({ body: changePasswordSchema }),
-    asyncHandler(authController.changePassword),
-  );
+  // Forgot password: 5 requests / 60 min by IP
+  const forgotPasswordLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    limit: 5,
+    windowSeconds: 3600,
+    keyGenerator: (req) => `pwforgot:ip:${req.ip || 'unknown'}`
+  });
 
-  router.get('/me', authenticate, asyncHandler(authController.me));
+  // Reset password: 10 requests / 60 min by IP
+  const resetPasswordLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    limit: 10,
+    windowSeconds: 3600,
+    keyGenerator: (req) => `pwreset:ip:${req.ip || 'unknown'}`
+  });
+
+  // Route declarations
+  router.post('/register', registerLimiter, controller.register);
+  router.post('/login', loginIpLimiter, loginAccountLimiter, controller.login);
+  router.post('/refresh', refreshLimiter, controller.refresh);
+  router.post('/logout', controller.logout);
+  router.post('/logout-all', authenticate, controller.logoutAll);
+  router.post('/forgot-password', forgotPasswordLimiter, controller.forgotPassword);
+  router.post('/reset-password', resetPasswordLimiter, controller.resetPassword);
+  router.post('/change-password', authenticate, controller.changePassword);
 
   return router;
 }

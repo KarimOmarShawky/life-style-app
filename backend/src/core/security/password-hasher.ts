@@ -1,77 +1,47 @@
 /**
- * Password hashing behind an interface (spec sections 5 and 12).
+ * src/core/security/password-hasher.ts
  *
- * The interface exists so `AuthService` depends on the IDEA of hashing rather
- * than on bcrypt itself. Two concrete benefits, not just theory:
- *   - Unit tests inject a fake hasher and run in milliseconds instead of paying
- *     bcrypt's deliberate cost on every test user.
- *   - Migrating to argon2 later means adding one class, not editing the service.
+ * Implements Section 8.4: Password policy and secure bcrypt hashing.
+ * Includes dummy comparison for timing attack mitigation on unknown user logins.
  */
+
 import bcrypt from 'bcrypt';
+import { getEnv } from '../../config/env.js';
 
 export interface PasswordHasher {
-  hash(plain: string): Promise<string>;
-  verify(plain: string, hash: string): Promise<boolean>;
-  /** True when `hash` was produced with outdated parameters and should be re-hashed. */
-  needsRehash(hash: string): boolean;
+  hash(password: string): Promise<string>;
+  verify(password: string, hash: string): Promise<boolean>;
+  dummyVerify(): Promise<boolean>;
 }
 
-/**
- * bcrypt implementation.
- *
- * Cost is configurable because the right value is a function of production CPU:
- * spec section 12 asks for it to be set from performance testing. 12 is a sane
- * default, roughly 250ms on a modern core, slow enough to make offline cracking
- * expensive and fast enough not to become a login bottleneck.
- *
- * bcrypt truncates input at 72 bytes. Passwords are therefore length-capped at
- * validation time, so a user cannot set a 200-character password of which only
- * the first 72 bytes are ever checked.
- */
+// Fixed dummy hash used to equalize timing when an email is not found
+const DUMMY_HASH = '$2b$12$e80yq9jG6XpXl8x3Q5u8Me7m9wE6.Vv7Q.3c6g5a9e3b1c9d8e7f0';
+
 export class BcryptPasswordHasher implements PasswordHasher {
-  public static readonly MAX_PASSWORD_BYTES = 72;
+  private readonly rounds: number;
 
-  constructor(private readonly cost: number) {
-    if (!Number.isInteger(cost) || cost < 10 || cost > 15) {
-      throw new Error(`bcrypt cost must be an integer between 10 and 15, received ${cost}`);
-    }
+  constructor(rounds?: number) {
+    this.rounds = rounds ?? getEnv().BCRYPT_COST;
   }
 
-  public async hash(plain: string): Promise<string> {
-    return bcrypt.hash(plain, this.cost);
+  public async hash(password: string): Promise<string> {
+    return bcrypt.hash(password, this.rounds);
   }
 
-  /**
-   * Verifies a password.
-   *
-   * Returns false rather than throwing when the stored hash is malformed. A
-   * corrupt row must read as "wrong password", not as a 500 that tells an
-   * attacker which accounts have damaged hashes.
-   */
-  public async verify(plain: string, hash: string): Promise<boolean> {
+  public async verify(password: string, hash: string): Promise<boolean> {
     try {
-      return await bcrypt.compare(plain, hash);
+      return await bcrypt.compare(password, hash);
     } catch {
       return false;
     }
   }
 
-  public needsRehash(hash: string): boolean {
+  public async dummyVerify(): Promise<boolean> {
     try {
-      return bcrypt.getRounds(hash) < this.cost;
+      await bcrypt.compare('dummy-password-for-timing-similarity', DUMMY_HASH);
     } catch {
-      // Unparseable hash: treat as needing replacement.
-      return true;
+      // Ignored
     }
+    return false;
   }
 }
-
-/**
- * A dummy hash used to equalize timing on the login path.
- *
- * When the email does not exist there is nothing to compare against, so the
- * handler would return immediately while a real account pays bcrypt's cost. That
- * difference is measurable and turns login into an account-enumeration oracle.
- * Verifying against this constant burns the same time (spec section 23).
- */
-export const TIMING_EQUALIZER_HASH = '$2b$12$C6UzMDM.H6dfI/f/IKcEe.7hHJ2v6vTCWO7z2Qz1H4gQ8nZ6XxYyO';

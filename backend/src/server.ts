@@ -1,134 +1,90 @@
 /**
- * Process entry point: startup ordering and graceful shutdown (spec section 48).
+ * src/server.ts
  *
- * STARTUP. Configuration is validated first, by importing `config`, so a missing
- * variable fails before a port is bound or a connection opened. PostgreSQL must
- * connect or the process exits; MongoDB and Redis are allowed to fail into
- * degraded mode, matching how readiness reports them.
- *
- * SHUTDOWN. On SIGTERM the order is: stop accepting connections, let in-flight
- * requests finish, then close Redis, MongoDB and PostgreSQL. Closing the
- * databases first would fail the very requests we are trying to let finish. A
- * timer bounds the wait, because a hung request must not block a deploy forever.
+ * Implements Section 4.7: API Server Process Entry Point & Graceful Shutdown.
+ * Manages HTTP listener lifecycle, handles OS termination signals (SIGTERM/SIGINT),
+ * drains in-flight connections with a 30s timeout, closes Redis and PostgreSQL pools,
+ * and exits cleanly with code 0.
  */
-import type { Server } from 'node:http';
 
-import { config } from '@/config';
-import { createLogger, logger } from '@/core/logger';
-import { closeMongo, connectMongo } from '@/infrastructure/database/mongodb/connection';
-import { closePostgres, connectPostgres } from '@/infrastructure/database/postgres/pool';
-import { closeRedis, connectRedis } from '@/infrastructure/database/redis/client';
+import http from 'node:http';
+import { createApp } from './app.js';
+import { getEnv, validateEnv } from './config/env.js';
+import { logger } from './core/logger/logger.js';
+import { setDrainingStatus } from './features/health/health.routes.js';
+import { closePgPool } from './infrastructure/database/postgres/pool.js';
+import { closeRedisClient } from './infrastructure/redis/redis-client.js';
 
-import { createApp } from './app';
+// Validate environment variables fail-fast
+validateEnv();
+const env = getEnv();
 
-const log = createLogger('server');
+const app = createApp();
+const server = http.createServer(app);
 
-let server: Server | undefined;
-let shuttingDown = false;
+// Keep-alive timeouts tuned per Section 16.2
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
 
-async function closeDependencies(): Promise<void> {
-  // Reverse of startup order, and tolerant: one failing close must not prevent
-  // the others from running.
-  const results = await Promise.allSettled([closeRedis(), closeMongo(), closePostgres()]);
+let isShuttingDown = false;
 
-  for (const result of results) {
-    if (result.status === 'rejected') {
-      log.error({ err: result.reason }, 'Error while closing a dependency');
-    }
-  }
-}
-
-async function shutdown(signal: string): Promise<void> {
-  if (shuttingDown) {
-    log.warn({ signal }, 'Shutdown already in progress');
+async function handleShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
     return;
   }
-  shuttingDown = true;
+  isShuttingDown = true;
 
-  log.info({ signal }, 'Shutdown initiated');
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
 
-  // Hard deadline. If in-flight requests have not drained by now, exiting is
-  // better than hanging: the orchestrator would SIGKILL us shortly anyway, and
-  // that path skips dependency cleanup entirely.
-  const forceExit = setTimeout(() => {
-    log.error(
-      { timeoutMs: config.SHUTDOWN_TIMEOUT_MS },
-      'Graceful shutdown timed out; forcing exit',
-    );
-    process.exit(1);
-  }, config.SHUTDOWN_TIMEOUT_MS);
-  forceExit.unref();
+  // 1. Immediately flip readiness health probe to failing (503 degraded) so LB drains traffic
+  setDrainingStatus(true);
 
-  try {
-    if (server) {
-      await new Promise<void>((resolve) => {
-        // Stops accepting new connections; the callback fires once existing ones
-        // have finished.
-        server?.close(() => {
-          resolve();
-        });
-      });
-      log.info('HTTP server stopped accepting connections');
+  // 2. Stop accepting new HTTP connections
+  server.close(async (err) => {
+    if (err) {
+      logger.error('Error while closing HTTP server', err);
+      process.exit(1);
     }
 
-    await closeDependencies();
-    clearTimeout(forceExit);
-    log.info('Shutdown complete');
-    process.exit(0);
-  } catch (error) {
-    log.error({ err: error }, 'Error during shutdown');
-    process.exit(1);
-  }
-}
+    logger.info('HTTP server closed. Draining database and cache connections...');
 
-async function start(): Promise<void> {
-  log.info({ env: config.NODE_ENV, port: config.PORT }, 'Starting LifeStyle API');
+    try {
+      // 3. Close Redis connection
+      await closeRedisClient();
 
-  // Hard dependency: without PostgreSQL nothing authenticated can work, so
-  // failing here is better than serving errors from a running process.
-  await connectPostgres();
+      // 4. Close PostgreSQL connection pool
+      await closePgPool();
 
-  // Soft dependencies: connect if configured, degrade if not.
-  await connectMongo();
-  await connectRedis();
-
-  const app = createApp();
-
-  server = app.listen(config.PORT, () => {
-    log.info({ port: config.PORT, apiPrefix: config.API_PREFIX }, 'HTTP server listening');
+      logger.info('Graceful shutdown completed successfully. Exiting.');
+      process.exit(0);
+    } catch (shutdownErr) {
+      logger.error('Error during infrastructure disconnection', shutdownErr);
+      process.exit(1);
+    }
   });
 
-  // Node's default is no timeout, which lets a slow client hold a socket open
-  // indefinitely. These bound that.
-  server.headersTimeout = 20_000;
-  server.requestTimeout = 30_000;
-  server.keepAliveTimeout = 15_000;
+  // 5. Force termination if in-flight requests exceed 30 seconds cap (Section 4.7)
+  const shutdownTimer = setTimeout(() => {
+    logger.error('Graceful shutdown timed out after 30s. Forcing exit.');
+    process.exit(1);
+  }, 30000);
+
+  shutdownTimer.unref();
 }
 
-process.on('SIGTERM', () => {
-  void shutdown('SIGTERM');
-});
-process.on('SIGINT', () => {
-  void shutdown('SIGINT');
+process.on('SIGTERM', () => void handleShutdown('SIGTERM'));
+process.on('SIGINT', () => void handleShutdown('SIGINT'));
+
+process.on('uncaughtException', (err) => {
+  logger.fatal('Uncaught exception detected', err);
+  void handleShutdown('uncaughtException');
 });
 
-/**
- * An unhandled rejection or uncaught exception leaves the process in an unknown
- * state. Logging and continuing risks serving corrupted results, so the only
- * safe response is to log with full detail and shut down for the supervisor to
- * replace us.
- */
-process.on('unhandledRejection', (reason: unknown) => {
-  logger.fatal({ err: reason }, 'Unhandled promise rejection');
-  void shutdown('unhandledRejection');
+process.on('unhandledRejection', (reason) => {
+  logger.fatal('Unhandled promise rejection detected', reason);
+  void handleShutdown('unhandledRejection');
 });
 
-process.on('uncaughtException', (error: Error) => {
-  logger.fatal({ err: error }, 'Uncaught exception');
-  void shutdown('uncaughtException');
-});
-
-start().catch((error: unknown) => {
-  logger.fatal({ err: error }, 'Failed to start the server');
-  process.exit(1);
+server.listen(env.PORT, () => {
+  logger.info(`LifeStyle API server listening on port ${env.PORT} [NODE_ENV=${env.NODE_ENV}]`);
 });

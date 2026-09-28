@@ -1,74 +1,94 @@
 /**
- * Auth feature types.
+ * src/features/auth/auth.types.ts
  *
- * `UserRecord` mirrors the database row and is INTERNAL. It carries the password
- * hash and the lockout state, so it must never be returned from a controller.
- * `UserProfile` is the public projection; `auth.mapper.ts` is the only place
- * that converts one into the other (spec section 35).
+ * Implements Section 6.3 & 14.2: Domain types for authentication and identity.
  */
-import type { UserRole } from '@/core/security/authenticated-user';
 
-/** A row from `users`. Contains secrets. Never serialize this. */
-export interface UserRecord {
-  readonly id: string;
-  readonly email: string;
-  readonly passwordHash: string;
-  readonly displayName: string | null;
-  readonly role: UserRole;
-  readonly isActive: boolean;
-  readonly failedLoginAttempts: number;
-  readonly lockedUntil: Date | null;
-  readonly passwordChangedAt: Date;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  timezone: string;
+  locale: string;
+  weekStart: number;
+  defaultCurrency: string;
+  status: 'active' | 'disabled' | 'pending_deletion';
+  emailVerified: boolean;
+  passwordChangedAt: Date;
+  lastLoginAt: Date | null;
+  deletionScheduledFor: Date | null;
+  pushShowTitles: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-/** The client-safe projection of a user. */
-export interface UserProfile {
-  readonly id: string;
-  readonly email: string;
-  readonly displayName: string | null;
-  readonly role: UserRole;
-  readonly createdAt: string;
+export interface UserRow {
+  id: string;
+  email: string;
+  password_hash: string;
+  display_name: string;
+  timezone: string;
+  locale: string;
+  week_start: number;
+  default_currency: string;
+  status: 'active' | 'disabled' | 'pending_deletion';
+  email_verified_at: Date | null;
+  password_changed_at: Date;
+  last_login_at: Date | null;
+  deletion_scheduled_for: Date | null;
+  push_show_titles: boolean;
+  created_at: Date;
+  updated_at: Date;
 }
 
-export interface AuthTokens {
-  readonly accessToken: string;
-  readonly refreshToken: string;
-  readonly expiresIn: number;
-  readonly tokenType: 'Bearer';
+export interface AuthSession {
+  id: string;
+  userId: string;
+  createdAt: Date;
+  lastUsedAt: Date;
+  absoluteExpiresAt: Date;
+  revokedAt: Date | null;
+  revokedReason: string | null;
+  devicePlatform: 'ios' | 'android' | 'unknown';
+  deviceName: string | null;
+  appVersion: string | null;
+  createdIp: string | null;
 }
 
-export interface AuthResult {
-  readonly user: UserProfile;
-  readonly tokens: AuthTokens;
+export interface RefreshTokenRow {
+  id: string;
+  session_id: string;
+  user_id: string;
+  token_hash: Buffer;
+  issued_at: Date;
+  expires_at: Date;
+  rotated_at: Date | null;
+  replaced_by: string | null;
+  revoked_at: Date | null;
 }
 
-export interface RegisterInput {
-  readonly email: string;
-  readonly password: string;
-  readonly displayName?: string | undefined;
+export interface TokensDto {
+  accessToken: string;
+  accessTokenExpiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
 }
 
-export interface LoginInput {
-  readonly email: string;
-  readonly password: string;
+export interface UserDto {
+  id: string;
+  email: string;
+  displayName: string;
+  timezone: string;
+  locale: string;
+  weekStart: number;
+  defaultCurrency: string;
+  pushShowTitles: boolean;
+  status: string;
+  emailVerified: boolean;
+  createdAt: string;
 }
 
-/** Request context captured for the audit trail and session list. */
-export interface RequestOrigin {
-  readonly ipAddress: string | null;
-  readonly userAgent: string | null;
+export interface AuthResponseDto {
+  user: UserDto;
+  tokens: TokensDto;
 }
-
-export interface StoredRefreshToken {
-  readonly id: string;
-  readonly userId: string;
-  readonly sessionId: string;
-  readonly expiresAt: Date;
-  readonly revokedAt: Date | null;
-  readonly revokedReason: string | null;
-}
-
-export type RevocationReason =
-  'rotated' | 'logout' | 'reuse_detected' | 'password_changed' | 'admin' | 'expired';

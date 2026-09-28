@@ -1,41 +1,40 @@
 /**
- * Assigns a correlation id to every request and opens the async context that
- * carries it (spec section 27).
+ * src/core/middleware/request-id.ts
  *
- * An inbound `x-request-id` is honoured so a trace can span the mobile client
- * and any upstream proxy, but it is length-capped and character-filtered first:
- * the value is echoed in a response header and written into logs, so an
- * unvalidated one is a header-injection and log-forging vector.
+ * Implements Section 4.6 & 16.5: Request ID handling and AsyncLocalStorage propagation.
+ * Validates or assigns a unique UUIDv4 request ID, binds it to the response header,
+ * and enters the asynchronous request context for structured logging.
  */
+
 import { randomUUID } from 'node:crypto';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { requestContextStore } from '../logger/logger.js';
 
-import { runWithContext } from '@/core/logger';
-
-const HEADER = 'x-request-id';
-const MAX_LENGTH = 64;
-const SAFE_PATTERN = /^[A-Za-z0-9_-]+$/;
-
-function resolveRequestId(header: unknown): string {
-  if (typeof header !== 'string') {
-    return randomUUID();
+declare global {
+  namespace Express {
+    interface Request {
+      id: string;
+    }
   }
-
-  const trimmed = header.trim();
-  if (trimmed.length === 0 || trimmed.length > MAX_LENGTH || !SAFE_PATTERN.test(trimmed)) {
-    return randomUUID();
-  }
-
-  return trimmed;
 }
 
+// Regex to validate client-supplied request IDs (alphanumeric, dashes, underscores, 8-64 chars)
+const SAFE_REQUEST_ID_REGEX = /^[a-zA-Z0-9_-]{8,64}$/;
+
 export function requestIdMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const requestId = resolveRequestId(req.headers[HEADER]);
+  const incomingHeader = req.headers['x-request-id'];
+  let requestId: string;
 
-  req.requestId = requestId;
-  res.setHeader(HEADER, requestId);
+  if (typeof incomingHeader === 'string' && SAFE_REQUEST_ID_REGEX.test(incomingHeader)) {
+    requestId = incomingHeader;
+  } else {
+    requestId = randomUUID();
+  }
 
-  runWithContext({ requestId, startedAt: Date.now() }, () => {
+  req.id = requestId;
+  res.setHeader('X-Request-Id', requestId);
+
+  requestContextStore.run({ requestId }, () => {
     next();
   });
 }

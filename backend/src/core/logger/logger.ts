@@ -1,90 +1,113 @@
 /**
- * Application logger (spec section 26).
+ * src/core/logger/logger.ts
  *
- * Pino is used for its low overhead and because it emits newline-delimited JSON,
- * which log aggregators parse without a custom grok pattern. Redaction is
- * configured at the logger, not at call sites, so a developer cannot forget it.
- *
- * Every line automatically carries the active request id and user id via the
- * mixin, which is what makes a production trace reconstructable from one id
- * (spec section 27).
+ * Implements ADR-022 & Section 16.5: Structured JSON logging with Pino.
+ * Automatically injects request context (requestId, userId) from AsyncLocalStorage.
+ * Strictly redacts all sensitive authentication tokens, passwords, and secrets.
  */
-import pino, { type Logger, type LoggerOptions } from 'pino';
 
-import { config, isProduction, isTest } from '@/config';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import pino from 'pino';
 
-import { getContext } from './request-context';
-import { REDACTION_CENSOR, REDACTION_PATHS } from './redaction';
+export interface RequestContext {
+  requestId: string;
+  userId?: string;
+}
 
-function buildOptions(): LoggerOptions {
-  const base: LoggerOptions = {
-    level: isTest ? 'silent' : config.LOG_LEVEL,
+export const requestContextStore = new AsyncLocalStorage<RequestContext>();
 
-    redact: {
-      paths: [...REDACTION_PATHS],
-      censor: REDACTION_CENSOR,
-      remove: false,
-    },
+// Strict redaction paths per Spec §16.5
+const REDACTION_PATHS = [
+  'authorization',
+  'headers.authorization',
+  'cookie',
+  'headers.cookie',
+  'set-cookie',
+  'headers["set-cookie"]',
+  'password',
+  '*.password',
+  'newPassword',
+  '*.newPassword',
+  'currentPassword',
+  '*.currentPassword',
+  'refreshToken',
+  '*.refreshToken',
+  'accessToken',
+  '*.accessToken',
+  'token',
+  '*.token',
+  'code',
+  '*.code',
+  'otp',
+  '*.otp',
+  'pushToken',
+  '*.pushToken',
+  'password_hash',
+  '*.password_hash',
+  'passwordHash',
+  '*.passwordHash',
+  'secret',
+  '*.secret'
+];
 
-    // Attached to every line, evaluated per call.
-    mixin() {
-      const context = getContext();
-      if (!context) {
-        return {};
-      }
+export const baseLogger = pino({
+  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'test' ? 'silent' : 'info'),
+  redact: {
+    paths: REDACTION_PATHS,
+    censor: '[REDACTED]'
+  },
+  formatters: {
+    level(label) {
+      return { level: label };
+    }
+  },
+  timestamp: pino.stdTimeFunctions.isoTime,
+  mixin() {
+    const context = requestContextStore.getStore();
+    if (context) {
       return {
         requestId: context.requestId,
-        ...(context.userId !== undefined ? { userId: context.userId } : {}),
-        ...(context.route !== undefined ? { route: context.route } : {}),
+        ...(context.userId ? { userId: context.userId } : {})
       };
-    },
-
-    formatters: {
-      level(label) {
-        return { level: label };
-      },
-    },
-
-    timestamp: pino.stdTimeFunctions.isoTime,
-
-    base: {
-      service: 'lifestyle-api',
-      env: config.NODE_ENV,
-    },
-
-    serializers: {
-      err: pino.stdSerializers.err,
-      error: pino.stdSerializers.err,
-    },
-  };
-
-  // Human-readable output in development only. Production always emits JSON.
-  if (!isProduction && config.LOG_PRETTY) {
-    return {
-      ...base,
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'HH:MM:ss.l',
-          ignore: 'pid,hostname,service,env',
-          messageFormat: '{if requestId}[{requestId}] {end}{msg}',
-        },
-      },
-    };
+    }
+    return {};
   }
+});
 
-  return base;
-}
-
-export const logger: Logger = pino(buildOptions());
-
-/**
- * A child logger tagged with the component that owns it, so logs can be filtered
- * to one subsystem (`component=auth.service`) during an incident.
- */
-export function createLogger(component: string): Logger {
-  return logger.child({ component });
-}
-
-export type { Logger };
+export const logger = {
+  debug(msg: string, meta?: Record<string, unknown>): void {
+    if (meta) {
+      baseLogger.debug(meta, msg);
+    } else {
+      baseLogger.debug(msg);
+    }
+  },
+  info(msg: string, meta?: Record<string, unknown>): void {
+    if (meta) {
+      baseLogger.info(meta, msg);
+    } else {
+      baseLogger.info(msg);
+    }
+  },
+  warn(msg: string, meta?: Record<string, unknown>): void {
+    if (meta) {
+      baseLogger.warn(meta, msg);
+    } else {
+      baseLogger.warn(msg);
+    }
+  },
+  error(msg: string, err?: unknown, meta?: Record<string, unknown>): void {
+    const errorMeta =
+      err instanceof Error
+        ? { err: { message: err.message, stack: err.stack, name: err.name }, ...meta }
+        : { err, ...meta };
+    baseLogger.error(errorMeta, msg);
+  },
+  fatal(msg: string, err?: unknown, meta?: Record<string, unknown>): void {
+    const errorMeta =
+      err instanceof Error
+        ? { err: { message: err.message, stack: err.stack, name: err.name }, ...meta }
+        : { err, ...meta };
+    baseLogger.fatal(errorMeta, msg);
+  }
+};

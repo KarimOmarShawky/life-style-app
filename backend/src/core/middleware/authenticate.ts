@@ -1,88 +1,113 @@
 /**
- * Authentication middleware (spec sections 10 and 16).
+ * src/core/middleware/authenticate.ts
  *
- * Answers only "who are you?". Whether that identity may touch a particular
- * resource is a separate decision made by `authorize` or by the service that
- * owns the resource.
- *
- * The token is read from the Authorization header, not from a cookie. For a
- * Flutter client that is the correct choice: the app stores the token in
- * platform secure storage and attaches it explicitly, so there is no ambient
- * credential for a browser to attach automatically and therefore no CSRF surface
- * on the mobile path (spec section 11).
+ * Implements Section 8.2.1: Authoritative Access Token & Session Verification Middleware.
+ * Enforces verification sequence:
+ * 1. Bearer format check
+ * 2. HS256 signature, claims, and clock tolerance
+ * 3. TOKEN_EXPIRED separation
+ * 4. PostgreSQL auth_sessions joined to users validation
+ * 5. Lifecycle status check (disabled, pending_deletion exemptions)
+ * 6. Request context hydration
  */
-import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
-import { AppError, ErrorCode } from '@/core/errors';
-import { setContextUser } from '@/core/logger';
-import type { TokenService } from '@/core/security/token-service';
-import { CacheKey, cacheGet } from '@/infrastructure/database/redis/cache';
+import type { Request, Response, NextFunction } from 'express';
+import type { TokenService } from '../security/token-service.js';
+import type { SessionValidator, AuthenticatedUserContext } from '../security/session-validator.js';
+import { AppError } from '../errors/app-error.js';
+import { requestContextStore } from '../logger/logger.js';
 
-const BEARER_PREFIX = 'Bearer ';
-
-function extractBearerToken(header: string | undefined): string | undefined {
-  if (!header || !header.startsWith(BEARER_PREFIX)) {
-    return undefined;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthenticatedUserContext;
+      sessionId?: string;
+    }
   }
-  const token = header.slice(BEARER_PREFIX.length).trim();
-  return token.length > 0 ? token : undefined;
 }
 
-export function createAuthenticate(tokens: TokenService): RequestHandler {
+// Endpoints accessible while account is in the 14-day deletion grace period (Spec §8.2.1)
+const PENDING_DELETION_EXEMPT_ENDPOINTS = [
+  { method: 'POST', path: '/api/v1/auth/logout' },
+  { method: 'POST', path: '/api/v1/auth/refresh' },
+  { method: 'GET', path: '/api/v1/users/me' },
+  { method: 'DELETE', path: '/api/v1/users/me/deletion' },
+  { method: 'POST', path: '/api/v1/users/me/export' }
+];
+
+export function createAuthenticateMiddleware(
+  tokenService: TokenService,
+  sessionValidator: SessionValidator
+) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const token = extractBearerToken(req.headers.authorization);
+      // 1. Read Authorization header
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return next(
+          AppError.unauthenticated('Authorization header missing or malformed', 'UNAUTHENTICATED')
+        );
+      }
 
+      const token = authHeader.slice(7).trim();
       if (!token) {
-        throw new AppError(ErrorCode.UNAUTHORIZED, {
-          message: 'An Authorization: Bearer <token> header is required.',
-        });
+        return next(AppError.unauthenticated('Bearer token value missing', 'UNAUTHENTICATED'));
       }
 
-      // Throws TOKEN_EXPIRED or TOKEN_INVALID, both of which the client
-      // distinguishes: expired means "refresh", invalid means "sign in again".
-      const claims = tokens.verifyAccessToken(token);
+      // 2 & 3. Verify HS256 signature, issuer, audience, and exp claims
+      const { sub, sid } = await tokenService.verifyAccessToken(token);
 
-      // Logout and reuse detection revoke a session immediately, but an access
-      // token already issued stays cryptographically valid until it expires.
-      // The denylist closes that window when Redis is available.
-      const revoked = await cacheGet<boolean>(CacheKey.revokedSession(claims.sid));
-      if (revoked === true) {
-        throw new AppError(ErrorCode.TOKEN_REVOKED);
+      // 4. Load session joined to user from PostgreSQL
+      const session = await sessionValidator.validateSession(sid, sub);
+      const now = new Date();
+
+      if (!session || session.revokedAt !== null || session.absoluteExpiresAt <= now) {
+        return next(
+          AppError.unauthenticated('Session is invalid or has been revoked', 'UNAUTHENTICATED')
+        );
       }
 
-      req.user = {
-        id: claims.sub,
-        email: claims.email,
-        role: claims.role,
-        sessionId: claims.sid,
-        issuedAt: claims.iat,
-      };
+      // 5. Check user lifecycle status
+      const user = session.user;
+      if (user.status === 'disabled') {
+        return next(
+          AppError.forbidden('Account has been disabled by an administrator', 'ACCOUNT_DISABLED')
+        );
+      }
 
-      // From here every log line in this request carries the user id.
-      setContextUser(claims.sub);
+      if (user.status === 'pending_deletion') {
+        const fullPath = req.baseUrl
+          ? `${req.baseUrl}${req.path}`
+          : req.originalUrl
+            ? req.originalUrl.split('?')[0]!
+            : req.path;
 
-      next();
-    } catch (error) {
-      next(error);
+        const isExempt = PENDING_DELETION_EXEMPT_ENDPOINTS.some(
+          (endpoint) => endpoint.method === req.method && fullPath === endpoint.path
+        );
+
+        if (!isExempt) {
+          return next(
+            AppError.forbidden(
+              'Account is scheduled for deletion; cancel deletion to resume normal activity',
+              'ACCOUNT_PENDING_DELETION'
+            )
+          );
+        }
+      }
+
+      // 6. Context hydration
+      req.user = user;
+      req.sessionId = session.sessionId;
+
+      const currentStore = requestContextStore.getStore();
+      if (currentStore) {
+        currentStore.userId = user.id;
+      }
+
+      return next();
+    } catch (err) {
+      return next(err);
     }
   };
-}
-
-/**
- * Reads the authenticated user or throws.
- *
- * Controllers call this instead of `req.user!`. The non-null assertion would
- * compile even on a route where `authenticate` was never registered, turning a
- * missing-middleware mistake into a runtime crash on `undefined.id`. This turns
- * the same mistake into a clear 401 and a log line.
- */
-export function requireUser(req: Request): NonNullable<Request['user']> {
-  if (!req.user) {
-    throw new AppError(ErrorCode.UNAUTHORIZED, {
-      metadata: { reason: 'requireUser called on a route without the authenticate middleware' },
-      isOperational: false,
-    });
-  }
-  return req.user;
 }

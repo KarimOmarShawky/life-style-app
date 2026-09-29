@@ -11,7 +11,7 @@ final moneyRepositoryProvider = Provider<MoneyRepository>(
 
 final budgetsProvider = FutureProvider.autoDispose<List<Budget>>((ref) async {
   final currentUserId = ref.watch(
-    authProvider.select((value) => value.valueOrNull?.id),
+    authProvider.select((value) => value.asData?.value?.id),
   );
   if (currentUserId == null) return const [];
   return ref.watch(moneyRepositoryProvider).listBudgets();
@@ -21,7 +21,7 @@ final subscriptionsProvider = FutureProvider.autoDispose<List<Subscription>>((
   ref,
 ) async {
   final currentUserId = ref.watch(
-    authProvider.select((value) => value.valueOrNull?.id),
+    authProvider.select((value) => value.asData?.value?.id),
   );
   if (currentUserId == null) return const [];
   return ref.watch(moneyRepositoryProvider).listSubscriptions();

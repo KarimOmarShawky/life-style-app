@@ -10,7 +10,7 @@ final notesRepositoryProvider = Provider<NotesRepository>(
 
 final notesProvider = FutureProvider.autoDispose<List<Note>>((ref) async {
   final currentUserId = ref.watch(
-    authProvider.select((value) => value.valueOrNull?.id),
+    authProvider.select((value) => value.asData?.value?.id),
   );
   if (currentUserId == null) return const [];
   return ref.watch(notesRepositoryProvider).listNotes();

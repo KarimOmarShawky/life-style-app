@@ -10,7 +10,7 @@ final tasksRepositoryProvider = Provider<TasksRepository>(
 
 final tasksProvider = FutureProvider.autoDispose<List<Task>>((ref) async {
   final currentUserId = ref.watch(
-    authProvider.select((value) => value.valueOrNull?.id),
+    authProvider.select((value) => value.asData?.value?.id),
   );
   if (currentUserId == null) return const [];
   return ref.watch(tasksRepositoryProvider).listTasks();

@@ -32,7 +32,7 @@ class TasksScreen extends ConsumerWidget {
         ),
         data: (items) => RefreshIndicator(
           onRefresh: () async {
-            await ref.refresh(tasksProvider.future);
+            ref.invalidate(tasksProvider);
           },
           child: items.isEmpty
               ? ListView(

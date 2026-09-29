@@ -4,7 +4,7 @@
 
 ## 1. Automated CI Pipeline Overview
 
-The CI pipeline runs on GitHub Actions on every pull request and push to the `main` branch. All checks are required to be green before code can be merged.
+The CI pipeline runs on GitHub Actions on pull requests targeting `main` and pushes to `main`. Configure the backend and mobile jobs as required checks before merging.
 
 ```mermaid
 flowchart TD
@@ -17,7 +17,8 @@ flowchart TD
     G --> H[Reversibility Check: migrate up -> down -> up]
     H --> I[Execute Tests: Unit, Integration, Security]
     I --> J[Dependency Security Audit: npm audit]
-    J --> K[Pass Gate: Ready for PR Review]
+    J --> L[Flutter: pub get, format, analyze, tests]
+    L --> K[Pass Gate: Ready for PR Review]
 ```
 
 ---
@@ -29,3 +30,5 @@ flowchart TD
 3. **Migration Reversibility Gate:** Applies all migrations, rolls them back, and reapplies them on an empty test database to guarantee schema rollbacks work in production emergencies.
 4. **OpenAPI Drift Gate:** Generates `docs/api/openapi.yaml` from code schemas and compares against the committed version; fails if documentation has drifted from implementation.
 5. **Security Test Gate:** Runs dedicated security tests ensuring headers, redaction, and error contracts hold.
+6. **Flutter Gate:** Resolves mobile dependencies, enforces Dart formatting and Flutter static analysis, and runs the mobile unit/widget suite.
+7. **Production Configuration Gate:** Unit tests verify production TLS, secret, and least-privilege database-role validation.

@@ -24,3 +24,5 @@ Before deploying a container image to staging or production, verify:
 - [ ] `OTP_HMAC_SECRET` is a cryptographically random string of at least 32 characters.
 - [ ] `CORS_ALLOWED_ORIGINS` is left empty unless explicitly authorized.
 - [ ] All database URLs point to the appropriate least-privilege database user.
+
+The backend enforces three production startup invariants: `DATABASE_SSL=true`, a `DATABASE_URL` username of `lifestyle_app`, and JWT/OTP secrets that differ from known local and test example values. These checks fail startup rather than silently accepting a development configuration. Migration and maintenance URLs should be injected only into the processes that require them.

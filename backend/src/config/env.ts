@@ -12,7 +12,7 @@ import dotenv from 'dotenv';
 // Load .env file if present
 dotenv.config();
 
-const envSchema = z.object({
+const baseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
@@ -67,6 +67,58 @@ const envSchema = z.object({
   FCM_CREDENTIALS: z.string().optional()
 });
 
+const envSchema = baseEnvSchema.superRefine((env, context) => {
+  if (env.NODE_ENV !== 'production') return;
+
+  if (!env.DATABASE_SSL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DATABASE_SSL'],
+      message: 'DATABASE_SSL must be enabled in production'
+    });
+  }
+
+  const knownJwtExamples = new Set([
+    'local-dev-jwt-access-secret-at-least-32-chars-long',
+    'test-secret-at-least-32-characters-long-for-hs256'
+  ]);
+  if (knownJwtExamples.has(env.JWT_ACCESS_SECRET)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_ACCESS_SECRET'],
+      message: 'JWT_ACCESS_SECRET must not use a known example value in production'
+    });
+  }
+  if (env.JWT_ACCESS_SECRET_PREVIOUS && knownJwtExamples.has(env.JWT_ACCESS_SECRET_PREVIOUS)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_ACCESS_SECRET_PREVIOUS'],
+      message: 'JWT_ACCESS_SECRET_PREVIOUS must not use a known example value in production'
+    });
+  }
+
+  const knownOtpExamples = new Set([
+    'local-dev-otp-hmac-secret-at-least-32-chars-long',
+    'test-otp-secret-at-least-32-characters-long'
+  ]);
+  if (knownOtpExamples.has(env.OTP_HMAC_SECRET)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['OTP_HMAC_SECRET'],
+      message: 'OTP_HMAC_SECRET must not use a known example value in production'
+    });
+  }
+
+  const databaseUrl = new URL(env.DATABASE_URL);
+  if (databaseUrl.username !== 'lifestyle_app') {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DATABASE_URL'],
+      message: 'DATABASE_URL must use the least-privilege lifestyle_app role in production'
+    });
+  }
+});
+
 export type Env = z.infer<typeof envSchema>;
 
 let parsedEnv: Env | null = null;
@@ -85,7 +137,7 @@ export function validateEnv(customSource?: Record<string, string | undefined>): 
       .join('\n');
     const errorMessage = `🚨 Fatal: Environment configuration validation failed:\n${issues}`;
 
-    if (source.NODE_ENV === 'test') {
+    if (source.NODE_ENV === 'test' || customSource !== undefined) {
       throw new Error(errorMessage);
     } else {
       console.error(errorMessage);

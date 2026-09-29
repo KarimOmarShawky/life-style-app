@@ -6,9 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   backend-gate:
-    name: Backend Quality & Security Gate (Phase P1)
+    name: Backend Quality, Security & API Contract Gate
     runs-on: ubuntu-latest
 
     services:
@@ -40,41 +43,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js runtime (Active LTS)
+      - name: Setup Node.js runtime
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 24
+          cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Step 13 - Forbidden-Dependency Guard (ADR-039)
-        run: node scripts/check-forbidden.mjs
-
-      - name: Step 1 - Install dependencies with lockfile (npm ci)
+      - name: Install dependencies with lockfile
         working-directory: backend
         run: npm ci
 
-      - name: Step 2 - Code Style & Lint (ESLint & Prettier)
+      - name: Forbidden-dependency guard (ADR-039)
+        run: node scripts/check-forbidden.mjs
+
+      - name: Code style & lint
         working-directory: backend
         run: |
           npm run format:check
           npm run lint
 
-      - name: Step 3 - Static Type-Check (Strict TypeScript)
+      - name: Strict TypeScript check
         working-directory: backend
         run: npm run typecheck
 
-      - name: Step 8 - OpenAPI Drift Check
+      - name: OpenAPI drift check
         working-directory: backend
         run: |
           npm run openapi:generate
           git diff --exit-code ../docs/api/openapi.yaml
 
-      - name: Initialize Database Roles
+      - name: Initialize database roles
         run: |
           PGPASSWORD=postgres_local_pass psql -h localhost -U postgres -d lifestyle_dev -f backend/src/infrastructure/database/postgres/init-roles.sql
 
-      - name: Step 7 - Migration Reversibility Check (up -> down -> up)
+      - name: Migration reversibility check (up -> down -> up)
         working-directory: backend
         env:
           DATABASE_MIGRATION_URL: postgresql://lifestyle_migrator:migrator_local_pass@localhost:5432/lifestyle_dev
@@ -83,7 +86,7 @@ jobs:
           npm run migrate:down
           npm run migrate:up
 
-      - name: Step 4, 5, 6 - Unit, Integration & Security Tests
+      - name: Unit, integration & security tests
         working-directory: backend
         env:
           NODE_ENV: test
@@ -95,6 +98,34 @@ jobs:
           LOG_LEVEL: silent
         run: npm test
 
-      - name: Step 9 - Dependency Security Audit
+      - name: Production dependency security audit
         working-directory: backend
         run: npm audit --omit=dev --audit-level=high
+
+  mobile-gate:
+    name: Flutter Static Analysis & Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter stable channel
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Flutter static analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Flutter tests
+        run: flutter test --coverage

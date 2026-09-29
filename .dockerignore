@@ -1,0 +1,16 @@
+.git
+.gitignore
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/.dart_tool
+**/.env
+**/.env.*
+!**/.env.example
+mobile
+docs
+.github
+scripts
+backend/tests
+*.log

@@ -6,7 +6,7 @@ This guide walks a developer through setting up the LifeStyle App backend founda
 
 ## 1. Prerequisites
 
-* **Node.js:** Active LTS (v20.x+)
+* **Node.js:** Active LTS (v20.x+; CI/container target Node.js 24)
 * **npm:** v10.x+
 * **PostgreSQL:** v16.x or v17.x
 * **Redis:** v7.x or v8.x

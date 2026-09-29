@@ -1,7 +1,7 @@
 {
   "name": "lifestyle-backend",
   "version": "1.0.1",
-  "description": "LifeStyle App - Backend API and Worker Foundation (P1)",
+  "description": "LifeStyle App - PostgreSQL-backed REST API and worker service",
   "private": true,
   "type": "module",
   "scripts": {

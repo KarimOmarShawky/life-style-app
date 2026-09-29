@@ -6,9 +6,12 @@
 # ==============================================================================
 
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
+
+# Build tools are confined to the disposable builder stage for native packages.
+RUN apk add --no-cache python3 make g++
 
 # Copy package manifests
 COPY backend/package.json backend/package-lock.json ./
@@ -27,16 +30,13 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # Stage 2: Production Runtime
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV=production
 ENV PORT=3000
-
-# Install curl for HEALTHCHECK
-RUN apk add --no-cache curl
 
 # Security: Run as unprivileged non-root user
 USER node
@@ -50,8 +50,9 @@ COPY --chown=node:node --from=builder /app/dist ./dist
 
 # Healthcheck probing process liveness
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:${PORT}/health/live || exit 1
+  CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT + '/health/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
+STOPSIGNAL SIGTERM
 EXPOSE 3000
 
 # Default command: API server (Worker process overrides with: node dist/worker.js)

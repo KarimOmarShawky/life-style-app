@@ -1,7 +1,7 @@
 # LifeStyle App — Personal Life Operating System
 
 > **Specification Reference:** LifeStyle App — Final Technical & Product Specification v1.0.1  
-> **Current Build Phase:** **P1 — Backend Foundation** (COMPLETE)
+> **Implementation status:** Backend P2–P9 reports are present; P10–P13 mobile/quality/operations foundations are added. P10–P13 are **not signed off** until Flutter, native platform, CI, and production verification gates pass.
 
 LifeStyle App is a personal life operating system structured around the core loop:  
 **PLAN → FOCUS → DO → TRACK → REVIEW**
@@ -11,9 +11,9 @@ The application answers the single life question:
 
 ---
 
-## 1. System Architecture & Foundation (Phase P1)
+## 1. System Architecture
 
-* **Runtime:** Node.js Active LTS (v20+) with TypeScript 5 (Strict Mode).
+* **Runtime:** Node.js Active LTS (v20+) with TypeScript 5 (Strict Mode); CI and the production container target Node.js 24.
 * **Framework:** Express 5.
 * **Source of Truth:** PostgreSQL 16 (relational data store, least-privilege roles, composite ownership foreign keys, ACID transactions).
 * **Infrastructure State:** Redis 7 (used strictly for rate limiting, OTP tokens, and BullMQ queues).
@@ -37,7 +37,7 @@ lifestyle/
 │   │   ├── server.ts         # API entry point & graceful shutdown
 │   │   └── worker.ts         # Background worker entry point
 │   └── tests/                # Unit, integration, and security test suites
-├── mobile/                   # Flutter mobile client scaffolding
+├── mobile/                   # Flutter native client package (Riverpod, secure tokens, API integration)
 ├── docs/                     # Authoritative engineering documentation
 │   ├── architecture/         # System diagrams, layer rules, ADR log, non-goals
 │   ├── database/             # PostgreSQL schema, database roles, migrations, Redis
@@ -54,7 +54,8 @@ lifestyle/
 ## 3. Quick Start & Local Setup
 
 ### Prerequisites
-* Node.js `>= 20.0.0`
+* Node.js `24` (source compatibility is `>= 20.0.0`)
+* Flutter stable SDK (iOS/Android platform tooling is needed for native device builds)
 * PostgreSQL `>= 16.0`
 * Redis `>= 7.0`
 * Mailpit (for local SMTP testing)
@@ -98,6 +99,16 @@ lifestyle/
    curl -i http://localhost:3000/health/ready
    ```
 
+8. **Verify the Flutter package:**
+   ```bash
+   cd ../mobile
+   flutter pub get
+   dart format --output=none --set-exit-if-changed lib test
+   flutter analyze --fatal-infos
+   flutter test --coverage
+   ```
+   Generate the iOS/Android runner projects with the Flutter SDK before `flutter run` or signed builds. Use `--dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1` for an Android emulator; release builds require HTTPS. See [Flutter integration](docs/mobile/flutter-integration.md).
+
 ---
 
 ## 4. Running Verification & Quality Gates
@@ -113,8 +124,15 @@ npm run --prefix backend typecheck
 npm run --prefix backend lint
 npm run --prefix backend format:check
 
-# Run full test suite (unit, integration, security)
+# Run full backend test suite (unit, integration, security)
 npm run --prefix backend test
+
+# Run Flutter style, static analysis, and client tests
+cd mobile
+flutter pub get
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze --fatal-infos
+flutter test --coverage
 ```
 
 ---
@@ -130,3 +148,10 @@ npm run --prefix backend test
 * [API Conventions & Error Envelope](docs/api/conventions.md)
 * [Docker & Compose Guide](docs/deployment/docker.md)
 * [CI/CD Pipeline](docs/deployment/ci-cd.md)
+* [Flutter Integration](docs/mobile/flutter-integration.md)
+* [Mobile Security Checklist](docs/security/mobile-security-checklist.md)
+* [Production Hardening Runbook](docs/deployment/production-hardening.md)
+* [P10 Delivery Report](docs/reports/phase-p10-delivery-report.md)
+* [P11 Delivery Report](docs/reports/phase-p11-delivery-report.md)
+* [P12 Delivery Report](docs/reports/phase-p12-delivery-report.md)
+* [P13 Delivery Report](docs/reports/phase-p13-delivery-report.md)

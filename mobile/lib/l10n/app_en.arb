@@ -1,0 +1,10 @@
+{
+  "@@locale": "en",
+  "appTitle": "LifeStyle",
+  "signIn": "Sign in",
+  "createAccount": "Create account",
+  "tasks": "Tasks",
+  "profile": "Profile",
+  "addTask": "Add task",
+  "signOut": "Sign out"
+}

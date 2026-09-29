@@ -6,8 +6,8 @@
 
 The container image is built using a multi-stage process to minimize image attack surface and eliminate build-time tools from the final runtime image:
 
-* **Stage 1 (Builder):** Uses `node:20-alpine`, installs all dependencies via `npm ci`, compiles TypeScript (`npm run build`), and prunes devDependencies (`npm prune --omit=dev`).
-* **Stage 2 (Runner):** Minimal `node:20-alpine` footprint, runs as unprivileged user `node`, copies only production artifacts (`dist/` and production `node_modules/`), and defines an active `HEALTHCHECK` probing `GET /health/live`.
+* **Stage 1 (Builder):** Uses `node:24-alpine`, installs native build tools only in the disposable builder stage, installs dependencies via `npm ci`, compiles TypeScript (`npm run build`), and prunes devDependencies (`npm prune --omit=dev`).
+* **Stage 2 (Runner):** Minimal `node:24-alpine` footprint, runs as unprivileged user `node`, copies only production artifacts (`dist/` and production `node_modules/`), and defines an active `HEALTHCHECK` probing `GET /health/live` with Node's built-in fetch.
 * **Single Image, Multiple Targets:**
   * API Process: `node dist/server.js` (default)
   * Worker Process: `node dist/worker.js` (via container command override)

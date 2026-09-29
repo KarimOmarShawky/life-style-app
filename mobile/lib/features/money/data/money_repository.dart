@@ -1,5 +1,5 @@
-import 'api_client.dart';
-import 'models.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/models.dart';
 
 class MoneyRepository {
   const MoneyRepository(this._api);
@@ -49,8 +49,10 @@ class MoneyRepository {
     required String amount,
     required String currency,
     required String occurredOn,
-    String? description,
     required String idempotencyKey,
+    String? categoryId,
+    String? description,
+    String? merchant,
   }) async {
     await _api.post(
       'money/transactions',
@@ -60,7 +62,9 @@ class MoneyRepository {
         'amount': amount,
         'currency': currency,
         'occurredOn': occurredOn,
-        if (description != null) 'description': description,
+        if (categoryId != null) 'categoryId': categoryId,
+        if (description != null) 'description': description.trim(),
+        if (merchant != null) 'merchant': merchant.trim(),
       },
     );
   }

@@ -1,5 +1,5 @@
-import 'api_client.dart';
-import 'models.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/models.dart';
 
 class HabitsRepository {
   const HabitsRepository(this._api);
@@ -51,7 +51,7 @@ class HabitsRepository {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',
-        message: 'The server returned an invalid habit.',
+        message: 'The server returned an invalid habit payload.',
       );
     }
     return Habit.fromJson(response['habit'] as Map<String, dynamic>);

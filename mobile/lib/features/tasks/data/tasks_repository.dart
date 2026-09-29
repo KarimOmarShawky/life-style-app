@@ -1,5 +1,5 @@
-import 'api_client.dart';
-import 'models.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/models.dart';
 
 class TasksRepository {
   const TasksRepository(this._api);
@@ -50,13 +50,13 @@ class TasksRepository {
     }
     return Task.fromJson(_taskMap(response['task']));
   }
-}
 
-Map<String, dynamic> _taskMap(Object? value) {
-  if (value is Map<String, dynamic>) return value;
-  throw const ApiException(
-    statusCode: 502,
-    code: 'INVALID_API_RESPONSE',
-    message: 'The server returned an invalid task.',
-  );
+  Map<String, dynamic> _taskMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    throw const ApiException(
+      statusCode: 502,
+      code: 'INVALID_API_RESPONSE',
+      message: 'The server returned an invalid task payload.',
+    );
+  }
 }

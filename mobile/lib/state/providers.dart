@@ -1,14 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../config/app_config.dart';
-import '../data/api_client.dart';
-import '../data/auth_repository.dart';
-import '../data/models.dart';
-import '../data/tasks_repository.dart';
-import '../data/money_repository.dart';
-import '../data/habits_repository.dart';
-import '../data/notes_repository.dart';
-import '../data/token_store.dart';
+import 'package:lifestyle_mobile/config/app_config.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/data/token_store.dart';
+import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
+import 'package:lifestyle_mobile/features/habits/data/habits_repository.dart';
+import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
+import 'package:lifestyle_mobile/features/notes/data/notes_repository.dart';
+import 'package:lifestyle_mobile/features/tasks/data/tasks_repository.dart';
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());
 

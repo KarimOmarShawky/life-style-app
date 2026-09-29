@@ -37,8 +37,7 @@ class SecureTokenStore implements TokenStore {
     iOptions: const IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
-    aOptions: const AndroidOptions(encryptedSharedPreferences: true),
-  );
+aOptions: const AndroidOptions(),  );
 
   @override
   Future<void> clear() => _storage.delete(key: _key);

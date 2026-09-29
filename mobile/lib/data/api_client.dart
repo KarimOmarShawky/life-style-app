@@ -56,8 +56,15 @@ class ApiClient {
   Future<Object?> post(
     String path, {
     Object? body,
+    Map<String, String>? headers,
     bool authenticated = true,
-  }) => request('POST', path, body: body, authenticated: authenticated);
+  }) => request(
+    'POST',
+    path,
+    body: body,
+    headers: headers,
+    authenticated: authenticated,
+  );
 
   Future<Object?> patch(
     String path, {
@@ -76,11 +83,18 @@ class ApiClient {
     String path, {
     Object? body,
     Map<String, String>? query,
+    Map<String, String>? headers,
     bool authenticated = true,
   }) async {
     final uri = _uri(path, query);
     final initialTokens = authenticated ? await _tokenStore.read() : null;
-    var response = await _send(method, uri, body, initialTokens?.accessToken);
+    var response = await _send(
+      method,
+      uri,
+      body,
+      initialTokens?.accessToken,
+      headers: headers,
+    );
     var exception = _exceptionFor(response);
 
     if (authenticated &&
@@ -96,7 +110,13 @@ class ApiClient {
           message: 'Your session has expired. Please sign in again.',
         );
       }
-      response = await _send(method, uri, body, refreshedTokens.accessToken);
+      response = await _send(
+        method,
+        uri,
+        body,
+        refreshedTokens.accessToken,
+        headers: headers,
+      );
       exception = _exceptionFor(response);
     }
 
@@ -193,12 +213,16 @@ class ApiClient {
     String method,
     Uri uri,
     Object? body,
-    String? accessToken,
-  ) async {
+    String? accessToken, {
+    Map<String, String>? headers,
+  }) async {
     final request = http.Request(method, uri)
       ..followRedirects = false
       ..maxRedirects = 0;
     request.headers['accept'] = 'application/json';
+    if (headers != null) {
+      request.headers.addAll(headers);
+    }
     if (body != null) {
       request.headers['content-type'] = 'application/json; charset=utf-8';
       request.body = jsonEncode(body);

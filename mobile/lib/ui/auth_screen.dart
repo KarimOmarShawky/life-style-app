@@ -153,16 +153,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             code: code.text,
                             newPassword: newPassword.text,
                           );
-                          if (dialogContext.mounted)
+                          if (dialogContext.mounted) {
                             Navigator.of(dialogContext).pop();
+                          }
                         }
                       } catch (exception) {
                         if (dialogContext.mounted) {
                           setDialogState(() => error = _safeMessage(exception));
                         }
                       } finally {
-                        if (dialogContext.mounted)
+                        if (dialogContext.mounted) {
                           setDialogState(() => busy = false);
+                        }
                       }
                     },
               child: busy

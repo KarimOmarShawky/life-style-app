@@ -35,7 +35,7 @@ class SecureTokenStore implements TokenStore {
     key: _key,
     value: tokens.encode(),
     iOptions: const IOSOptions(
-      accessibility: KeychainAccessibility.afterFirstUnlockThisDeviceOnly,
+      accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
     aOptions: const AndroidOptions(encryptedSharedPreferences: true),
   );

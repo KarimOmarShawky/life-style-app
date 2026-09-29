@@ -234,8 +234,9 @@ String _taskSubtitle(Task task) {
 
 String _safeMessage(Object error) {
   if (error is ApiException) {
-    if (error.code == 'VERSION_CONFLICT')
+    if (error.code == 'VERSION_CONFLICT') {
       return 'This task changed. The list has been refreshed.';
+    }
     return error.message;
   }
   return 'Could not complete the request. Try again.';

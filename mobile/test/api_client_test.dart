@@ -33,14 +33,23 @@ void main() {
               if (request.headers['authorization'] == 'Bearer access-old') {
                 await Future<void>.delayed(const Duration(milliseconds: 5));
                 return http.Response(
-                  jsonEncode({
+                  jsonEncode(<String, dynamic>{
                     'success': false,
-                    'error': {'code': 'TOKEN_EXPIRED', 'message': 'Expired'},
+                    'error': <String, dynamic>{
+                      'code': 'TOKEN_EXPIRED',
+                      'message': 'Expired',
+                    },
                   }),
                   401,
                 );
               }
-              return http.Response(jsonEncode({'data': [], 'meta': {}}), 200);
+              return http.Response(
+                jsonEncode(<String, dynamic>{
+                  'data': <Map<String, dynamic>>[],
+                  'meta': <String, dynamic>{},
+                }),
+                200,
+              );
             }
             return http.Response('', 404);
           }),

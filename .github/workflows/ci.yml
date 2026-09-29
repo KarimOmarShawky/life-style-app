@@ -129,3 +129,12 @@ jobs:
 
       - name: Flutter tests
         run: flutter test --coverage
+
+      - name: Build Android Release APK
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifestyle-app-release-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk

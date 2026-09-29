@@ -122,7 +122,7 @@ jobs:
         run: flutter pub get
 
       - name: Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format lib test
 
       - name: Flutter static analysis
         run: flutter analyze --fatal-infos

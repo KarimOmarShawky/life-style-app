@@ -9,8 +9,6 @@ import 'navigation/deep_link_parser.dart';
 import 'state/providers.dart';
 import 'ui/auth_screen.dart';
 import 'ui/home_shell.dart';
-import 'ui/profile_screen.dart';
-import 'ui/tasks_screen.dart';
 
 class LifeStyleApp extends ConsumerWidget {
   const LifeStyleApp({super.key, this.initialLocation});

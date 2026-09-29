@@ -5,6 +5,9 @@ import '../data/api_client.dart';
 import '../data/auth_repository.dart';
 import '../data/models.dart';
 import '../data/tasks_repository.dart';
+import '../data/money_repository.dart';
+import '../data/habits_repository.dart';
+import '../data/notes_repository.dart';
 import '../data/token_store.dart';
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());
@@ -27,6 +30,18 @@ final authRepositoryProvider = Provider<AuthRepository>(
 
 final tasksRepositoryProvider = Provider<TasksRepository>(
   (ref) => TasksRepository(ref.watch(apiClientProvider)),
+);
+
+final moneyRepositoryProvider = Provider<MoneyRepository>(
+  (ref) => MoneyRepository(ref.watch(apiClientProvider)),
+);
+
+final habitsRepositoryProvider = Provider<HabitsRepository>(
+  (ref) => HabitsRepository(ref.watch(apiClientProvider)),
+);
+
+final notesRepositoryProvider = Provider<NotesRepository>(
+  (ref) => NotesRepository(ref.watch(apiClientProvider)),
 );
 
 final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(AuthController.new);
@@ -88,4 +103,28 @@ final tasksProvider = FutureProvider.autoDispose<List<Task>>((ref) async {
   final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
   if (currentUserId == null) return const [];
   return ref.watch(tasksRepositoryProvider).listTasks();
+});
+
+final budgetsProvider = FutureProvider.autoDispose<List<Budget>>((ref) async {
+  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  if (currentUserId == null) return const [];
+  return ref.watch(moneyRepositoryProvider).listBudgets();
+});
+
+final subscriptionsProvider = FutureProvider.autoDispose<List<Subscription>>((ref) async {
+  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  if (currentUserId == null) return const [];
+  return ref.watch(moneyRepositoryProvider).listSubscriptions();
+});
+
+final habitsProvider = FutureProvider.autoDispose<List<Habit>>((ref) async {
+  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  if (currentUserId == null) return const [];
+  return ref.watch(habitsRepositoryProvider).listHabits();
+});
+
+final notesProvider = FutureProvider.autoDispose<List<Note>>((ref) async {
+  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  if (currentUserId == null) return const [];
+  return ref.watch(notesRepositoryProvider).listNotes();
 });

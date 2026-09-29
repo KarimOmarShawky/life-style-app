@@ -8,6 +8,7 @@ import 'l10n/app_localizations.dart';
 import 'navigation/deep_link_parser.dart';
 import 'state/providers.dart';
 import 'ui/auth_screen.dart';
+import 'ui/home_shell.dart';
 import 'ui/profile_screen.dart';
 import 'ui/tasks_screen.dart';
 
@@ -82,9 +83,14 @@ class LifeStyleApp extends ConsumerWidget {
     );
   }
 
-  Widget _authenticatedPage(AppUser user, String path) => path == '/profile'
-      ? ProfileScreen(user: user)
-      : const TasksScreen();
+  Widget _authenticatedPage(AppUser user, String path) {
+    int initialIndex = 0;
+    if (path == '/habits') initialIndex = 1;
+    if (path == '/money') initialIndex = 2;
+    if (path == '/notes') initialIndex = 3;
+    if (path == '/profile') initialIndex = 4;
+    return HomeShell(user: user, initialIndex: initialIndex);
+  }
 }
 
 class _LoadingPage extends StatelessWidget {

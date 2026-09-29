@@ -85,6 +85,6 @@ process.on('unhandledRejection', (reason) => {
   void handleShutdown('unhandledRejection');
 });
 
-server.listen(env.PORT, () => {
+server.listen(env.PORT, '0.0.0.0', () => {
   logger.info(`LifeStyle API server listening on port ${env.PORT} [NODE_ENV=${env.NODE_ENV}]`);
 });

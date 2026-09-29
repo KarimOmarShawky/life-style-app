@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+
+# Env (operators copy .env.example -> .env.local)
+.env
+.env.local
+.env.*.local
+
+# Test / tooling artifacts
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Logs & OS files
+logs/
+*.log
+.DS_Store

@@ -98,3 +98,50 @@ jobs:
       - name: Step 9 - Dependency Security Audit
         working-directory: backend
         run: npm audit --omit=dev --audit-level=high
+
+  web-gate:
+    name: Web Client Quality & Security Gate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js runtime (Node 24 target)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies with lockfile (npm ci)
+        run: npm ci
+
+      - name: Code Style (Prettier)
+        run: npm run format:check
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Static Type-Check (strict TypeScript)
+        run: npm run typecheck
+
+      - name: Unit, Component, Integration & Security Tests
+        run: npm test
+
+      - name: Production Build (server-side proxy target set)
+        run: npm run build
+        env:
+          BACKEND_INTERNAL_URL: http://127.0.0.1:3999
+
+      - name: E2E HTTP Smoke (headers, nonce, rewrite proxy)
+        run: npm run e2e
+        env:
+          SKIP_BUILD: '1'
+
+      - name: Dependency Security Audit
+        run: npm audit --omit=dev --audit-level=high

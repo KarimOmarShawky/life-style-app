@@ -1,0 +1,152 @@
+@import 'tailwindcss';
+
+/*
+ * LifeStyle web design tokens.
+ * Visual source of truth: the Flutter mobile client (Material 3, seed
+ * `#315C4C` evergreen). Adapted to a calm desktop productivity workspace:
+ * warm low-contrast neutral surfaces, evergreen primary, restrained borders,
+ * subtle elevation, consistent rounded cards.
+ */
+
+:root {
+  /* Brand — evergreen seed from the mobile app */
+  --primary: #315c4c;
+  --primary-hover: #274a3e;
+  --primary-active: #1f3c32;
+  --primary-soft: #e9f1ed;
+  --primary-soft-hover: #dceae3;
+  --on-primary: #ffffff;
+
+  /* Warm neutral page surfaces */
+  --background: #f7f5ef;
+  --surface: #ffffff;
+  --surface-muted: #faf9f4;
+  --surface-sunken: #f1eee6;
+  --border: #e7e2d6;
+  --border-strong: #d6d0c1;
+
+  /* Text */
+  --foreground: #1e2a24;
+  --muted-foreground: #5d675f;
+  --subtle-foreground: #8b928b;
+
+  /* Status colors */
+  --success: #2e7d5b;
+  --success-soft: #e7f4ed;
+  --warning: #a35a09;
+  --warning-soft: #fbf0e0;
+  --danger: #b3261e;
+  --danger-hover: #971e18;
+  --danger-soft: #fbeceb;
+  --info: #1d6fa5;
+  --info-soft: #e8f2f9;
+
+  /* Priority accents (tasks) */
+  --priority-high: #c2410c;
+  --priority-medium: #a35a09;
+  --priority-low: #315c4c;
+
+  --ring: #315c4c;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-hover: var(--primary-soft-hover);
+  --color-on-primary: var(--on-primary);
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
+
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Rounded scale used by cards/dialogs */
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--primary-soft);
+    color: var(--primary-active);
+  }
+}
+
+@layer components {
+  /* Form control base shared by input/select/textarea */
+  .field-control {
+    @apply w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-subtle-foreground;
+  }
+
+  .field-control:disabled {
+    @apply cursor-not-allowed bg-surface-sunken text-subtle-foreground;
+  }
+
+  .field-control[aria-invalid='true'] {
+    @apply border-danger;
+  }
+
+  .field-control:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+    border-color: var(--primary);
+  }
+
+  /* Soft evergreen tint for the active navigation item */
+  .nav-item-active {
+    background-color: var(--primary-soft);
+    color: var(--primary-active);
+  }
+}

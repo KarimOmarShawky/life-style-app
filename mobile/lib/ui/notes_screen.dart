@@ -12,9 +12,7 @@ class NotesScreen extends ConsumerWidget {
     final notesAsync = ref.watch(notesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notes'),
-      ),
+      appBar: AppBar(title: const Text('Notes')),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(notesProvider);
@@ -57,13 +55,20 @@ class _NoteCard extends StatelessWidget {
             Row(
               children: [
                 if (note.isPinned) ...[
-                  const Icon(Icons.push_pin, size: 16, color: Color(0xFF315C4C)),
+                  const Icon(
+                    Icons.push_pin,
+                    size: 16,
+                    color: Color(0xFF315C4C),
+                  ),
                   const SizedBox(width: 4),
                 ],
                 Expanded(
                   child: Text(
                     note.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -84,7 +89,10 @@ class _NoteCard extends StatelessWidget {
                 children: note.tags
                     .map(
                       (t) => Chip(
-                        label: Text('#$t', style: const TextStyle(fontSize: 11)),
+                        label: Text(
+                          '#$t',
+                          style: const TextStyle(fontSize: 11),
+                        ),
                         padding: EdgeInsets.zero,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),

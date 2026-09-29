@@ -8,7 +8,8 @@ class MoneyRepository {
 
   Future<List<Budget>> listBudgets() async {
     final response = await _api.get('money/budgets');
-    if (response is! Map<String, dynamic> || response['budgets'] is! List<dynamic>) {
+    if (response is! Map<String, dynamic> ||
+        response['budgets'] is! List<dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',
@@ -22,7 +23,8 @@ class MoneyRepository {
 
   Future<List<Subscription>> listSubscriptions() async {
     final response = await _api.get('money/subscriptions');
-    if (response is! Map<String, dynamic> || response['subscriptions'] is! List<dynamic>) {
+    if (response is! Map<String, dynamic> ||
+        response['subscriptions'] is! List<dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',

@@ -12,9 +12,7 @@ class HabitsScreen extends ConsumerWidget {
     final habitsAsync = ref.watch(habitsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Daily Habits'),
-      ),
+      appBar: AppBar(title: const Text('Daily Habits')),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(habitsProvider);
@@ -57,7 +55,10 @@ class _HabitCard extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
-        title: Text(habit.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          habit.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Text(
           habit.description ?? 'Daily routine',
           style: TextStyle(color: Colors.grey[600]),
@@ -68,7 +69,7 @@ class _HabitCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.15),
+                color: const Color(0x26FFA500),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -86,7 +87,10 @@ class _HabitCard extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.check_circle_outline, color: Color(0xFF315C4C)),
+              icon: const Icon(
+                Icons.check_circle_outline,
+                color: Color(0xFF315C4C),
+              ),
               onPressed: () async {
                 await ref
                     .read(habitsRepositoryProvider)

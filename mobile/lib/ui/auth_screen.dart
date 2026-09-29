@@ -46,7 +46,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           displayName: _nameController.text,
         );
       } else {
-        await auth.signIn(email: _emailController.text, password: _passwordController.text);
+        await auth.signIn(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
       }
       if (!mounted) return;
       final state = ref.read(authProvider);
@@ -88,17 +91,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   TextField(
                     controller: code,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: localization.resetCode),
+                    decoration: InputDecoration(
+                      labelText: localization.resetCode,
+                    ),
                   ),
                   TextField(
                     controller: newPassword,
                     obscureText: true,
-                    decoration: InputDecoration(labelText: localization.newPassword),
+                    decoration: InputDecoration(
+                      labelText: localization.newPassword,
+                    ),
                   ),
                 ],
                 if (error != null) ...[
                   const SizedBox(height: 12),
-                  Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  Text(
+                    error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -113,11 +125,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ? null
                   : () async {
                       if (email.text.trim().isEmpty) {
-                        setDialogState(() => error = 'Enter your email address.');
+                        setDialogState(
+                          () => error = 'Enter your email address.',
+                        );
                         return;
                       }
                       if (codeRequested && newPassword.text.length < 10) {
-                        setDialogState(() => error = localization.passwordLengthError);
+                        setDialogState(
+                          () => error = localization.passwordLengthError,
+                        );
                         return;
                       }
                       setDialogState(() {
@@ -137,14 +153,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             code: code.text,
                             newPassword: newPassword.text,
                           );
-                          if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                          if (dialogContext.mounted)
+                            Navigator.of(dialogContext).pop();
                         }
                       } catch (exception) {
                         if (dialogContext.mounted) {
                           setDialogState(() => error = _safeMessage(exception));
                         }
                       } finally {
-                        if (dialogContext.mounted) setDialogState(() => busy = false);
+                        if (dialogContext.mounted)
+                          setDialogState(() => busy = false);
                       }
                     },
               child: busy
@@ -152,7 +170,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(codeRequested ? localization.save : localization.sendResetCode),
+                  : Text(
+                      codeRequested
+                          ? localization.save
+                          : localization.sendResetCode,
+                    ),
             ),
           ],
         ),
@@ -179,7 +201,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.spa_outlined, size: 52, color: colorScheme.primary),
+                    Icon(
+                      Icons.spa_outlined,
+                      size: 52,
+                      color: colorScheme.primary,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       localization.appTitle,
@@ -188,7 +214,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _creatingAccount ? localization.createAccount : localization.signIn,
+                      _creatingAccount
+                          ? localization.createAccount
+                          : localization.signIn,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
@@ -198,8 +226,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         controller: _nameController,
                         textCapitalization: TextCapitalization.words,
                         autofillHints: const [AutofillHints.name],
-                        decoration: InputDecoration(labelText: localization.displayName),
-                        validator: (value) => (value == null || value.trim().isEmpty)
+                        decoration: InputDecoration(
+                          labelText: localization.displayName,
+                        ),
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
                             ? 'Enter your name.'
                             : null,
                       ),
@@ -208,12 +239,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.username, AutofillHints.email],
+                      autofillHints: const [
+                        AutofillHints.username,
+                        AutofillHints.email,
+                      ],
                       autocorrect: false,
-                      decoration: InputDecoration(labelText: localization.email),
+                      decoration: InputDecoration(
+                        labelText: localization.email,
+                      ),
                       validator: (value) {
                         final email = value?.trim() ?? '';
-                        return email.contains('@') ? null : 'Enter a valid email address.';
+                        return email.contains('@')
+                            ? null
+                            : 'Enter a valid email address.';
                       },
                     ),
                     const SizedBox(height: 12),
@@ -223,7 +261,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       autofillHints: _creatingAccount
                           ? const [AutofillHints.newPassword]
                           : const [AutofillHints.password],
-                      decoration: InputDecoration(labelText: localization.password),
+                      decoration: InputDecoration(
+                        labelText: localization.password,
+                      ),
                       validator: (value) {
                         final password = value ?? '';
                         if (password.isEmpty) return 'Enter your password.';
@@ -250,7 +290,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               dimension: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(_creatingAccount ? localization.createAccount : localization.signIn),
+                          : Text(
+                              _creatingAccount
+                                  ? localization.createAccount
+                                  : localization.signIn,
+                            ),
                     ),
                     if (!_creatingAccount)
                       TextButton(
@@ -261,9 +305,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       onPressed: _busy
                           ? null
                           : () => setState(() {
-                                _creatingAccount = !_creatingAccount;
-                                _formError = null;
-                              }),
+                              _creatingAccount = !_creatingAccount;
+                              _formError = null;
+                            }),
                       child: Text(
                         _creatingAccount
                             ? 'Already have an account? ${localization.signIn}'

@@ -39,7 +39,11 @@ class TasksScreen extends ConsumerWidget {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     const SizedBox(height: 150),
-                    Icon(Icons.check_circle_outline, size: 48, color: Theme.of(context).colorScheme.primary),
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 48,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     const SizedBox(height: 12),
                     Center(child: Text(localization.noTasks)),
                   ],
@@ -48,8 +52,10 @@ class TasksScreen extends ConsumerWidget {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
-                  itemBuilder: (context, index) => _TaskTile(task: items[index]),
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, indent: 72),
+                  itemBuilder: (context, index) =>
+                      _TaskTile(task: items[index]),
                 ),
         ),
       ),
@@ -81,7 +87,8 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
       ref.invalidate(tasksProvider);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_safeMessage(error))));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_safeMessage(error))));
         ref.invalidate(tasksProvider);
       }
     } finally {
@@ -91,28 +98,28 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
 
   @override
   Widget build(BuildContext context) => CheckboxListTile(
-        value: widget.task.isDone,
-        onChanged: _saving ? null : (value) => _setDone(value ?? false),
-        secondary: _saving
-            ? const SizedBox.square(
-                dimension: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : null,
-        title: Text(
-          widget.task.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: widget.task.isDone
-              ? TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  decoration: TextDecoration.lineThrough,
-                )
-              : null,
-        ),
-        subtitle: Text(_taskSubtitle(widget.task)),
-        controlAffinity: ListTileControlAffinity.leading,
-      );
+    value: widget.task.isDone,
+    onChanged: _saving ? null : (value) => _setDone(value ?? false),
+    secondary: _saving
+        ? const SizedBox.square(
+            dimension: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : null,
+    title: Text(
+      widget.task.title,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: widget.task.isDone
+          ? TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              decoration: TextDecoration.lineThrough,
+            )
+          : null,
+    ),
+    subtitle: Text(_taskSubtitle(widget.task)),
+    controlAffinity: ListTileControlAffinity.leading,
+  );
 }
 
 class _TaskLoadError extends StatelessWidget {
@@ -123,18 +130,21 @@ class _TaskLoadError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: onRetry, child: Text(AppLocalizations.of(context).retry)),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: onRetry,
+            child: Text(AppLocalizations.of(context).retry),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 Future<void> _showAddTask(BuildContext context, WidgetRef ref) async {
@@ -176,13 +186,21 @@ Future<void> _showAddTask(BuildContext context, WidgetRef ref) async {
                   controller: title,
                   autofocus: true,
                   maxLength: 300,
-                  decoration: InputDecoration(labelText: AppLocalizations.of(context).taskTitle),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Enter a task title.' : null,
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context).taskTitle,
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a task title.'
+                      : null,
                   onFieldSubmitted: (_) => submit(),
                 ),
                 if (error != null)
-                  Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  Text(
+                    error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -216,7 +234,8 @@ String _taskSubtitle(Task task) {
 
 String _safeMessage(Object error) {
   if (error is ApiException) {
-    if (error.code == 'VERSION_CONFLICT') return 'This task changed. The list has been refreshed.';
+    if (error.code == 'VERSION_CONFLICT')
+      return 'This task changed. The list has been refreshed.';
     return error.message;
   }
   return 'Could not complete the request. Try again.';

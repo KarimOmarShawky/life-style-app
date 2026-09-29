@@ -13,7 +13,7 @@ abstract interface class TokenStore {
 /// platform's encrypted secure storage on Android.
 class SecureTokenStore implements TokenStore {
   SecureTokenStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _key = 'lifestyle.session.v1';
   final FlutterSecureStorage _storage;
@@ -32,11 +32,13 @@ class SecureTokenStore implements TokenStore {
 
   @override
   Future<void> write(SessionTokens tokens) => _storage.write(
-        key: _key,
-        value: tokens.encode(),
-        iOptions: const IOSOptions(accessibility: KeychainAccessibility.afterFirstUnlockThisDeviceOnly),
-        aOptions: const AndroidOptions(encryptedSharedPreferences: true),
-      );
+    key: _key,
+    value: tokens.encode(),
+    iOptions: const IOSOptions(
+      accessibility: KeychainAccessibility.afterFirstUnlockThisDeviceOnly,
+    ),
+    aOptions: const AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   @override
   Future<void> clear() => _storage.delete(key: _key);

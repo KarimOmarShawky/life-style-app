@@ -11,7 +11,8 @@ class NotesRepository {
       'notes',
       query: {if (tag != null) 'tag': tag},
     );
-    if (response is! Map<String, dynamic> || response['notes'] is! List<dynamic>) {
+    if (response is! Map<String, dynamic> ||
+        response['notes'] is! List<dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',
@@ -30,13 +31,10 @@ class NotesRepository {
   }) async {
     final response = await _api.post(
       'notes',
-      body: {
-        'title': title.trim(),
-        'body': body.trim(),
-        'tags': tags,
-      },
+      body: {'title': title.trim(), 'body': body.trim(), 'tags': tags},
     );
-    if (response is! Map<String, dynamic> || response['note'] is! Map<String, dynamic>) {
+    if (response is! Map<String, dynamic> ||
+        response['note'] is! Map<String, dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',

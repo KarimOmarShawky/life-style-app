@@ -35,27 +35,24 @@ class LifeStyleApp extends ConsumerWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF315C4C)),
         useMaterial3: true,
       ),
-      onGenerateRoute: (settings) => _routeFor(
-        settings,
-        authState,
-        initialLocation,
-      ),
+      onGenerateRoute: (settings) =>
+          _routeFor(settings, authState, initialLocation),
       home: _authHome(authState),
     );
   }
 
   Widget _authHome(AsyncValue<AppUser?> authState) => authState.when(
-        loading: () => const _LoadingPage(),
-        data: (user) => user == null
-            ? const AuthScreen()
-            : _authenticatedPage(user, DeepLinkParser.routeFor(initialLocation)),
-        error: (error, _) {
-          if (error is StateError) {
-            return _ConfigurationError(message: error.message.toString());
-          }
-          return AuthScreen(errorMessage: _safeMessage(error));
-        },
-      );
+    loading: () => const _LoadingPage(),
+    data: (user) => user == null
+        ? const AuthScreen()
+        : _authenticatedPage(user, DeepLinkParser.routeFor(initialLocation)),
+    error: (error, _) {
+      if (error is StateError) {
+        return _ConfigurationError(message: error.message.toString());
+      }
+      return AuthScreen(errorMessage: _safeMessage(error));
+    },
+  );
 
   Route<dynamic>? _routeFor(
     RouteSettings settings,
@@ -73,9 +70,8 @@ class LifeStyleApp extends ConsumerWidget {
       settings: RouteSettings(name: path),
       builder: (_) => authState.when(
         loading: () => const _LoadingPage(),
-        data: (user) => user == null
-            ? const AuthScreen()
-            : _authenticatedPage(user, path),
+        data: (user) =>
+            user == null ? const AuthScreen() : _authenticatedPage(user, path),
         error: (error, _) => error is StateError
             ? _ConfigurationError(message: error.message.toString())
             : AuthScreen(errorMessage: _safeMessage(error)),
@@ -97,9 +93,8 @@ class _LoadingPage extends StatelessWidget {
   const _LoadingPage();
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: CircularProgressIndicator()));
 }
 
 class _ConfigurationError extends StatelessWidget {
@@ -109,13 +104,13 @@ class _ConfigurationError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(message, textAlign: TextAlign.center),
-          ),
-        ),
-      );
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(message, textAlign: TextAlign.center),
+      ),
+    ),
+  );
 }
 
 String _safeMessage(Object error) {

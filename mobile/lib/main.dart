@@ -5,10 +5,7 @@ import 'app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  final initialLocation = WidgetsBinding.instance.platformDispatcher.defaultRouteName;
-  runApp(
-    ProviderScope(
-      child: LifeStyleApp(initialLocation: initialLocation),
-    ),
-  );
+  final initialLocation =
+      WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+  runApp(ProviderScope(child: LifeStyleApp(initialLocation: initialLocation)));
 }

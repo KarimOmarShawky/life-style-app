@@ -11,7 +11,8 @@ class TasksRepository {
       'tasks',
       query: {'limit': '50', if (cursor != null) 'cursor': cursor},
     );
-    if (response is! Map<String, dynamic> || response['data'] is! List<dynamic>) {
+    if (response is! Map<String, dynamic> ||
+        response['data'] is! List<dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',

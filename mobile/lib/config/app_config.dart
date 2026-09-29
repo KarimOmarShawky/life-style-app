@@ -19,7 +19,9 @@ abstract final class AppConfig {
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         !uri.path.replaceFirst(RegExp(r'/+$'), '').endsWith('/api/v1')) {
-      throw StateError('API_BASE_URL must be an absolute URL ending in /api/v1.');
+      throw StateError(
+        'API_BASE_URL must be an absolute URL ending in /api/v1.',
+      );
     }
     if (!kReleaseMode && uri.scheme != 'https' && uri.scheme != 'http') {
       throw StateError('API_BASE_URL must use HTTP(S).');
@@ -30,6 +32,8 @@ abstract final class AppConfig {
     if (uri.query.isNotEmpty || uri.fragment.isNotEmpty) {
       throw StateError('API_BASE_URL must not contain a query or fragment.');
     }
-    return uri.replace(path: uri.path.endsWith('/') ? uri.path : '${uri.path}/');
+    return uri.replace(
+      path: uri.path.endsWith('/') ? uri.path : '${uri.path}/',
+    );
   }
 }

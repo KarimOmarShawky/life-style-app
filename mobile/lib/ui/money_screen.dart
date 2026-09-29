@@ -13,9 +13,7 @@ class MoneyScreen extends ConsumerWidget {
     final subscriptionsAsync = ref.watch(subscriptionsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Money & Budgets'),
-      ),
+      appBar: AppBar(title: const Text('Money & Budgets')),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(budgetsProvider);
@@ -40,7 +38,9 @@ class MoneyScreen extends ConsumerWidget {
                       ),
                     )
                   : Column(
-                      children: budgets.map((b) => _BudgetCard(budget: b)).toList(),
+                      children: budgets
+                          .map((b) => _BudgetCard(budget: b))
+                          .toList(),
                     ),
             ),
             const SizedBox(height: 24),
@@ -60,7 +60,9 @@ class MoneyScreen extends ConsumerWidget {
                       ),
                     )
                   : Column(
-                      children: subs.map((s) => _SubscriptionCard(subscription: s)).toList(),
+                      children: subs
+                          .map((s) => _SubscriptionCard(subscription: s))
+                          .toList(),
                     ),
             ),
           ],
@@ -92,8 +94,13 @@ class _BudgetCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  budget.categoryId == null ? 'Overall Budget' : 'Category Budget',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  budget.categoryId == null
+                      ? 'Overall Budget'
+                      : 'Category Budget',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
                   '${usage.spent} / ${budget.amountLimit} ${budget.currency}',
@@ -135,7 +142,10 @@ class _SubscriptionCard extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
-        title: Text(subscription.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          subscription.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Text(
           'Next bill: ${subscription.nextBillingDate} (${subscription.daysUntilNextBilling} days left)',
         ),

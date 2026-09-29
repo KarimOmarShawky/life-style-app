@@ -8,7 +8,8 @@ class HabitsRepository {
 
   Future<List<Habit>> listHabits() async {
     final response = await _api.get('habits');
-    if (response is! Map<String, dynamic> || response['habits'] is! List<dynamic>) {
+    if (response is! Map<String, dynamic> ||
+        response['habits'] is! List<dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',
@@ -20,13 +21,14 @@ class HabitsRepository {
         .toList(growable: false);
   }
 
-  Future<void> checkinHabit(String habitId, String date, {String status = 'done'}) async {
+  Future<void> checkinHabit(
+    String habitId,
+    String date, {
+    String status = 'done',
+  }) async {
     await _api.post(
       'habits/$habitId/checkin',
-      body: {
-        'date': date,
-        'status': status,
-      },
+      body: {'date': date, 'status': status},
     );
   }
 
@@ -41,13 +43,11 @@ class HabitsRepository {
         'name': name.trim(),
         if (description != null) 'description': description.trim(),
         'startDate': startDate,
-        'recurrence': {
-          'freq': 'daily',
-          'interval': 1,
-        },
+        'recurrence': {'freq': 'daily', 'interval': 1},
       },
     );
-    if (response is! Map<String, dynamic> || response['habit'] is! Map<String, dynamic>) {
+    if (response is! Map<String, dynamic> ||
+        response['habit'] is! Map<String, dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',

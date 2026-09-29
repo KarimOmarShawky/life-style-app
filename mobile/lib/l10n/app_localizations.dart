@@ -37,11 +37,14 @@ class AppLocalizations {
   String get errorTitle => 'Something went wrong';
   String get apiConfigError =>
       'The API address is not configured. Start the app with an API_BASE_URL build setting.';
-  String get networkError => 'Could not connect. Check your connection and try again.';
-  String get passwordLengthError => 'Use a password with at least 10 characters.';
+  String get networkError =>
+      'Could not connect. Check your connection and try again.';
+  String get passwordLengthError =>
+      'Use a password with at least 10 characters.';
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override

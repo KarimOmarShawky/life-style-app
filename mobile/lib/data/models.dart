@@ -18,14 +18,14 @@ class AppUser {
   final String status;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-        id: _string(json, 'id'),
-        email: _string(json, 'email'),
-        displayName: _string(json, 'displayName'),
-        timezone: _string(json, 'timezone'),
-        locale: _string(json, 'locale'),
-        defaultCurrency: _string(json, 'defaultCurrency'),
-        status: _string(json, 'status'),
-      );
+    id: _string(json, 'id'),
+    email: _string(json, 'email'),
+    displayName: _string(json, 'displayName'),
+    timezone: _string(json, 'timezone'),
+    locale: _string(json, 'locale'),
+    defaultCurrency: _string(json, 'defaultCurrency'),
+    status: _string(json, 'status'),
+  );
 }
 
 class Task {
@@ -48,13 +48,13 @@ class Task {
   bool get isDone => status == 'done';
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
-        id: _string(json, 'id'),
-        title: _string(json, 'title'),
-        status: _string(json, 'status'),
-        priority: _string(json, 'priority'),
-        version: _int(json, 'version'),
-        dueDate: json['dueDate'] is String ? json['dueDate'] as String : null,
-      );
+    id: _string(json, 'id'),
+    title: _string(json, 'title'),
+    status: _string(json, 'status'),
+    priority: _string(json, 'priority'),
+    version: _int(json, 'version'),
+    dueDate: json['dueDate'] is String ? json['dueDate'] as String : null,
+  );
 }
 
 class BudgetUsage {
@@ -75,13 +75,13 @@ class BudgetUsage {
   final bool overspent;
 
   factory BudgetUsage.fromJson(Map<String, dynamic> json) => BudgetUsage(
-        periodStart: _string(json, 'periodStart'),
-        periodEnd: _string(json, 'periodEnd'),
-        spent: _string(json, 'spent'),
-        remaining: _string(json, 'remaining'),
-        percentUsed: (json['percentUsed'] as num).toDouble(),
-        overspent: json['overspent'] == true,
-      );
+    periodStart: _string(json, 'periodStart'),
+    periodEnd: _string(json, 'periodEnd'),
+    spent: _string(json, 'spent'),
+    remaining: _string(json, 'remaining'),
+    percentUsed: (json['percentUsed'] as num).toDouble(),
+    overspent: json['overspent'] == true,
+  );
 }
 
 class Budget {
@@ -104,14 +104,16 @@ class Budget {
   final int version;
 
   factory Budget.fromJson(Map<String, dynamic> json) => Budget(
-        id: _string(json, 'id'),
-        categoryId: json['categoryId'] is String ? json['categoryId'] as String : null,
-        amountLimit: _string(json, 'amountLimit'),
-        currency: _string(json, 'currency'),
-        period: _string(json, 'period'),
-        usage: BudgetUsage.fromJson(json['usage'] as Map<String, dynamic>),
-        version: _int(json, 'version'),
-      );
+    id: _string(json, 'id'),
+    categoryId: json['categoryId'] is String
+        ? json['categoryId'] as String
+        : null,
+    amountLimit: _string(json, 'amountLimit'),
+    currency: _string(json, 'currency'),
+    period: _string(json, 'period'),
+    usage: BudgetUsage.fromJson(json['usage'] as Map<String, dynamic>),
+    version: _int(json, 'version'),
+  );
 }
 
 class Subscription {
@@ -142,18 +144,18 @@ class Subscription {
   final int version;
 
   factory Subscription.fromJson(Map<String, dynamic> json) => Subscription(
-        id: _string(json, 'id'),
-        name: _string(json, 'name'),
-        amount: _string(json, 'amount'),
-        currency: _string(json, 'currency'),
-        billingUnit: _string(json, 'billingUnit'),
-        billingInterval: _int(json, 'billingInterval'),
-        nextBillingDate: _string(json, 'nextBillingDate'),
-        status: _string(json, 'status'),
-        monthlyEquivalent: _string(json, 'monthlyEquivalent'),
-        daysUntilNextBilling: _int(json, 'daysUntilNextBilling'),
-        version: _int(json, 'version'),
-      );
+    id: _string(json, 'id'),
+    name: _string(json, 'name'),
+    amount: _string(json, 'amount'),
+    currency: _string(json, 'currency'),
+    billingUnit: _string(json, 'billingUnit'),
+    billingInterval: _int(json, 'billingInterval'),
+    nextBillingDate: _string(json, 'nextBillingDate'),
+    status: _string(json, 'status'),
+    monthlyEquivalent: _string(json, 'monthlyEquivalent'),
+    daysUntilNextBilling: _int(json, 'daysUntilNextBilling'),
+    version: _int(json, 'version'),
+  );
 }
 
 class Habit {
@@ -176,14 +178,16 @@ class Habit {
   final int version;
 
   factory Habit.fromJson(Map<String, dynamic> json) => Habit(
-        id: _string(json, 'id'),
-        name: _string(json, 'name'),
-        description: json['description'] is String ? json['description'] as String : null,
-        status: _string(json, 'status'),
-        currentStreak: _int(json, 'currentStreak'),
-        longestStreak: _int(json, 'longestStreak'),
-        version: _int(json, 'version'),
-      );
+    id: _string(json, 'id'),
+    name: _string(json, 'name'),
+    description: json['description'] is String
+        ? json['description'] as String
+        : null,
+    status: _string(json, 'status'),
+    currentStreak: _int(json, 'currentStreak'),
+    longestStreak: _int(json, 'longestStreak'),
+    version: _int(json, 'version'),
+  );
 }
 
 class Note {
@@ -206,14 +210,16 @@ class Note {
   final int version;
 
   factory Note.fromJson(Map<String, dynamic> json) => Note(
-        id: _string(json, 'id'),
-        title: _string(json, 'title'),
-        body: _string(json, 'body'),
-        tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
-        isPinned: json['isPinned'] == true,
-        updatedAt: _string(json, 'updatedAt'),
-        version: _int(json, 'version'),
-      );
+    id: _string(json, 'id'),
+    title: _string(json, 'title'),
+    body: _string(json, 'body'),
+    tags:
+        (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+        const [],
+    isPinned: json['isPinned'] == true,
+    updatedAt: _string(json, 'updatedAt'),
+    version: _int(json, 'version'),
+  );
 }
 
 String _string(Map<String, dynamic> json, String key) {

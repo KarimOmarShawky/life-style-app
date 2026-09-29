@@ -7,8 +7,8 @@ import 'token_store.dart';
 
 class AuthRepository {
   const AuthRepository({required ApiClient api, required TokenStore tokens})
-      : _api = api,
-        _tokens = tokens;
+    : _api = api,
+      _tokens = tokens;
 
   final ApiClient _api;
   final TokenStore _tokens;
@@ -24,7 +24,10 @@ class AuthRepository {
     }
   }
 
-  Future<AppUser> login({required String email, required String password}) async {
+  Future<AppUser> login({
+    required String email,
+    required String password,
+  }) async {
     final response = await _api.post(
       'auth/login',
       authenticated: false,

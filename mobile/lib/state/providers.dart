@@ -44,27 +44,30 @@ final notesRepositoryProvider = Provider<NotesRepository>(
   (ref) => NotesRepository(ref.watch(apiClientProvider)),
 );
 
-final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(AuthController.new);
+final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(
+  AuthController.new,
+);
 
 class AuthController extends AsyncNotifier<AppUser?> {
   @override
   Future<AppUser?> build() => ref.read(authRepositoryProvider).restoreSession();
 
   Future<void> signIn({required String email, required String password}) =>
-      _authenticate(() => ref.read(authRepositoryProvider).login(email: email, password: password));
+      _authenticate(
+        () => ref
+            .read(authRepositoryProvider)
+            .login(email: email, password: password),
+      );
 
   Future<void> register({
     required String email,
     required String password,
     required String displayName,
-  }) =>
-      _authenticate(
-        () => ref.read(authRepositoryProvider).register(
-              email: email,
-              password: password,
-              displayName: displayName,
-            ),
-      );
+  }) => _authenticate(
+    () => ref
+        .read(authRepositoryProvider)
+        .register(email: email, password: password, displayName: displayName),
+  );
 
   Future<void> _authenticate(Future<AppUser> Function() operation) async {
     state = const AsyncLoading();
@@ -78,12 +81,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
     required String email,
     required String code,
     required String newPassword,
-  }) =>
-      ref.read(authRepositoryProvider).resetPassword(
-            email: email,
-            code: code,
-            newPassword: newPassword,
-          );
+  }) => ref
+      .read(authRepositoryProvider)
+      .resetPassword(email: email, code: code, newPassword: newPassword);
 
   Future<void> signOut() async {
     try {
@@ -95,36 +95,50 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> retryRestore() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(ref.read(authRepositoryProvider).restoreSession);
+    state = await AsyncValue.guard(
+      ref.read(authRepositoryProvider).restoreSession,
+    );
   }
 }
 
 final tasksProvider = FutureProvider.autoDispose<List<Task>>((ref) async {
-  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  final currentUserId = ref.watch(
+    authProvider.select((value) => value.valueOrNull?.id),
+  );
   if (currentUserId == null) return const [];
   return ref.watch(tasksRepositoryProvider).listTasks();
 });
 
 final budgetsProvider = FutureProvider.autoDispose<List<Budget>>((ref) async {
-  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  final currentUserId = ref.watch(
+    authProvider.select((value) => value.valueOrNull?.id),
+  );
   if (currentUserId == null) return const [];
   return ref.watch(moneyRepositoryProvider).listBudgets();
 });
 
-final subscriptionsProvider = FutureProvider.autoDispose<List<Subscription>>((ref) async {
-  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+final subscriptionsProvider = FutureProvider.autoDispose<List<Subscription>>((
+  ref,
+) async {
+  final currentUserId = ref.watch(
+    authProvider.select((value) => value.valueOrNull?.id),
+  );
   if (currentUserId == null) return const [];
   return ref.watch(moneyRepositoryProvider).listSubscriptions();
 });
 
 final habitsProvider = FutureProvider.autoDispose<List<Habit>>((ref) async {
-  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  final currentUserId = ref.watch(
+    authProvider.select((value) => value.valueOrNull?.id),
+  );
   if (currentUserId == null) return const [];
   return ref.watch(habitsRepositoryProvider).listHabits();
 });
 
 final notesProvider = FutureProvider.autoDispose<List<Note>>((ref) async {
-  final currentUserId = ref.watch(authProvider.select((value) => value.valueOrNull?.id));
+  final currentUserId = ref.watch(
+    authProvider.select((value) => value.valueOrNull?.id),
+  );
   if (currentUserId == null) return const [];
   return ref.watch(notesRepositoryProvider).listNotes();
 });

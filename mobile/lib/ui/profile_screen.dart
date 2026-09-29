@@ -21,12 +21,18 @@ class ProfileScreen extends ConsumerWidget {
           CircleAvatar(
             radius: 36,
             child: Text(
-              user.displayName.isEmpty ? '?' : user.displayName.characters.first.toUpperCase(),
+              user.displayName.isEmpty
+                  ? '?'
+                  : user.displayName.characters.first.toUpperCase(),
               style: Theme.of(context).textTheme.headlineSmall,
             ),
           ),
           const SizedBox(height: 16),
-          Text(user.displayName, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            user.displayName,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           Text(user.email, textAlign: TextAlign.center),
           const SizedBox(height: 24),
           _ProfileRow(label: 'Time zone', value: user.timezone),
@@ -59,8 +65,8 @@ class _ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(label),
-        subtitle: Text(value),
-      );
+    contentPadding: EdgeInsets.zero,
+    title: Text(label),
+    subtitle: Text(value),
+  );
 }

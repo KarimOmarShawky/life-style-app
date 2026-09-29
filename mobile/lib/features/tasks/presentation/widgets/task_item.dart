@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../data/models.dart';
-import '../../state/providers.dart';
+import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/state/providers.dart';
 
 class TaskItem extends ConsumerWidget {
   const TaskItem({super.key, required this.task, required this.onToggle});

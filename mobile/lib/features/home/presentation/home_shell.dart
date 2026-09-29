@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-
-import '../../../data/models.dart';
-import '../../auth/presentation/profile_screen.dart';
-import '../../habits/presentation/habits_screen.dart';
-import '../../money/presentation/money_screen.dart';
-import '../../notes/presentation/notes_screen.dart';
-import '../../tasks/presentation/tasks_screen.dart';
+import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/auth/presentation/profile_screen.dart';
+import 'package:lifestyle_mobile/features/habits/presentation/habits_screen.dart';
+import 'package:lifestyle_mobile/features/money/presentation/money_screen.dart';
+import 'package:lifestyle_mobile/features/notes/presentation/notes_screen.dart';
+import 'package:lifestyle_mobile/features/tasks/presentation/tasks_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key, required this.user, this.initialIndex = 0});

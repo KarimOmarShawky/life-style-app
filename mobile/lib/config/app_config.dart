@@ -3,7 +3,10 @@ import 'package:flutter/foundation.dart';
 /// Runtime configuration is provided at build/run time, never embedded as a
 /// production credential or pointed at a developer's localhost by default.
 abstract final class AppConfig {
-  static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://life-style-app-production.up.railway.app/api/v1',
+  );
 
   static Uri get apiBaseUri {
     final configured = apiBaseUrl.trim();

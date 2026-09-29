@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifestyle_mobile/features/habits/data/habit_model.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
 
 import 'widgets/habit_card.dart';

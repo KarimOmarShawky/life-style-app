@@ -123,7 +123,7 @@ class AuthRepository {
       ),
     );
 
-    await _tokens.saveTokens(sessionTokens);
+    await _tokens.write(sessionTokens);
     return AppUser.fromJson(response['user'] as Map<String, dynamic>);
   }
 

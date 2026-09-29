@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
 
 class SubscriptionCard extends StatelessWidget {
   const SubscriptionCard({super.key, required this.subscription});

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/profile_screen.dart';
 import 'package:lifestyle_mobile/features/habits/presentation/habits_screen.dart';
 import 'package:lifestyle_mobile/features/money/presentation/money_screen.dart';

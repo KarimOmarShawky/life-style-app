@@ -1,5 +1,5 @@
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/habits/data/habit_model.dart';
 
 class HabitsRepository {
   const HabitsRepository(this._api);

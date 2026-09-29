@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifestyle_mobile/state/providers.dart';
+import 'package:lifestyle_mobile/features/notes/state/notes_provider.dart';
 
 import 'widgets/note_card.dart';
 

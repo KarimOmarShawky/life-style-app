@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
-import 'package:lifestyle_mobile/state/providers.dart';
+import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 
 class TasksScreen extends ConsumerWidget {
   const TasksScreen({super.key});

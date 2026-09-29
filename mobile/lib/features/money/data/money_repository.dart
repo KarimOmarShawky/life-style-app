@@ -1,5 +1,6 @@
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
 
 class MoneyRepository {
   const MoneyRepository(this._api);

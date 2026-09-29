@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/notes/data/note_model.dart';
 
 class NoteCard extends StatelessWidget {
   const NoteCard({super.key, required this.note});

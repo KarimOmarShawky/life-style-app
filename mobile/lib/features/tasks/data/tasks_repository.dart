@@ -1,5 +1,5 @@
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
 
 class TasksRepository {
   const TasksRepository(this._api);

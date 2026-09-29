@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/data/session_tokens.dart';
 import 'package:lifestyle_mobile/data/token_store.dart';
 

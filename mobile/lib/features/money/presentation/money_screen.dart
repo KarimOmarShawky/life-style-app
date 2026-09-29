@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifestyle_mobile/state/providers.dart';
+import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 
 import 'widgets/budget_card.dart';
 import 'widgets/subscription_card.dart';

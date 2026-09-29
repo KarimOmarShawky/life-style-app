@@ -1,5 +1,5 @@
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/notes/data/note_model.dart';
 
 class NotesRepository {
   const NotesRepository(this._api);

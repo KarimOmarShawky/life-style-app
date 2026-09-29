@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
 
 class BudgetCard extends StatelessWidget {
   const BudgetCard({super.key, required this.budget});

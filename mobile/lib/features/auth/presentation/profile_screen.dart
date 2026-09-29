@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
-import 'package:lifestyle_mobile/state/providers.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({required this.user, super.key});

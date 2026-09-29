@@ -3,12 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/data/models.dart';
+import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/auth_screen.dart';
 import 'package:lifestyle_mobile/features/home/presentation/home_shell.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 import 'package:lifestyle_mobile/navigation/deep_link_parser.dart';
-import 'package:lifestyle_mobile/state/providers.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 class LifeStyleApp extends ConsumerWidget {
   const LifeStyleApp({super.key, this.initialLocation});

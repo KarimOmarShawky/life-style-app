@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifestyle_mobile/data/models.dart';
-import 'package:lifestyle_mobile/state/providers.dart';
+import 'package:lifestyle_mobile/features/habits/data/habit_model.dart';
+import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
 
 class HabitCard extends ConsumerWidget {
   const HabitCard({super.key, required this.habit});

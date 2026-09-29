@@ -14,14 +14,14 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 # Copy package manifests
-COPY backend/package.json backend/package-lock.json ./
+COPY package.json package-lock.json ./
 
 # Install all dependencies (including devDependencies) for compilation
 RUN npm ci
 
 # Copy backend source code and tsconfig
-COPY backend/tsconfig.json ./
-COPY backend/src ./src
+COPY tsconfig.json ./
+COPY src ./src
 
 # Compile TypeScript to JavaScript
 RUN npm run build

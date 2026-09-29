@@ -10,18 +10,22 @@ import helmet from 'helmet';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors/app-error.js';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export const helmetSecurityMiddleware = helmet({
-  contentSecurityPolicy: {
-    useDefaults: false,
-    directives: {
-      defaultSrc: ["'none'"],
-      frameAncestors: ["'none'"]
-    }
-  },
+  contentSecurityPolicy: isDev
+    ? false
+    : {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"]
+        }
+      },
   xContentTypeOptions: true,
   referrerPolicy: { policy: 'no-referrer' },
-  frameguard: { action: 'deny' },
-  crossOriginResourcePolicy: { policy: 'same-site' },
+  frameguard: isDev ? false : { action: 'deny' },
+  crossOriginResourcePolicy: { policy: isDev ? 'cross-origin' : 'same-site' },
   hidePoweredBy: true,
   hsts:
     process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false

@@ -34,9 +34,14 @@ export const deviceSchema = z
   .object({
     platform: z.enum(['ios', 'android', 'unknown']),
     name: z.string().max(100).optional(),
+    deviceName: z.string().max(100).optional(),
     appVersion: z.string().max(32).optional()
   })
-  .strict();
+  .transform((val) => ({
+    platform: val.platform,
+    name: val.name ?? val.deviceName,
+    appVersion: val.appVersion
+  }));
 
 export const registerSchema = z
   .object({

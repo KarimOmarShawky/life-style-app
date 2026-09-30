@@ -129,6 +129,7 @@ class AuthRepository {
 
   Map<String, Object?> _device() => {
     'platform': _platformName(),
+    'name': 'Arena Mobile Client',
     'deviceName': 'Arena Mobile Client',
     'appVersion': '1.0.1',
   };

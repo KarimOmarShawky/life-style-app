@@ -88,3 +88,18 @@ process.on('unhandledRejection', (reason) => {
 server.listen(env.PORT, '0.0.0.0', () => {
   logger.info(`LifeStyle API server listening on port ${env.PORT} [NODE_ENV=${env.NODE_ENV}]`);
 });
+
+// Dual listener ensures both Railway standard port (8080) and custom port (3000) respond
+const secondaryPorts = [3000, 8080].filter((p) => p !== env.PORT);
+for (const p of secondaryPorts) {
+  try {
+    const fallbackServer = http.createServer(app);
+    fallbackServer.listen(p, '0.0.0.0', () => {
+      logger.info(`LifeStyle API auxiliary listener active on port ${p}`);
+    }).on('error', () => {
+      // Ignore if port already in use
+    });
+  } catch {
+    // Continue with primary server
+  }
+}

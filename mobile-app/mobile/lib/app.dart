@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/auth_screen.dart';
 import 'package:lifestyle_mobile/features/home/presentation/home_shell.dart';
@@ -18,10 +19,12 @@ class LifeStyleApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final settings = ref.watch(settingsProvider);
+
     return MaterialApp(
       title: 'LifeStyle',
       debugShowCheckedModeBanner: false,
-      locale: const Locale('en'),
+      locale: settings.locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -29,12 +32,23 @@ class LifeStyleApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      themeMode: settings.themeMode,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF315C4C)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF315C4C),
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
       ),
-      onGenerateRoute: (settings) =>
-          _routeFor(settings, authState, initialLocation),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF315C4C),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      onGenerateRoute: (settingsRoute) =>
+          _routeFor(settingsRoute, authState, initialLocation),
       home: _authHome(authState),
     );
   }
@@ -57,14 +71,10 @@ class LifeStyleApp extends ConsumerWidget {
     AsyncValue<AppUser?> authState,
     String? initialLocation,
   ) {
-    // Flutter delivers native initial/universal-link routes through route
-    // settings. Only the two allowlisted application destinations are routed.
     final location = settings.name ?? initialLocation;
     if (location == null || location == '/') return null;
     final path = DeepLinkParser.routeFor(location);
     return MaterialPageRoute<void>(
-      // Do not propagate untrusted query/fragment input (which may contain
-      // reset codes or other sensitive values) to RouteSettings or observers.
       settings: RouteSettings(name: path),
       builder: (_) => authState.when(
         loading: () => const _LoadingPage(),

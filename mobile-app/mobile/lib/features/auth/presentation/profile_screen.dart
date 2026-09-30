@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
@@ -14,9 +15,9 @@ const supportedCurrencies = [
   {'code': 'QAR', 'name': 'Qatari Riyal (ريال قطري)'},
   {'code': 'GBP', 'name': 'British Pound (£)'},
   {'code': 'BHD', 'name': 'Bahraini Dinar (دينار بحريني)'},
-  {'code': 'OMR', 'name': 'Omani Rial (ريال عماني)'},
-  {'code': 'JOD', 'name': 'Jordanian Dinar (دينار أردني)'},
-  {'code': 'TRY', 'name': 'Turkish Lira (ليرة تركية)'},
+  {'code': 'OMR', 'name': 'Omani Rial (OMR)'},
+  {'code': 'JOD', 'name': 'Jordanian Dinar (JOD)'},
+  {'code': 'TRY', 'name': 'Turkish Lira (TRY)'},
   {'code': 'CAD', 'name': 'Canadian Dollar (CAD)'},
   {'code': 'AUD', 'name': 'Australian Dollar (AUD)'},
 ];
@@ -69,9 +70,123 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _changeLanguage(BuildContext context, WidgetRef ref) async {
+    final settings = ref.read(settingsProvider);
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        children: [
+          ListTile(
+            leading: Icon(
+              settings.locale.languageCode == 'ar'
+                  ? Icons.check_circle
+                  : Icons.circle_outlined,
+              color: settings.locale.languageCode == 'ar'
+                  ? Theme.of(ctx).colorScheme.primary
+                  : null,
+            ),
+            title: const Text('العربية 🇸🇦'),
+            onTap: () => Navigator.of(ctx).pop('ar'),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(
+              settings.locale.languageCode == 'en'
+                  ? Icons.check_circle
+                  : Icons.circle_outlined,
+              color: settings.locale.languageCode == 'en'
+                  ? Theme.of(ctx).colorScheme.primary
+                  : null,
+            ),
+            title: const Text('English 🇺🇸'),
+            onTap: () => Navigator.of(ctx).pop('en'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      await ref.read(settingsProvider.notifier).setLocale(Locale(selected));
+    }
+  }
+
+  Future<void> _changeThemeMode(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final settings = ref.read(settingsProvider);
+
+    final selected = await showModalBottomSheet<ThemeMode>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        children: [
+          ListTile(
+            leading: Icon(
+              settings.themeMode == ThemeMode.system
+                  ? Icons.check_circle
+                  : Icons.circle_outlined,
+              color: settings.themeMode == ThemeMode.system
+                  ? Theme.of(ctx).colorScheme.primary
+                  : null,
+            ),
+            title: Text(l10n.themeSystem),
+            onTap: () => Navigator.of(ctx).pop(ThemeMode.system),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(
+              settings.themeMode == ThemeMode.light
+                  ? Icons.check_circle
+                  : Icons.circle_outlined,
+              color: settings.themeMode == ThemeMode.light
+                  ? Theme.of(ctx).colorScheme.primary
+                  : null,
+            ),
+            title: Text(l10n.themeLight),
+            onTap: () => Navigator.of(ctx).pop(ThemeMode.light),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(
+              settings.themeMode == ThemeMode.dark
+                  ? Icons.check_circle
+                  : Icons.circle_outlined,
+              color: settings.themeMode == ThemeMode.dark
+                  ? Theme.of(ctx).colorScheme.primary
+                  : null,
+            ),
+            title: Text(l10n.themeDark),
+            onTap: () => Navigator.of(ctx).pop(ThemeMode.dark),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      await ref.read(settingsProvider.notifier).setThemeMode(selected);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final localization = AppLocalizations.of(context);
+    final settings = ref.watch(settingsProvider);
+
+    String themeLabel = localization.themeSystem;
+    if (settings.themeMode == ThemeMode.light) themeLabel = localization.themeLight;
+    if (settings.themeMode == ThemeMode.dark) themeLabel = localization.themeDark;
+
+    final langLabel = settings.locale.languageCode == 'ar' ? 'العربية 🇸🇦' : 'English 🇺🇸';
+
     return Scaffold(
       appBar: AppBar(title: Text(localization.profile)),
       body: ListView(
@@ -94,24 +209,35 @@ class ProfileScreen extends ConsumerWidget {
           ),
           Text(user.email, textAlign: TextAlign.center),
           const SizedBox(height: 24),
-          _ProfileRow(label: 'Time zone', value: user.timezone),
-          _ProfileRow(label: 'Language', value: user.locale),
+          _ProfileRow(label: localization.timeZone, value: user.timezone),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Default currency'),
+            title: Text(localization.language),
+            subtitle: Text(langLabel),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _changeLanguage(context, ref),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(localization.themeMode),
+            subtitle: Text(themeLabel),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _changeThemeMode(context, ref),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(localization.defaultCurrency),
             subtitle: Text(user.defaultCurrency),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _changeCurrency(context, ref),
           ),
-          _ProfileRow(label: 'Account status', value: user.status),
+          _ProfileRow(label: localization.accountStatus, value: localization.activeStatus),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: () async {
               try {
                 await ref.read(authProvider.notifier).signOut();
-              } catch (_) {
-                // Local credentials are cleared even if the network is down.
-              }
+              } catch (_) {}
             },
             icon: const Icon(Icons.logout),
             label: Text(localization.signOut),

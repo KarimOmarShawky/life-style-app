@@ -31,6 +31,22 @@ healthRouter.get('/live', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
 });
 
+healthRouter.get('/migrate', async (_req: Request, res: Response) => {
+  try {
+    const { getPgPool } = await import('../../infrastructure/database/postgres/pool.js');
+    const { ensureDatabaseSchema } =
+      await import('../../infrastructure/database/postgres/auto-migrate.js');
+    await ensureDatabaseSchema(getPgPool());
+    res.status(200).json({ status: 'ok', message: 'Schema ensured' });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      error: (err as Error)?.message,
+      stack: (err as Error)?.stack
+    });
+  }
+});
+
 /**
  * GET /health/ready
  * Readiness probe. Checks connectivity to PostgreSQL and Redis with 1s timeout.

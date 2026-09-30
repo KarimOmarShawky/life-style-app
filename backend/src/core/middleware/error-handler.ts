@@ -206,7 +206,7 @@ export function globalErrorHandler(
   res.status(500).json(
     errorResponse({
       code: 'INTERNAL_ERROR',
-      message: 'Internal server error',
+      message: (err as Error)?.message || 'Internal server error',
       requestId
     })
   );

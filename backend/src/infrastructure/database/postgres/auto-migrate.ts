@@ -32,6 +32,7 @@ export async function ensureDatabaseSchema(pool: pg.Pool): Promise<void> {
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('Database schema bootstrap encountered an error:', err);
+    throw err;
   } finally {
     client.release();
   }

@@ -215,7 +215,7 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<String>(
-                          value: currencies.contains(currency)
+                          initialValue: currencies.contains(currency)
                               ? currency
                               : currencies.first,
                           decoration: const InputDecoration(

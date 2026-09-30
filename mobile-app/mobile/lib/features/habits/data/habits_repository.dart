@@ -8,15 +8,17 @@ class HabitsRepository {
 
   Future<List<Habit>> listHabits() async {
     final response = await _api.get('habits');
-    if (response is! Map<String, dynamic> ||
-        response['habits'] is! List<dynamic>) {
+    final rawList = (response is Map<String, dynamic>)
+        ? (response['habits'] ?? response['data'])
+        : null;
+    if (rawList is! List<dynamic>) {
       throw const ApiException(
         statusCode: 502,
         code: 'INVALID_API_RESPONSE',
         message: 'The server returned an invalid habits list.',
       );
     }
-    return (response['habits'] as List<dynamic>)
+    return (rawList as List<dynamic>)
         .map((item) => Habit.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
   }

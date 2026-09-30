@@ -4,10 +4,70 @@ import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
+const supportedCurrencies = [
+  {'code': 'EGP', 'name': 'Egyptian Pound (جنيه مصري)'},
+  {'code': 'USD', 'name': 'US Dollar (\$)'},
+  {'code': 'EUR', 'name': 'Euro (€)'},
+  {'code': 'SAR', 'name': 'Saudi Riyal (ريال سعودي)'},
+  {'code': 'AED', 'name': 'UAE Dirham (درهم إماراتي)'},
+  {'code': 'KWD', 'name': 'Kuwaiti Dinar (دينار كويتي)'},
+  {'code': 'QAR', 'name': 'Qatari Riyal (ريال قطري)'},
+  {'code': 'GBP', 'name': 'British Pound (£)'},
+  {'code': 'BHD', 'name': 'Bahraini Dinar (دينار بحريني)'},
+  {'code': 'OMR', 'name': 'Omani Rial (ريال عماني)'},
+  {'code': 'JOD', 'name': 'Jordanian Dinar (دينار أردني)'},
+  {'code': 'TRY', 'name': 'Turkish Lira (ليرة تركية)'},
+  {'code': 'CAD', 'name': 'Canadian Dollar (CAD)'},
+  {'code': 'AUD', 'name': 'Australian Dollar (AUD)'},
+];
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({required this.user, super.key});
 
   final AppUser user;
+
+  Future<void> _changeCurrency(BuildContext context, WidgetRef ref) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        itemCount: supportedCurrencies.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (ctx, index) {
+          final curr = supportedCurrencies[index];
+          final isCurrent = curr['code'] == user.defaultCurrency;
+          return ListTile(
+            leading: Icon(
+              isCurrent ? Icons.check_circle : Icons.circle_outlined,
+              color: isCurrent ? Theme.of(ctx).colorScheme.primary : null,
+            ),
+            title: Text('${curr['code']} — ${curr['name']}'),
+            onTap: () => Navigator.of(ctx).pop(curr['code']),
+          );
+        },
+      ),
+    );
+
+    if (selected != null && selected != user.defaultCurrency) {
+      try {
+        await ref.read(authProvider.notifier).updateCurrency(selected);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Currency updated to $selected')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update currency: $e')),
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,7 +96,13 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           _ProfileRow(label: 'Time zone', value: user.timezone),
           _ProfileRow(label: 'Language', value: user.locale),
-          _ProfileRow(label: 'Default currency', value: user.defaultCurrency),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Default currency'),
+            subtitle: Text(user.defaultCurrency),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _changeCurrency(context, ref),
+          ),
           _ProfileRow(label: 'Account status', value: user.status),
           const SizedBox(height: 24),
           OutlinedButton.icon(

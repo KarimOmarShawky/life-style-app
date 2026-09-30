@@ -51,6 +51,13 @@ class AuthController extends AsyncNotifier<AppUser?> {
       .read(authRepositoryProvider)
       .resetPassword(email: email, code: code, newPassword: newPassword);
 
+  Future<void> updateCurrency(String newCurrency) async {
+    final updated = await ref.read(authRepositoryProvider).updateProfile(
+      defaultCurrency: newCurrency,
+    );
+    state = AsyncData(updated);
+  }
+
   Future<void> signOut() async {
     try {
       await ref.read(authRepositoryProvider).logout();

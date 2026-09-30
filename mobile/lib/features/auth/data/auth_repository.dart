@@ -92,6 +92,30 @@ class AuthRepository {
     return AppUser.fromJson(response['user'] as Map<String, dynamic>);
   }
 
+  Future<AppUser> updateProfile({
+    String? displayName,
+    String? timezone,
+    String? defaultCurrency,
+  }) async {
+    final response = await _api.patch(
+      'users/me',
+      body: {
+        if (displayName != null) 'displayName': displayName.trim(),
+        if (timezone != null) 'timezone': timezone,
+        if (defaultCurrency != null) 'defaultCurrency': defaultCurrency,
+      },
+    );
+    if (response is! Map<String, dynamic> ||
+        response['user'] is! Map<String, dynamic>) {
+      throw const ApiException(
+        statusCode: 502,
+        code: 'INVALID_API_RESPONSE',
+        message: 'The server returned an invalid profile response.',
+      );
+    }
+    return AppUser.fromJson(response['user'] as Map<String, dynamic>);
+  }
+
   Future<void> logout() async {
     try {
       await _api.post('auth/logout', body: {});

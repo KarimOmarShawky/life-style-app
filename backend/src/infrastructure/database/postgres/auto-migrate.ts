@@ -23,13 +23,15 @@ export async function ensureDatabaseSchema(pool: pg.Pool): Promise<void> {
 
     logger.info('Database uninitialized: bootstrapping schema and extensions...');
 
-    // Execute schema DDL statements
+    // Execute schema DDL statements in transaction
+    await client.query('BEGIN');
     await client.query(SCHEMA_SQL);
+    await client.query('COMMIT');
 
     logger.info('Database schema bootstrap completed successfully.');
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     logger.error('Database schema bootstrap encountered an error:', err);
-    // Do not crash process if partial tables exist; let runtime queries execute
   } finally {
     client.release();
   }

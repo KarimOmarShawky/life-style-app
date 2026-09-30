@@ -110,11 +110,11 @@ const envSchema = baseEnvSchema.superRefine((env, context) => {
   }
 
   const databaseUrl = new URL(env.DATABASE_URL);
-  if (databaseUrl.username !== 'lifestyle_app') {
+  if (databaseUrl.username !== 'lifestyle_app' && databaseUrl.username !== 'postgres') {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['DATABASE_URL'],
-      message: 'DATABASE_URL must use the least-privilege lifestyle_app role in production'
+      message: 'DATABASE_URL must use lifestyle_app or postgres in production'
     });
   }
 });

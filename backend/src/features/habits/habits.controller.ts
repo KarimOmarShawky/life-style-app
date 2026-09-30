@@ -28,7 +28,7 @@ export class HabitsController {
       const query = listHabitsQuerySchema.parse(req.query);
       const userTimezone = req.user.timezone || 'UTC';
       const result = await this.habitsService.listHabits(req.user.id, query, userTimezone);
-      res.status(200).json(result);
+      res.status(200).json({ ...result, habits: result.data });
     } catch (err) {
       next(err);
     }

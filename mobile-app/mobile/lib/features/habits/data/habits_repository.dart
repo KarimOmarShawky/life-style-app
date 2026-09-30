@@ -18,7 +18,7 @@ class HabitsRepository {
         message: 'The server returned an invalid habits list.',
       );
     }
-    return (rawList as List<dynamic>)
+    return (rawList)
         .map((item) => Habit.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
   }

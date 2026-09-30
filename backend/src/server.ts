@@ -12,12 +12,18 @@ import { createApp } from './app.js';
 import { getEnv, validateEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 import { setDrainingStatus } from './features/health/health.routes.js';
-import { closePgPool } from './infrastructure/database/postgres/pool.js';
+import { getPgPool, closePgPool } from './infrastructure/database/postgres/pool.js';
 import { closeRedisClient } from './infrastructure/redis/redis-client.js';
+import { ensureDatabaseSchema } from './infrastructure/database/postgres/auto-migrate.js';
 
 // Validate environment variables fail-fast
 validateEnv();
 const env = getEnv();
+
+// Ensure database tables exist for cloud deployments
+void ensureDatabaseSchema(getPgPool()).catch((err) => {
+  logger.warn('Initial schema auto-migration attempt logged warning:', err);
+});
 
 const app = createApp();
 const server = http.createServer(app);

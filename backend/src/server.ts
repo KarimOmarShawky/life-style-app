@@ -94,11 +94,13 @@ const secondaryPorts = [3000, 8080].filter((p) => p !== env.PORT);
 for (const p of secondaryPorts) {
   try {
     const fallbackServer = http.createServer(app);
-    fallbackServer.listen(p, '0.0.0.0', () => {
-      logger.info(`LifeStyle API auxiliary listener active on port ${p}`);
-    }).on('error', () => {
-      // Ignore if port already in use
-    });
+    fallbackServer
+      .listen(p, '0.0.0.0', () => {
+        logger.info(`LifeStyle API auxiliary listener active on port ${p}`);
+      })
+      .on('error', () => {
+        // Ignore if port already in use
+      });
   } catch {
     // Continue with primary server
   }

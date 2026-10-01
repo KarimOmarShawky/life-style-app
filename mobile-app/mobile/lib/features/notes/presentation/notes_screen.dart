@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/notes/state/notes_provider.dart';
+import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 import 'widgets/note_card.dart';
 
@@ -9,20 +10,21 @@ class NotesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final notesAsync = ref.watch(notesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notes')),
+      appBar: AppBar(title: Text(l10n.notesTitle)),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(notesProvider);
         },
         child: notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(child: Text('Error loading notes: $err')),
+          error: (err, _) => Center(child: Text('${l10n.errorTitle}: $err')),
           data: (notes) => notes.isEmpty
-              ? const Center(
-                  child: Text('No notes yet.\nJot down your thoughts!'),
+              ? Center(
+                  child: Text(l10n.noNotes, textAlign: TextAlign.center),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -43,6 +45,7 @@ class NotesScreen extends ConsumerWidget {
 }
 
 Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
+  final l10n = AppLocalizations.of(context);
   final titleController = TextEditingController();
   final bodyController = TextEditingController();
   final tagsController = TextEditingController();
@@ -86,7 +89,7 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
         }
 
         return AlertDialog(
-          title: const Text('New Note'),
+          title: Text(l10n.addNote),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -96,29 +99,26 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
                   TextFormField(
                     controller: titleController,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Title',
-                      hintText: 'Enter title',
+                    decoration: InputDecoration(
+                      labelText: l10n.noteTitle,
                     ),
                     validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Enter a title' : null,
+                        v == null || v.trim().isEmpty ? l10n.noteTitle : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: bodyController,
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Content',
+                    decoration: InputDecoration(
+                      labelText: l10n.noteContent,
                       alignLabelWithHint: true,
-                      hintText: 'Write your thoughts...',
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: tagsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Tags (comma separated)',
-                      hintText: 'e.g. work, ideas',
+                    decoration: InputDecoration(
+                      labelText: l10n.tags,
                     ),
                   ),
                   if (error != null) ...[
@@ -137,7 +137,7 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
           actions: [
             TextButton(
               onPressed: busy ? null : () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: busy ? null : submit,
@@ -146,7 +146,7 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l10n.save),
             ),
           ],
         );

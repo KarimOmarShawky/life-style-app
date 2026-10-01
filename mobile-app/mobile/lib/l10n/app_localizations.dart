@@ -53,6 +53,7 @@ class AppLocalizations {
       ? 'كلمة المرور يجب أن لا تقل عن 10 أحرف.'
       : 'Use a password with at least 10 characters.';
 
+  // Habits
   String get dailyHabits => isArabic ? 'العادات اليومية' : 'Daily Habits';
   String get noHabits => isArabic
       ? 'لا توجد عادات بعد.\nابدأ ببناء روتينك اليومي!'
@@ -61,16 +62,25 @@ class AppLocalizations {
   String get habitName => isArabic ? 'اسم العادة' : 'Habit Name';
   String get description => isArabic ? 'الوصف (اختياري)' : 'Description (optional)';
 
+  // Money & Budgets
   String get moneyBudgets => isArabic ? 'المصاريف والميزانية' : 'Money & Budgets';
   String get monthlyBudgets => isArabic ? 'الميزانيات الشهرية' : 'Monthly Budgets';
   String get activeSubscriptions => isArabic ? 'الاشتراكات النشطة' : 'Active Subscriptions';
+  String get noBudgets => isArabic ? 'لا توجد ميزانيات محددة لهذا الشهر.' : 'No active budgets set for this month.';
+  String get noSubscriptions => isArabic ? 'لا توجد اشتراكات نشطة حالياً.' : 'No active subscriptions found.';
   String get addTransaction => isArabic ? 'إضافة معاملة' : 'Transaction';
   String get expense => isArabic ? 'مصروف' : 'Expense';
   String get income => isArabic ? 'دخل' : 'Income';
   String get amount => isArabic ? 'المبلغ' : 'Amount';
   String get currency => isArabic ? 'العملة' : 'Currency';
   String get merchant => isArabic ? 'المتجر / الجهة' : 'Merchant (optional)';
+  String get transactionSaved => isArabic ? 'تم حفظ المعاملة بنجاح!' : 'Transaction saved successfully!';
+  String get enterAmount => isArabic ? 'يرجى إدخال المبلغ' : 'Enter amount';
+  String get amountMustBePositive => isArabic ? 'يجب أن يكون المبلغ أكبر من 0' : 'Must be > 0';
+  String get descHint => isArabic ? 'مثال: بقالة، قهوة' : 'e.g. Groceries, Coffee';
+  String get merchantHint => isArabic ? 'مثال: كارفور، ستارباكس' : 'e.g. Carrefour, Starbucks';
 
+  // Notes
   String get notesTitle => isArabic ? 'الملاحظات' : 'Notes';
   String get noNotes => isArabic
       ? 'لا توجد ملاحظات بعد.\nسجّل أفكارك هنا!'
@@ -80,6 +90,7 @@ class AppLocalizations {
   String get noteContent => isArabic ? 'المحتوى' : 'Content';
   String get tags => isArabic ? 'الوسوم (مفصولة بفواصل)' : 'Tags (comma separated)';
 
+  // Settings
   String get language => isArabic ? 'اللغة' : 'Language';
   String get themeMode => isArabic ? 'المظهر' : 'Theme mode';
   String get themeDark => isArabic ? 'داكن 🌙' : 'Dark 🌙';

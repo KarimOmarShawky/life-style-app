@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
+import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 import 'widgets/habit_card.dart';
 
@@ -9,21 +10,22 @@ class HabitsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final habitsAsync = ref.watch(habitsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Daily Habits')),
+      appBar: AppBar(title: Text(l10n.dailyHabits)),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(habitsProvider);
         },
         child: habitsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(child: Text('Error loading habits: $err')),
+          error: (err, _) => Center(child: Text('${l10n.errorTitle}: $err')),
           data: (habits) => habits.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'No habits created yet.\nBuild a daily routine!',
+                    l10n.noHabits,
                     textAlign: TextAlign.center,
                   ),
                 )
@@ -46,6 +48,7 @@ class HabitsScreen extends ConsumerWidget {
 }
 
 Future<void> _showAddHabit(BuildContext context, WidgetRef ref) async {
+  final l10n = AppLocalizations.of(context);
   final nameController = TextEditingController();
   final descController = TextEditingController();
   final formKey = GlobalKey<FormState>();
@@ -85,7 +88,7 @@ Future<void> _showAddHabit(BuildContext context, WidgetRef ref) async {
         }
 
         return AlertDialog(
-          title: const Text('New Habit'),
+          title: Text(l10n.addHabit),
           content: Form(
             key: formKey,
             child: Column(
@@ -94,18 +97,17 @@ Future<void> _showAddHabit(BuildContext context, WidgetRef ref) async {
                 TextFormField(
                   controller: nameController,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Habit Name',
-                    hintText: 'e.g. Read 20 pages, Gym workout',
+                  decoration: InputDecoration(
+                    labelText: l10n.habitName,
                   ),
                   validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Enter a name' : null,
+                      v == null || v.trim().isEmpty ? l10n.habitName : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: descController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (optional)',
+                  decoration: InputDecoration(
+                    labelText: l10n.description,
                   ),
                 ),
                 if (error != null) ...[
@@ -123,7 +125,7 @@ Future<void> _showAddHabit(BuildContext context, WidgetRef ref) async {
           actions: [
             TextButton(
               onPressed: busy ? null : () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: busy ? null : submit,
@@ -132,7 +134,7 @@ Future<void> _showAddHabit(BuildContext context, WidgetRef ref) async {
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l10n.save),
             ),
           ],
         );

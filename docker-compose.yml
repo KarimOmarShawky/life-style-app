@@ -1,0 +1,112 @@
+# ==============================================================================
+# docker/docker-compose.yml
+#
+# Implements Section 19.4 & ADR-001: Local Development Infrastructure.
+# Services: PostgreSQL 16, Redis 7, Mailpit (local email capture), API, Worker.
+# 
+# Critical Rule (D-02, ADR-001, ADR-039):
+# Document stores are strictly excluded from this compose environment.
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # Primary Relational Store (Source of Truth)
+  postgres:
+    image: postgres:16-alpine
+    container_name: lifestyle_postgres
+    environment:
+      POSTGRES_DB: lifestyle_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_local_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/src/infrastructure/database/postgres/init-roles.sql:/docker-entrypoint-initdb.d/01-init-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lifestyle_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Temporary / Infrastructure State (Rate limiting, OTPs, queues)
+  redis:
+    image: redis:7-alpine
+    container_name: lifestyle_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Local Email Capture & Testing Tool
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: lifestyle_mailpit
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
+    restart: unless-stopped
+
+  # LifeStyle API Service
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: lifestyle_api
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      LOG_LEVEL: debug
+      DATABASE_URL: postgresql://lifestyle_app:app_local_pass@postgres:5432/lifestyle_dev
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: local-dev-jwt-access-secret-at-least-32-chars-long
+      OTP_HMAC_SECRET: local-dev-otp-hmac-secret-at-least-32-chars-long
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: 1025
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 35s
+
+  # Background Queue & Worker Service
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: lifestyle_worker
+    command: ["node", "dist/worker.js"]
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      DATABASE_URL: postgresql://lifestyle_app:app_local_pass@postgres:5432/lifestyle_dev
+      DATABASE_MAINTENANCE_URL: postgresql://lifestyle_maintenance:maintenance_local_pass@postgres:5432/lifestyle_dev
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: local-dev-jwt-access-secret-at-least-32-chars-long
+      OTP_HMAC_SECRET: local-dev-otp-hmac-secret-at-least-32-chars-long
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 35s
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
+import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 import 'widgets/budget_card.dart';
 import 'widgets/subscription_card.dart';
@@ -12,11 +13,12 @@ class MoneyScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final budgetsAsync = ref.watch(budgetsProvider);
     final subscriptionsAsync = ref.watch(subscriptionsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Money & Budgets')),
+      appBar: AppBar(title: Text(l10n.moneyBudgets)),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(budgetsProvider);
@@ -25,19 +27,19 @@ class MoneyScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
-              'Monthly Budgets',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              l10n.monthlyBudgets,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             budgetsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Text('Error loading budgets: $err'),
+              error: (err, _) => Text('${l10n.errorTitle}: $err'),
               data: (budgets) => budgets.isEmpty
-                  ? const Card(
+                  ? Card(
                       child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('No active budgets set for this month.'),
+                        padding: const EdgeInsets.all(16),
+                        child: Text(l10n.noBudgets),
                       ),
                     )
                   : Column(
@@ -47,19 +49,19 @@ class MoneyScreen extends ConsumerWidget {
                     ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Active Subscriptions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              l10n.activeSubscriptions,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             subscriptionsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Text('Error loading subscriptions: $err'),
+              error: (err, _) => Text('${l10n.errorTitle}: $err'),
               data: (subs) => subs.isEmpty
-                  ? const Card(
+                  ? Card(
                       child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('No active subscriptions found.'),
+                        padding: const EdgeInsets.all(16),
+                        child: Text(l10n.noSubscriptions),
                       ),
                     )
                   : Column(
@@ -74,13 +76,14 @@ class MoneyScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddTransaction(context, ref),
         icon: const Icon(Icons.add),
-        label: const Text('Transaction'),
+        label: Text(l10n.addTransaction),
       ),
     );
   }
 }
 
 Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
+  final l10n = AppLocalizations.of(context);
   final user = ref.read(authProvider).asData?.value;
   final defaultCurr = user?.defaultCurrency ?? 'EGP';
 
@@ -144,8 +147,8 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Transaction saved successfully!'),
+                SnackBar(
+                  content: Text(l10n.transactionSaved),
                 ),
               );
             }
@@ -159,7 +162,7 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
         }
 
         return AlertDialog(
-          title: const Text('Add Transaction'),
+          title: Text(l10n.addTransaction),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -167,16 +170,16 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SegmentedButton<String>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: 'expense',
-                        label: Text('Expense'),
-                        icon: Icon(Icons.arrow_downward),
+                        label: Text(l10n.expense),
+                        icon: const Icon(Icons.arrow_downward),
                       ),
                       ButtonSegment(
                         value: 'income',
-                        label: Text('Income'),
-                        icon: Icon(Icons.arrow_upward),
+                        label: Text(l10n.income),
+                        icon: const Icon(Icons.arrow_upward),
                       ),
                     ],
                     selected: {kind},
@@ -195,17 +198,17 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(
-                            labelText: 'Amount',
+                          decoration: InputDecoration(
+                            labelText: l10n.amount,
                             hintText: '0.00',
                           ),
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
-                              return 'Enter amount';
+                              return l10n.enterAmount;
                             }
                             final n = double.tryParse(v.trim());
                             if (n == null || n <= 0) {
-                              return 'Must be > 0';
+                              return l10n.amountMustBePositive;
                             }
                             return null;
                           },
@@ -218,8 +221,8 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
                           initialValue: currencies.contains(currency)
                               ? currency
                               : currencies.first,
-                          decoration: const InputDecoration(
-                            labelText: 'Currency',
+                          decoration: InputDecoration(
+                            labelText: l10n.currency,
                           ),
                           items: currencies
                               .map(
@@ -241,17 +244,17 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: descController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      hintText: 'e.g. Groceries, Coffee',
+                    decoration: InputDecoration(
+                      labelText: l10n.description,
+                      hintText: l10n.descHint,
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: merchantController,
-                    decoration: const InputDecoration(
-                      labelText: 'Merchant (optional)',
-                      hintText: 'e.g. Carrefour, Starbucks',
+                    decoration: InputDecoration(
+                      labelText: l10n.merchant,
+                      hintText: l10n.merchantHint,
                     ),
                   ),
                   if (error != null) ...[
@@ -270,7 +273,7 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
           actions: [
             TextButton(
               onPressed: busy ? null : () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: busy ? null : submit,
@@ -279,7 +282,7 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l10n.save),
             ),
           ],
         );

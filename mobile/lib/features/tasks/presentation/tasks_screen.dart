@@ -21,6 +21,28 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   final Set<String> _selectedTaskIds = {};
   bool get _isSelectionMode => _selectedTaskIds.isNotEmpty;
 
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.instance.quickVoiceTrigger.addListener(_checkQuickVoice);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkQuickVoice());
+  }
+
+  @override
+  void dispose() {
+    NotificationService.instance.quickVoiceTrigger.removeListener(_checkQuickVoice);
+    super.dispose();
+  }
+
+  void _checkQuickVoice() {
+    if (NotificationService.instance.quickVoiceTrigger.value) {
+      NotificationService.instance.quickVoiceTrigger.value = false;
+      if (mounted) {
+        _showSmartQuickAdd(context, ref, initialVoice: true);
+      }
+    }
+  }
+
   void _toggleTaskSelection(String taskId) {
     setState(() {
       if (_selectedTaskIds.contains(taskId)) {

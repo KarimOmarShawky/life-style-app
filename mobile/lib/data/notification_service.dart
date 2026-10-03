@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -33,6 +34,8 @@ class NotificationService {
       'General alerts and notification reminders';
 
   static const int pinnedNotificationId = 777;
+
+  final ValueNotifier<bool> quickVoiceTrigger = ValueNotifier(false);
 
   bool _isInitialized = false;
 
@@ -124,9 +127,15 @@ class NotificationService {
 
   Future<void> handleNotificationAction(NotificationResponse response) async {
     developer.log(
-      'Notification Action: actionId=${response.actionId}, input=${response.input}',
+      'Notification Action: actionId=${response.actionId}, payload=${response.payload}',
       name: 'NotificationService',
     );
+
+    // Quick Voice trigger from pinned notification
+    if (response.payload == 'quick_voice' || response.actionId == 'quick_voice_action') {
+      quickVoiceTrigger.value = true;
+      return;
+    }
 
     // 1. Dismiss Alarm
     if (response.actionId == 'dismiss_alarm') {
@@ -223,19 +232,14 @@ class NotificationService {
         channelDescription: quickChannelDesc,
         importance: Importance.low,
         priority: Priority.low,
-        ongoing: true, // Pinned on lockscreen and shade
+        ongoing: true, // Permanently pinned on lockscreen and shade
         autoCancel: false,
         actions: const [
           AndroidNotificationAction(
             'quick_voice_action',
-            'إضافة موعد سريع',
-            showsUserInterface: false,
+            'إضافة موعد صوتي',
+            showsUserInterface: true,
             cancelNotification: false,
-            inputs: [
-              AndroidNotificationActionInput(
-                label: 'أملِ أو اكتب موعدك هنا (مثال: كشف دكتور بكرة 7 بليل)...',
-              ),
-            ],
           ),
         ],
       );
@@ -246,6 +250,7 @@ class NotificationService {
         title,
         body,
         details,
+        payload: 'quick_voice',
       );
     } catch (e) {
       developer.log('showPinnedQuickInputNotification error: $e');

@@ -1,0 +1,26 @@
+name: lifestyle_mobile
+description: Native Flutter client for the LifeStyle API.
+publish_to: none
+version: 1.0.1+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: 2.6.1
+  shared_preferences: ^2.3.2
+  http: 1.3.0
+  flutter_local_notifications: ^17.2.4
+  timezone: ^0.9.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 5.0.0
+
+flutter:
+  uses-material-design: true

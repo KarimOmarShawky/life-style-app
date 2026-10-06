@@ -1,5 +1,7 @@
 package com.example.lifestyle_mobile
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -11,6 +13,7 @@ import android.os.Build
 import android.provider.Telephony
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -30,6 +33,14 @@ class SmsTransactionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+
+        // Gate 1: the user must have enabled wallet SMS capture in-app.
+        val enabled = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            .getBoolean("flutter.sms_sync_enabled", false)
+        if (!enabled) return
+
+        // Gate 2: the runtime permission must still be granted.
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) return
 
         try {
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
@@ -219,7 +230,11 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             val accessToken = sessionJson.optString("accessToken", "")
             if (accessToken.isEmpty()) return
 
-            val url = URL("https://life-style-app-production.up.railway.app/api/v1/money/transactions")
+            val apiBase = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                .getString("flutter.lifestyle.api_base_url", null)
+                ?.trimEnd('/')
+                ?: "https://life-style-app-production.up.railway.app/api/v1"
+            val url = URL("$apiBase/money/transactions")
             val uuid = java.util.UUID.randomUUID().toString()
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
             val todayStr = sdf.format(Date())

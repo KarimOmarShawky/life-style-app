@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: mobile
+        working-directory: mobile-app/mobile
 
     steps:
       - name: Checkout repository
@@ -137,4 +137,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lifestyle-app-release-apk
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: mobile-app/mobile/build/app/outputs/flutter-apk/app-release.apk

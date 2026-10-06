@@ -50,3 +50,9 @@ temp/
 .npm/
 .sudo_as_admin_successful
 *.zip
+
+# Android signing material must never be committed (rotate any leaked keys)
+*.keystore
+*.jks
+mobile-app/mobile/android/key.properties
+mobile-app/mobile/android/app/key.properties

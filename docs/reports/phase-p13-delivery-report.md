@@ -5,7 +5,8 @@
 
 ## Delivered
 
-- Added fail-fast production checks for PostgreSQL TLS, example JWT/OTP secret rejection, and the least-privilege runtime DB role.
+- Added fail-fast production checks for PostgreSQL TLS, example JWT/OTP secret rejection, and the runtime DB role allow-list.
+- Role allow-list note: production accepts `lifestyle_app` (least privilege) and `postgres` (managed cloud providers such as Railway/Neon expose only their admin role); every other role fails fast. Unit coverage mirrors this decision.
 - Updated the multi-stage container to Node.js 24 Alpine, confines native build tools to the builder, and removes the runtime `curl` package by using Node's built-in fetch for liveness probing.
 - Added a root `.dockerignore` to keep local environments, dependencies, tests, mobile sources, and documentation out of the image build context.
 - Declared `SIGTERM` as the container stop signal and provided a 35-second Compose stop window for the API's 30-second drain period.

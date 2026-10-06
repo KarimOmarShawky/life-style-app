@@ -81,31 +81,28 @@ class ProfileScreen extends ConsumerWidget {
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
-          ListTile(
-            leading: Icon(
-              settings.locale.languageCode == 'ar'
-                  ? Icons.check_circle
-                  : Icons.circle_outlined,
-              color: settings.locale.languageCode == 'ar'
-                  ? Theme.of(ctx).colorScheme.primary
-                  : null,
+          for (final Locale option in AppLocalizations.supportedLocales) ...[
+            ListTile(
+              leading: Icon(
+                settings.locale.languageCode == option.languageCode
+                    ? Icons.check_circle
+                    : Icons.circle_outlined,
+                color: settings.locale.languageCode == option.languageCode
+                    ? Theme.of(ctx).colorScheme.primary
+                    : null,
+              ),
+              title: Text(
+                AppLocalizations.endonyms[option.languageCode] ??
+                    option.languageCode,
+              ),
+              trailing: Text(
+                option.languageCode,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+              onTap: () => Navigator.of(ctx).pop(option.languageCode),
             ),
-            title: const Text('العربية'),
-            onTap: () => Navigator.of(ctx).pop('ar'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(
-              settings.locale.languageCode == 'en'
-                  ? Icons.check_circle
-                  : Icons.circle_outlined,
-              color: settings.locale.languageCode == 'en'
-                  ? Theme.of(ctx).colorScheme.primary
-                  : null,
-            ),
-            title: const Text('English'),
-            onTap: () => Navigator.of(ctx).pop('en'),
-          ),
+            const Divider(height: 1),
+          ],
         ],
       ),
     );

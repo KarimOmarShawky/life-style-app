@@ -102,6 +102,16 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             grep -E "FAIL|AssertionError|Error:|✗|×|→" npm-test.log | head -80 >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python3 -c "
+import pathlib, sys
+name = sys.argv[1]
+keys = sys.argv[2].split(',')
+log = pathlib.Path(name).read_text(errors='replace').splitlines()
+sel = [l for l in log if any(k in l for k in keys)][:70] or log[-40:]
+for l in sel:
+    l = l.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+    print('::error title=gate-failure::' + l[:240])
+"  npm-test.log "FAIL,AssertionError,Error:,×,→"
             exit 1
           }
 
@@ -138,6 +148,16 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 120 analyze.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python3 -c "
+import pathlib, sys
+name = sys.argv[1]
+keys = sys.argv[2].split(',')
+log = pathlib.Path(name).read_text(errors='replace').splitlines()
+sel = [l for l in log if any(k in l for k in keys)][:70] or log[-40:]
+for l in sel:
+    l = l.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+    print('::error title=gate-failure::' + l[:240])
+"  analyze.log "error,warning,info,.dart"
             exit 1
           }
 
@@ -148,6 +168,16 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 100 flutter-test.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python3 -c "
+import pathlib, sys
+name = sys.argv[1]
+keys = sys.argv[2].split(',')
+log = pathlib.Path(name).read_text(errors='replace').splitlines()
+sel = [l for l in log if any(k in l for k in keys)][:70] or log[-40:]
+for l in sel:
+    l = l.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+    print('::error title=gate-failure::' + l[:240])
+"  flutter-test.log "FAILED,Error,Exception,Expected"
             exit 1
           }
 
@@ -158,6 +188,16 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 100 build.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python3 -c "
+import pathlib, sys
+name = sys.argv[1]
+keys = sys.argv[2].split(',')
+log = pathlib.Path(name).read_text(errors='replace').splitlines()
+sel = [l for l in log if any(k in l for k in keys)][:70] or log[-40:]
+for l in sel:
+    l = l.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+    print('::error title=gate-failure::' + l[:240])
+"  build.log "error,FAILURE,Exception,failed"
             exit 1
           }
 

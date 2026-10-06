@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
@@ -778,14 +779,26 @@ Future<void> _showSmartQuickAdd(
           try {
             const channel = MethodChannel('com.example.lifestyle_mobile/native_voice');
             final spokenText = await channel.invokeMethod<String>('startVoiceRecognition');
-            if (dialogContext.mounted && spokenText != null && spokenText.trim().isNotEmpty) {
-              controller.text = spokenText.trim();
-              setDialogState(() {
-                parsed = SmartTaskParser.parse(spokenText.trim());
-                isListening = false;
-              });
-            } else {
-              if (dialogContext.mounted) setDialogState(() => isListening = false);
+            if (dialogContext.mounted) {
+              if (spokenText != null && spokenText.trim().isNotEmpty) {
+                controller.text = spokenText.trim();
+                setDialogState(() {
+                  parsed = SmartTaskParser.parse(spokenText.trim());
+                  isListening = false;
+                });
+              } else {
+                setDialogState(() => isListening = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      l10n.isArabic
+                          ? 'لم يتم التقاط صوت، يرجى المحاولة والتحدث بوضوح'
+                          : 'No speech detected, please try speaking again',
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             }
           } catch (_) {
             if (dialogContext.mounted) setDialogState(() => isListening = false);

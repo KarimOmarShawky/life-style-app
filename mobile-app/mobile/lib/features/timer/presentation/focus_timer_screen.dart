@@ -96,7 +96,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     final l10n = AppLocalizations.of(context);
     final title = _isBreak ? l10n.breakFinished : l10n.timerFinished;
     final taskName = _selectedTask?.title;
-    final body = taskName != null ? taskName : l10n.focusTimer;
+    final body = taskName ?? l10n.focusTimer;
 
     await NotificationService.instance.showInstantNotification(
       id: 999,

@@ -8,12 +8,21 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
+import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.util.Base64
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
-import java.util.regex.Pattern
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -21,11 +30,8 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.lifestyle_mobile/native_voice"
-    private val SMS_CHANNEL = "com.example.lifestyle_mobile/sms_wallets"
     private val REQUEST_SPEECH = 202
-    private val REQUEST_SMS_PERM = 203
     private var pendingVoiceResult: MethodChannel.Result? = null
-    private var pendingSmsResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,7 +44,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Voice Channel
+        // Native Voice Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "refreshPinnedNotification" -> {
@@ -47,40 +53,23 @@ class MainActivity : FlutterActivity() {
                 }
                 "startVoiceRecognition" -> {
                     pendingVoiceResult = result
-                    try {
-                        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                            putExtra(
-                                RecognizerIntent.EXTRA_PROMPT,
-                                if (Locale.getDefault().language.startsWith("ar")) "تحدث بمهمتك الآن..." else "Speak your task now..."
-                            )
+                    if (SpeechRecognizer.isRecognitionAvailable(this)) {
+                        try {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                putExtra(
+                                    RecognizerIntent.EXTRA_PROMPT,
+                                    if (Locale.getDefault().language.startsWith("ar")) "تحدث بمهمتك الآن..." else "Speak your task now..."
+                                )
+                            }
+                            startActivityForResult(intent, REQUEST_SPEECH)
+                        } catch (e: Exception) {
+                            startDirectMediaRecording(result)
                         }
-                        startActivityForResult(intent, REQUEST_SPEECH)
-                    } catch (e: Exception) {
-                        pendingVoiceResult?.error("SPEECH_NOT_AVAILABLE", e.message, null)
-                        pendingVoiceResult = null
-                    }
-                }
-                else -> result.notImplemented()
-            }
-        }
-
-        // SMS Wallets Channel
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "requestSmsPermission" -> {
-                    val hasPerm = checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
-                            checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
-                    if (!hasPerm) {
-                        pendingSmsResult = result
-                        requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS), REQUEST_SMS_PERM)
                     } else {
-                        result.success(true)
+                        startDirectMediaRecording(result)
                     }
-                }
-                "scanRecentWalletSms" -> {
-                    result.success(scanRecentWalletSms())
                 }
                 else -> result.notImplemented()
             }
@@ -90,114 +79,145 @@ class MainActivity : FlutterActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_SPEECH) {
-            if (resultCode == Activity.RESULT_OK && data != null) {
-                val results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                val spokenText = results?.firstOrNull() ?: ""
+            val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText = results?.firstOrNull() ?: ""
+            if (spokenText.isNotEmpty()) {
                 pendingVoiceResult?.success(spokenText)
+                pendingVoiceResult = null
             } else {
-                pendingVoiceResult?.success("")
+                pendingVoiceResult?.let { res ->
+                    startDirectMediaRecording(res)
+                } ?: run {
+                    pendingVoiceResult?.success("")
+                    pendingVoiceResult = null
+                }
             }
-            pendingVoiceResult = null
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_SMS_PERM) {
-            val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            pendingSmsResult?.success(granted)
-            pendingSmsResult = null
-        }
-    }
+    private var recorder: MediaRecorder? = null
+    private var recordFile: File? = null
 
-    private fun scanRecentWalletSms(): List<Map<String, Any>> {
-        val list = mutableListOf<Map<String, Any>>()
-        if (checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-            return list
+    private fun startDirectMediaRecording(result: MethodChannel.Result) {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 101)
+            result.success("")
+            return
         }
 
         try {
-            val uri = Uri.parse("content://sms/inbox")
-            val projection = arrayOf("address", "body", "date")
-            val cursor = contentResolver.query(uri, projection, null, null, "date DESC LIMIT 50")
+            recordFile = File(cacheDir, "dialog_voice.m4a")
+            if (recordFile!!.exists()) recordFile!!.delete()
 
-            cursor?.use {
-                val addressIdx = it.getColumnIndex("address")
-                val bodyIdx = it.getColumnIndex("body")
-                val dateIdx = it.getColumnIndex("date")
+            recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(this)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }
 
-                val amountPattern = Pattern.compile("(?:مبلغ|قيمة|بمبلغ|خصم|تحويل|إيداع|استلام)?\\s*(\\d+(?:\\.\\d{1,2})?)\\s*(?:جم|جنيه|ج\\.م|EGP|LE|egp)?", Pattern.CASE_INSENSITIVE)
+            recorder?.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioEncodingBitRate(64000)
+                setAudioSamplingRate(44100)
+                setOutputFile(recordFile!!.absolutePath)
+                prepare()
+                start()
+            }
 
-                while (it.moveToNext()) {
-                    val address = it.getString(addressIdx) ?: ""
-                    val body = it.getString(bodyIdx) ?: ""
-                    val dateLong = it.getLong(dateIdx)
+            // Automatically stop after 4.5 seconds and transcribe
+            Handler(Looper.getMainLooper()).postDelayed({
+                stopAndTranscribeGemini(result)
+            }, 4500)
 
-                    val lowerAddress = address.lowercase(Locale.ROOT)
-                    val isWalletOrBank = lowerAddress.contains("instapay") ||
-                            lowerAddress.contains("ipn") ||
-                            lowerAddress.contains("vodafone") ||
-                            lowerAddress.contains("vf") ||
-                            lowerAddress.contains("orange") ||
-                            lowerAddress.contains("etisalat") ||
-                            lowerAddress.contains("we") ||
-                            lowerAddress.contains("fawry") ||
-                            lowerAddress.contains("cib") ||
-                            lowerAddress.contains("nbe") ||
-                            lowerAddress.contains("misr") ||
-                            body.contains("انستاباي") ||
-                            body.contains("فودافون كاش") ||
-                            body.contains("اورنج كاش") ||
-                            body.contains("اتصالات كاش") ||
-                            body.contains("وي باي") ||
-                            body.contains("تحويل") ||
-                            body.contains("خصم")
+        } catch (e: Exception) {
+            result.success("")
+        }
+    }
 
-                    if (!isWalletOrBank) continue
+    private fun stopAndTranscribeGemini(result: MethodChannel.Result) {
+        try {
+            recorder?.stop()
+            recorder?.release()
+            recorder = null
+        } catch (_: Exception) {}
 
-                    val matcher = amountPattern.matcher(body.replace(",", ""))
-                    var amount = ""
-                    while (matcher.find()) {
-                        val num = matcher.group(1)?.toDoubleOrNull()
-                        if (num != null && num > 0) {
-                            amount = String.format(Locale.US, "%.2f", num)
-                            break
-                        }
+        val file = recordFile
+        if (file == null || !file.exists() || file.length() == 0L) {
+            result.success("")
+            return
+        }
+
+        Thread {
+            try {
+                val audioBytes = file.readBytes()
+                val base64Audio = Base64.encodeToString(audioBytes, Base64.NO_WRAP)
+                val text = transcribeAudioWithGemini(base64Audio)
+                runOnUiThread {
+                    result.success(text)
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    result.success("")
+                }
+            }
+        }.start()
+    }
+
+    private fun transcribeAudioWithGemini(base64Audio: String): String {
+        try {
+            val url = URL(VoiceRecordingService.GEMINI_URL)
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("X-goog-api-key", VoiceRecordingService.GEMINI_API_KEY)
+                doOutput = true
+                connectTimeout = 8000
+                readTimeout = 8000
+            }
+
+            val prompt = "Transcribe the Arabic or English speech in this audio clip accurately. Return only the plain transcribed words without extra text or punctuation."
+
+            val jsonPayload = org.json.JSONObject().apply {
+                put("generationConfig", org.json.JSONObject().apply {
+                    put("temperature", 0.1)
+                })
+                put("contents", org.json.JSONArray().apply {
+                    put(org.json.JSONObject().apply {
+                        put("parts", org.json.JSONArray().apply {
+                            put(org.json.JSONObject().apply {
+                                put("text", prompt)
+                            })
+                            put(org.json.JSONObject().apply {
+                                put("inlineData", org.json.JSONObject().apply {
+                                    put("mimeType", "audio/aac")
+                                    put("data", base64Audio)
+                                })
+                            })
+                        })
+                    })
+                })
+            }
+
+            OutputStreamWriter(conn.outputStream).use { it.write(jsonPayload.toString()) }
+
+            if (conn.responseCode == 200) {
+                val responseText = BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
+                val responseJson = org.json.JSONObject(responseText)
+                val candidates = responseJson.optJSONArray("candidates")
+                if (candidates != null && candidates.length() > 0) {
+                    val parts = candidates.getJSONObject(0).optJSONObject("content")?.optJSONArray("parts")
+                    if (parts != null && parts.length() > 0) {
+                        return parts.getJSONObject(0).optString("text", "").trim()
                     }
-                    if (amount.isEmpty()) continue
-
-                    val isIncome = body.contains("استلام") || body.contains("إيداع") || body.contains("تم تحويل لك")
-                    val type = if (isIncome) "income" else "expense"
-
-                    val cleanSender = when {
-                        lowerAddress.contains("instapay") || body.contains("انستاباي") -> "InstaPay"
-                        lowerAddress.contains("vodafone") || lowerAddress.contains("vf") || body.contains("فودافون") -> "Vodafone Cash"
-                        lowerAddress.contains("orange") || body.contains("اورنج") -> "Orange Money"
-                        lowerAddress.contains("etisalat") || body.contains("اتصالات") -> "Etisalat Cash"
-                        lowerAddress.contains("we") || body.contains("وي باي") -> "WE Pay"
-                        lowerAddress.contains("fawry") || body.contains("فوري") -> "Fawry"
-                        lowerAddress.contains("cib") -> "CIB"
-                        lowerAddress.contains("nbe") -> "NBE Bank"
-                        lowerAddress.contains("misr") -> "Banque Misr"
-                        else -> address
-                    }
-
-                    list.add(mapOf(
-                        "amount" to amount,
-                        "currency" to "EGP",
-                        "type" to type,
-                        "sender" to cleanSender,
-                        "description" to "${if (type == "income") "إيداع" else "تحويل"} عبر $cleanSender",
-                        "timestamp" to dateLong,
-                        "rawMessage" to body
-                    ))
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-
-        return list
+        return ""
     }
 
     companion object {

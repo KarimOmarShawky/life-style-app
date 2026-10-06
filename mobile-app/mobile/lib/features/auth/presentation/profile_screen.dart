@@ -178,8 +178,12 @@ class ProfileScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
 
     String themeLabel = localization.themeSystem;
-    if (settings.themeMode == ThemeMode.light) themeLabel = localization.themeLight;
-    if (settings.themeMode == ThemeMode.dark) themeLabel = localization.themeDark;
+    if (settings.themeMode == ThemeMode.light) {
+      themeLabel = localization.themeLight;
+    }
+    if (settings.themeMode == ThemeMode.dark) {
+      themeLabel = localization.themeDark;
+    }
 
     final langLabel = settings.locale.languageCode == 'ar' ? 'العربية' : 'English';
 

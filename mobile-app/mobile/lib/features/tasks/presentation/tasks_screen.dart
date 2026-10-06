@@ -766,7 +766,9 @@ Future<void> _showSmartQuickAdd(
               setDialogState(() => error = _safeMessage(e));
             }
           } finally {
-            if (dialogContext.mounted) setDialogState(() => busy = false);
+            if (dialogContext.mounted) {
+              setDialogState(() => busy = false);
+            }
           }
         }
 
@@ -803,7 +805,9 @@ Future<void> _showSmartQuickAdd(
               }
             }
           } catch (_) {
-            if (dialogContext.mounted) setDialogState(() => isListening = false);
+            if (dialogContext.mounted) {
+              setDialogState(() => isListening = false);
+            }
           }
         }
 
@@ -1133,7 +1137,9 @@ Future<void> _showAddTask(
               setDialogState(() => error = _safeMessage(exception));
             }
           } finally {
-            if (dialogContext.mounted) setDialogState(() => busy = false);
+            if (dialogContext.mounted) {
+              setDialogState(() => busy = false);
+            }
           }
         }
 

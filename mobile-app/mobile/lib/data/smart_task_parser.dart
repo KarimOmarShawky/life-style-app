@@ -351,8 +351,8 @@ Return a JSON object with:
       hour = _wordToHour(hourStr);
       if (minuteWord != null) {
         if (minuteWord.contains('نص')) minute = 30;
-        if (minuteWord.contains('ربع') {
-          && !minuteWord.contains('الا')) minute = 15;
+        if (minuteWord.contains('ربع') && !minuteWord.contains('الا')) {
+          minute = 15;
         }
         if (minuteWord.contains('تلت')) minute = 20;
         if (minuteWord.contains('الا ربع')) {

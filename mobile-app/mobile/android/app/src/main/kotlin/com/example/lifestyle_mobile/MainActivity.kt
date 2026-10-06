@@ -34,6 +34,8 @@ class MainActivity : FlutterActivity() {
     private val REQUEST_SMS = 303
     private var pendingVoiceResult: MethodChannel.Result? = null
     private var pendingSmsResult: MethodChannel.Result? = null
+    private var voiceFallbackTag: String = "en-US"
+    private var pendingVoiceFallback: Boolean = false
 
     /**
      * Resolves the UI language: the language the user picked inside the app
@@ -69,37 +71,19 @@ class MainActivity : FlutterActivity() {
                 }
                 "startVoiceRecognition" -> {
                     pendingVoiceResult = result
-                    // The Flutter side sends the active app language so the
-                    // recognizer listens in *that* language (any language the
-                    // app is localised in), not a hard-coded one.
+                    // Multilingual by design: record the utterance and let the
+                    // Gemini audio model transcribe it in WHATEVER language is
+                    // spoken (auto-detect), independent of the UI language.
+                    // The platform recognizer is only a fallback when the AI
+                    // path yields nothing, listening in the active app language
+                    // (tag sent from Flutter).
                     val requestedTag = call.argument<String>("languageTag")
-                    val tag = if (requestedTag.isNullOrBlank()) {
+                    voiceFallbackTag = if (requestedTag.isNullOrBlank()) {
                         resolvedLanguageTag()
                     } else {
                         requestedTag
                     }
-                    if (SpeechRecognizer.isRecognitionAvailable(this)) {
-                        try {
-                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                // Must be a BCP-47 String tag; passing a Locale
-                                // object here silently made the recognizer fall
-                                // back to English on many devices.
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, tag)
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, tag)
-                                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                                putExtra(
-                                    RecognizerIntent.EXTRA_PROMPT,
-                                    if (tag.startsWith("ar")) "تحدث بمهمتك الآن..." else "Speak your task now..."
-                                )
-                            }
-                            startActivityForResult(intent, REQUEST_SPEECH)
-                        } catch (e: Exception) {
-                            startDirectMediaRecording(result)
-                        }
-                    } else {
-                        startDirectMediaRecording(result)
-                    }
+                    startDirectMediaRecording(result, fallbackToRecognizer = true)
                 }
                 "requestSmsPermission" -> {
                     if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) {
@@ -143,7 +127,8 @@ class MainActivity : FlutterActivity() {
                 pendingVoiceResult = null
             } else {
                 pendingVoiceResult?.let { res ->
-                    startDirectMediaRecording(res)
+                    pendingVoiceResult = null
+                    startDirectMediaRecording(res, fallbackToRecognizer = false)
                 } ?: run {
                     pendingVoiceResult?.success("")
                     pendingVoiceResult = null
@@ -155,7 +140,11 @@ class MainActivity : FlutterActivity() {
     private var recorder: MediaRecorder? = null
     private var recordFile: File? = null
 
-    private fun startDirectMediaRecording(result: MethodChannel.Result) {
+    private fun startDirectMediaRecording(
+        result: MethodChannel.Result,
+        fallbackToRecognizer: Boolean = false
+    ) {
+        pendingVoiceFallback = fallbackToRecognizer
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 101)
             result.success("")
@@ -184,10 +173,11 @@ class MainActivity : FlutterActivity() {
                 start()
             }
 
-            // Automatically stop after 4.5 seconds and transcribe
+            // Automatically stop after 6 seconds and transcribe in whatever
+            // language was spoken (Gemini auto-detects the language).
             Handler(Looper.getMainLooper()).postDelayed({
                 stopAndTranscribeGemini(result)
-            }, 4500)
+            }, 6000)
 
         } catch (e: Exception) {
             result.success("")
@@ -203,7 +193,12 @@ class MainActivity : FlutterActivity() {
 
         val file = recordFile
         if (file == null || !file.exists() || file.length() == 0L) {
-            result.success("")
+            pendingVoiceResult = null
+            if (pendingVoiceFallback) {
+                startRecognizerIntent(result)
+            } else {
+                result.success("")
+            }
             return
         }
 
@@ -213,14 +208,53 @@ class MainActivity : FlutterActivity() {
                 val base64Audio = Base64.encodeToString(audioBytes, Base64.NO_WRAP)
                 val text = transcribeAudioWithGemini(base64Audio)
                 runOnUiThread {
-                    result.success(text)
+                    pendingVoiceResult = null
+                    if (text.isBlank() && pendingVoiceFallback) {
+                        startRecognizerIntent(result)
+                    } else {
+                        result.success(text)
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    result.success("")
+                    pendingVoiceResult = null
+                    if (pendingVoiceFallback) {
+                        startRecognizerIntent(result)
+                    } else {
+                        result.success("")
+                    }
                 }
             }
         }.start()
+    }
+
+    /**
+     * Platform speech recognizer (fallback path). Listens in the active app
+     * language; the BCP-47 tag must be passed as a String or many devices
+     * silently fall back to English.
+     */
+    private fun startRecognizerIntent(result: MethodChannel.Result) {
+        val tag = voiceFallbackTag
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            result.success("")
+            return
+        }
+        try {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, tag)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, tag)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(
+                    RecognizerIntent.EXTRA_PROMPT,
+                    if (tag.startsWith("ar")) "تحدث بمهمتك الآن..." else "Speak your task now..."
+                )
+            }
+            pendingVoiceResult = result
+            startActivityForResult(intent, REQUEST_SPEECH)
+        } catch (e: Exception) {
+            result.success("")
+        }
     }
 
     private fun transcribeAudioWithGemini(base64Audio: String): String {

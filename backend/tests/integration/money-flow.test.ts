@@ -28,8 +28,11 @@ describe('Money Integration Tests', () => {
    */
   const currentMonthDay = (day: number): string => {
     const now = new Date();
+    // Clamp to today: transaction validation rejects future dates, and budget
+    // usage only aggregates the current calendar month.
+    const clamped = Math.min(day, now.getDate());
     const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(day).padStart(2, '0');
+    const dd = String(clamped).padStart(2, '0');
     return `${now.getFullYear()}-${mm}-${dd}`;
   };
 

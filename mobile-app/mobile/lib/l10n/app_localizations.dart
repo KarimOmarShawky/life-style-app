@@ -1,15 +1,65 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import 'catalog_ar.dart';
+import 'catalog_de.dart';
+import 'catalog_en.dart';
+import 'catalog_es.dart';
+import 'catalog_fr.dart';
+import 'catalog_tr.dart';
+
+/// Data-driven localizations for the LifeStyle mobile client.
+///
+/// Every UI string lives in a per-locale catalog (`catalog_<lang>.dart`).
+/// Adding a new language is therefore a two-step, zero-risk operation:
+///   1. drop in a new `catalog_xx.dart` map,
+///   2. register it in [_catalogs] and [supportedLocales].
+///
+/// Missing keys always fall back to English, so a partially translated
+/// catalog can never crash or render a raw key.
 class AppLocalizations {
   const AppLocalizations(this.locale);
 
   final Locale locale;
 
-  static const supportedLocales = <Locale>[
-    Locale('en'),
+  static const Map<String, Map<String, String>> _catalogs = <String, Map<String, String>>{
+    'ar': arCatalog,
+    'en': enCatalog,
+    'fr': frCatalog,
+    'es': esCatalog,
+    'de': deCatalog,
+    'tr': trCatalog,
+  };
+
+  /// Locales shipped with the app, in picker order.
+  static const List<Locale> supportedLocales = <Locale>[
     Locale('ar'),
+    Locale('en'),
+    Locale('fr'),
+    Locale('es'),
+    Locale('de'),
+    Locale('tr'),
   ];
+
+  /// Native name of each supported language, used by the language picker.
+  static const Map<String, String> endonyms = <String, String>{
+    'ar': 'العربية',
+    'en': 'English',
+    'fr': 'Français',
+    'es': 'Español',
+    'de': 'Deutsch',
+    'tr': 'Türkçe',
+  };
+
+  /// English name of each supported language, used inside AI prompts.
+  static const Map<String, String> promptNames = <String, String>{
+    'ar': 'Arabic',
+    'en': 'English',
+    'fr': 'French',
+    'es': 'Spanish',
+    'de': 'German',
+    'tr': 'Turkish',
+  };
 
   static const LocalizationsDelegate<AppLocalizations> delegate =
       _AppLocalizationsDelegate();
@@ -18,308 +68,280 @@ class AppLocalizations {
       Localizations.of<AppLocalizations>(context, AppLocalizations) ??
       const AppLocalizations(Locale('en'));
 
+  static bool isLocaleSupported(Locale locale) =>
+      _catalogs.containsKey(locale.languageCode);
+
   bool get isArabic => locale.languageCode == 'ar';
 
-  String get appTitle => isArabic ? 'لايف ستايل' : 'LifeStyle';
-  String get signIn => isArabic ? 'تسجيل الدخول' : 'Sign in';
-  String get createAccount => isArabic ? 'إنشاء حساب جديد' : 'Create account';
-  String get email => isArabic ? 'البريد الإلكتروني' : 'Email';
-  String get password => isArabic ? 'كلمة المرور' : 'Password';
-  String get displayName => isArabic ? 'الاسم' : 'Display name';
-  String get tasks => isArabic ? 'المهام' : 'Tasks';
-  String get habits => isArabic ? 'العادات' : 'Habits';
-  String get money => isArabic ? 'المصاريف' : 'Money';
-  String get notes => isArabic ? 'الملاحظات' : 'Notes';
-  String get profile => isArabic ? 'الملف الشخصي' : 'Profile';
-  String get addTask => isArabic ? 'إضافة مهمة' : 'Add task';
-  String get taskTitle => isArabic ? 'ما الذي تريد إنجازه؟' : 'What needs to get done?';
-  String get noTasks => isArabic ? 'لا توجد مهام حالياً' : 'No tasks yet';
-  String get retry => isArabic ? 'إعادة المحاولة' : 'Try again';
-  String get fieldRequired => isArabic ? 'هذا الحقل مطلوب' : 'This field is required';
-  String get signOut => isArabic ? 'تسجيل الخروج' : 'Sign out';
-  String get forgotPassword => isArabic ? 'نسيت كلمة المرور؟' : 'Forgot password?';
-  String get back => isArabic ? 'رجوع' : 'Back';
-  String get dueDate => isArabic ? 'تاريخ الاستحقاق' : 'Due date';
-  String get resetPassword => isArabic ? 'إعادة تعيين كلمة المرور' : 'Reset Password';
-  String get sendResetCode => isArabic ? 'إرسال رمز التحقق' : 'Send Reset Code';
-  String get resetCodeSent => isArabic ? 'تم إرسال رمز التحقق إلى بريدك الإلكتروني' : 'Reset code sent to your email';
-  String get enterResetCode => isArabic ? 'أدخل الرمز المكون من 6 أرقام' : 'Enter 6-digit code';
-  String get newPassword => isArabic ? 'كلمة المرور الجديدة' : 'New Password';
-  String get confirmNewPassword => isArabic ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password';
-  String get passwordResetSuccess => isArabic ? 'تم تغيير كلمة المرور بنجاح! يمكنك تسجيل الدخول الآن' : 'Password reset successfully! You can now login';
-  String get passwordsDoNotMatch => isArabic ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match';
-  String get selectAll => isArabic ? 'تحديد الكل' : 'Select All';
-  String get deleteSelected => isArabic ? 'حذف المحدد' : 'Delete Selected';
-  String get deleteSelectedConfirm => isArabic ? 'هل أنت متأكد من حذف العناصر المحددة؟' : 'Are you sure you want to delete selected items?';
-  String get selectedCount => isArabic ? 'محدد' : 'selected';
-  String get aiAssistant => isArabic ? 'المساعد الذكي' : 'AI Assistant';
-  String get aiDailyBriefing => isArabic ? 'ملخص اليوم الذكي' : 'Daily Smart Briefing';
-  String get voiceMicPrompt => isArabic ? 'تحدث الآن، أستمع إليك...' : 'Listening, speak now...';
-  String get searchPlaceholder => isArabic ? 'بحث في المهام والملاحظات...' : 'Search tasks & notes...';
-  String get userLevel => isArabic ? 'المستوى' : 'Level';
-  String get xpPoints => isArabic ? 'نقطة خبرة' : 'XP';
-  String get resetCode => isArabic ? 'رمز الاستعادة (6 أرقام)' : 'Six-digit reset code';
-  String get cancel => isArabic ? 'إلغاء' : 'Cancel';
-  String get save => isArabic ? 'حفظ' : 'Save';
-  String get delete => isArabic ? 'حذف' : 'Delete';
-  String get errorTitle => isArabic ? 'حدث خطأ ما' : 'Something went wrong';
-  String get apiConfigError => isArabic
-      ? 'عنوان الخادم غير مضبوط بشكل صحيح.'
-      : 'The API address is not configured. Start the app with an API_BASE_URL build setting.';
-  String get networkError => isArabic
-      ? 'تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.'
-      : 'Could not connect. Check your connection and try again.';
-  String get passwordLengthError => isArabic
-      ? 'كلمة المرور يجب أن لا تقل عن 10 أحرف.'
-      : 'Use a password with at least 10 characters.';
+  /// Right-to-left script (drives chat-bubble alignment and similar layout).
+  bool get isRTL =>
+      TextDirection.rtl == direction;
 
-  // Habits
-  String get dailyHabits => isArabic ? 'العادات اليومية' : 'Daily Habits';
-  String get noHabits => isArabic
-      ? 'لا توجد عادات بعد.\nابدأ ببناء روتينك اليومي!'
-      : 'No habits created yet.\nBuild a daily routine!';
-  String get addHabit => isArabic ? 'عادة جديدة' : 'New Habit';
-  String get habitName => isArabic ? 'اسم العادة' : 'Habit Name';
-  String get description => isArabic ? 'الوصف (اختياري)' : 'Description (optional)';
-  String get currentStreakText => isArabic ? 'سلسلة الحماس الحالية' : 'Current streak';
-  String get bestStreakText => isArabic ? 'أفضل رقم' : 'Best streak';
-  String get days => isArabic ? 'أيام' : 'days';
-  String get completedToday => isArabic ? 'تم إنجاز عادة اليوم!' : 'Done for today!';
-  String get markComplete => isArabic ? 'تسجيل إنجاز اليوم' : 'Mark done today';
+  TextDirection get direction =>
+      (locale.languageCode == 'ar') ? TextDirection.rtl : TextDirection.ltr;
 
-  // Money & Budgets
-  String get moneyBudgets => isArabic ? 'المصاريف والميزانية' : 'Money & Budgets';
-  String get monthlyBudgets => isArabic ? 'الميزانيات الشهرية' : 'Monthly Budgets';
-  String get activeSubscriptions => isArabic ? 'الاشتراكات النشطة' : 'Active Subscriptions';
-  String get noBudgets => isArabic ? 'لا توجد ميزانيات محددة لهذا الشهر.' : 'No active budgets set for this month.';
-  String get noSubscriptions => isArabic ? 'لا توجد اشتراكات نشطة حالياً.' : 'No active subscriptions found.';
-  String get addTransaction => isArabic ? 'إضافة معاملة' : 'Transaction';
-  String get addBudget => isArabic ? 'إضافة ميزانية' : 'Add budget';
-  String get budgetLimit => isArabic ? 'حد الميزانية الشهري' : 'Monthly budget limit';
-  String get transactions => isArabic ? 'المعاملات' : 'Transactions';
-  String get expense => isArabic ? 'مصروف' : 'Expense';
-  String get income => isArabic ? 'دخل' : 'Income';
-  String get amount => isArabic ? 'المبلغ' : 'Amount';
-  String get currency => isArabic ? 'العملة' : 'Currency';
-  String get merchant => isArabic ? 'المتجر / الجهة' : 'Merchant (optional)';
-  String get transactionSaved => isArabic ? 'تم حفظ المعاملة بنجاح!' : 'Transaction saved successfully!';
-  String get enterAmount => isArabic ? 'يرجى إدخال المبلغ' : 'Enter amount';
-  String get amountMustBePositive => isArabic ? 'يجب أن يكون المبلغ أكبر من 0' : 'Must be > 0';
-  String get descHint => isArabic ? 'مثال: بقالة، قهوة' : 'e.g. Groceries, Coffee';
-  String get merchantHint => isArabic ? 'مثال: كارفور، ستارباكس' : 'e.g. Carrefour, Starbucks';
-  String get financialOverview => isArabic ? 'الملخص المالي' : 'Financial Overview';
-  String get totalBudget => isArabic ? 'الميزانية' : 'Budget';
-  String get totalSpent => isArabic ? 'المصروف' : 'Spent';
-  String get remaining => isArabic ? 'المتبقي' : 'Remaining';
-  String get budgetWarning => isArabic ? 'تنبيه: اقتربت من الحد الأقصى للميزانية!' : 'Warning: approaching budget limit!';
-  String get budgetExceeded => isArabic ? 'تنبيه: لقد تجاوزت الميزانية المحددة!' : 'Warning: budget exceeded!';
-  String get remindSubscription => isArabic ? 'تذكير قبل التجديد' : 'Remind before renewal';
-  String get subscriptionReminderSet => isArabic ? 'تم ضبط تذكير قبل التجديد بنجاح!' : 'Renewal reminder set!';
-  String get renewalSoon => isArabic ? 'تجديد قريب!' : 'Renewal soon!';
+  /// Name of the current language for AI system prompts.
+  String get promptLanguageName =>
+      promptNames[locale.languageCode] ?? 'English';
 
-  // Subscriptions Dedicated Section
-  String get subscriptionsTitle => isArabic ? 'الاشتراكات والفواتير' : 'Subscriptions & Bills';
-  String get addSubscription => isArabic ? 'إضافة اشتراك' : 'Add subscription';
-  String get subscriptionName => isArabic ? 'اسم الاشتراك' : 'Subscription name';
-  String get subscriptionNameHint => isArabic ? 'مثال: نتفليكس، سبوتيفاي، الجيم' : 'e.g. Netflix, Spotify, Gym';
-  String get billingCycle => isArabic ? 'دورة الدفع' : 'Billing cycle';
-  String get monthly => isArabic ? 'شهرياً' : 'Monthly';
-  String get yearly => isArabic ? 'سنوياً' : 'Yearly';
-  String get weekly => isArabic ? 'أسبوعياً' : 'Weekly';
-  String get firstBillingDate => isArabic ? 'تاريخ التجديد القادم' : 'Next billing date';
-  String get deleteSubscription => isArabic ? 'حذف الاشتراك' : 'Delete subscription';
-  String get deleteConfirm => isArabic ? 'هل تريد بالتأكيد حذف هذا الاشتراك؟' : 'Are you sure you want to delete this subscription?';
-  String get totalMonthlySubscriptions => isArabic ? 'إجمالي الاشتراكات الشهرية' : 'Total monthly subscriptions';
+  String _s(String key) {
+    final Map<String, String> table =
+        _catalogs[locale.languageCode] ?? enCatalog;
+    return table[key] ?? enCatalog[key] ?? key;
+  }
 
-  // Notes
-  String get notesTitle => isArabic ? 'الملاحظات' : 'Notes';
-  String get noNotes => isArabic
-      ? 'لا توجد ملاحظات بعد.\nسجّل أفكارك هنا!'
-      : 'No notes yet.\nJot down your thoughts!';
-  String get addNote => isArabic ? 'ملاحظة جديدة' : 'New Note';
-  String get noteTitle => isArabic ? 'العنوان' : 'Title';
-  String get noteContent => isArabic ? 'المحتوى' : 'Content';
-  String get tags => isArabic ? 'الوسوم (مفصولة بفواصل)' : 'Tags (comma separated)';
+  String _f(String key, Map<String, Object> params) {
+    var out = _s(key);
+    params.forEach((String name, Object value) {
+      out = out.replaceAll('{$name}', '$value');
+    });
+    return out;
+  }
 
-  // Alarms & Reminders
-  String get setAlarm => isArabic ? 'ضبط منبه / تذكير' : 'Set alarm / reminder';
-  String get alarmDate => isArabic ? 'تاريخ التنبيه' : 'Reminder date';
-  String get alarmTime => isArabic ? 'وقت التنبيه' : 'Reminder time';
-  String get testAlarm => isArabic ? 'منبه تجريبي' : 'Test Alarm';
-  String get testAlarmSent => isArabic ? 'تم تشغيل المنبه التجريبي!' : 'Test alarm triggered!';
-  String get alarmScheduled => isArabic ? 'تم ضبط المنبه بنجاح!' : 'Alarm scheduled successfully!';
-  String get pickDate => isArabic ? 'اختر التاريخ' : 'Pick date';
-  String get pickTime => isArabic ? 'اختر الوقت' : 'Pick time';
-  String get noAlarm => isArabic ? 'بدون تنبيه' : 'No alarm';
+  String get appTitle => _s('appTitle');
+  String get signIn => _s('signIn');
+  String get createAccount => _s('createAccount');
+  String get email => _s('email');
+  String get password => _s('password');
+  String get displayName => _s('displayName');
+  String get tasks => _s('tasks');
+  String get habits => _s('habits');
+  String get money => _s('money');
+  String get notes => _s('notes');
+  String get profile => _s('profile');
+  String get addTask => _s('addTask');
+  String get taskTitle => _s('taskTitle');
+  String get noTasks => _s('noTasks');
+  String get retry => _s('retry');
+  String get fieldRequired => _s('fieldRequired');
+  String get signOut => _s('signOut');
+  String get forgotPassword => _s('forgotPassword');
+  String get back => _s('back');
+  String get dueDate => _s('dueDate');
+  String get resetPassword => _s('resetPassword');
+  String get sendResetCode => _s('sendResetCode');
+  String get resetCodeSent => _s('resetCodeSent');
+  String get enterResetCode => _s('enterResetCode');
+  String get newPassword => _s('newPassword');
+  String get confirmNewPassword => _s('confirmNewPassword');
+  String get passwordResetSuccess => _s('passwordResetSuccess');
+  String get passwordsDoNotMatch => _s('passwordsDoNotMatch');
+  String get selectAll => _s('selectAll');
+  String get deleteSelected => _s('deleteSelected');
+  String get deleteSelectedConfirm => _s('deleteSelectedConfirm');
+  String get selectedCount => _s('selectedCount');
+  String get aiAssistant => _s('aiAssistant');
+  String get aiDailyBriefing => _s('aiDailyBriefing');
+  String get voiceMicPrompt => _s('voiceMicPrompt');
+  String get searchPlaceholder => _s('searchPlaceholder');
+  String get userLevel => _s('userLevel');
+  String get xpPoints => _s('xpPoints');
+  String get resetCode => _s('resetCode');
+  String get cancel => _s('cancel');
+  String get save => _s('save');
+  String get delete => _s('delete');
+  String get errorTitle => _s('errorTitle');
+  String get apiConfigError => _s('apiConfigError');
+  String get networkError => _s('networkError');
+  String get passwordLengthError => _s('passwordLengthError');
+  String get dailyHabits => _s('dailyHabits');
+  String get noHabits => _s('noHabits');
+  String get addHabit => _s('addHabit');
+  String get habitName => _s('habitName');
+  String get description => _s('description');
+  String get currentStreakText => _s('currentStreakText');
+  String get bestStreakText => _s('bestStreakText');
+  String get days => _s('days');
+  String get completedToday => _s('completedToday');
+  String get markComplete => _s('markComplete');
+  String get moneyBudgets => _s('moneyBudgets');
+  String get monthlyBudgets => _s('monthlyBudgets');
+  String get activeSubscriptions => _s('activeSubscriptions');
+  String get noBudgets => _s('noBudgets');
+  String get noSubscriptions => _s('noSubscriptions');
+  String get addTransaction => _s('addTransaction');
+  String get addBudget => _s('addBudget');
+  String get budgetLimit => _s('budgetLimit');
+  String get transactions => _s('transactions');
+  String get expense => _s('expense');
+  String get income => _s('income');
+  String get amount => _s('amount');
+  String get currency => _s('currency');
+  String get merchant => _s('merchant');
+  String get transactionSaved => _s('transactionSaved');
+  String get enterAmount => _s('enterAmount');
+  String get amountMustBePositive => _s('amountMustBePositive');
+  String get descHint => _s('descHint');
+  String get merchantHint => _s('merchantHint');
+  String get financialOverview => _s('financialOverview');
+  String get totalBudget => _s('totalBudget');
+  String get totalSpent => _s('totalSpent');
+  String get remaining => _s('remaining');
+  String get budgetWarning => _s('budgetWarning');
+  String get budgetExceeded => _s('budgetExceeded');
+  String get remindSubscription => _s('remindSubscription');
+  String get subscriptionReminderSet => _s('subscriptionReminderSet');
+  String get renewalSoon => _s('renewalSoon');
+  String get subscriptionsTitle => _s('subscriptionsTitle');
+  String get addSubscription => _s('addSubscription');
+  String get subscriptionName => _s('subscriptionName');
+  String get subscriptionNameHint => _s('subscriptionNameHint');
+  String get billingCycle => _s('billingCycle');
+  String get monthly => _s('monthly');
+  String get yearly => _s('yearly');
+  String get weekly => _s('weekly');
+  String get firstBillingDate => _s('firstBillingDate');
+  String get deleteSubscription => _s('deleteSubscription');
+  String get deleteConfirm => _s('deleteConfirm');
+  String get totalMonthlySubscriptions => _s('totalMonthlySubscriptions');
+  String get notesTitle => _s('notesTitle');
+  String get noNotes => _s('noNotes');
+  String get addNote => _s('addNote');
+  String get noteTitle => _s('noteTitle');
+  String get noteContent => _s('noteContent');
+  String get tags => _s('tags');
+  String get setAlarm => _s('setAlarm');
+  String get alarmDate => _s('alarmDate');
+  String get alarmTime => _s('alarmTime');
+  String get testAlarm => _s('testAlarm');
+  String get testAlarmSent => _s('testAlarmSent');
+  String get alarmScheduled => _s('alarmScheduled');
+  String get pickDate => _s('pickDate');
+  String get pickTime => _s('pickTime');
+  String get noAlarm => _s('noAlarm');
+  String get smartAdd => _s('smartAdd');
+  String get smartAddHint => _s('smartAddHint');
+  String get detectedTitle => _s('detectedTitle');
+  String get detectedDate => _s('detectedDate');
+  String get detectedAlarm => _s('detectedAlarm');
+  String get saveAndSetAlarm => _s('saveAndSetAlarm');
+  String get smartAlarmSuccess => _s('smartAlarmSuccess');
+  String get allTasks => _s('allTasks');
+  String get today => _s('today');
+  String get tomorrow => _s('tomorrow');
+  String get yesterday => _s('yesterday');
+  String get calendarView => _s('calendarView');
+  String get noTasksForDay => _s('noTasksForDay');
+  String get jumpToDate => _s('jumpToDate');
+  String get focusTimer => _s('focusTimer');
+  String get focusSession => _s('focusSession');
+  String get breakSession => _s('breakSession');
+  String get start => _s('start');
+  String get pause => _s('pause');
+  String get reset => _s('reset');
+  String get timerFinished => _s('timerFinished');
+  String get breakFinished => _s('breakFinished');
+  String get selectTask => _s('selectTask');
+  String get noTaskSelected => _s('noTaskSelected');
+  String get minutes => _s('minutes');
+  String get projects => _s('projects');
+  String get addProject => _s('addProject');
+  String get projectProgress => _s('projectProgress');
+  String get language => _s('language');
+  String get themeMode => _s('themeMode');
+  String get themeDark => _s('themeDark');
+  String get themeLight => _s('themeLight');
+  String get themeSystem => _s('themeSystem');
+  String get defaultCurrency => _s('defaultCurrency');
+  String get timeZone => _s('timeZone');
+  String get accountStatus => _s('accountStatus');
+  String get activeStatus => _s('activeStatus');
+  String get enterNamePrompt => _s('enterNamePrompt');
+  String get enterValidEmailPrompt => _s('enterValidEmailPrompt');
+  String get enterPasswordPrompt => _s('enterPasswordPrompt');
+  String get alreadyHaveAccount => _s('alreadyHaveAccount');
+  String get newToApp => _s('newToApp');
+  String get passwordMinLengthError => _s('passwordMinLengthError');
+  String get currencyUpdated => _s('currencyUpdated');
+  String get currencyUpdateFailed => _s('currencyUpdateFailed');
+  String get accountRank => _s('accountRank');
+  String get levelXpBadge => _s('levelXpBadge');
+  String get xpRemainingText => _s('xpRemainingText');
+  String get achievementBadges => _s('achievementBadges');
+  String get badgeStrongStart => _s('badgeStrongStart');
+  String get badgeFirstTask => _s('badgeFirstTask');
+  String get badgeFocusHero => _s('badgeFocusHero');
+  String get badgePomodoro => _s('badgePomodoro');
+  String get badgeDiscipline => _s('badgeDiscipline');
+  String get badgeStreak7 => _s('badgeStreak7');
+  String get globalSearchTooltip => _s('globalSearchTooltip');
+  String get testAlarmTitleText => _s('testAlarmTitleText');
+  String get testAlarmBodyText => _s('testAlarmBodyText');
+  String get briefingMorning => _s('briefingMorning');
+  String get briefingEvening => _s('briefingEvening');
+  String get briefingEmptyText => _s('briefingEmptyText');
+  String get taskDueNowText => _s('taskDueNowText');
+  String get quickClip30MinLabel => _s('quickClip30MinLabel');
+  String get quickClip30MinText => _s('quickClip30MinText');
+  String get quickClipTomorrow7PMLabel => _s('quickClipTomorrow7PMLabel');
+  String get quickClipTomorrow7PMText => _s('quickClipTomorrow7PMText');
+  String get quickClip2HoursLabel => _s('quickClip2HoursLabel');
+  String get quickClip2HoursText => _s('quickClip2HoursText');
+  String get statusTodo => _s('statusTodo');
+  String get statusDone => _s('statusDone');
+  String get priorityHigh => _s('priorityHigh');
+  String get priorityMedium => _s('priorityMedium');
+  String get priorityLow => _s('priorityLow');
+  String get duePrefix => _s('duePrefix');
+  String get exportReportTooltip => _s('exportReportTooltip');
+  String get budgetBreakdownTitle => _s('budgetBreakdownTitle');
+  String get generalBudget => _s('generalBudget');
+  String get reportCopied => _s('reportCopied');
+  String get reportHeader => _s('reportHeader');
+  String get reportDateLabel => _s('reportDateLabel');
+  String get reportTotalBudgetLabel => _s('reportTotalBudgetLabel');
+  String get reportTotalSpentLabel => _s('reportTotalSpentLabel');
+  String get reportRemainingLabel => _s('reportRemainingLabel');
+  String get reportUtilizationLabel => _s('reportUtilizationLabel');
+  String get reportActiveSubsLabel => _s('reportActiveSubsLabel');
+  String get reportTotalSubsLabel => _s('reportTotalSubsLabel');
+  String get reportMonthlySuffix => _s('reportMonthlySuffix');
+  String get reportFooter => _s('reportFooter');
+  String get aiWelcomeMessage => _s('aiWelcomeMessage');
+  String get aiSuggestion1 => _s('aiSuggestion1');
+  String get aiSuggestion2 => _s('aiSuggestion2');
+  String get aiSuggestion3 => _s('aiSuggestion3');
+  String get aiSuggestion4 => _s('aiSuggestion4');
+  String get aiClearChatTooltip => _s('aiClearChatTooltip');
+  String get aiClearedResetMessage => _s('aiClearedResetMessage');
+  String get aiThinkingMessage => _s('aiThinkingMessage');
+  String get aiInputHint => _s('aiInputHint');
+  String get searchFieldPlaceholder => _s('searchFieldPlaceholder');
+  String get searchPromptEmpty => _s('searchPromptEmpty');
 
-  // Smart Parser / Magic Add
-  String get smartAdd => isArabic ? 'إضافة ذكية وسريعة' : 'Smart Quick Add';
-  String get smartAddHint => isArabic
-      ? 'اكتب مثلاً: كشف الدكتور بكرة الساعة 7 بليل، أو مشوار بعد نص ساعة'
-      : 'e.g. Doctor visit tomorrow at 7 pm, or grocery in 30 minutes';
-  String get detectedTitle => isArabic ? 'المهمة' : 'Task';
-  String get detectedDate => isArabic ? 'التاريخ' : 'Date';
-  String get detectedAlarm => isArabic ? 'المنبه' : 'Alarm';
-  String get saveAndSetAlarm => isArabic ? 'حفظ وضبط المنبه' : 'Save & Set Alarm';
-  String get smartAlarmSuccess => isArabic ? 'تم حفظ المهمة وضبط المنبه بنجاح!' : 'Task saved & alarm scheduled successfully!';
+  String get noSpeechDetected => _s('noSpeechDetected');
+  String get smsSyncTitle => _s('smsSyncTitle');
+  String get smsSyncDesc => _s('smsSyncDesc');
+  String get smsPermissionDenied => _s('smsPermissionDenied');
 
-  // Calendar & Planning
-  String get allTasks => isArabic ? 'الكل' : 'All';
-  String get today => isArabic ? 'اليوم' : 'Today';
-  String get tomorrow => isArabic ? 'غداً' : 'Tomorrow';
-  String get yesterday => isArabic ? 'أمس' : 'Yesterday';
-  String get calendarView => isArabic ? 'التقويم' : 'Calendar';
-  String get noTasksForDay => isArabic ? 'لا توجد مهام مجدولة في هذا اليوم' : 'No tasks scheduled for this day';
-  String get jumpToDate => isArabic ? 'الانتقال لتاريخ معين' : 'Jump to date';
+  // ---- Parameterized strings -------------------------------------------
 
-  // Focus Timer / Pomodoro
-  String get focusTimer => isArabic ? 'مؤقت التركيز' : 'Focus Timer';
-  String get focusSession => isArabic ? 'جلسة تركيز' : 'Focus Session';
-  String get breakSession => isArabic ? 'استراحة' : 'Break';
-  String get start => isArabic ? 'بدء' : 'Start';
-  String get pause => isArabic ? 'إيقاف مؤقت' : 'Pause';
-  String get reset => isArabic ? 'إعادة تعيين' : 'Reset';
-  String get timerFinished => isArabic ? 'انتهت جلسة التركيز بنجاح' : 'Focus session complete';
-  String get breakFinished => isArabic ? 'انتهت الاستراحة، جاهز للمتابعة' : 'Break over, ready to continue';
-  String get selectTask => isArabic ? 'اختر مهمة للتركيز عليها' : 'Select task to focus on';
-  String get noTaskSelected => isArabic ? 'تركيز عام (بدون مهمة)' : 'General Focus';
-  String get minutes => isArabic ? 'دقيقة' : 'min';
+  String briefingSummaryText(int total, int completed) =>
+      _f('briefingSummaryText', <String, Object>{'total': total, 'completed': completed});
 
-  // Projects & Goals
-  String get projects => isArabic ? 'المشاريع' : 'Projects';
-  String get addProject => isArabic ? 'مشروع جديد' : 'New Project';
-  String get projectProgress => isArabic ? 'نسبة التقدم' : 'Progress';
-
-  // Settings
-  String get language => isArabic ? 'اللغة' : 'Language';
-  String get themeMode => isArabic ? 'المظهر' : 'Theme mode';
-  String get themeDark => isArabic ? 'داكن' : 'Dark';
-  String get themeLight => isArabic ? 'فاتح' : 'Light';
-  String get themeSystem => isArabic ? 'حسب النظام' : 'System default';
-  String get defaultCurrency => isArabic ? 'العملة الافتراضية' : 'Default currency';
-  String get timeZone => isArabic ? 'المنطقة الزمنية' : 'Time zone';
-  String get accountStatus => isArabic ? 'حالة الحساب' : 'Account status';
-  String get activeStatus => isArabic ? 'نشط' : 'active';
-
-  // Auth & Validation
-  String get enterNamePrompt => isArabic ? 'أدخل اسمك.' : 'Enter your name.';
-  String get enterValidEmailPrompt => isArabic ? 'أدخل بريداً إلكترونياً صحيحاً.' : 'Enter a valid email address.';
-  String get enterPasswordPrompt => isArabic ? 'أدخل كلمة المرور.' : 'Enter your password.';
-  String get alreadyHaveAccount => isArabic ? 'لديك حساب بالفعل؟' : 'Already have an account?';
-  String get newToApp => isArabic ? 'مستخدم جديد؟' : 'New to LifeStyle?';
-  String get passwordMinLengthError => isArabic ? 'كلمة المرور يجب أن لا تقل عن 8 أحرف.' : 'Password must be at least 8 characters.';
-
-  // Profile & Gamification
-  String get currencyUpdated => isArabic ? 'تم تحديث العملة إلى' : 'Currency updated to';
-  String get currencyUpdateFailed => isArabic ? 'فشل تحديث العملة' : 'Failed to update currency';
-  String get accountRank => isArabic ? 'رتبة الحساب: منجز نشط' : 'Rank: Active Achiever';
-  String get levelXpBadge => isArabic ? 'المستوى 2 • 140 XP' : 'Level 2 • 140 XP';
-  String get xpRemainingText => isArabic ? 'متبقي 60 XP للترقية إلى المستوى 3 (محترف)' : '60 XP remaining to Level 3 (Pro)';
-  String get achievementBadges => isArabic ? 'أوسمة الإنجاز' : 'Achievement Badges';
-  String get badgeStrongStart => isArabic ? 'البداية القوية' : 'Strong Start';
-  String get badgeFirstTask => isArabic ? 'أول مهمة منجزة' : 'First task done';
-  String get badgeFocusHero => isArabic ? 'بطل التركيز' : 'Focus Hero';
-  String get badgePomodoro => isArabic ? 'جلسة بومودورو' : 'Pomodoro session';
-  String get badgeDiscipline => isArabic ? 'الانضباط' : 'Discipline';
-  String get badgeStreak7 => isArabic ? 'سلسلة 7 أيام' : '7-day streak';
-
-  // Tasks & Briefing
-  String get globalSearchTooltip => isArabic ? 'بحث شامل' : 'Global Search';
-  String get testAlarmTitleText => isArabic ? 'لايف ستايل: تذكير بموعد مهم!' : 'LifeStyle: Important Reminder!';
-  String get testAlarmBodyText => isArabic ? 'اضغط إيقاف لإيقاف رنين المنبه، أو غفوة للتأجيل' : 'Press dismiss to stop alarm, or snooze to delay';
-  String get briefingMorning => isArabic ? 'صباح الخير' : 'Good morning';
-  String get briefingEvening => isArabic ? 'مساء الخير' : 'Good evening';
-  String get briefingEmptyText => isArabic ? 'لا توجد مهام حتى الآن. اضغط على علامة + لإضافة أول مهمة في يومك!' : 'No tasks yet. Tap the + icon to add your first task for today!';
-  String briefingSummaryText(int total, int completed) => isArabic
-      ? 'لديك $total مهام مجدولة، تم إنجاز $completed منها بنجاح. استمر في التركيز!'
-      : 'You have $total scheduled tasks, $completed completed successfully. Keep up the momentum!';
-  String get taskDueNowText => isArabic ? 'موعد مهمتك المجدولة الآن' : 'Your scheduled task is due now';
-  String get quickClip30MinLabel => isArabic ? 'بعد نص ساعة' : 'In 30 minutes';
-  String get quickClip30MinText => isArabic ? 'تذكير بعد نص ساعة' : 'Reminder in 30 minutes';
-  String get quickClipTomorrow7PMLabel => isArabic ? 'بكرة 7 مساء' : 'Tomorrow 7 PM';
-  String get quickClipTomorrow7PMText => isArabic ? 'مشوار بكرة الساعة 7 بليل' : 'Appointment tomorrow at 7 pm';
-  String get quickClip2HoursLabel => isArabic ? 'بعد ساعتين' : 'In 2 hours';
-  String get quickClip2HoursText => isArabic ? 'مهمة بعد ساعتين' : 'Task in 2 hours';
-
-  // Task Item Status & Priority
-  String get statusTodo => isArabic ? 'قيد الإنجاز' : 'To do';
-  String get statusDone => isArabic ? 'مكتمل' : 'Done';
-  String get priorityHigh => isArabic ? 'أولوية قصوى' : 'High';
-  String get priorityMedium => isArabic ? 'أولوية متوسطة' : 'Medium';
-  String get priorityLow => isArabic ? 'أولوية عادية' : 'Low';
-  String get duePrefix => isArabic ? 'الاستحقاق:' : 'Due';
-
-  // Money & Subscriptions
-  String get exportReportTooltip => isArabic ? 'تصدير التقرير المالي' : 'Export Financial Report';
-  String get budgetBreakdownTitle => isArabic ? 'تحليل بنود الميزانية' : 'Budget Breakdown';
-  String get generalBudget => isArabic ? 'ميزانية عامة' : 'General Budget';
-  String get reportCopied => isArabic ? 'تم نسخ التقرير المالي إلى الحافظة بنجاح! يمكنك لصقه أو مشاركته الآن.' : 'Financial report copied to clipboard successfully! You can paste or share it now.';
-  String get reportHeader => isArabic ? 'تقرير لايف ستايل المالي الشهري' : 'LifeStyle Monthly Financial Report';
-  String get reportDateLabel => isArabic ? 'تاريخ التقرير:' : 'Report Date:';
-  String get reportTotalBudgetLabel => isArabic ? '- إجمالي الميزانية:' : '- Total Budget:';
-  String get reportTotalSpentLabel => isArabic ? '- إجمالي المصروف:' : '- Total Spent:';
-  String get reportRemainingLabel => isArabic ? '- المتبقي الصافي:' : '- Net Remaining:';
-  String get reportUtilizationLabel => isArabic ? '- نسبة استهلاك الميزانية:' : '- Budget Utilization:';
-  String get reportActiveSubsLabel => isArabic ? '- الاشتراكات النشطة:' : '- Active Subscriptions:';
-  String get reportTotalSubsLabel => isArabic ? '- إجمالي الاشتراكات:' : '- Total Subscriptions:';
-  String get reportMonthlySuffix => isArabic ? 'شهرياً' : 'monthly';
-  String get reportFooter => isArabic ? 'تم إنشاء التقرير بواسطة تطبيق LifeStyle' : 'Report generated by LifeStyle App';
   String billingUnitLabel(String unit) {
-    if (isArabic) {
-      if (unit == 'month' || unit == 'monthly') return '/شهرياً';
-      if (unit == 'year' || unit == 'yearly') return '/سنوياً';
-      if (unit == 'week' || unit == 'weekly') return '/أسبوعياً';
-      return '/$unit';
-    } else {
-      if (unit == 'month' || unit == 'monthly') return '/mo';
-      if (unit == 'year' || unit == 'yearly') return '/yr';
-      if (unit == 'week' || unit == 'weekly') return '/wk';
-      return '/$unit';
+    switch (unit) {
+      case 'month':
+      case 'monthly':
+        return _s('billingUnit.month');
+      case 'year':
+      case 'yearly':
+        return _s('billingUnit.year');
+      case 'week':
+      case 'weekly':
+        return _s('billingUnit.week');
+      default:
+        return '/$unit';
     }
   }
 
-  // Focus Timer Ambients
   String ambientLabel(String key) {
-    if (isArabic) {
-      switch (key) {
-        case 'quiet': return 'هدوء';
-        case 'rain': return 'مطر هادئ';
-        case 'cafe': return 'مقهى';
-        case 'waves': return 'أمواج البحر';
-        case 'white_noise': return 'ضوضاء بيضاء';
-        default: return key;
-      }
-    } else {
-      switch (key) {
-        case 'quiet': return 'Silence';
-        case 'rain': return 'Soft Rain';
-        case 'cafe': return 'Coffee Shop';
-        case 'waves': return 'Ocean Waves';
-        case 'white_noise': return 'White Noise';
-        default: return key;
-      }
-    }
+    final String translated = _s('ambient.$key');
+    return translated == 'ambient.$key' ? key : translated;
   }
 
-  // AI Assistant Screen
-  String get aiWelcomeMessage => isArabic
-      ? 'مرحباً بك! أنا مساعدك الذكي في لايف ستايل. كيف يمكنني مساعدتك اليوم؟ يمكنك أن تطلب مني تنظيم جدولك، اقتراح عادات مفيدة، أو تقديم أفكار لزيادة إنتاجيتك.'
-      : 'Welcome! I am your LifeStyle AI Assistant. How can I help you today? You can ask me to organize your schedule, suggest healthy habits, or provide productivity tips.';
-  String get aiSuggestion1 => isArabic ? 'خطط لي يومي اليوم' : 'Plan my day today';
-  String get aiSuggestion2 => isArabic ? 'كيف أنظم وقتي بين الشغل والمذاكرة؟' : 'How do I balance work and study?';
-  String get aiSuggestion3 => isArabic ? 'اقترح علي عادات صحية صباحية' : 'Suggest healthy morning habits';
-  String get aiSuggestion4 => isArabic ? 'نصائح لتقليل المصاريف الشهرية' : 'Tips to reduce monthly expenses';
-  String get aiClearChatTooltip => isArabic ? 'مسح المحادثة' : 'Clear conversation';
-  String get aiClearedResetMessage => isArabic
-      ? 'مرحباً بك مجدداً! كيف يمكنني مساعدتك في تنظيم يومك الآن؟'
-      : 'Welcome back! How can I help you organize your day now?';
-  String get aiThinkingMessage => isArabic ? 'جاري التفكير وصياغة الإجابة...' : 'Thinking and drafting answer...';
-  String get aiInputHint => isArabic ? 'اطلب من المساعد الذكي أي شيء...' : 'Ask the AI Assistant anything...';
-
-  // Global Search
-  String get searchFieldPlaceholder => isArabic ? 'بحث شامل في المهام، الملاحظات، والاشتراكات...' : 'Search tasks, notes, subscriptions...';
-  String get searchPromptEmpty => isArabic ? 'اكتب أي كلمة للبحث في كل بياناتك' : 'Type any keyword to search across all data';
-  String searchNoResultsFor(String q) => isArabic ? 'لا توجد نتائج مطابقة لـ "$q"' : 'No matching results for "$q"';
+  String searchNoResultsFor(String q) =>
+      _f('searchNoResultsFor', <String, Object>{'q': q});
 }
 
 class _AppLocalizationsDelegate
@@ -328,7 +350,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      ['en', 'ar'].contains(locale.languageCode);
+      AppLocalizations.isLocaleSupported(locale);
 
   @override
   Future<AppLocalizations> load(Locale locale) =>

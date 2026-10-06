@@ -47,7 +47,26 @@ class VoiceRecordingService : Service() {
     private var recordingFile: File? = null
     private val handler = Handler(Looper.getMainLooper())
 
-    private fun isArabic(): Boolean = Locale.getDefault().language.startsWith("ar")
+    /**
+     * UI language resolution: the language selected inside the app (mirrored
+     * to SharedPreferences by Flutter) wins; the device locale is the
+     * fallback. Notification copy follows the user's choice, not the phone's.
+     */
+    private fun savedLanguageTag(): String {
+        val saved = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            .getString("flutter.app_locale", null)
+        if (!saved.isNullOrBlank()) return Locale.forLanguageTag(saved).toLanguageTag()
+        return Locale.getDefault().toLanguageTag()
+    }
+
+    private fun isArabic(): Boolean = savedLanguageTag().startsWith("ar")
+
+    /** API endpoint mirrored from Flutter at startup (see main.dart). */
+    private fun apiBaseUrl(): String {
+        val saved = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            .getString("flutter.lifestyle.api_base_url", null)
+        return if (!saved.isNullOrBlank()) saved.trimEnd('/') else "https://life-style-app-production.up.railway.app/api/v1"
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -155,7 +174,7 @@ class VoiceRecordingService : Service() {
                 val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm EEEE", Locale.ENGLISH)
                 val currentDateTime = sdf.format(Date())
 
-                val prompt = "Current datetime is $currentDateTime. Extract task title, dueDate (YYYY-MM-DD), and dueTime (HH:mm 24-hr format) from this speech (Arabic or English). Return JSON with keys: title, dueDate, dueTime, hasTime."
+                val prompt = "Current datetime is $currentDateTime. Extract task title, dueDate (YYYY-MM-DD), and dueTime (HH:mm 24-hr format) from this speech, whatever language it is spoken in (detect the language automatically: Arabic, English, French, Spanish, German, Turkish, or any other). Return JSON with keys: title, dueDate, dueTime, hasTime."
 
                 val jsonPayload = JSONObject().apply {
                     put("generationConfig", JSONObject().apply {
@@ -294,7 +313,7 @@ class VoiceRecordingService : Service() {
             val accessToken = sessionJson.optString("accessToken", "")
             if (accessToken.isEmpty()) return
 
-            val taskUrl = URL("https://life-style-app-production.up.railway.app/api/v1/tasks")
+            val taskUrl = URL("${apiBaseUrl()}/tasks")
             val conn = (taskUrl.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json")

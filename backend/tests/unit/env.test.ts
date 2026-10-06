@@ -107,16 +107,45 @@ describe('Environment Configuration Validation (Spec §16.6)', () => {
     expect(validateEnv(productionEnv).DATABASE_SSL).toBe(true);
   });
 
-  it('requires the least-privilege PostgreSQL role in production', () => {
+  it('permits the least-privilege role and the managed-cloud admin role in production', () => {
+    const productionBase = {
+      ...validBaseEnv,
+      NODE_ENV: 'production',
+      DATABASE_SSL: 'true',
+      JWT_ACCESS_SECRET: 'prod-jwt-secret-generated-by-a-secret-manager-012345',
+      OTP_HMAC_SECRET: 'prod-otp-secret-generated-by-a-secret-manager-012345'
+    };
+
+    // Preferred: least-privilege runtime role.
+    expect(
+      validateEnv({
+        ...productionBase,
+        DATABASE_URL: 'postgresql://lifestyle_app:pass@localhost:5432/lifestyle_prod'
+      }).DATABASE_URL
+    ).toContain('lifestyle_app');
+
+    // Accepted exception (commit 12af0b9): managed cloud databases such as
+    // Railway/Neon only expose their admin role, so `postgres` is permitted.
+    expect(
+      validateEnv({
+        ...productionBase,
+        DATABASE_URL: 'postgresql://postgres:pass@localhost:5432/lifestyle_prod'
+      }).DATABASE_URL
+    ).toContain('postgres');
+  });
+
+  it('rejects arbitrary database roles in production', () => {
     const productionEnv = {
       ...validBaseEnv,
       NODE_ENV: 'production',
       DATABASE_SSL: 'true',
       JWT_ACCESS_SECRET: 'prod-jwt-secret-generated-by-a-secret-manager-012345',
       OTP_HMAC_SECRET: 'prod-otp-secret-generated-by-a-secret-manager-012345',
-      DATABASE_URL: 'postgresql://postgres:pass@localhost:5432/lifestyle_prod'
+      DATABASE_URL: 'postgresql://root:pass@localhost:5432/lifestyle_prod'
     };
 
-    expect(() => validateEnv(productionEnv)).toThrowError(/least-privilege lifestyle_app role/);
+    expect(() => validateEnv(productionEnv)).toThrowError(
+      /DATABASE_URL must use lifestyle_app or postgres in production/
+    );
   });
 });

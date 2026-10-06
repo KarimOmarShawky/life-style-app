@@ -72,7 +72,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     final response = await AiService.instance.sendMessage(
       conversationHistory: _messages.sublist(0, _messages.length - 1),
       newMessage: text,
-      isArabic: l10n.isArabic,
+      languageName: l10n.promptLanguageName,
     );
 
     if (!mounted) return;
@@ -161,8 +161,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                   final isUser = message.role == 'user';
                   return Align(
                     alignment: isUser
-                        ? (l10n.isArabic ? Alignment.centerLeft : Alignment.centerRight)
-                        : (l10n.isArabic ? Alignment.centerRight : Alignment.centerLeft),
+                        ? (l10n.isRTL ? Alignment.centerLeft : Alignment.centerRight)
+                        : (l10n.isRTL ? Alignment.centerRight : Alignment.centerLeft),
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       constraints: BoxConstraints(

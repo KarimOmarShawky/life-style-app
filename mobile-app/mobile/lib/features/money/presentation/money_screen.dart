@@ -6,6 +6,7 @@ import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
 import 'package:lifestyle_mobile/features/money/presentation/subscriptions_screen.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
+import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 import 'widgets/budget_card.dart';
@@ -112,6 +113,10 @@ class MoneyScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Wallet / banking SMS auto-capture toggle
+            const _SmsSyncCard(),
             const SizedBox(height: 16),
 
             // Financial Overview Card
@@ -750,4 +755,55 @@ String _generateUuidV4() {
   String hex(List<int> bytes) =>
       bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   return '${hex(values.sublist(0, 4))}-${hex(values.sublist(4, 6))}-${hex(values.sublist(6, 8))}-${hex(values.sublist(8, 10))}-${hex(values.sublist(10, 16))}';
+}
+
+/// Settings card that enables automatic capture of wallet & banking SMS
+/// (InstaPay, Vodafone Cash, Orange Money, ...). The native broadcast
+/// receiver logs detected transactions against the configured API.
+class _SmsSyncCard extends ConsumerWidget {
+  const _SmsSyncCard();
+
+  static const MethodChannel _channel =
+      MethodChannel('com.example.lifestyle_mobile/native_voice');
+
+  Future<void> _toggle(BuildContext context, WidgetRef ref, bool enabled) async {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    if (enabled) {
+      try {
+        final bool? granted =
+            await _channel.invokeMethod<bool>('requestSmsPermission');
+        if (granted != true) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.smsPermissionDenied)),
+            );
+          }
+          return;
+        }
+      } catch (_) {
+        // No native handler (e.g. tests / other platforms): keep toggle.
+      }
+    }
+    await ref.read(settingsProvider.notifier).setSmsSyncEnabled(enabled);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final bool enabled = ref.watch(settingsProvider).smsSyncEnabled;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: SwitchListTile.adaptive(
+        secondary: const Icon(Icons.sms_outlined),
+        title: Text(l10n.smsSyncTitle,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(l10n.smsSyncDesc),
+        ),
+        value: enabled,
+        onChanged: (bool value) => _toggle(context, ref, value),
+      ),
+    );
+  }
 }

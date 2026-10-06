@@ -21,6 +21,21 @@ import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
 import { getContainer } from '../../src/container.js';
 
 describe('Money Integration Tests', () => {
+  /**
+   * Budget usage aggregates over the *current* calendar month, so fixtures
+   * must be anchored to today's month instead of a hard-coded one (the old
+   * 2026-09 dates silently expired and zeroed the usage windows).
+   */
+  const currentMonthDay = (day: number): string => {
+    const now = new Date();
+    // Clamp to today: transaction validation rejects future dates, and budget
+    // usage only aggregates the current calendar month.
+    const clamped = Math.min(day, now.getDate());
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(clamped).padStart(2, '0');
+    return `${now.getFullYear()}-${mm}-${dd}`;
+  };
+
   const app = createApp();
   const pool = getPgPool();
   const redis = getRedisClient();
@@ -69,7 +84,7 @@ describe('Money Integration Tests', () => {
           kind: 'expense',
           amount: '0.10',
           currency: 'USD',
-          occurredOn: '2026-09-15'
+          occurredOn: currentMonthDay(15)
         });
       expect(tx1.status).toBe(201);
 
@@ -82,7 +97,7 @@ describe('Money Integration Tests', () => {
           kind: 'expense',
           amount: '0.20',
           currency: 'USD',
-          occurredOn: '2026-09-16'
+          occurredOn: currentMonthDay(16)
         });
       expect(tx2.status).toBe(201);
 
@@ -433,7 +448,7 @@ describe('Money Integration Tests', () => {
           kind: 'expense',
           amount: '75.00',
           currency: 'USD',
-          occurredOn: '2026-09-10',
+          occurredOn: currentMonthDay(10),
           categoryId: catId
         });
 

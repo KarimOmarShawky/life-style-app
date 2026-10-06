@@ -57,7 +57,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         setState(() => _formError = _getSafeErrorMessage(state.error!));
       }
     } catch (error) {
-      if (mounted) setState(() => _formError = _getSafeErrorMessage(error));
+      if (mounted) {
+        setState(() => _formError = _getSafeErrorMessage(error));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -156,7 +158,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       ),
                       validator: (value) {
                         final password = value ?? '';
-                        if (password.isEmpty) return localization.enterPasswordPrompt;
+                        if (password.isEmpty) {
+                          return localization.enterPasswordPrompt;
+                        }
                         if (_creatingAccount && password.length < 10) {
                           return localization.passwordLengthError;
                         }

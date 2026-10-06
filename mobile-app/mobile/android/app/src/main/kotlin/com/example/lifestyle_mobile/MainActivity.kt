@@ -31,7 +31,23 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.lifestyle_mobile/native_voice"
     private val REQUEST_SPEECH = 202
+    private val REQUEST_SMS = 303
     private var pendingVoiceResult: MethodChannel.Result? = null
+    private var pendingSmsResult: MethodChannel.Result? = null
+
+    /**
+     * Resolves the UI language: the language the user picked inside the app
+     * (mirrored to SharedPreferences by Flutter) wins, otherwise the device
+     * locale is used.
+     */
+    internal fun resolvedLanguageTag(): String {
+        val saved = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            .getString("flutter.app_locale", null)
+        if (!saved.isNullOrBlank()) return Locale.forLanguageTag(saved).toLanguageTag()
+        return Locale.getDefault().toLanguageTag()
+    }
+
+    internal fun resolvedIsArabic(): Boolean = resolvedLanguageTag().startsWith("ar")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,14 +69,28 @@ class MainActivity : FlutterActivity() {
                 }
                 "startVoiceRecognition" -> {
                     pendingVoiceResult = result
+                    // The Flutter side sends the active app language so the
+                    // recognizer listens in *that* language (any language the
+                    // app is localised in), not a hard-coded one.
+                    val requestedTag = call.argument<String>("languageTag")
+                    val tag = if (requestedTag.isNullOrBlank()) {
+                        resolvedLanguageTag()
+                    } else {
+                        requestedTag
+                    }
                     if (SpeechRecognizer.isRecognitionAvailable(this)) {
                         try {
                             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                // Must be a BCP-47 String tag; passing a Locale
+                                // object here silently made the recognizer fall
+                                // back to English on many devices.
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, tag)
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, tag)
+                                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                                 putExtra(
                                     RecognizerIntent.EXTRA_PROMPT,
-                                    if (Locale.getDefault().language.startsWith("ar")) "تحدث بمهمتك الآن..." else "Speak your task now..."
+                                    if (tag.startsWith("ar")) "تحدث بمهمتك الآن..." else "Speak your task now..."
                                 )
                             }
                             startActivityForResult(intent, REQUEST_SPEECH)
@@ -71,8 +101,35 @@ class MainActivity : FlutterActivity() {
                         startDirectMediaRecording(result)
                     }
                 }
+                "requestSmsPermission" -> {
+                    if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) {
+                        result.success(true)
+                    } else {
+                        pendingSmsResult = result
+                        requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), REQUEST_SMS)
+                    }
+                }
+                "checkSmsPermission" -> {
+                    result.success(
+                        checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+                    )
+                }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_SMS) {
+            val granted = grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingSmsResult?.success(granted)
+            pendingSmsResult = null
         }
     }
 
@@ -178,7 +235,7 @@ class MainActivity : FlutterActivity() {
                 readTimeout = 8000
             }
 
-            val prompt = "Transcribe the Arabic or English speech in this audio clip accurately. Return only the plain transcribed words without extra text or punctuation."
+            val prompt = "Transcribe the speech in this audio clip accurately, keeping the original language it is spoken in (any language: Arabic, English, French, Spanish, German, Turkish, or anything else). Return only the plain transcribed words without extra text or punctuation."
 
             val jsonPayload = org.json.JSONObject().apply {
                 put("generationConfig", org.json.JSONObject().apply {
@@ -257,7 +314,13 @@ class MainActivity : FlutterActivity() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val isArabic = Locale.getDefault().language.startsWith("ar")
+            val savedLocale = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                .getString("flutter.app_locale", null)
+            val isArabic = if (!savedLocale.isNullOrBlank()) {
+                savedLocale.startsWith("ar")
+            } else {
+                Locale.getDefault().language.startsWith("ar")
+            }
             val notifTitle = if (isArabic) "لايف ستايل: إضافة موعد سريع" else "LifeStyle: Quick Voice Add"
             val notifText = if (isArabic) "اضغط على الزر وتحدث بصوتك لضبط المنبه فوراً" else "Tap button & speak to set alarm instantly"
             val actionLabel = if (isArabic) "تسجيل صوتي بالمايك" else "Voice Record"

@@ -29,16 +29,17 @@ You help the user:
 - Suggest healthy, sustainable habits and give motivational tips.
 - Help them organize their thoughts, notes, and tasks efficiently.
 - Answer questions with actionable, clear, bullet-pointed advice.
-Language: Respond in the exact language the user talks in (Egyptian Arabic, Modern Standard Arabic, or English).
+Language: Respond in the preferred language specified with each request. Any human language may be requested; always honour it.
 Tone: Friendly, motivating, professional, concise, and focused on execution. Avoid fluff.
 ''';
 
   Future<String> sendMessage({
     required List<ChatMessage> conversationHistory,
     required String newMessage,
-    bool isArabic = true,
+    String languageName = 'Arabic',
     Duration timeout = const Duration(seconds: 12),
   }) async {
+    final bool isArabic = languageName == 'Arabic';
     final key = AppConfig.geminiApiKey.trim();
     if (key.isEmpty) {
       return isArabic
@@ -63,7 +64,7 @@ Tone: Friendly, motivating, professional, concise, and focused on execution. Avo
       contents.add({
         'role': 'user',
         'parts': [
-          {'text': 'System context: $_systemPrompt\nPreferred language: ${isArabic ? "Arabic" : "English"}\n\nUser request: $newMessage'}
+          {'text': 'System context: $_systemPrompt\nPreferred language: $languageName\n\nUser request: $newMessage'}
         ]
       });
 
@@ -113,8 +114,9 @@ Tone: Friendly, motivating, professional, concise, and focused on execution. Avo
     required int pendingTasksCount,
     required int completedHabitsCount,
     required int totalHabitsCount,
-    bool isArabic = true,
+    String languageName = 'Arabic',
   }) async {
+    final bool isArabic = languageName == 'Arabic';
     final key = AppConfig.geminiApiKey.trim();
     final hour = DateTime.now().hour;
     final isMorning = hour < 14;
@@ -141,7 +143,7 @@ Write a short, inspiring, 2-sentence ${isMorning ? "morning briefing" : "evening
 Details:
 - Pending tasks for today: $pendingTasksCount
 - Completed habits today: $completedHabitsCount out of $totalHabitsCount
-Language: ${isArabic ? "Friendly Egyptian/Modern Arabic." : "English. Friendly, clear, and inspiring."}
+Language: $languageName. Friendly, clear, and inspiring.
 Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
 ''';
 

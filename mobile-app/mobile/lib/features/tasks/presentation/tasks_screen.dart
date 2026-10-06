@@ -766,7 +766,9 @@ Future<void> _showSmartQuickAdd(
               setDialogState(() => error = _safeMessage(e));
             }
           } finally {
-            if (dialogContext.mounted) setDialogState(() => busy = false);
+            if (dialogContext.mounted) {
+              setDialogState(() => busy = false);
+            }
           }
         }
 
@@ -778,7 +780,13 @@ Future<void> _showSmartQuickAdd(
           setDialogState(() => isListening = true);
           try {
             const channel = MethodChannel('com.example.lifestyle_mobile/native_voice');
-            final spokenText = await channel.invokeMethod<String>('startVoiceRecognition');
+            final spokenText = await channel.invokeMethod<String>(
+              'startVoiceRecognition',
+              <String, String>{
+                'languageTag':
+                    Localizations.localeOf(dialogContext).toLanguageTag(),
+              },
+            );
             if (dialogContext.mounted) {
               if (spokenText != null && spokenText.trim().isNotEmpty) {
                 controller.text = spokenText.trim();
@@ -790,18 +798,16 @@ Future<void> _showSmartQuickAdd(
                 setDialogState(() => isListening = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      l10n.isArabic
-                          ? 'لم يتم التقاط صوت، يرجى المحاولة والتحدث بوضوح'
-                          : 'No speech detected, please try speaking again',
-                    ),
+                    content: Text(l10n.noSpeechDetected),
                     duration: const Duration(seconds: 2),
                   ),
                 );
               }
             }
           } catch (_) {
-            if (dialogContext.mounted) setDialogState(() => isListening = false);
+            if (dialogContext.mounted) {
+              setDialogState(() => isListening = false);
+            }
           }
         }
 
@@ -1131,7 +1137,9 @@ Future<void> _showAddTask(
               setDialogState(() => error = _safeMessage(exception));
             }
           } finally {
-            if (dialogContext.mounted) setDialogState(() => busy = false);
+            if (dialogContext.mounted) {
+              setDialogState(() => busy = false);
+            }
           }
         }
 

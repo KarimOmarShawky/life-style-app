@@ -96,7 +96,15 @@ jobs:
           JWT_ACCESS_SECRET: test-secret-at-least-32-characters-long-for-hs256
           OTP_HMAC_SECRET: test-otp-secret-at-least-32-characters-long
           LOG_LEVEL: silent
-        run: npm test
+        run: |
+          npm test > npm-test.log 2>&1 || {
+            echo '### failure log: npm-test.log' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 npm-test.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "FAIL|AssertionError|Error:|×|→" npm-test.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
+            exit 1
+          }
 
       - name: Production dependency security audit
         working-directory: backend
@@ -107,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: mobile
+        working-directory: mobile-app/mobile
 
     steps:
       - name: Checkout repository
@@ -125,16 +133,40 @@ jobs:
         run: dart format lib test
 
       - name: Flutter static analysis
-        run: flutter analyze --fatal-infos
+        run: |
+          flutter analyze --fatal-infos > analyze.log 2>&1 || {
+            echo '### failure log: analyze.log' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 analyze.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "error •|error -|warning -|info -|\.dart" analyze.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
+            exit 1
+          }
 
       - name: Flutter tests
-        run: flutter test --coverage
+        run: |
+          flutter test --coverage > flutter-test.log 2>&1 || {
+            echo '### failure log: flutter-test.log' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 flutter-test.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "FAILED|Error|Exception|Expected" flutter-test.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
+            exit 1
+          }
 
       - name: Build Android Release APK
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release > build.log 2>&1 || {
+            echo '### failure log: build.log' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 build.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "error|FAILURE|Exception|failed" build.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
+            exit 1
+          }
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lifestyle-app-release-apk
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: mobile-app/mobile/build/app/outputs/flutter-apk/app-release.apk

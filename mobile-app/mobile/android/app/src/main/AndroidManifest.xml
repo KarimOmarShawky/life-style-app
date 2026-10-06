@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Wallet/banking SMS auto-capture (opt-in from the Money screen). -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
 
     <application
         android:label="LifeStyle"
@@ -71,6 +73,22 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.example.lifestyle_mobile.DISMISS_ALARM" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          Wallet / banking SMS auto-capture. exported=true is required because
+          the broadcast originates from the Android telephony system; the
+          BROADCAST_SMS permission restricts delivery to system-sent SMS only.
+          The receiver itself re-checks the in-app opt-in flag and the runtime
+          permission before doing any work.
+        -->
+        <receiver
+            android:name=".SmsTransactionReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
 

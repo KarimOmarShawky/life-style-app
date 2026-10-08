@@ -58,10 +58,7 @@ class MoreScreen extends StatelessWidget {
                 leading: Icon(item.icon),
                 title: Text(item.title),
                 subtitle: Text(item.subtitle),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  matchTextDirection: true,
-                ),
+                trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: item.builder),
                 ),

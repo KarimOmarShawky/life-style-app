@@ -292,7 +292,7 @@ class _RecurringTaskFormScreenState
                 label: l10n.dueTimeLabel,
                 valueText: _dueTime == null
                     ? l10n.notSet
-                    : formatDisplayTime(context, _dueTime!),
+                    : formatDisplayTimeOfDay(context, _dueTime!),
                 onTap: _pickDueTime,
                 onClear: _dueTime == null
                     ? null
@@ -380,7 +380,7 @@ class _RecurringTaskFormScreenState
                   children: [
                     for (final isoDay in const [1, 2, 3, 4, 5, 6, 7])
                       FilterChip(
-                        label: Text(isoWeekdayLabel(context, isoDay)),
+                        label: Text(isoWeekdayLabel(l10n, isoDay)),
                         selected: _weekdays.contains(isoDay),
                         onSelected: (selected) {
                           setState(() {

@@ -37,7 +37,7 @@ class CalendarScreen extends ConsumerWidget {
             children: [
               IconButton(
                 tooltip: l10n.previousDay,
-                icon: const Icon(Icons.chevron_left, matchTextDirection: true),
+                icon: const Icon(Icons.chevron_left),
                 onPressed: () =>
                     moveTo(day.subtract(const Duration(days: 1))),
               ),
@@ -60,7 +60,7 @@ class CalendarScreen extends ConsumerWidget {
               ),
               IconButton(
                 tooltip: l10n.nextDay,
-                icon: const Icon(Icons.chevron_right, matchTextDirection: true),
+                icon: const Icon(Icons.chevron_right),
                 onPressed: () => moveTo(day.add(const Duration(days: 1))),
               ),
             ],

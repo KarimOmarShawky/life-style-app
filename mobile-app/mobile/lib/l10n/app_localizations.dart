@@ -460,6 +460,14 @@ class AppLocalizations {
   String projectTaskCounts(int open, int done) => _f('projectTaskCounts', <String, Object>{'open': open, 'done': done});
   String recurrenceEvery(int count, String unit) => _f('recurrenceEvery', <String, Object>{'count': count, 'unit': unit});
 
+  String get weekdayMon => _s('weekdayMon');
+  String get weekdayTue => _s('weekdayTue');
+  String get weekdayWed => _s('weekdayWed');
+  String get weekdayThu => _s('weekdayThu');
+  String get weekdayFri => _s('weekdayFri');
+  String get weekdaySat => _s('weekdaySat');
+  String get weekdaySun => _s('weekdaySun');
+
   /// Generic catalog lookup for keys without a dedicated getter.
   String tr(String key) => _s(key);
 }

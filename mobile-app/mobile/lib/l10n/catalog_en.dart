@@ -344,4 +344,11 @@ const Map<String, String> enCatalog = {
   'minutesBefore': '{n} min before',
   'projectTaskCounts': '{open} open · {done} done',
   'recurrenceEvery': 'Every {count} {unit}',
+  'weekdayMon': 'Mon',
+  'weekdayTue': 'Tue',
+  'weekdayWed': 'Wed',
+  'weekdayThu': 'Thu',
+  'weekdayFri': 'Fri',
+  'weekdaySat': 'Sat',
+  'weekdaySun': 'Sun',
 };

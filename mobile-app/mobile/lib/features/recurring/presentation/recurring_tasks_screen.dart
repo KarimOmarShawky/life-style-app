@@ -130,7 +130,7 @@ class _RecurringTaskCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      recurrenceSummary(context, l10n, task.recurrence),
+                      recurrenceSummary(l10n, task.recurrence),
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: 4),

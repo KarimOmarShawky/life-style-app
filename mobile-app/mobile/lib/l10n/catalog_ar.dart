@@ -344,4 +344,11 @@ const Map<String, String> arCatalog = {
   'minutesBefore': 'قبل {n} دقيقة',
   'projectTaskCounts': '{open} مفتوحة · {done} مكتملة',
   'recurrenceEvery': 'كل {count} {unit}',
+  'weekdayMon': 'الاثنين',
+  'weekdayTue': 'الثلاثاء',
+  'weekdayWed': 'الأربعاء',
+  'weekdayThu': 'الخميس',
+  'weekdayFri': 'الجمعة',
+  'weekdaySat': 'السبت',
+  'weekdaySun': 'الأحد',
 };

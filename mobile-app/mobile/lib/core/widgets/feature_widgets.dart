@@ -161,12 +161,17 @@ String formatDisplayDate(
   return MaterialLocalizations.of(context).formatMediumDate(value);
 }
 
-/// Localized clock time, following the device's 12 or 24-hour setting.
-String formatDisplayTime(BuildContext context, DateTime value) {
+/// Localized clock time of day, following the device's 12 or 24-hour setting.
+String formatDisplayTimeOfDay(BuildContext context, TimeOfDay time) {
   return MaterialLocalizations.of(context).formatTimeOfDay(
-    TimeOfDay.fromDateTime(value),
+    time,
     alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
   );
+}
+
+/// Localized clock time of an instant (local time).
+String formatDisplayTime(BuildContext context, DateTime value) {
+  return formatDisplayTimeOfDay(context, TimeOfDay.fromDateTime(value));
 }
 
 /// Converts a 0-100 percentage into the 0.0-1.0 range that progress indicators expect.

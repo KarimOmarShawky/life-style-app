@@ -29,7 +29,7 @@ You help the user:
 - Suggest healthy, sustainable habits and give motivational tips.
 - Help them organize their thoughts, notes, and tasks efficiently.
 - Answer questions with actionable, clear, bullet-pointed advice.
-Language: Respond in the preferred language specified with each request. Any human language may be requested; always honour it.
+Language: Always reply in the same language as the user's latest request (Arabic, English, French, or any other language), even when the app interface uses a different language. Keep code, brand names, and numbers as the user wrote them.
 Tone: Friendly, motivating, professional, concise, and focused on execution. Avoid fluff.
 ''';
 
@@ -64,7 +64,10 @@ Tone: Friendly, motivating, professional, concise, and focused on execution. Avo
       contents.add({
         'role': 'user',
         'parts': [
-          {'text': 'System context: $_systemPrompt\nPreferred language: $languageName\n\nUser request: $newMessage'}
+          {
+            'text':
+                'System context: $_systemPrompt\nReply language: write the reply in the same language as the user request below. Use $languageName only if the request has no detectable language.\n\nUser request: $newMessage'
+          }
         ]
       });
 

@@ -56,3 +56,29 @@ For iOS, add `lifestyle` to `CFBundleURLTypes` in the generated Runner `Info.pli
 - Staging/production: `https://<configured-api-host>/api/v1`
 
 The client sends bearer access tokens in the `Authorization` header. It never uses cookies. The API remains authoritative for validation, ownership, money, date, and concurrency rules.
+
+## Optional AI build define
+
+The AI assistant and native voice transcription use Gemini. They are disabled unless the app is built with the key:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1 --dart-define=GEMINI_API_KEY=<key>
+```
+
+The key has no source default. On startup the app mirrors it into the app's private SharedPreferences (`flutter.gemini_api_key`) so native voice code can read it. A build-time define is still compiled into the APK, so anyone who extracts the app can read the key. For production, move the Gemini call behind a backend endpoint that reads the key from server configuration.
+
+## Wallet SMS capture
+
+When the user enables wallet SMS capture on the Money screen and grants `RECEIVE_SMS`, the Android receiver parses bank and wallet messages. Each detected transaction is saved to a local queue first, then sent:
+
+- If the stored access token is still valid, the receiver sends the transaction right away.
+- Otherwise the Flutter app sends queued transactions on start and on resume, through `ApiClient`, which owns token refresh.
+- The queue entry id is the `Idempotency-Key`, so a retry cannot create a duplicate.
+
+The receiver never refreshes tokens itself. The backend revokes a session when a refresh token is reused.
+
+## Planning modules
+
+The "More" tab opens Calendar (day agenda, event reminders, conflict check before save), Goals (milestones or numeric progress), Projects, Recurring tasks, and Focus history. The focus timer records each running period on the selected task through `/timer-sessions`. Periods without a task stay on the device only, because the API requires a task.
+
+New UI strings have English and Arabic catalog entries. The other locales fall back to English until they are translated.

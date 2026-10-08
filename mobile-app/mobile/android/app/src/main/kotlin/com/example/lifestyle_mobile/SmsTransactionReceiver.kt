@@ -1,13 +1,13 @@
 package com.example.lifestyle_mobile
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.os.Build
 import android.provider.Telephony
@@ -21,56 +21,127 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.regex.Pattern
+import java.util.TimeZone
+import java.util.UUID
 
+/**
+ * Captures wallet and bank transaction SMS and records them in the LifeStyle app.
+ *
+ * Reliability model:
+ *  - The broadcast is handled with goAsync(), so the work is not cut off when onReceive returns.
+ *  - Each detected transaction is written to its own SharedPreferences entry
+ *    ("pending_wallet_tx.<uuid>") before any network call, so nothing is lost while offline.
+ *  - The entry id is sent as the Idempotency-Key, so a retry can never create a duplicate.
+ *  - The stored access token is used only while it is still valid. This receiver never refreshes
+ *    tokens: the backend revokes the whole session when a refresh token is reused. Anything still
+ *    queued is flushed by the Flutter app (PendingWalletTransactions) on its next start or resume,
+ *    through ApiClient, which owns token refresh.
+ */
 class SmsTransactionReceiver : BroadcastReceiver() {
 
     companion object {
         const val TAG = "SmsTransactionReceiver"
         const val CHANNEL_ID = "lifestyle_sms_transactions_channel"
         const val NOTIFICATION_ID = 999
+
+        private const val PREFS_NAME = "FlutterSharedPreferences"
+        private const val KEY_SYNC_ENABLED = "flutter.sms_sync_enabled"
+        private const val KEY_SESSION = "flutter.lifestyle.session.v1"
+        private const val KEY_API_BASE = "flutter.lifestyle.api_base_url"
+        const val PENDING_PREFIX = "flutter.pending_wallet_tx."
+        private const val DEFAULT_API_BASE = "https://life-style-app-production.up.railway.app/api/v1"
+        private const val TOKEN_MARGIN_MS = 60_000L
+        private const val CONNECT_TIMEOUT_MS = 8_000
+        private const val READ_TIMEOUT_MS = 8_000
+
+        // 400 and 422: the payload is invalid. 409: the idempotency key was reused with other data.
+        // Retrying cannot succeed for these, so the queued entry is dropped.
+        private val PERMANENT_REJECTIONS = setOf(400, 409, 422)
+
+        // One-time passwords are never transactions.
+        private val OTP_PATTERN = Regex("""(?i)\botp\b|رمز التحقق|كود التحقق|verification code""")
+
+        // Sender hints for known wallets and banks (matched against the lower-cased sender).
+        private val KNOWN_SENDER_HINTS = listOf(
+            "instapay", "ipn", "vodafone", "vf-cash", "vfcash", "orange", "etisalat",
+            "we pay", "wepay", "fawry", "cib", "nbe", "banque misr", "qnb", "alexbank",
+            "adib", "hsbc", "mashreq", "ahly", "ahli", "emirates nbd", "enbd", "faisal",
+            "aaib", "bdc", "al baraka", "suez canal"
+        )
+
+        // Wallet names that appear in the body even when the sender code is unknown.
+        private val WALLET_NAMES = listOf(
+            "انستاباي", "فودافون كاش", "اورنج كاش", "اتصالات كاش", "وي باي", "instapay", "vodafone cash"
+        )
+
+        // A transaction message must describe a money movement.
+        private val MOVEMENT_KEYWORDS = listOf(
+            "خصم", "تحويل", "دفع", "سحب", "شراء", "استلام", "إيداع", "سداد", "شحن",
+            "debited", "credited", "paid", "received", "deposited", "transferred", "purchase", "withdraw"
+        )
+
+        private val INCOME_KEYWORDS = listOf(
+            "استلام", "إيداع", "تم تحويل لك", "تم شحن رصيد", "received", "deposited", "credited"
+        )
+
+        // Amount candidates, in priority order. A number must be tied to a currency or to a
+        // money keyword. Bare numbers (reference numbers, dates, percentages) are never amounts.
+        private val AMOUNT_PATTERNS: List<Regex> = listOf(
+            // "EGP 500", "LE 500.50", "جنيه 500"
+            Regex("""(?i)(?:EGP|LE|جنيه|جم|ج\.م)\s*(\d+(?:\.\d{1,2})?)"""),
+            // "500 EGP", "500.00 جنيه", "500 جم"
+            Regex("""(?i)(\d+(?:\.\d{1,2})?)\s*(?:EGP|LE|L\.E\.?|جنيه|جم|ج\.م)"""),
+            // "مبلغ 500", "قيمة: 500", "amount 500"
+            Regex("""(?i)(?:مبلغ|بمبلغ|قيمة|amount)\s*:?\s*(?:EGP|LE|جنيه|جم)?\s*(\d+(?:\.\d{1,2})?)"""),
+            // "تم خصم 500", "تحويل 100" (a keyword followed by a number, never a percentage)
+            Regex("""(?:خصم|تحويل|سحب|دفع|شراء|استلام|إيداع)\s+(?:مبلغ\s+)?(\d+(?:\.\d{1,2})?)(?![\d.]*\s*%)""")
+        )
+
+        // Numbers preceded by these words are balances or references, not the transaction amount.
+        private val NON_TRANSACTION_CONTEXT = listOf(
+            "رصيد", "متاح", "balance", "available", "مرجع", "reference", "رمز", "otp"
+        )
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
 
-        // Gate 1: the user must have enabled wallet SMS capture in-app.
-        val enabled = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            .getBoolean("flutter.sms_sync_enabled", false)
-        if (!enabled) return
-
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        // Gate 1: the user must have enabled wallet SMS capture in the app.
+        if (!prefs.getBoolean(KEY_SYNC_ENABLED, false)) return
         // Gate 2: the runtime permission must still be granted.
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) return
 
-        try {
-            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
-            if (messages.isNullOrEmpty()) return
-
-            val fullBody = StringBuilder()
-            var sender = ""
-
-            for (sms in messages) {
-                sender = sms.displayOriginatingAddress ?: sms.originatingAddress ?: "Unknown"
-                fullBody.append(sms.displayMessageBody ?: sms.messageBody ?: "")
-            }
-
-            val body = fullBody.toString()
-            Log.d(TAG, "Received SMS from: $sender, content: $body")
-
-            // Parse transaction details
-            val transaction = parseSmsTransaction(sender, body) ?: return
-
-            // 1. Show notification to user
-            showTransactionNotification(context, transaction)
-
-            // 2. Synchronize transaction to backend
-            Thread {
-                syncTransactionToBackend(context, transaction)
-            }.start()
-
+        val messages = try {
+            Telephony.Sms.Intents.getMessagesFromIntent(intent)
         } catch (e: Exception) {
-            Log.e(TAG, "Error processing incoming SMS", e)
+            Log.e(TAG, "Could not read the SMS intent", e)
+            return
         }
+        if (messages.isNullOrEmpty()) return
+
+        val sender = messages[0].displayOriginatingAddress ?: messages[0].originatingAddress ?: "Unknown"
+        val body = messages.joinToString(separator = "") { it.displayMessageBody ?: it.messageBody ?: "" }
+        val receivedAtMs = messages[0].timestampMillis
+        // The body is not logged: it contains financial details.
+        Log.d(TAG, "Incoming SMS received")
+
+        // goAsync keeps this receiver alive while the message is parsed, stored and sent.
+        val pendingResult = goAsync()
+        Thread {
+            try {
+                val transaction = parseSmsTransaction(sender, body)
+                if (transaction != null) {
+                    showTransactionNotification(context, transaction)
+                    enqueueTransaction(context, transaction, receivedAtMs)
+                    flushPendingIfFresh(context)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing incoming SMS", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }.start()
     }
 
     data class DetectedTransaction(
@@ -83,75 +154,30 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     )
 
     private fun parseSmsTransaction(sender: String, body: String): DetectedTransaction? {
+        if (OTP_PATTERN.containsMatchIn(body)) return null
+
         val lowerSender = sender.lowercase(Locale.ROOT)
+        val lowerBody = body.lowercase(Locale.ROOT)
         val normalizedBody = body.replace(",", "")
 
-        // Check if message is related to wallets or banking in Egypt
-        val isWalletOrBank = lowerSender.contains("instapay") ||
-                lowerSender.contains("ipn") ||
-                lowerSender.contains("vodafone") ||
-                lowerSender.contains("vf-cash") ||
-                lowerSender.contains("vfcash") ||
-                lowerSender.contains("orange") ||
-                lowerSender.contains("etisalat") ||
-                lowerSender.contains("we pay") ||
-                lowerSender.contains("wepay") ||
-                lowerSender.contains("fawry") ||
-                lowerSender.contains("cib") ||
-                lowerSender.contains("nbe") ||
-                lowerSender.contains("banque misr") ||
-                lowerSender.contains("qnb") ||
-                lowerSender.contains("alexbank") ||
-                body.contains("انستاباي") ||
-                body.contains("فودافون كاش") ||
-                body.contains("اورنج كاش") ||
-                body.contains("اتصالات كاش") ||
-                body.contains("وي باي") ||
-                body.contains("محفظة") ||
-                body.contains("تحويل") ||
-                body.contains("خصم") ||
-                body.contains("شراء") ||
-                body.contains("إيداع") ||
-                body.contains("استلام")
+        val knownSender = KNOWN_SENDER_HINTS.any { lowerSender.contains(it) }
+        val walletInBody = WALLET_NAMES.any { lowerBody.contains(it) }
+        if (!knownSender && !walletInBody) return null
+        if (MOVEMENT_KEYWORDS.none { lowerBody.contains(it) }) return null
 
-        if (!isWalletOrBank) return null
+        val amount = findAmount(normalizedBody) ?: return null
 
-        // Detect Amount (handles 500, 500.50, 1000 EGP, 500 جم, 500 جنيه)
-        val amountPattern = Pattern.compile("(?:مبلغ|قيمة|بمبلغ|خصم|تحويل|إيداع|استلام)?\\s*(\\d+(?:\\.\\d{1,2})?)\\s*(?:جم|جنيه|ج\\.م|EGP|LE|egp)?", Pattern.CASE_INSENSITIVE)
-        val matcher = amountPattern.matcher(normalizedBody)
-
-        var amount: String? = null
-        while (matcher.find()) {
-            val candidate = matcher.group(1)
-            val num = candidate?.toDoubleOrNull()
-            if (num != null && num > 0) {
-                amount = String.format(Locale.US, "%.2f", num)
-                break
-            }
-        }
-
-        if (amount == null) return null
-
-        // Determine Type (Expense vs Income)
-        val isIncome = body.contains("استلام") ||
-                body.contains("إيداع") ||
-                body.contains("تم تحويل لك") ||
-                body.contains("تم شحن رصيد") ||
-                body.contains("تحويل من") ||
-                body.contains("received") ||
-                body.contains("deposited") ||
-                body.contains("credited")
-
+        val isIncome = INCOME_KEYWORDS.any { lowerBody.contains(it) }
         val type = if (isIncome) "income" else "expense"
 
-        // Determine Clean Merchant/Source
         val cleanMerchant = when {
             lowerSender.contains("instapay") || body.contains("انستاباي") -> "InstaPay"
-            lowerSender.contains("vodafone") || lowerSender.contains("vf") || body.contains("فودافون") -> "Vodafone Cash"
+            lowerSender.contains("vodafone") || lowerSender.contains("vfcash") ||
+                lowerSender.contains("vf-cash") || body.contains("فودافون") -> "Vodafone Cash"
             lowerSender.contains("orange") || body.contains("اورنج") -> "Orange Money"
             lowerSender.contains("etisalat") || body.contains("اتصالات") -> "Etisalat Cash"
-            lowerSender.contains("we") || body.contains("وي باي") -> "WE Pay"
-            lowerSender.contains("fawry") || body.contains("فوري") -> "Fawry"
+            lowerSender.contains("wepay") || lowerSender.contains("we pay") || body.contains("وي باي") -> "WE Pay"
+            lowerSender.contains("fawry") -> "Fawry"
             lowerSender.contains("cib") -> "CIB"
             lowerSender.contains("nbe") || body.contains("الأهلي") -> "NBE Bank"
             lowerSender.contains("misr") || body.contains("بنك مصر") -> "Banque Misr"
@@ -169,6 +195,125 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             description = description,
             rawMessage = body
         )
+    }
+
+    /** Returns the earliest plausible amount in the message, formatted with two decimals. */
+    private fun findAmount(normalizedBody: String): String? {
+        var bestStart = Int.MAX_VALUE
+        var bestValue: Double? = null
+        for (pattern in AMOUNT_PATTERNS) {
+            for (match in pattern.findAll(normalizedBody)) {
+                val group = match.groups[1] ?: continue
+                val value = group.value.toDoubleOrNull() ?: continue
+                if (value <= 0.0) continue
+                val start = group.range.first
+                val before = normalizedBody.substring(maxOf(0, start - 20), start).lowercase(Locale.ROOT)
+                if (NON_TRANSACTION_CONTEXT.any { before.contains(it) }) continue
+                if (start < bestStart) {
+                    bestStart = start
+                    bestValue = value
+                }
+            }
+        }
+        val value = bestValue ?: return null
+        return String.format(Locale.US, "%.2f", value)
+    }
+
+    /**
+     * Stores one transaction as its own SharedPreferences entry. commit() (not apply()) writes it to
+     * disk before the broadcast can be torn down. occurredOn is the SMS date, so a transaction that is
+     * flushed later still lands on the day it happened.
+     */
+    private fun enqueueTransaction(context: Context, tx: DetectedTransaction, receivedAtMs: Long) {
+        val id = UUID.randomUUID().toString()
+        val occurredOn = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(receivedAtMs))
+        val item = JSONObject()
+            .put("id", id)
+            .put("kind", tx.type)
+            .put("amount", tx.amount)
+            .put("currency", tx.currency)
+            .put("occurredOn", occurredOn)
+            .put("description", tx.description)
+            .put("merchant", tx.sender)
+            .put("createdAt", System.currentTimeMillis())
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(PENDING_PREFIX + id, item.toString())
+            .commit()
+    }
+
+    /**
+     * Sends queued transactions with the stored access token, but only while that token is valid.
+     * Entries the backend accepts or permanently rejects are removed. On any other failure the rest
+     * stays queued for the Flutter app.
+     */
+    private fun flushPendingIfFresh(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val sessionRaw = prefs.getString(KEY_SESSION, null) ?: return
+        val session = try {
+            JSONObject(sessionRaw)
+        } catch (e: Exception) {
+            return
+        }
+        val accessToken = session.optString("accessToken", "")
+        val expiresAtMs = parseIsoMillis(session.optString("accessTokenExpiresAt", "")) ?: return
+        if (accessToken.isEmpty() || expiresAtMs - TOKEN_MARGIN_MS <= System.currentTimeMillis()) return
+
+        val apiBase = prefs.getString(KEY_API_BASE, null)?.trimEnd('/') ?: DEFAULT_API_BASE
+        val pendingKeys = prefs.all.keys.filter { it.startsWith(PENDING_PREFIX) }.sorted()
+        for (key in pendingKeys) {
+            val raw = prefs.getString(key, null) ?: continue
+            val status = postTransaction(apiBase, accessToken, raw)
+            if (status in 200..299 || status in PERMANENT_REJECTIONS) {
+                prefs.edit().remove(key).commit()
+            } else {
+                // Expired token, network or server problem: keep the rest for a later attempt.
+                return
+            }
+        }
+    }
+
+    /** Returns the HTTP status code, or -1 when the request could not be completed. */
+    private fun postTransaction(apiBase: String, accessToken: String, rawItem: String): Int {
+        return try {
+            val item = JSONObject(rawItem)
+            val payload = JSONObject()
+                .put("kind", item.optString("kind"))
+                .put("amount", item.optString("amount"))
+                .put("currency", item.optString("currency", "EGP"))
+                .put("occurredOn", item.optString("occurredOn"))
+                .put("description", item.optString("description"))
+                .put("merchant", item.optString("merchant"))
+            val connection = URL("$apiBase/money/transactions").openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.connectTimeout = CONNECT_TIMEOUT_MS
+                connection.readTimeout = READ_TIMEOUT_MS
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                connection.setRequestProperty("Authorization", "Bearer $accessToken")
+                connection.setRequestProperty("Idempotency-Key", item.optString("id"))
+                OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { it.write(payload.toString()) }
+                connection.responseCode
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Wallet transaction sync failed", e)
+            -1
+        }
+    }
+
+    /** Parses the UTC ISO-8601 timestamps written by Dart. Sub-second precision is ignored. */
+    private fun parseIsoMillis(value: String): Long? {
+        if (value.length < 19) return null
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            format.timeZone = TimeZone.getTimeZone("UTC")
+            format.parse(value.substring(0, 19))?.time
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun showTransactionNotification(context: Context, tx: DetectedTransaction) {
@@ -220,49 +365,5 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             .build()
 
         manager.notify(NOTIFICATION_ID, notif)
-    }
-
-    private fun syncTransactionToBackend(context: Context, tx: DetectedTransaction) {
-        try {
-            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val sessionJsonStr = prefs.getString("flutter.lifestyle.session.v1", null) ?: return
-            val sessionJson = JSONObject(sessionJsonStr)
-            val accessToken = sessionJson.optString("accessToken", "")
-            if (accessToken.isEmpty()) return
-
-            val apiBase = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                .getString("flutter.lifestyle.api_base_url", null)
-                ?.trimEnd('/')
-                ?: "https://life-style-app-production.up.railway.app/api/v1"
-            val url = URL("$apiBase/money/transactions")
-            val uuid = java.util.UUID.randomUUID().toString()
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            val todayStr = sdf.format(Date())
-
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Authorization", "Bearer $accessToken")
-                setRequestProperty("Idempotency-Key", uuid)
-                doOutput = true
-                connectTimeout = 8000
-                readTimeout = 8000
-            }
-
-            val body = JSONObject().apply {
-                put("kind", tx.type)
-                put("amount", tx.amount)
-                put("currency", "EGP")
-                put("occurredOn", todayStr)
-                put("description", tx.description)
-                put("merchant", tx.sender)
-            }
-
-            OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
-            val code = conn.responseCode
-            Log.d(TAG, "Transaction synced to backend: response code $code")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync transaction to backend", e)
-        }
     }
 }

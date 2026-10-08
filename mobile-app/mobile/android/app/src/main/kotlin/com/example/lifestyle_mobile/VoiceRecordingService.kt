@@ -33,13 +33,24 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Gemini API key supplied at build time (--dart-define=GEMINI_API_KEY). The Flutter side mirrors it
+ * into the app's SharedPreferences, so native code can use it without a running engine. The key is
+ * never part of the native source. An empty result means AI features are not configured.
+ */
+internal fun readGeminiApiKey(context: Context): String {
+    return context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        .getString("flutter.gemini_api_key", null)
+        .orEmpty()
+        .trim()
+}
+
 class VoiceRecordingService : Service() {
 
     companion object {
         const val TAG = "VoiceRecordingService"
         const val CHANNEL_ID = "lifestyle_quick_input_channel"
         const val NOTIFICATION_ID = 777
-        const val GEMINI_API_KEY = "AQ.Ab8RN6IOgb6IwGGN6qeIadnMkAQ-8oWWO7s3acIUQztL7aeTAQ"
         const val GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
     }
 
@@ -168,6 +179,15 @@ class VoiceRecordingService : Service() {
 
         Thread {
             try {
+                val apiKey = readGeminiApiKey(this)
+                if (apiKey.isEmpty()) {
+                    updateNotification(
+                        if (isArabic()) "الذكاء الاصطناعي غير مفعّل" else "AI is not configured",
+                        if (isArabic()) "شغّل التطبيق ببناء فيه GEMINI_API_KEY" else "Build the app with GEMINI_API_KEY to enable it"
+                    )
+                    stopSelf()
+                    return@Thread
+                }
                 val audioBytes = file.readBytes()
                 val base64Audio = Base64.encodeToString(audioBytes, Base64.NO_WRAP)
 
@@ -202,7 +222,7 @@ class VoiceRecordingService : Service() {
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     setRequestProperty("Content-Type", "application/json")
-                    setRequestProperty("X-goog-api-key", GEMINI_API_KEY)
+                    setRequestProperty("X-goog-api-key", apiKey)
                     doOutput = true
                     connectTimeout = 10000
                     readTimeout = 10000

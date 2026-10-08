@@ -1,29 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_assistant_screen.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/habits/presentation/habits_screen.dart';
+import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
 import 'package:lifestyle_mobile/features/money/presentation/money_screen.dart';
+import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
+import 'package:lifestyle_mobile/features/more/presentation/more_screen.dart';
 import 'package:lifestyle_mobile/features/notes/presentation/notes_screen.dart';
 import 'package:lifestyle_mobile/features/tasks/presentation/tasks_screen.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
-class HomeShell extends StatefulWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.user, this.initialIndex = 0});
 
   final AppUser user;
   final int initialIndex;
 
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell>
+    with WidgetsBindingObserver {
   late int _currentIndex;
+  bool _flushingWalletQueue = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _flushWalletQueue();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _flushWalletQueue();
+    }
+  }
+
+  /// Sends the SMS transactions that were captured while the app was not running.
+  Future<void> _flushWalletQueue() async {
+    if (_flushingWalletQueue) return;
+    _flushingWalletQueue = true;
+    try {
+      final stored = await PendingWalletTransactions(
+        ref.read(moneyRepositoryProvider),
+      ).flush();
+      if (mounted && stored > 0) {
+        ref.invalidate(budgetsProvider);
+        ref.invalidate(subscriptionsProvider);
+      }
+    } finally {
+      _flushingWalletQueue = false;
+    }
   }
 
   @override
@@ -36,6 +76,7 @@ class _HomeShellState extends State<HomeShell> {
       const AiAssistantScreen(),
       const MoneyScreen(),
       const NotesScreen(),
+      const MoreScreen(),
     ];
 
     return Scaffold(
@@ -72,6 +113,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: const Icon(Icons.notes_outlined),
             selectedIcon: const Icon(Icons.notes),
             label: l10n.notes,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.grid_view_outlined),
+            selectedIcon: const Icon(Icons.grid_view),
+            label: l10n.moreTitle,
           ),
         ],
       ),

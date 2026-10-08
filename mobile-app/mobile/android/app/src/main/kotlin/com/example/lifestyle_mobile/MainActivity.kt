@@ -258,12 +258,14 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun transcribeAudioWithGemini(base64Audio: String): String {
+        val apiKey = readGeminiApiKey(this)
+        if (apiKey.isEmpty()) return ""
         try {
             val url = URL(VoiceRecordingService.GEMINI_URL)
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("X-goog-api-key", VoiceRecordingService.GEMINI_API_KEY)
+                setRequestProperty("X-goog-api-key", apiKey)
                 doOutput = true
                 connectTimeout = 8000
                 readTimeout = 8000

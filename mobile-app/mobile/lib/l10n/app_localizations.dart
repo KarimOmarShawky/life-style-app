@@ -342,6 +342,9 @@ class AppLocalizations {
 
   String searchNoResultsFor(String q) =>
       _f('searchNoResultsFor', <String, Object>{'q': q});
+
+  /// Generic catalog lookup for keys without a dedicated getter.
+  String tr(String key) => _s(key);
 }
 
 class _AppLocalizationsDelegate

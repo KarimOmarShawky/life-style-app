@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
+import 'package:lifestyle_mobile/features/timer/data/session_audio_player.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 class FocusTimerScreen extends ConsumerStatefulWidget {
@@ -17,12 +20,18 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
   static const int focusDurationSeconds = 25 * 60; // 25 min
   static const int breakDurationSeconds = 5 * 60; // 5 min
 
+  static const String _prefAmbient = 'focus.ambient';
+  static const String _prefSongPath = 'focus.song.path';
+  static const String _prefSongName = 'focus.song.name';
+
   bool _isBreak = false;
   late int _remainingSeconds;
   Timer? _timer;
   bool _isRunning = false;
   Task? _selectedTask;
   String _selectedAmbient = 'quiet';
+  String? _songPath;
+  String? _songName;
 
   Widget _buildAmbientChip(String key, IconData icon) {
     final l10n = AppLocalizations.of(context);
@@ -36,9 +45,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       ),
       label: Text(l10n.ambientLabel(key), style: const TextStyle(fontSize: 12)),
       selected: isSelected,
-      onSelected: (_) {
-        setState(() => _selectedAmbient = key);
-      },
+      onSelected: (_) => _selectAmbient(key),
     );
   }
 
@@ -46,20 +53,106 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
   void initState() {
     super.initState();
     _remainingSeconds = focusDurationSeconds;
+    _loadPrefs();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    SessionAudioPlayer.instance.stop();
     super.dispose();
   }
 
-  void _toggleTimer() {
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _selectedAmbient = prefs.getString(_prefAmbient) ?? 'quiet';
+      _songPath = prefs.getString(_prefSongPath);
+      _songName = prefs.getString(_prefSongName);
+      if (_selectedAmbient == 'music' && _songPath == null) {
+        _selectedAmbient = 'quiet';
+      }
+    });
+  }
+
+  Future<void> _savePrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefAmbient, _selectedAmbient);
+    final path = _songPath;
+    if (path == null) {
+      await prefs.remove(_prefSongPath);
+      await prefs.remove(_prefSongName);
+    } else {
+      await prefs.setString(_prefSongPath, path);
+      await prefs.setString(_prefSongName, _songName ?? '');
+    }
+  }
+
+  Future<void> _selectAmbient(String key) async {
+    setState(() => _selectedAmbient = key);
+    await _savePrefs();
+    if (key == 'music' && _songPath == null) {
+      await _pickSong();
+      return;
+    }
+    if (_isRunning) await _startAudio();
+  }
+
+  Future<void> _pickSong() async {
+    final picked = await FilePicker.pickFile(type: FileType.audio);
+    final path = picked?.path;
+    if (path == null) {
+      if (mounted && _selectedAmbient == 'music' && _songPath == null) {
+        setState(() => _selectedAmbient = 'quiet');
+        await _savePrefs();
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _songPath = path;
+      _songName = path.split(RegExp(r'[/\\]')).last;
+      _selectedAmbient = 'music';
+    });
+    await _savePrefs();
+    if (_isRunning) await _startAudio();
+  }
+
+  Future<void> _clearSong() async {
+    setState(() {
+      _songPath = null;
+      _songName = null;
+      if (_selectedAmbient == 'music') _selectedAmbient = 'quiet';
+    });
+    await _savePrefs();
+    if (_isRunning) await _startAudio();
+  }
+
+  Future<void> _startAudio() async {
+    final player = SessionAudioPlayer.instance;
+    if (_selectedAmbient == 'music') {
+      final path = _songPath;
+      if (path == null) {
+        await player.stop();
+        return;
+      }
+      await player.playSong(path);
+    } else {
+      await player.playAmbient(_selectedAmbient);
+    }
+  }
+
+  void _stopAudio() => SessionAudioPlayer.instance.stop();
+
+  Future<void> _toggleTimer() async {
     if (_isRunning) {
       _timer?.cancel();
+      _stopAudio();
       setState(() => _isRunning = false);
     } else {
       setState(() => _isRunning = true);
+      await _startAudio();
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_remainingSeconds > 0) {
           setState(() => _remainingSeconds--);
@@ -72,6 +165,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
 
   void _resetTimer() {
     _timer?.cancel();
+    _stopAudio();
     setState(() {
       _isRunning = false;
       _remainingSeconds =
@@ -81,6 +175,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
 
   void _switchMode(bool isBreak) {
     _timer?.cancel();
+    _stopAudio();
     setState(() {
       _isBreak = isBreak;
       _isRunning = false;
@@ -91,6 +186,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
 
   Future<void> _onTimerComplete() async {
     _timer?.cancel();
+    _stopAudio();
     setState(() => _isRunning = false);
 
     final l10n = AppLocalizations.of(context);
@@ -251,7 +347,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Ambient Soundscapes Selector
+              // Ambient Soundscapes + user music selector
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -266,7 +362,47 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
                     _buildAmbientChip('waves', Icons.waves_outlined),
                     const SizedBox(width: 8),
                     _buildAmbientChip('white_noise', Icons.graphic_eq_outlined),
+                    const SizedBox(width: 8),
+                    _buildAmbientChip('music', Icons.library_music_outlined),
                   ],
+                ),
+              ),
+              if (_songName != null) ...[
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.music_note_outlined,
+                      size: 16,
+                      color: colorScheme.outline,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _songName!,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      tooltip: l10n.tr('timer.clearSong'),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _clearSong,
+                    ),
+                  ],
+                ),
+              ],
+              TextButton.icon(
+                onPressed: _pickSong,
+                icon: const Icon(Icons.library_add_outlined, size: 18),
+                label: Text(
+                  l10n.tr('timer.pickSong'),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
 

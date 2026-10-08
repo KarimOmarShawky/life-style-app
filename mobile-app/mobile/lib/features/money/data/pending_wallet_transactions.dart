@@ -24,6 +24,9 @@ class PendingWalletTransactions {
   /// Returns how many transactions were stored.
   Future<int> flush() async {
     final prefs = await SharedPreferences.getInstance();
+    // The native SMS receiver writes to this store from outside Dart, and the plugin
+    // caches values. Reload so entries written while the app was running are visible.
+    await prefs.reload();
     final keys =
         prefs
             .getKeys()

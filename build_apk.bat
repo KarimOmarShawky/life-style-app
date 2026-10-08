@@ -6,7 +6,7 @@ echo       LifeStyle App - Automated APK Builder
 echo ========================================================
 echo.
 echo [1/3] Navigating to mobile directory...
-cd /d "%~dp0mobile"
+cd /d "%~dp0mobile-app\mobile"
 
 echo [2/3] Fetching dependencies...
 call flutter pub get
@@ -41,7 +41,7 @@ echo       SUCCESS! APK Built Successfully!
 echo ========================================================
 echo.
 echo Opening the folder containing your APK file...
-explorer.exe "%~dp0mobile\build\app\outputs\flutter-apk"
+explorer.exe "%~dp0mobile-app\mobile\build\app\outputs\flutter-apk"
 
 echo.
 echo You can now copy "app-release.apk" to your phone!

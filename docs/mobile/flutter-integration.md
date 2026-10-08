@@ -65,7 +65,7 @@ The AI assistant and native voice transcription use Gemini. They are disabled un
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1 --dart-define=GEMINI_API_KEY=<key>
 ```
 
-The key has no source default. On startup the app mirrors it into the app's private SharedPreferences (`flutter.gemini_api_key`) so native voice code can read it. A build-time define is still compiled into the APK, so anyone who extracts the app can read the key. For production, move the Gemini call behind a backend endpoint that reads the key from server configuration.
+The key has no source default. `build_apk.bat` at the repo root passes it through only when `GEMINI_API_KEY` is set in the environment (`set GEMINI_API_KEY=<key>` in the same terminal, then run the file). On startup the app mirrors it into the app's private SharedPreferences (`flutter.gemini_api_key`) so native voice code can read it. A build-time define is still compiled into the APK, so anyone who extracts the app can read the key. For production, move the Gemini call behind a backend endpoint that reads the key from server configuration.
 
 ## Wallet SMS capture
 

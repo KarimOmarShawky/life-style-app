@@ -11,7 +11,7 @@ class CalendarRepository {
   /// Events on one calendar day (YYYY-MM-DD), in the user's time zone.
   Future<List<CalendarEvent>> getAgenda(String date) async {
     final response = jsonObject(
-      await _api.get('calendar/agenda', query: {'date': date}),
+      await _api.get('events/agenda', query: {'date': date}),
       'agenda',
     );
     return jsonObjectList(
@@ -28,7 +28,7 @@ class CalendarRepository {
   }) async {
     final response = jsonObject(
       await _api.get(
-        'calendar/conflicts',
+        'events/conflicts',
         query: {
           'startAt': toApiInstant(start),
           'endAt': toApiInstant(end),
@@ -46,7 +46,7 @@ class CalendarRepository {
 
   Future<CalendarEvent> createEvent(Map<String, Object?> fields) async {
     final response = jsonObject(
-      await _api.post('calendar', body: fields),
+      await _api.post('events', body: fields),
       'event',
     );
     return CalendarEvent.fromJson(jsonObject(response['event'], 'event'));
@@ -58,19 +58,19 @@ class CalendarRepository {
     Map<String, Object?> changes,
   ) async {
     final response = jsonObject(
-      await _api.patch('calendar/$id', body: changes),
+      await _api.patch('events/$id', body: changes),
       'event',
     );
     return CalendarEvent.fromJson(jsonObject(response['event'], 'event'));
   }
 
   Future<void> deleteEvent(String id) async {
-    await _api.delete('calendar/$id');
+    await _api.delete('events/$id');
   }
 
   Future<List<CalendarReminder>> listReminders(String eventId) async {
     final response = jsonObject(
-      await _api.get('calendar/$eventId/reminders'),
+      await _api.get('events/$eventId/reminders'),
       'reminders',
     );
     return jsonObjectList(
@@ -83,7 +83,7 @@ class CalendarRepository {
   Future<CalendarReminder> addReminder(String eventId, int offsetMinutes) async {
     final response = jsonObject(
       await _api.post(
-        'calendar/$eventId/reminders',
+        'events/$eventId/reminders',
         body: {'channel': 'push', 'offsetMinutes': offsetMinutes},
       ),
       'reminder',
@@ -92,6 +92,6 @@ class CalendarRepository {
   }
 
   Future<void> deleteReminder(String eventId, String reminderId) async {
-    await _api.delete('calendar/$eventId/reminders/$reminderId');
+    await _api.delete('events/$eventId/reminders/$reminderId');
   }
 }

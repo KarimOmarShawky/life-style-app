@@ -22,7 +22,7 @@ Install it:
 adb install -r app-release.apk
 ```
 
-If `adb install` reports a signature mismatch, uninstall the old build first (`adb uninstall <package>`).
+If `adb install` reports a signature mismatch, uninstall the old build first: `adb uninstall com.lifestyle.app`.
 
 ### Option B: local build with AI enabled
 

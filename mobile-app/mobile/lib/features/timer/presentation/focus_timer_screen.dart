@@ -3,7 +3,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
+import 'package:lifestyle_mobile/features/timer/data/timer_sessions_repository.dart';
+import 'package:lifestyle_mobile/features/timer/presentation/focus_history_screen.dart';
+import 'package:lifestyle_mobile/features/timer/state/timer_sessions_provider.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 import 'package:lifestyle_mobile/features/timer/data/session_audio_player.dart';
@@ -32,6 +36,10 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
   String _selectedAmbient = 'quiet';
   String? _songPath;
   String? _songName;
+  late final TimerSessionsRepository _sessionsRepository;
+  Future<void> _syncQueue = Future<void>.value();
+  String? _runningSessionId;
+  bool _disposed = false;
 
   Widget _buildAmbientChip(String key, IconData icon) {
     final l10n = AppLocalizations.of(context);
@@ -52,15 +60,79 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
   @override
   void initState() {
     super.initState();
+    _sessionsRepository = ref.read(timerSessionsRepositoryProvider);
     _remainingSeconds = focusDurationSeconds;
     _loadPrefs();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
+    _stopSessionSync();
     SessionAudioPlayer.instance.stop();
     super.dispose();
+  }
+
+  /// Backend sync runs as a queue, so a start can never overtake the stop that follows it.
+  /// Each step is isolated: a failed step is reported and the queue keeps going.
+  void _enqueueSync(Future<void> Function() step) {
+    _syncQueue = _syncQueue.then((_) => step()).catchError((Object _) {});
+  }
+
+  /// Opens a backend session for a focus period. The task is optional.
+  /// Breaks are not tracked on the server.
+  void _startSessionSync() {
+    if (_isBreak) return;
+    final taskId = _selectedTask?.id;
+    _enqueueSync(() async {
+      _runningSessionId = await _openSession(taskId);
+    });
+  }
+
+  void _stopSessionSync() {
+    _enqueueSync(() async {
+      final sessionId = _runningSessionId;
+      _runningSessionId = null;
+      if (sessionId != null) await _closeSession(sessionId);
+    });
+  }
+
+  Future<String?> _openSession(String? taskId) async {
+    try {
+      try {
+        return (await _sessionsRepository.startSession(taskId)).id;
+      } on ApiException catch (error) {
+        if (error.code != 'TIMER_ALREADY_RUNNING') rethrow;
+        // A session left open earlier (for example, the app was closed mid-focus) blocks the new one.
+        final stale = await _sessionsRepository.getActiveSession();
+        if (stale != null) await _sessionsRepository.stopSession(stale.id);
+        return (await _sessionsRepository.startSession(taskId)).id;
+      }
+    } catch (error) {
+      _reportSyncError(error);
+      return null;
+    }
+  }
+
+  Future<void> _closeSession(String sessionId) async {
+    try {
+      await _sessionsRepository.stopSession(sessionId);
+    } on ApiException catch (error) {
+      // Already closed on the server (for example by the 12-hour auto-close): nothing to do.
+      if (error.code == 'TIMER_NOT_RUNNING') return;
+      _reportSyncError(error);
+    } catch (error) {
+      _reportSyncError(error);
+    }
+  }
+
+  void _reportSyncError(Object error) {
+    if (_disposed || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${l10n.focusSyncFailed}: $error')),
+    );
   }
 
   Future<void> _loadPrefs() async {
@@ -150,8 +222,10 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       _timer?.cancel();
       _stopAudio();
       setState(() => _isRunning = false);
+      _stopSessionSync();
     } else {
       setState(() => _isRunning = true);
+      _startSessionSync();
       await _startAudio();
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_remainingSeconds > 0) {
@@ -171,6 +245,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       _remainingSeconds =
           _isBreak ? breakDurationSeconds : focusDurationSeconds;
     });
+    _stopSessionSync();
   }
 
   void _switchMode(bool isBreak) {
@@ -182,12 +257,14 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       _remainingSeconds =
           _isBreak ? breakDurationSeconds : focusDurationSeconds;
     });
+    _stopSessionSync();
   }
 
   Future<void> _onTimerComplete() async {
     _timer?.cancel();
     _stopAudio();
     setState(() => _isRunning = false);
+    _stopSessionSync();
 
     final l10n = AppLocalizations.of(context);
     final title = _isBreak ? l10n.breakFinished : l10n.timerFinished;
@@ -239,6 +316,17 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.focusTimer),
+        actions: [
+          IconButton(
+            tooltip: l10n.focusHistoryTitle,
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const FocusHistoryScreen(),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(

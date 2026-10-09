@@ -23,14 +23,16 @@ class HabitsRepository {
         .toList(growable: false);
   }
 
+  /// Backend route: PUT /habits/:id/checkins/:date with body `{status}`.
   Future<void> checkinHabit(
     String habitId,
     String date, {
     String status = 'done',
   }) async {
-    await _api.post(
-      'habits/$habitId/checkin',
-      body: {'date': date, 'status': status},
+    await _api.request(
+      'PUT',
+      'habits/$habitId/checkins/$date',
+      body: {'status': status},
     );
   }
 

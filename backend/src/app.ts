@@ -25,6 +25,7 @@ import { createCalendarRouter } from './features/calendar/calendar.routes.js';
 import { createGoalsRouter } from './features/goals/goals.routes.js';
 import { createNotesRouter } from './features/notes/notes.routes.js';
 import { createMoneyRouter } from './features/money/money.routes.js';
+import { createIngestRouter } from './features/ingest/ingest.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
@@ -415,6 +416,18 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     createMoneyRouter({
       controller: container.moneyController,
       authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Mount Ingest routes: session-bound tokens for background SMS capture (see ingest.routes.ts)
+  v1Router.use(
+    '/ingest',
+    createIngestRouter({
+      controller: container.ingestController,
+      authenticate: container.authenticate,
+      authenticateIngest: container.authenticateIngest,
+      createTransaction: container.moneyController.createTransaction,
       rateLimiter: container.rateLimiter
     })
   );

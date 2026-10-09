@@ -23,9 +23,12 @@ export class TimerSessionsService {
   ) {}
 
   async startTimer(userId: string, input: CreateTimerSessionInput): Promise<TimerSessionDto> {
-    const task = await this.tasksRepository.findActiveById(userId, input.taskId);
-    if (!task) {
-      throw AppError.notFound('Task not found');
+    const taskId = input.taskId ?? null;
+    if (taskId !== null) {
+      const task = await this.tasksRepository.findActiveById(userId, taskId);
+      if (!task) {
+        throw AppError.notFound('Task not found');
+      }
     }
 
     const now = this.clock.now();
@@ -42,7 +45,7 @@ export class TimerSessionsService {
 
     const session = await this.timerSessionsRepository.create({
       userId,
-      taskId: input.taskId,
+      taskId,
       startedAt: now,
       mode: input.mode,
       plannedSeconds: input.plannedSeconds ?? null

@@ -203,7 +203,7 @@ export interface TasksTable {
 export interface TimerSessionsTable {
   id: Generated<string>;
   user_id: string;
-  task_id: string;
+  task_id: string | null;
   started_at: Date;
   ended_at: Date | null;
   mode: Generated<'stopwatch' | 'countdown'>;

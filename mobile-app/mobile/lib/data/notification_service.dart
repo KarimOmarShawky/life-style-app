@@ -34,6 +34,10 @@ class NotificationService {
   static const String normalChannelDesc =
       'General alerts and notification reminders';
 
+  static const String calendarChannelId = 'lifestyle_calendar_reminders_channel';
+  static const String calendarChannelName = 'LifeStyle Calendar Reminders';
+  static const String calendarChannelDesc = 'Reminders before calendar events';
+
   static const int pinnedNotificationId = 777;
 
   final ValueNotifier<bool> quickVoiceTrigger = ValueNotifier(false);
@@ -108,6 +112,18 @@ class NotificationService {
           ),
         );
 
+        // 4. Calendar reminders (scheduled when an event or its reminders are saved)
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            calendarChannelId,
+            calendarChannelName,
+            description: calendarChannelDesc,
+            importance: Importance.high,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+
         await androidPlugin.requestNotificationsPermission();
         await androidPlugin.requestExactAlarmsPermission();
       }
@@ -125,6 +141,9 @@ class NotificationService {
       );
     }
   }
+
+  /// Whether the device language is Arabic. Notification text is built without a BuildContext.
+  static bool get isDeviceArabic => _isDeviceArabic;
 
   static bool get _isDeviceArabic {
     try {
@@ -300,6 +319,59 @@ class NotificationService {
           name: 'NotificationService');
     } catch (e) {
       developer.log('scheduleAlarm error: $e');
+    }
+  }
+
+  /// Schedules one calendar reminder notification. Times that have passed are skipped.
+  /// Exact delivery needs the exact-alarm permission. When it is missing, the reminder is still
+  /// scheduled, just without an exact time.
+  Future<void> scheduleCalendarReminder({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+  }) async {
+    try {
+      final scheduled = tz.TZDateTime.from(when, tz.local);
+      if (scheduled.isBefore(tz.TZDateTime.now(tz.local))) {
+        return;
+      }
+
+      const androidDetails = AndroidNotificationDetails(
+        calendarChannelId,
+        calendarChannelName,
+        channelDescription: calendarChannelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+        category: AndroidNotificationCategory.reminder,
+      );
+      const details = NotificationDetails(android: androidDetails);
+
+      try {
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduled,
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } on PlatformException {
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduled,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+    } catch (e) {
+      developer.log('scheduleCalendarReminder error: $e');
     }
   }
 

@@ -2880,6 +2880,85 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
 
+  /ingest/token:
+    post:
+      summary: Issue ingest token
+      description: Issues a random token for the wallet SMS receiver. The token belongs to the caller's current session, replaces any earlier token of that session, and stops working when the session ends. The raw token is returned once. Only its SHA-256 digest is stored.
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Ingest token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Opaque token with the prefix lsi_
+                required:
+                  - token
+        '401':
+          description: Access token missing, invalid, or expired
+    delete:
+      summary: Revoke ingest token
+      description: Revokes the ingest token of the caller's current session.
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Ingest token revoked
+        '401':
+          description: Access token missing, invalid, or expired
+  /ingest/transactions:
+    post:
+      summary: Create transaction with ingest token
+      description: Same body and behaviour as POST /money/transactions, for the wallet SMS receiver. Accepts only an ingest token. Requires Idempotency-Key header.
+      security:
+        - IngestToken: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+                required:
+                  - transaction
+        '200':
+          description: Idempotent replay of existing transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+                required:
+                  - transaction
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Ingest token missing, invalid, revoked, or its session has ended
+        '409':
+          description: Idempotency key reused or quota exceeded
 components:
   securitySchemes:
     BearerAuth:
@@ -2887,6 +2966,10 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Bearer JWT Access Token (15-minute lifetime)
+    IngestToken:
+      type: http
+      scheme: bearer
+      description: Opaque ingest token (prefix lsi_). Accepted only by the ingest transaction route.
 
   schemas:
     RegisterRequest:
@@ -3600,6 +3683,7 @@ components:
         taskId:
           type: string
           format: uuid
+          nullable: true
         startedAt:
           type: string
           format: date-time
@@ -3641,6 +3725,8 @@ components:
         taskId:
           type: string
           format: uuid
+          nullable: true
+          description: Optional. When set, the task must belong to the user.
         mode:
           type: string
           enum: [stopwatch, countdown]
@@ -3650,8 +3736,6 @@ components:
           minimum: 60
           maximum: 43200
           nullable: true
-      required:
-        - taskId
 
     ApiErrorEnvelope:
       type: object

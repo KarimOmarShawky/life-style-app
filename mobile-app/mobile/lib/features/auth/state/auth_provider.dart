@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepository(
@@ -62,6 +63,8 @@ class AuthController extends AsyncNotifier<AppUser?> {
     try {
       await ref.read(authRepositoryProvider).logout();
     } finally {
+      // Signing out revokes the session, so the SMS receiver's copy of the token is removed too.
+      await WalletIngestToken.clearLocal();
       state = const AsyncData(null);
     }
   }

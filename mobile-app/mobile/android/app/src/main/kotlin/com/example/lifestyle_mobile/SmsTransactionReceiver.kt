@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.os.Build
@@ -32,10 +33,11 @@ import java.util.UUID
  *  - Each detected transaction is written to its own SharedPreferences entry
  *    ("pending_wallet_tx.<uuid>") before any network call, so nothing is lost while offline.
  *  - The entry id is sent as the Idempotency-Key, so a retry can never create a duplicate.
- *  - The stored access token is used only while it is still valid. This receiver never refreshes
- *    tokens: the backend revokes the whole session when a refresh token is reused. Anything still
- *    queued is flushed by the Flutter app (PendingWalletTransactions) on its next start or resume,
- *    through ApiClient, which owns token refresh.
+ *  - When the app has issued an ingest token (see WalletIngestToken in Flutter), the queue is sent with
+ *    it, so capture works while the app is closed. Without one, the stored access token is used, but
+ *    only while it is still valid. This receiver never refreshes tokens: the backend revokes the whole
+ *    session when a refresh token is reused. Anything still queued is flushed by the Flutter app
+ *    (PendingWalletTransactions) on its next start or resume, through ApiClient, which owns refresh.
  */
 class SmsTransactionReceiver : BroadcastReceiver() {
 
@@ -48,6 +50,9 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         private const val KEY_SYNC_ENABLED = "flutter.sms_sync_enabled"
         private const val KEY_SESSION = "flutter.lifestyle.session.v1"
         private const val KEY_API_BASE = "flutter.lifestyle.api_base_url"
+        private const val KEY_INGEST_TOKEN = "flutter.lifestyle.wallet_ingest_token.v1"
+        private const val INGEST_PATH = "/ingest/transactions"
+        private const val MONEY_PATH = "/money/transactions"
         const val PENDING_PREFIX = "flutter.pending_wallet_tx."
         private const val DEFAULT_API_BASE = "https://life-style-app-production.up.railway.app/api/v1"
         private const val TOKEN_MARGIN_MS = 60_000L
@@ -134,7 +139,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 if (transaction != null) {
                     showTransactionNotification(context, transaction)
                     enqueueTransaction(context, transaction, receivedAtMs)
-                    flushPendingIfFresh(context)
+                    flushPending(context)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing incoming SMS", e)
@@ -243,12 +248,20 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     }
 
     /**
-     * Sends queued transactions with the stored access token, but only while that token is valid.
-     * Entries the backend accepts or permanently rejects are removed. On any other failure the rest
-     * stays queued for the Flutter app.
+     * Sends the queue with the ingest token when one is stored. That token is bound to the login session,
+     * so it works while the app is closed. Without it, the stored access token is used, but only while it
+     * is still valid.
      */
-    private fun flushPendingIfFresh(context: Context) {
+    private fun flushPending(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val apiBase = prefs.getString(KEY_API_BASE, null)?.trimEnd('/') ?: DEFAULT_API_BASE
+
+        val ingestToken = prefs.getString(KEY_INGEST_TOKEN, null)
+        if (!ingestToken.isNullOrEmpty()) {
+            flushQueue(prefs, "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
+            return
+        }
+
         val sessionRaw = prefs.getString(KEY_SESSION, null) ?: return
         val session = try {
             JSONObject(sessionRaw)
@@ -259,22 +272,36 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val expiresAtMs = parseIsoMillis(session.optString("accessTokenExpiresAt", "")) ?: return
         if (accessToken.isEmpty() || expiresAtMs - TOKEN_MARGIN_MS <= System.currentTimeMillis()) return
 
-        val apiBase = prefs.getString(KEY_API_BASE, null)?.trimEnd('/') ?: DEFAULT_API_BASE
+        flushQueue(prefs, "$apiBase$MONEY_PATH", accessToken, isIngest = false)
+    }
+
+    /**
+     * Posts queued entries in order. An entry is removed when the backend accepts it or rejects it for good.
+     * On any other failure the rest stays queued. A revoked or expired ingest token is removed, so the app
+     * issues a new one on its next start.
+     */
+    private fun flushQueue(prefs: SharedPreferences, url: String, token: String, isIngest: Boolean) {
         val pendingKeys = prefs.all.keys.filter { it.startsWith(PENDING_PREFIX) }.sorted()
         for (key in pendingKeys) {
             val raw = prefs.getString(key, null) ?: continue
-            val status = postTransaction(apiBase, accessToken, raw)
+            val status = postTransaction(url, token, raw)
             if (status in 200..299 || status in PERMANENT_REJECTIONS) {
                 prefs.edit().remove(key).commit()
             } else {
-                // Expired token, network or server problem: keep the rest for a later attempt.
+                if (isIngest && (status == 401 || status == 403)) {
+                    // Remove only the token that was rejected, in case the app has just replaced it.
+                    if (prefs.getString(KEY_INGEST_TOKEN, null) == token) {
+                        prefs.edit().remove(KEY_INGEST_TOKEN).commit()
+                    }
+                }
+                // Network, server, or auth problem: keep the rest for a later attempt.
                 return
             }
         }
     }
 
     /** Returns the HTTP status code, or -1 when the request could not be completed. */
-    private fun postTransaction(apiBase: String, accessToken: String, rawItem: String): Int {
+    private fun postTransaction(url: String, token: String, rawItem: String): Int {
         return try {
             val item = JSONObject(rawItem)
             val payload = JSONObject()
@@ -284,14 +311,14 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 .put("occurredOn", item.optString("occurredOn"))
                 .put("description", item.optString("description"))
                 .put("merchant", item.optString("merchant"))
-            val connection = URL("$apiBase/money/transactions").openConnection() as HttpURLConnection
+            val connection = URL(url).openConnection() as HttpURLConnection
             try {
                 connection.requestMethod = "POST"
                 connection.doOutput = true
                 connection.connectTimeout = CONNECT_TIMEOUT_MS
                 connection.readTimeout = READ_TIMEOUT_MS
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                connection.setRequestProperty("Authorization", "Bearer $accessToken")
+                connection.setRequestProperty("Authorization", "Bearer $token")
                 connection.setRequestProperty("Idempotency-Key", item.optString("id"))
                 OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { it.write(payload.toString()) }
                 connection.responseCode

@@ -1,6 +1,7 @@
 import 'package:lifestyle_mobile/data/json_fields.dart';
 
-/// One tracked focus period on a task, as returned by the timer-sessions API.
+/// One tracked focus period, as returned by the timer-sessions API. [taskId] is null when the
+/// period was started without a task.
 class TimerSession {
   const TimerSession({
     required this.id,
@@ -13,7 +14,7 @@ class TimerSession {
   });
 
   final String id;
-  final String taskId;
+  final String? taskId;
   final DateTime startedAt;
   final DateTime? endedAt;
   final String mode;
@@ -25,7 +26,7 @@ class TimerSession {
   factory TimerSession.fromJson(Map<String, dynamic> json) {
     return TimerSession(
       id: jsonString(json, 'id'),
-      taskId: jsonString(json, 'taskId'),
+      taskId: jsonOptionalString(json, 'taskId'),
       startedAt: jsonDateTime(json, 'startedAt'),
       endedAt: jsonOptionalDateTime(json, 'endedAt'),
       mode: jsonString(json, 'mode'),

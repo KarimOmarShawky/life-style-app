@@ -37,6 +37,7 @@ class CalendarEvent {
     required this.allDay,
     required this.timezone,
     required this.version,
+    this.reminders = const <CalendarReminder>[],
   });
 
   final String id;
@@ -49,6 +50,9 @@ class CalendarEvent {
   final String timezone;
   final int version;
 
+  /// Filled by create, update and get responses. Lists leave it empty.
+  final List<CalendarReminder> reminders;
+
   factory CalendarEvent.fromJson(Map<String, dynamic> json) {
     return CalendarEvent(
       id: jsonString(json, 'id'),
@@ -60,6 +64,17 @@ class CalendarEvent {
       allDay: jsonBool(json, 'allDay'),
       timezone: jsonString(json, 'timezone'),
       version: jsonInt(json, 'version'),
+      reminders: _parseReminders(json['reminders']),
     );
   }
+}
+
+List<CalendarReminder> _parseReminders(Object? raw) {
+  if (raw is! List<dynamic>) {
+    return const <CalendarReminder>[];
+  }
+  return raw
+      .whereType<Map<String, dynamic>>()
+      .map(CalendarReminder.fromJson)
+      .toList(growable: false);
 }

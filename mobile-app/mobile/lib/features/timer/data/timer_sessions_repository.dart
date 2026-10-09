@@ -8,12 +8,13 @@ class TimerSessionsRepository {
 
   final ApiClient _api;
 
-  /// Starts a stopwatch session on a task. The backend allows one running session per user.
-  Future<TimerSession> startSession(String taskId) async {
+  /// Starts a stopwatch session, on [taskId] when one is given. The backend allows one running
+  /// session per user.
+  Future<TimerSession> startSession(String? taskId) async {
     final response = jsonObject(
       await _api.post(
         'timer-sessions',
-        body: {'taskId': taskId, 'mode': 'stopwatch'},
+        body: {if (taskId != null) 'taskId': taskId, 'mode': 'stopwatch'},
       ),
       'timer session',
     );

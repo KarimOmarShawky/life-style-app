@@ -4,6 +4,7 @@ import 'package:lifestyle_mobile/core/time/api_time.dart';
 import 'package:lifestyle_mobile/core/widgets/feature_widgets.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_event_model.dart';
+import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
 import 'package:lifestyle_mobile/features/calendar/presentation/calendar_labels.dart';
 import 'package:lifestyle_mobile/features/calendar/state/calendar_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
@@ -181,7 +182,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       }
 
       if (existing == null) {
-        await repository.createEvent({
+        final created = await repository.createEvent({
           'title': title,
           if (description.isNotEmpty) 'description': description,
           if (location.isNotEmpty) 'location': location,
@@ -193,8 +194,12 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             if (reminder != null) {'channel': 'push', 'offsetMinutes': reminder},
           ],
         });
+        await syncCalendarEventReminders(
+          event: created,
+          reminders: created.reminders,
+        );
       } else {
-        await repository.updateEvent(existing.id, {
+        final updated = await repository.updateEvent(existing.id, {
           'title': title,
           'description': description.isEmpty ? null : description,
           'location': location.isEmpty ? null : location,
@@ -203,6 +208,10 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           'allDay': _allDay,
           'version': existing.version,
         });
+        await syncCalendarEventReminders(
+          event: updated,
+          reminders: updated.reminders,
+        );
       }
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -221,6 +230,17 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     final offset = reminder.offsetMinutes;
     if (offset != null) return reminderOffsetLabel(l10n, offset);
     return formatDisplayTime(context, reminder.remindAt);
+  }
+
+  /// Mirrors the event's current reminders into local notifications.
+  Future<void> _resyncReminderNotifications(String eventId) async {
+    final event = widget.event;
+    if (event == null) {
+      return;
+    }
+    final reminders =
+        await ref.read(calendarRepositoryProvider).listReminders(eventId);
+    await syncCalendarEventReminders(event: event, reminders: reminders);
   }
 
   Widget _remindersSection(AppLocalizations l10n, String eventId) {
@@ -259,6 +279,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                       await ref
                           .read(calendarRepositoryProvider)
                           .deleteReminder(eventId, reminder.id);
+                      await removeCalendarReminder(eventId, reminder.id);
                       ref.invalidate(eventRemindersProvider(eventId));
                     }),
                   ),
@@ -291,6 +312,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                 await ref
                     .read(calendarRepositoryProvider)
                     .addReminder(eventId, _pendingReminder);
+                await _resyncReminderNotifications(eventId);
                 ref.invalidate(eventRemindersProvider(eventId));
               }),
             ),

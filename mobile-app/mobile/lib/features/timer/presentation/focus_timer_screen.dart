@@ -80,13 +80,13 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     _syncQueue = _syncQueue.then((_) => step()).catchError((Object _) {});
   }
 
-  /// Opens a backend session for a focus period on the selected task.
-  /// Breaks and focus periods without a task are not tracked on the server.
+  /// Opens a backend session for a focus period. The task is optional.
+  /// Breaks are not tracked on the server.
   void _startSessionSync() {
-    final task = _selectedTask;
-    if (task == null || _isBreak) return;
+    if (_isBreak) return;
+    final taskId = _selectedTask?.id;
     _enqueueSync(() async {
-      _runningSessionId = await _openSession(task.id);
+      _runningSessionId = await _openSession(taskId);
     });
   }
 
@@ -98,7 +98,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     });
   }
 
-  Future<String?> _openSession(String taskId) async {
+  Future<String?> _openSession(String? taskId) async {
     try {
       try {
         return (await _sessionsRepository.startSession(taskId)).id;
@@ -391,15 +391,6 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
                   );
                 },
               ),
-              if (_selectedTask == null && !_isBreak)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    l10n.focusNeedsTaskHint,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: colorScheme.outline),
-                  ),
-                ),
               const Spacer(),
 
               // Circular Countdown Timer

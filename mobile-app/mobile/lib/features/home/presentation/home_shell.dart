@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_assistant_screen.dart';
+import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/habits/presentation/habits_screen.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 import 'package:lifestyle_mobile/features/money/presentation/money_screen.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 import 'package:lifestyle_mobile/features/more/presentation/more_screen.dart';
@@ -33,6 +36,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _flushWalletQueue();
+      _ensureWalletIngestToken();
+      rescheduleCalendarReminders();
     });
   }
 
@@ -46,8 +51,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _flushWalletQueue();
+      _ensureWalletIngestToken();
     }
   }
+
+  /// Keeps the token that the SMS receiver uses in step with the SMS capture setting.
+  Future<void> _ensureWalletIngestToken() =>
+      WalletIngestToken(ref.read(apiClientProvider)).ensure();
 
   /// Sends the SMS transactions that were captured while the app was not running.
   Future<void> _flushWalletQueue() async {

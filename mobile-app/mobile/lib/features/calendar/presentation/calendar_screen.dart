@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/core/time/api_time.dart';
 import 'package:lifestyle_mobile/core/widgets/feature_widgets.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_event_model.dart';
+import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
 import 'package:lifestyle_mobile/features/calendar/presentation/event_form_screen.dart';
 import 'package:lifestyle_mobile/features/calendar/state/calendar_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
@@ -106,6 +107,7 @@ class CalendarScreen extends ConsumerWidget {
                           await ref
                               .read(calendarRepositoryProvider)
                               .deleteEvent(event.id);
+                          await removeCalendarEventReminders(event.id);
                           ref.invalidate(calendarAgendaProvider);
                         },
                         child: _EventTile(

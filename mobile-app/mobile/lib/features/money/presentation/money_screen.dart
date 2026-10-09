@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
+import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 import 'package:lifestyle_mobile/features/money/presentation/subscriptions_screen.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
@@ -785,6 +787,13 @@ class _SmsSyncCard extends ConsumerWidget {
       }
     }
     await ref.read(settingsProvider.notifier).setSmsSyncEnabled(enabled);
+    // The background token lets the SMS receiver save transactions while the app is closed.
+    final walletToken = WalletIngestToken(ref.read(apiClientProvider));
+    if (enabled) {
+      await walletToken.ensure(force: true);
+    } else {
+      await walletToken.revoke();
+    }
   }
 
   @override

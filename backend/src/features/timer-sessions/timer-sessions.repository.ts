@@ -13,7 +13,7 @@ import type {
 
 export interface CreateTimerSessionDbInput {
   userId: string;
-  taskId: string;
+  taskId: string | null;
   startedAt: Date;
   mode: TimerMode;
   plannedSeconds?: number | null;

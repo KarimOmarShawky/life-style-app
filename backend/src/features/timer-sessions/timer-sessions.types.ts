@@ -10,7 +10,7 @@ export type TimerEndReason = 'stopped' | 'completed' | 'auto_closed';
 export interface TimerSessionRow {
   id: string;
   user_id: string;
-  task_id: string;
+  task_id: string | null;
   started_at: Date;
   ended_at: Date | null;
   mode: TimerMode;
@@ -22,7 +22,7 @@ export interface TimerSessionRow {
 
 export interface TimerSessionDto {
   id: string;
-  taskId: string;
+  taskId: string | null;
   startedAt: string;
   endedAt: string | null;
   mode: TimerMode;

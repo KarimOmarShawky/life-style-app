@@ -101,6 +101,11 @@ import { PgMoneyRepository } from './features/money/money.repository.pg.js';
 import type { MoneyRepository } from './features/money/money.repository.js';
 import { MoneyService } from './features/money/money.service.js';
 import { MoneyController } from './features/money/money.controller.js';
+import { PgIngestTokenRepository } from './features/ingest/ingest.repository.pg.js';
+import type { IngestTokenRepository } from './features/ingest/ingest.repository.js';
+import { IngestService } from './features/ingest/ingest.service.js';
+import { IngestController } from './features/ingest/ingest.controller.js';
+import { createIngestAuthenticateMiddleware } from './core/middleware/authenticate-ingest.js';
 
 export interface AppContainer {
   clock: Clock;
@@ -150,6 +155,10 @@ export interface AppContainer {
   moneyRepository: MoneyRepository;
   moneyService: MoneyService;
   moneyController: MoneyController;
+  ingestRepository: IngestTokenRepository;
+  ingestService: IngestService;
+  ingestController: IngestController;
+  authenticateIngest: RequestHandler;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -250,6 +259,14 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const moneyService = overrides?.moneyService ?? new MoneyService(moneyRepository);
   const moneyController = overrides?.moneyController ?? new MoneyController(moneyService);
 
+  // Ingest tokens: background SMS capture without the short-lived access token
+  const ingestRepository = overrides?.ingestRepository ?? new PgIngestTokenRepository(pgPool);
+  const ingestService = overrides?.ingestService ?? new IngestService(ingestRepository);
+  const ingestController = overrides?.ingestController ?? new IngestController(ingestService);
+  const authenticateIngest =
+    overrides?.authenticateIngest ??
+    createIngestAuthenticateMiddleware(ingestRepository, sessionValidator);
+
   const container: AppContainer = {
     clock,
     idGenerator,
@@ -297,7 +314,11 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     notesController,
     moneyRepository,
     moneyService,
-    moneyController
+    moneyController,
+    ingestRepository,
+    ingestService,
+    ingestController,
+    authenticateIngest
   };
 
   if (!overrides) {

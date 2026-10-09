@@ -10,7 +10,8 @@ export const timerModeSchema = z.enum(['stopwatch', 'countdown']);
 
 export const createTimerSessionSchema = z
   .object({
-    taskId: z.string().uuid({ message: 'taskId must be a valid UUID' }),
+    // A focus session can exist without a task. When taskId is set, the task must belong to the user.
+    taskId: z.string().uuid({ message: 'taskId must be a valid UUID' }).nullable().optional(),
     mode: timerModeSchema.default('stopwatch'),
     plannedSeconds: z
       .number()

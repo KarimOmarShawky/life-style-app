@@ -15,7 +15,7 @@ This build needs two database migrations on the backend it talks to:
 - `1727300003000_ingest_tokens` (table for the background SMS token)
 - `1727300004000_timer_sessions_optional_task` (focus sessions without a task)
 
-When the database already exists, the backend does not apply migrations by itself. Apply them with `npm run migrate:up` in `backend/` (see `docs/database/migrations.md`). Until they are applied, the background SMS token and focus sessions without a task return errors.
+When the database already exists, the backend does not apply migrations by itself. Apply them with `npm run migrate:up` in `backend/` (see `docs/database/migrations.md`). If the database was created by the schema bootstrap and has no migration history, run `docs/database/upgrades/2026-10-ingest-tokens-and-optional-timer-task.sql` instead, as the migration role. Use one of the two, not both. Until they are applied, the background SMS token and focus sessions without a task return errors.
 
 ### Option A: APK from CI (no AI, production API)
 

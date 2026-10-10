@@ -76,9 +76,30 @@ When the user enables wallet SMS capture on the Money screen and grants `RECEIVE
 - Otherwise the Flutter app sends queued transactions on start and on resume, through `ApiClient`, which owns token refresh.
 - The queue entry id is the `Idempotency-Key`, so a retry cannot create a duplicate.
 
-The ingest token (`POST /api/v1/ingest/token`, stored under `lifestyle.wallet_ingest_token.v1`) is bound to the login session. It can only call `POST /api/v1/ingest/transactions`, and it stops working when the session ends. The app issues it when the switch is turned on and on start, revokes it when the switch is turned off, and clears the local copy on sign-out.
+The ingest token (`POST /api/v1/ingest/token`, stored under `lifestyle.wallet_ingest_token.v1`) is bound to the login session. It can only call `POST /api/v1/ingest/transactions` and `POST /api/v1/ingest/sms/analyze`, and it stops working when the session ends. The app issues it when the switch is turned on and on start, revokes it when the switch is turned off, and clears the local copy on sign-out.
 
 The receiver never refreshes tokens itself. The backend revokes a session when a refresh token is reused.
+
+### Fallback for unrecognized transactions
+
+The local parser is the source of truth and runs entirely on the device. When it
+sees a likely transaction it cannot recognize (unknown sender, unusual amount
+format), the receiver queues a **sanitized** candidate
+(`pending_wallet_candidate.<uuid>`) and asks `POST /api/v1/ingest/sms/analyze`
+to parse it. Gemini runs only behind the backend (`SMS_FALLBACK_GEMINI_KEY` is
+server configuration and is never in the APK), and only sanitized text is sent:
+OTPs, phone/account/reference numbers, URLs, emails, balance and fee details,
+dates, percentages, and promotional text are redacted on the phone and again on
+the server.
+
+The response follows a strict transaction schema. **High confidence may
+auto-save** (the candidate id is the `Idempotency-Key`); **low confidence is
+never saved automatically** — it is parked as `pending_wallet_review.<uuid>`
+and waits for the user in the Money review flow (direction and amount can be
+edited before confirming, or the item can be discarded). Money has no full
+transaction-history list, so that card is the only place fallback results are
+reviewed. The Flutter app retries queued candidates on start and on resume
+(`PendingWalletCandidates`), so offline attempts are not lost.
 
 ## Planning modules
 

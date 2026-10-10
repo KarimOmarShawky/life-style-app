@@ -164,6 +164,47 @@ adb logcat -s SmsTransactionReceiver
 
 On a physical phone, `adb emu` does not work. Send the messages from a second phone.
 
+### SMS fallback and review flow (Money tab)
+
+These cover likely transactions the **local parser cannot recognize**. The phone
+queues a sanitized candidate and the backend fallback (Gemini behind the API)
+analyzes it; the raw SMS never leaves the phone. **Note:** Money has no full
+transaction-history list — check saved results in the budgets overview or the
+exported report, and check pending ones in the "Needs review" card.
+
+Setup: SMS auto-capture is on, and the backend it talks to has
+`SMS_FALLBACK_GEMINI_KEY` set (ask whoever runs the backend; the key is never in
+the APK). Without the key, candidates are dropped quietly — that is expected.
+
+```bash
+adb -s emulator-5554 emu sms send BANKX "Transfer of 475.5 EGP to merchant CITY TAXI completed today"
+adb -s emulator-5554 emu sms send BANKX "Money movement: EGP 320.00 to UNKNOWN SHOP ref omitted"
+```
+
+- [ ] **SMS-F-1** After the first message (unknown sender, unusual amount
+  format), a "New Transaction Detected" notification appears **only if** the
+  fallback is confident; otherwise a "Transaction needs review" notification
+  appears, or nothing (fallback disabled). In every case the amount shows as
+  **475.50 EGP** and never a reference or balance.
+- [ ] **SMS-F-2** When the review notification appears, open Money: the
+  **Needs review** card lists the item. Tap it: the sheet shows the expense/
+  income toggle (**direction selection**), an editable **amount** field, and
+  the sanitized message (placeholders like `[REF]`/`[PHONE]`, no raw digits of
+  references or phones).
+- [ ] **SMS-F-3** Change the amount and switch the direction, then **Confirm &
+  save**. The card clears. The transaction appears in the budget totals.
+- [ ] **SMS-F-4** Send a second candidate and **Discard** it. The card clears
+  and nothing is saved.
+- [ ] **SMS-F-5** Send the same SMS-1 message twice. Exactly one transaction
+  exists (the candidate id is the Idempotency-Key on every path).
+- [ ] **SMS-F-6** Turn on airplane mode, send a candidate SMS, wait for the
+  failed delivery to queue, then turn the network back on and open the app.
+  The candidate is retried and becomes either a saved transaction or a review
+  item (offline queue retry).
+- [ ] **SMS-F-7** Send `"Your OTP is 772211 for transaction of 500 EGP"` from a
+  bank-looking sender. No candidate, no review item, no transaction. The log
+  (`adb logcat -s SmsTransactionReceiver`) shows no message body.
+
 ### AI assistant (AI tab). Needs Option B or C
 
 - [ ] **A-1** Set the app language to English (Profile → language; open Profile with the person icon in the Tasks tab). Ask the assistant a plain question in Arabic, for example `إزاي أنظم وقتي الأسبوع ده؟`. The reply is in **Arabic**.
@@ -193,7 +234,8 @@ These are not bugs in the test. Report them only if they behave differently from
 5. **Queued SMS entries are not tied to an account.** If you log out while entries are still waiting, the next account that logs in on that phone receives them.
 6. **Voice transcription has the same 15-minute token limit.** It is not fixed.
 7. **Other languages show English text for the new screens.** Only English and Arabic have translations for the new strings.
-8. **The Gemini key is in previously built APKs and in git history.** It must be rotated.
+8. **The Gemini key is in previously built APKs and in git history.** It must be rotated. The SMS fallback key is a *different* key and lives only in backend configuration (`SMS_FALLBACK_GEMINI_KEY`); it is never compiled into the APK.
+9. **Money has no full transaction-history list.** Auto-saved SMS transactions show up in budget totals and the exported report; fallback results wait in the "Needs review" card until confirmed.
 
 ---
 

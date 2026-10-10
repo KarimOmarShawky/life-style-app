@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
+import 'package:lifestyle_mobile/features/money/data/pending_wallet_reviews.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 import 'package:lifestyle_mobile/features/money/presentation/subscriptions_screen.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
@@ -119,6 +120,10 @@ class MoneyScreen extends ConsumerWidget {
 
             // Wallet / banking SMS auto-capture toggle
             const _SmsSyncCard(),
+            const SizedBox(height: 16),
+
+            // Low-confidence SMS fallback results awaiting user confirmation
+            const _NeedsReviewCard(),
             const SizedBox(height: 16),
 
             // Financial Overview Card
@@ -814,5 +819,226 @@ class _SmsSyncCard extends ConsumerWidget {
         onChanged: (bool value) => _toggle(context, ref, value),
       ),
     );
+  }
+}
+
+/// Review flow for wallet SMS fallback results.
+///
+/// The local parser auto-saves only what it fully understands. When the backend
+/// fallback recognizes a likely transaction with low confidence, it is parked
+/// here until the user confirms the direction (expense/income) and amount, or
+/// discards it. Money has no full transaction-history list, so this queue is
+/// the only place fallback results can be reviewed before they are saved.
+class _NeedsReviewCard extends ConsumerStatefulWidget {
+  const _NeedsReviewCard();
+
+  @override
+  ConsumerState<_NeedsReviewCard> createState() => _NeedsReviewCardState();
+}
+
+class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
+  List<WalletReviewItem> _items = <WalletReviewItem>[];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    final items = await PendingWalletReviews(
+      ref.read(moneyRepositoryProvider),
+    ).load();
+    if (!mounted) return;
+    setState(() {
+      _items = items;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    if (_loading || _items.isEmpty) return const SizedBox.shrink();
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: const Icon(Icons.rate_review_outlined),
+        title: Text(
+          '${l10n.smsReviewTitle} (${_items.length})',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(l10n.smsReviewDesc),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          for (final item in List<WalletReviewItem>.of(_items)) {
+            if (!mounted) return;
+            await _showReviewSheet(context, item);
+            await _reload();
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _showReviewSheet(BuildContext context, WalletReviewItem item) async {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    var kind = item.kind;
+    final amountController = TextEditingController(text: item.amount);
+    final formKey = GlobalKey<FormState>();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.smsReviewTitle,
+                      style: Theme.of(sheetContext).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    SegmentedButton<String>(
+                      segments: [
+                        ButtonSegment(
+                          value: 'expense',
+                          label: Text(l10n.smsReviewExpense),
+                          icon: const Icon(Icons.arrow_upward),
+                        ),
+                        ButtonSegment(
+                          value: 'income',
+                          label: Text(l10n.smsReviewIncome),
+                          icon: const Icon(Icons.arrow_downward),
+                        ),
+                      ],
+                      selected: <String>{kind},
+                      onSelectionChanged: (selection) {
+                        setSheetState(() => kind = selection.first);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: amountController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: l10n.smsReviewAmountLabel,
+                        border: const OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        final text = (value ?? '').trim();
+                        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text) ||
+                            (double.tryParse(text) ?? 0) <= 0) {
+                          return l10n.smsReviewInvalidAmount;
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    if (item.merchant != null)
+                      Text(item.merchant!, style: Theme.of(sheetContext).textTheme.bodyMedium),
+                    if (item.description != null)
+                      Text(
+                        item.description!,
+                        style: Theme.of(sheetContext).textTheme.bodySmall,
+                      ),
+                    if (item.text != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${l10n.smsReviewOriginalLabel}: ${item.text!}',
+                        style: Theme.of(sheetContext).textTheme.bodySmall,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            child: Text(l10n.cancel),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              await PendingWalletReviews(
+                                ref.read(moneyRepositoryProvider),
+                              ).discard(item.id);
+                              if (sheetContext.mounted) {
+                                Navigator.of(sheetContext).pop();
+                              }
+                              messenger.showSnackBar(
+                                SnackBar(content: Text(l10n.smsReviewDiscarded)),
+                              );
+                            },
+                            child: Text(l10n.smsReviewDiscard),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () async {
+                              if (!(formKey.currentState?.validate() ?? false)) {
+                                return;
+                              }
+                              try {
+                                await PendingWalletReviews(
+                                  ref.read(moneyRepositoryProvider),
+                                ).confirm(
+                                  item: item,
+                                  kind: kind,
+                                  amount: amountController.text.trim(),
+                                  description: item.description,
+                                  merchant: item.merchant,
+                                );
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text(l10n.smsReviewSaved)),
+                                );
+                                ref.invalidate(budgetsProvider);
+                              } on Exception {
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text('${l10n.errorTitle}')),
+                                );
+                              }
+                            },
+                            child: Text(l10n.smsReviewConfirm),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    amountController.dispose();
   }
 }

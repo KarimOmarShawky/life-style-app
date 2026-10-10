@@ -64,7 +64,17 @@ const baseEnvSchema = z.object({
   EMAIL_FROM: z.string().email().default('no-reply@lifestyle.app'),
 
   // Push Notifications (FCM credentials JSON, optional in Phase P1)
-  FCM_CREDENTIALS: z.string().optional()
+  FCM_CREDENTIALS: z.string().optional(),
+
+  // SMS auto-capture fallback (backend-only Gemini). Optional: without a key the
+  // fallback is disabled and only the local, on-device parser runs. The key must
+  // never be shipped in a mobile build or written to logs.
+  SMS_FALLBACK_GEMINI_KEY: z
+    .string()
+    .min(8, { message: 'SMS_FALLBACK_GEMINI_KEY must be at least 8 characters long' })
+    .optional(),
+  SMS_FALLBACK_GEMINI_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
+  SMS_FALLBACK_TIMEOUT_MS: z.coerce.number().int().positive().max(30000).default(6000)
 });
 
 const envSchema = baseEnvSchema.superRefine((env, context) => {

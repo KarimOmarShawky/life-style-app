@@ -5,6 +5,7 @@ import 'package:lifestyle_mobile/features/ai/presentation/ai_assistant_screen.da
 import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/habits/presentation/habits_screen.dart';
+import 'package:lifestyle_mobile/features/money/data/pending_wallet_reviews.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 import 'package:lifestyle_mobile/features/money/presentation/money_screen.dart';
@@ -59,7 +60,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
   Future<void> _ensureWalletIngestToken() =>
       WalletIngestToken(ref.read(apiClientProvider)).ensure();
 
-  /// Sends the SMS transactions that were captured while the app was not running.
+  /// Sends the SMS transactions that were captured while the app was not running,
+  /// then retries any fallback candidates the receiver could not deliver (the
+  /// backend fallback turns them into auto-saved transactions or review items).
   Future<void> _flushWalletQueue() async {
     if (_flushingWalletQueue) return;
     _flushingWalletQueue = true;
@@ -67,7 +70,11 @@ class _HomeShellState extends ConsumerState<HomeShell>
       final stored = await PendingWalletTransactions(
         ref.read(moneyRepositoryProvider),
       ).flush();
-      if (mounted && stored > 0) {
+      final resolvedCandidates = await PendingWalletCandidates(
+        ref.read(apiClientProvider),
+        ref.read(moneyRepositoryProvider),
+      ).flush();
+      if (mounted && (stored > 0 || resolvedCandidates > 0)) {
         ref.invalidate(budgetsProvider);
         ref.invalidate(subscriptionsProvider);
       }

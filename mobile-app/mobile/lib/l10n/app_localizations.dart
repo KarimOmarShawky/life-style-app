@@ -313,6 +313,17 @@ class AppLocalizations {
   String get smsSyncTitle => _s('smsSyncTitle');
   String get smsSyncDesc => _s('smsSyncDesc');
   String get smsPermissionDenied => _s('smsPermissionDenied');
+  String get smsReviewTitle => _s('smsReviewTitle');
+  String get smsReviewDesc => _s('smsReviewDesc');
+  String get smsReviewConfirm => _s('smsReviewConfirm');
+  String get smsReviewDiscard => _s('smsReviewDiscard');
+  String get smsReviewSaved => _s('smsReviewSaved');
+  String get smsReviewDiscarded => _s('smsReviewDiscarded');
+  String get smsReviewExpense => _s('smsReviewExpense');
+  String get smsReviewIncome => _s('smsReviewIncome');
+  String get smsReviewAmountLabel => _s('smsReviewAmountLabel');
+  String get smsReviewOriginalLabel => _s('smsReviewOriginalLabel');
+  String get smsReviewInvalidAmount => _s('smsReviewInvalidAmount');
 
   // ---- Parameterized strings -------------------------------------------
 

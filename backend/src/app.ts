@@ -427,6 +427,7 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
       controller: container.ingestController,
       authenticate: container.authenticate,
       authenticateIngest: container.authenticateIngest,
+      authenticateIngestOrUser: container.authenticateIngestOrUser,
       createTransaction: container.moneyController.createTransaction,
       rateLimiter: container.rateLimiter
     })

@@ -6,7 +6,7 @@
  * lock therefore disables the token at once, even if it was never revoked explicitly.
  */
 
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { AppError } from '../errors/app-error.js';
 import { requestContextStore } from '../logger/logger.js';
 import { hashIngestToken, isIngestTokenFormat } from '../security/ingest-token.js';
@@ -73,5 +73,23 @@ export function createIngestAuthenticateMiddleware(
     } catch (err) {
       return next(err);
     }
+  };
+}
+
+/**
+ * Dispatches to the ingest-token middleware for `lsi_` bearer tokens and to the
+ * normal access-token middleware for everything else, so the SMS analyze route
+ * can be called from the background receiver (ingest token) and from the app
+ * (access token) without widening what an ingest token can do elsewhere.
+ */
+export function createIngestOrUserAuthenticateMiddleware(
+  authenticateIngest: RequestHandler,
+  authenticate: RequestHandler
+): RequestHandler {
+  return (req, res, next) => {
+    const raw = req.headers.authorization;
+    const token = raw && raw.startsWith('Bearer ') ? raw.slice(7).trim() : '';
+    const handler = isIngestTokenFormat(token) ? authenticateIngest : authenticate;
+    return handler(req, res, next);
   };
 }

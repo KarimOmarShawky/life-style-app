@@ -53,11 +53,18 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         private const val KEY_INGEST_TOKEN = "flutter.lifestyle.wallet_ingest_token.v1"
         private const val INGEST_PATH = "/ingest/transactions"
         private const val MONEY_PATH = "/money/transactions"
+        private const val ANALYZE_PATH = "/ingest/sms/analyze"
         const val PENDING_PREFIX = "flutter.pending_wallet_tx."
+        const val CANDIDATE_PREFIX = "flutter.pending_wallet_candidate."
+        const val REVIEW_PREFIX = "flutter.pending_wallet_review."
         private const val DEFAULT_API_BASE = "https://life-style-app-production.up.railway.app/api/v1"
         private const val TOKEN_MARGIN_MS = 60_000L
         private const val CONNECT_TIMEOUT_MS = 8_000
         private const val READ_TIMEOUT_MS = 8_000
+        private const val REVIEW_NOTIFICATION_ID = 998
+
+        // Candidates are dropped after this many failed delivery attempts.
+        private const val MAX_CANDIDATE_ATTEMPTS = 5
 
         // 400 and 422: the payload is invalid. 409: the idempotency key was reused with other data.
         // Retrying cannot succeed for these, so the queued entry is dropped.
@@ -132,21 +139,39 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         Log.d(TAG, "Incoming SMS received")
 
         // goAsync keeps this receiver alive while the message is parsed, stored and sent.
-        val pendingResult = goAsync()
+        val goAsyncHolder = goAsync()
         Thread {
             try {
                 val transaction = parseSmsTransaction(sender, body)
                 if (transaction != null) {
                     showTransactionNotification(context, transaction)
                     enqueueTransaction(context, transaction, receivedAtMs)
-                    flushPending(context)
+                } else if (looksLikeCandidate(body)) {
+                    // Likely transaction the local parser cannot recognize: queue a
+                    // sanitized candidate for the backend SMS fallback (Gemini behind
+                    // the API). The raw text never leaves the phone.
+                    enqueueCandidate(context, sender, body, receivedAtMs)
                 }
+                flushPending(context)
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing incoming SMS", e)
             } finally {
-                pendingResult.finish()
+                goAsyncHolder.finish()
             }
         }.start()
+    }
+
+    /**
+     * A weaker gate than [parseSmsTransaction]: the message talks about a money
+     * movement and carries a number, but the strict parser could not fully
+     * understand it (unknown sender, unusual amount format, ...). Only these are
+     * worth a fallback call.
+     */
+    private fun looksLikeCandidate(body: String): Boolean {
+        if (OTP_PATTERN.containsMatchIn(body)) return false
+        if (!body.any { it.isDigit() }) return false
+        val lowerBody = body.lowercase(Locale.ROOT)
+        return MOVEMENT_KEYWORDS.any { lowerBody.contains(it) }
     }
 
     data class DetectedTransaction(
@@ -259,6 +284,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val ingestToken = prefs.getString(KEY_INGEST_TOKEN, null)
         if (!ingestToken.isNullOrEmpty()) {
             flushQueue(prefs, "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
+            flushCandidates(context, prefs, "$apiBase$ANALYZE_PATH", "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
             return
         }
 
@@ -273,6 +299,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         if (accessToken.isEmpty() || expiresAtMs - TOKEN_MARGIN_MS <= System.currentTimeMillis()) return
 
         flushQueue(prefs, "$apiBase$MONEY_PATH", accessToken, isIngest = false)
+        flushCandidates(context, prefs, "$apiBase$ANALYZE_PATH", "$apiBase$MONEY_PATH", accessToken, isIngest = false)
     }
 
     /**
@@ -309,8 +336,11 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 .put("amount", item.optString("amount"))
                 .put("currency", item.optString("currency", "EGP"))
                 .put("occurredOn", item.optString("occurredOn"))
-                .put("description", item.optString("description"))
-                .put("merchant", item.optString("merchant"))
+            // Absent/null fields stay absent: never send "" placeholders.
+            val description = item.optString("description").ifEmpty { null }
+            val merchant = item.optString("merchant").ifEmpty { null }
+            if (description != null) payload.put("description", description)
+            if (merchant != null) payload.put("merchant", merchant)
             val connection = URL(url).openConnection() as HttpURLConnection
             try {
                 connection.requestMethod = "POST"
@@ -329,6 +359,200 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             Log.e(TAG, "Wallet transaction sync failed", e)
             -1
         }
+    }
+
+    /**
+     * Stores one fallback candidate: sanitized text only, so a queued entry never
+     * contains raw financial identifiers even on disk beyond what the parser kept.
+     */
+    private fun enqueueCandidate(context: Context, sender: String, body: String, receivedAtMs: Long) {
+        val id = UUID.randomUUID().toString()
+        val item = JSONObject()
+            .put("id", id)
+            .put("text", SmsSanitizer.sanitize(body))
+            .put("sender", SmsSanitizer.sanitizeSender(sender))
+            .put("receivedAtMs", receivedAtMs)
+            .put("attempts", 0)
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(CANDIDATE_PREFIX + id, item.toString())
+            .commit()
+    }
+
+    /**
+     * Asks the backend to analyze queued candidates (the Gemini fallback runs
+     * there; the key is server-side only). A high-confidence parse is saved at
+     * once with the candidate id as the Idempotency-Key, so retries can never
+     * duplicate it. A low-confidence parse becomes a review entry the user must
+     * confirm in the Money screen. Anything unrecognized is dropped.
+     */
+    private fun flushCandidates(
+        context: Context,
+        prefs: SharedPreferences,
+        analyzeUrl: String,
+        saveUrl: String,
+        token: String,
+        isIngest: Boolean
+    ) {
+        val candidateKeys = prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }.sorted()
+        for (key in candidateKeys) {
+            val raw = prefs.getString(key, null) ?: continue
+            val item = try {
+                JSONObject(raw)
+            } catch (e: Exception) {
+                prefs.edit().remove(key).commit()
+                continue
+            }
+            val attempts = item.optInt("attempts", 0)
+            if (attempts >= MAX_CANDIDATE_ATTEMPTS) {
+                prefs.edit().remove(key).commit()
+                continue
+            }
+
+            val (status, body) = postAnalyze(analyzeUrl, token, item)
+            when {
+                status in 200..299 && body != null -> {
+                    prefs.edit().remove(key).commit()
+                    handleAnalysisResult(context, prefs, saveUrl, token, item, body)
+                }
+                status in PERMANENT_REJECTIONS -> {
+                    prefs.edit().remove(key).commit()
+                }
+                status == 401 || status == 403 -> {
+                    if (isIngest && prefs.getString(KEY_INGEST_TOKEN, null) == token) {
+                        prefs.edit().remove(KEY_INGEST_TOKEN).commit()
+                    }
+                    return
+                }
+                else -> {
+                    // Network, server, or upstream problem: retry later.
+                    item.put("attempts", attempts + 1)
+                    prefs.edit().putString(key, item.toString()).commit()
+                    return
+                }
+            }
+        }
+    }
+
+    /** Applies one analyze response: auto-save, queue for review, or drop. */
+    private fun handleAnalysisResult(
+        context: Context,
+        prefs: SharedPreferences,
+        saveUrl: String,
+        token: String,
+        candidate: JSONObject,
+        body: String
+    ) {
+        val result = try {
+            JSONObject(body)
+        } catch (e: Exception) {
+            return
+        }
+        val status = result.optString("status")
+        val transaction = result.optJSONObject("transaction")
+        val confidence = result.optString("confidence")
+        if (status != "recognized" || transaction == null) {
+            // "unrecognized" or "unavailable": not a transaction we can log.
+            return
+        }
+
+        // optString() on a JSON null returns the literal string "null" on Android,
+        // so map absent/null/empty description and merchant to null explicitly.
+        val description =
+            if (transaction.isNull("description")) null
+            else transaction.optString("description").ifEmpty { null }
+        val merchant =
+            if (transaction.isNull("merchant")) null
+            else transaction.optString("merchant").ifEmpty { null }
+
+        val reviewItem = JSONObject()
+            .put("id", candidate.optString("id"))
+            .put("kind", transaction.optString("kind"))
+            .put("amount", transaction.optString("amount"))
+            .put("currency", transaction.optString("currency", "EGP"))
+            .put("occurredOn", transaction.optString("occurredOn"))
+            .put("sender", candidate.optString("sender"))
+            .put("text", candidate.optString("text"))
+            .put("createdAt", System.currentTimeMillis())
+        if (description != null) reviewItem.put("description", description)
+        if (merchant != null) reviewItem.put("merchant", merchant)
+
+        if (confidence == "high") {
+            // High confidence may auto-save. The candidate id is the Idempotency-Key.
+            val saveItem = JSONObject()
+                .put("id", candidate.optString("id"))
+                .put("kind", reviewItem.optString("kind"))
+                .put("amount", reviewItem.optString("amount"))
+                .put("currency", reviewItem.optString("currency"))
+                .put("occurredOn", reviewItem.optString("occurredOn"))
+            if (description != null) saveItem.put("description", description)
+            if (merchant != null) saveItem.put("merchant", merchant)
+            val saved = postTransaction(saveUrl, token, saveItem.toString())
+            if (saved in 200..299 || saved in PERMANENT_REJECTIONS) {
+                return
+            }
+            // Could not save now: keep it as a review entry so nothing is lost.
+        }
+
+        // Low confidence requires user confirmation in the Money review flow.
+        val id = reviewItem.optString("id")
+        prefs.edit().putString(REVIEW_PREFIX + id, reviewItem.toString()).commit()
+        showReviewNotification(context)
+    }
+
+    /** Returns the HTTP status code and response body for an analyze request. */
+    private fun postAnalyze(url: String, token: String, candidate: JSONObject): Pair<Int, String?> {
+        return try {
+            val payload = JSONObject()
+                .put("text", candidate.optString("text"))
+                .put("sender", candidate.optString("sender"))
+                .put(
+                    "receivedAt",
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }.format(Date(candidate.optLong("receivedAtMs", System.currentTimeMillis())))
+                )
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.connectTimeout = CONNECT_TIMEOUT_MS
+                connection.readTimeout = READ_TIMEOUT_MS
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                connection.setRequestProperty("Authorization", "Bearer $token")
+                OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { it.write(payload.toString()) }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                Pair(code, body)
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Wallet SMS analysis request failed", e)
+            Pair(-1, null)
+        }
+    }
+
+    /** Prompts the user to confirm a pending review item. The item itself is never shown here. */
+    private fun showReviewNotification(context: Context) {
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val isArabic = Locale.getDefault().language.startsWith("ar")
+        val title = if (isArabic) "معاملة تحتاج مراجعة" else "Transaction needs review"
+        val text = if (isArabic) {
+            "افتح تطبيق LifeStyle للمراجعة قبل الحفظ"
+        } else {
+            "Open LifeStyle to confirm before it is saved"
+        }
+        val notif = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+        notificationManager.notify(REVIEW_NOTIFICATION_ID, notif)
     }
 
     /** Parses the UTC ISO-8601 timestamps written by Dart. Sub-second precision is ignored. */

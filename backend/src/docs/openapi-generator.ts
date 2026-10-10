@@ -2976,6 +2976,39 @@ paths:
           description: Ingest token missing, invalid, revoked, or its session has ended
         '409':
           description: Idempotency key reused or quota exceeded
+  /ingest/sms/analyze:
+    post:
+      summary: Analyze a likely SMS transaction
+      description: >
+        Backend-only Gemini fallback for wallet/bank SMS that the local, on-device
+        parser could not recognize. The phone sends sanitized candidate text; the
+        server sanitizes it again, asks the model for a strict transaction parse,
+        and returns the result. Nothing is stored, and raw SMS text never leaves
+        the phone unredacted. High confidence may auto-save on the phone; low
+        confidence must wait for user confirmation. The model key is server-side
+        only and is never part of a client build.
+      security:
+        - IngestToken: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeSmsRequest'
+      responses:
+        '200':
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsAnalysisResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Ingest token or access token missing, invalid, revoked, or its session has ended
+        '503':
+          description: SMS analysis is temporarily unavailable (stable error code SMS_FALLBACK_UNAVAILABLE); retry later
 components:
   securitySchemes:
     BearerAuth:
@@ -2986,7 +3019,7 @@ components:
     IngestToken:
       type: http
       scheme: bearer
-      description: Opaque ingest token (prefix lsi_). Accepted only by the ingest transaction route.
+      description: Opaque ingest token (prefix lsi_). Accepted only by the ingest transaction and SMS analyze routes.
 
   schemas:
     RegisterRequest:
@@ -5031,6 +5064,74 @@ components:
         - createdAt
         - updatedAt
         - version
+
+    AnalyzeSmsRequest:
+      type: object
+      description: Sanitized SMS candidate. Text must already be redacted on the phone; the server redacts again before any model call.
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Sanitized SMS body (placeholders like [OTP], [PHONE], [BALANCE] are expected).
+        sender:
+          type: string
+          maxLength: 120
+          description: Sanitized sender id (phone-like senders appear as [PHONE]).
+        receivedAt:
+          type: string
+          description: When the SMS arrived on the phone. YYYY-MM-DD or ISO-8601 timestamp.
+          example: '2026-10-08T13:05:00Z'
+      required:
+        - text
+        - receivedAt
+
+    SmsAnalysisResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [recognized, unrecognized, unavailable]
+          description: recognized = strict transaction returned; unrecognized = not a transaction (drop the candidate); unavailable = fallback not configured.
+        transaction:
+          $ref: '#/components/schemas/AnalyzedTransaction'
+        confidence:
+          type: string
+          enum: [high, low]
+          nullable: true
+          description: high may auto-save on the phone; low requires user confirmation in the Money review flow.
+      required:
+        - status
+
+    AnalyzedTransaction:
+      type: object
+      description: Strict transaction schema. Fields are sanitized; occurredOn is the message date, never model output.
+      properties:
+        kind:
+          type: string
+          enum: [expense, income]
+        amount:
+          type: string
+          example: '250.00'
+        currency:
+          type: string
+          example: EGP
+        occurredOn:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        merchant:
+          type: string
+          maxLength: 60
+          nullable: true
+      required:
+        - kind
+        - amount
+        - currency
+        - occurredOn
 
     CreateTransactionRequest:
       type: object

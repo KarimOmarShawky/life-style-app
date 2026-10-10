@@ -9,6 +9,7 @@ import type pg from 'pg';
 import type { Redis } from 'ioredis';
 import type { Kysely } from 'kysely';
 import type { RequestHandler } from 'express';
+import { getEnv } from './config/env.js';
 import { getPgPool } from './infrastructure/database/postgres/pool.js';
 import { getKyselyDb, type DatabaseSchema } from './infrastructure/database/postgres/kysely.js';
 import {
@@ -105,7 +106,14 @@ import { PgIngestTokenRepository } from './features/ingest/ingest.repository.pg.
 import type { IngestTokenRepository } from './features/ingest/ingest.repository.js';
 import { IngestService } from './features/ingest/ingest.service.js';
 import { IngestController } from './features/ingest/ingest.controller.js';
-import { createIngestAuthenticateMiddleware } from './core/middleware/authenticate-ingest.js';
+import {
+  GeminiSmsFallbackAnalyzer,
+  type SmsTransactionAnalyzer
+} from './features/ingest/sms-fallback-analyzer.js';
+import {
+  createIngestAuthenticateMiddleware,
+  createIngestOrUserAuthenticateMiddleware
+} from './core/middleware/authenticate-ingest.js';
 
 export interface AppContainer {
   clock: Clock;
@@ -159,6 +167,8 @@ export interface AppContainer {
   ingestService: IngestService;
   ingestController: IngestController;
   authenticateIngest: RequestHandler;
+  authenticateIngestOrUser: RequestHandler;
+  smsAnalyzer: SmsTransactionAnalyzer;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -261,11 +271,25 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
 
   // Ingest tokens: background SMS capture without the short-lived access token
   const ingestRepository = overrides?.ingestRepository ?? new PgIngestTokenRepository(pgPool);
-  const ingestService = overrides?.ingestService ?? new IngestService(ingestRepository);
+  // SMS fallback: Gemini behind this backend. The key is server-side only and is
+  // never part of a client build; without it the fallback is simply disabled.
+  const smsAnalyzerEnv = getEnv();
+  const smsAnalyzer =
+    overrides?.smsAnalyzer ??
+    new GeminiSmsFallbackAnalyzer({
+      apiKey: smsAnalyzerEnv.SMS_FALLBACK_GEMINI_KEY,
+      model: smsAnalyzerEnv.SMS_FALLBACK_GEMINI_MODEL,
+      timeoutMs: smsAnalyzerEnv.SMS_FALLBACK_TIMEOUT_MS
+    });
+  const ingestService =
+    overrides?.ingestService ?? new IngestService(ingestRepository, smsAnalyzer);
   const ingestController = overrides?.ingestController ?? new IngestController(ingestService);
   const authenticateIngest =
     overrides?.authenticateIngest ??
     createIngestAuthenticateMiddleware(ingestRepository, sessionValidator);
+  const authenticateIngestOrUser =
+    overrides?.authenticateIngestOrUser ??
+    createIngestOrUserAuthenticateMiddleware(authenticateIngest, authenticate);
 
   const container: AppContainer = {
     clock,
@@ -318,7 +342,9 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     ingestRepository,
     ingestService,
     ingestController,
-    authenticateIngest
+    authenticateIngest,
+    authenticateIngestOrUser,
+    smsAnalyzer
   };
 
   if (!overrides) {

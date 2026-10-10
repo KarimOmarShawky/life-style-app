@@ -10,7 +10,8 @@ import 'package:lifestyle_mobile/data/json_fields.dart';
 /// `flutter.lifestyle.wallet_ingest_token.v1`.
 ///
 /// The backend ties the token to the login session, so signing out ends it. Turning SMS capture
-/// off revokes it. The token can only create transactions.
+/// off revokes it. The token can only create transactions and ask the backend SMS fallback to
+/// analyze candidates.
 class WalletIngestToken {
   WalletIngestToken(this._api);
 

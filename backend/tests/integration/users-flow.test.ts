@@ -215,11 +215,12 @@ describe('Users Flow Integration Tests', () => {
     const txARes = await request(app)
       .post('/api/v1/money/transactions')
       .set('Authorization', `Bearer ${tokensA.accessToken}`)
+      .set('Idempotency-Key', '00000000-0000-4000-8000-000000000001')
       .send({
         kind: 'expense',
         amount: '45.00',
         currency: 'USD',
-        occurredOn: '2026-10-01',
+        occurredOn: '2026-01-15',
         categoryId: catARes.body.category.id
       });
     expect(txARes.status).toBe(201);

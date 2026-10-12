@@ -260,9 +260,15 @@ describe('Users Flow Integration Tests', () => {
     ]);
     expect(remA.rows[0]?.cnt).toBe(0);
 
-    const remB = await pool.query(
+    const remACats = await pool.query(
       'SELECT count(*)::int AS cnt FROM categories WHERE user_id = $1',
-      [userB.id]
+      [userA.id]
+    );
+    expect(remACats.rows[0]?.cnt).toBe(0);
+
+    const remB = await pool.query(
+      'SELECT count(*)::int AS cnt FROM categories WHERE user_id = $1 AND id = $2',
+      [userB.id, catBRes.body.category.id]
     );
     expect(remB.rows[0]?.cnt).toBe(1);
   });

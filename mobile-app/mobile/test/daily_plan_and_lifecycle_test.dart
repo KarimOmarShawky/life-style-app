@@ -17,6 +17,25 @@ SessionTokens _tokens() => SessionTokens(
   refreshTokenExpiresAt: DateTime.utc(2026, 11, 12, 12),
 );
 
+class _MemoryTokenStore implements TokenStore {
+  _MemoryTokenStore(this.tokens);
+
+  SessionTokens? tokens;
+
+  @override
+  Future<void> clear() async {
+    tokens = null;
+  }
+
+  @override
+  Future<SessionTokens?> read() async => tokens;
+
+  @override
+  Future<void> write(SessionTokens value) async {
+    tokens = value;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -105,7 +124,7 @@ void main() {
 
   group('AuthRepository export and account deletion endpoints', () {
     test('calls export, schedule deletion, and cancel deletion endpoints', () async {
-      final store = MemoryTokenStore(_tokens());
+      final store = _MemoryTokenStore(_tokens());
       final seenPaths = <String>[];
       final client = ApiClient(
         baseUri: Uri.parse('https://api.example.test/api/v1/'),
@@ -168,7 +187,7 @@ void main() {
 
   group('DailyPlanRepository dashboard, day plan, and global search', () {
     test('parses dashboard overview, day view, and global search results', () async {
-      final store = MemoryTokenStore(_tokens());
+      final store = _MemoryTokenStore(_tokens());
       final client = ApiClient(
         baseUri: Uri.parse('https://api.example.test/api/v1/'),
         tokenStore: store,

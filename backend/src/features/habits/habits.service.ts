@@ -10,6 +10,7 @@ import { getUserTodayDate } from '../../core/time/date-utils.js';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
 import type { Kysely } from 'kysely';
 import type { HabitsRepository } from './habits.repository.js';
+import type { RemindersRepository } from '../reminders/reminders.repository.js';
 import type {
   CreateHabitInput,
   UpdateHabitInput,
@@ -33,7 +34,8 @@ export class HabitsService {
   constructor(
     private readonly habitsRepository: HabitsRepository,
     private readonly db: Kysely<DatabaseSchema>,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly remindersRepository: RemindersRepository
   ) {}
 
   private async verifyGoalOwnership(userId: string, goalId: string): Promise<void> {
@@ -186,6 +188,8 @@ export class HabitsService {
     if (!deleted) {
       throw AppError.notFound('Habit not found');
     }
+    // Reminders of a soft-deleted habit must never fire (FR-REM lifecycle).
+    await this.remindersRepository.cancelPendingFor('habit', id);
   }
 
   async restoreHabit(userId: string, id: string, userTimezone = 'UTC'): Promise<HabitDto> {

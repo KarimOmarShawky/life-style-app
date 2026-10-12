@@ -50,3 +50,14 @@ fee details, dates, percentages, promotional text); model output is validated
 against the strict transaction schema and sanitized again before it is returned.
 High-confidence results may auto-save on the phone; low-confidence results
 require user confirmation in the Money review flow.
+
+---
+
+## 4. Process listeners (audit P2-02, documented 2026-10)
+
+The API process binds the primary listener on `PORT`, and — intentionally, for
+the Railway deployment target — two auxiliary listeners on ports **3000** and
+**8080** whenever those differ from `PORT`. All three serve the same app. The
+auxiliary listeners are closed during graceful shutdown alongside the primary
+one. If a future deployment target does not need them, remove the
+`secondaryPorts` block in `backend/src/server.ts`.

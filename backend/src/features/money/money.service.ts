@@ -9,6 +9,7 @@ import { Decimal } from 'decimal.js';
 import { AppError } from '../../core/errors/app-error.js';
 import { getUserTodayDate, addDaysToDateString } from '../../core/time/date-utils.js';
 import type { MoneyRepository } from './money.repository.js';
+import type { RemindersRepository } from '../reminders/reminders.repository.js';
 import type {
   CreateCategoryInput,
   UpdateCategoryInput,
@@ -83,7 +84,10 @@ function getUserToday(timezone: string): string {
 }
 
 export class MoneyService {
-  constructor(private readonly moneyRepository: MoneyRepository) {}
+  constructor(
+    private readonly moneyRepository: MoneyRepository,
+    private readonly remindersRepository: RemindersRepository
+  ) {}
 
   // ==========================================
   // Categories
@@ -578,6 +582,8 @@ export class MoneyService {
     if (!deleted) {
       throw AppError.notFound('Subscription not found');
     }
+    // Reminders of a soft-deleted subscription must never fire (FR-REM lifecycle).
+    await this.remindersRepository.cancelPendingFor('subscription', subscriptionId);
   }
 
   async paySubscription(

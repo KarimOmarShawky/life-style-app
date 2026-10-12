@@ -911,6 +911,405 @@ paths:
         '409':
           description: Timer session not running
 
+  /reminders:
+    get:
+      summary: List Reminders (Unified)
+      security:
+        - BearerAuth: []
+      description: Returns the user's reminders across task, habit, and subscription parents, newest first.
+      parameters:
+        - name: entityType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [task, habit, event, subscription]
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, processing, sent, failed, cancelled]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Reminders list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnifiedReminder'
+
+  /tasks/{id}/reminders:
+    get:
+      summary: List Task Reminders
+      security:
+        - BearerAuth: []
+      description: Returns all reminders attached to the task.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reminders list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnifiedReminder'
+        '404':
+          description: Task not found
+    post:
+      summary: Add Task Reminder
+      security:
+        - BearerAuth: []
+      description: Creates a reminder on the task (FR-REM-01/02). A manual reminder with both remindAt and offsetMinutes is rejected; exactly one must be provided (FR-REM-02).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnifiedReminderRequest'
+      responses:
+        '201':
+          description: Reminder created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder:
+                    $ref: '#/components/schemas/UnifiedReminder'
+        '400':
+          description: Validation error (e.g. both remindAt and offsetMinutes provided)
+        '404':
+          description: Task not found
+        '409':
+          description: Duplicate dedupeKey
+  /tasks/{id}/reminders/{reminderId}:
+    delete:
+      summary: Delete Task Reminder
+      security:
+        - BearerAuth: []
+      description: Permanently deletes the reminder (FR-REM-06). Parent ownership is enforced by composite foreign keys.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: reminderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Reminder deleted
+        '404':
+          description: Task or reminder not found
+
+  /habits/{id}/reminders:
+    get:
+      summary: List Habit Reminders
+      security:
+        - BearerAuth: []
+      description: Returns all reminders attached to the habit.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reminders list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnifiedReminder'
+        '404':
+          description: Habit not found
+    post:
+      summary: Add Habit Reminder
+      security:
+        - BearerAuth: []
+      description: Creates a reminder on the habit (FR-REM-01/02).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnifiedReminderRequest'
+      responses:
+        '201':
+          description: Reminder created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder:
+                    $ref: '#/components/schemas/UnifiedReminder'
+        '400':
+          description: Validation error
+        '404':
+          description: Habit not found
+        '409':
+          description: Duplicate dedupeKey
+  /habits/{id}/reminders/{reminderId}:
+    delete:
+      summary: Delete Habit Reminder
+      security:
+        - BearerAuth: []
+      description: Permanently deletes the reminder (FR-REM-06).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: reminderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Reminder deleted
+        '404':
+          description: Habit or reminder not found
+
+  /subscriptions/{id}/reminders:
+    get:
+      summary: List Subscription Reminders
+      security:
+        - BearerAuth: []
+      description: Returns all reminders attached to the subscription.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reminders list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnifiedReminder'
+        '404':
+          description: Subscription not found
+    post:
+      summary: Add Subscription Reminder
+      security:
+        - BearerAuth: []
+      description: Creates a reminder on the subscription (FR-REM-01/02).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnifiedReminderRequest'
+      responses:
+        '201':
+          description: Reminder created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder:
+                    $ref: '#/components/schemas/UnifiedReminder'
+        '400':
+          description: Validation error
+        '404':
+          description: Subscription not found
+        '409':
+          description: Duplicate dedupeKey
+  /subscriptions/{id}/reminders/{reminderId}:
+    delete:
+      summary: Delete Subscription Reminder
+      security:
+        - BearerAuth: []
+      description: Permanently deletes the reminder (FR-REM-06).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: reminderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Reminder deleted
+        '404':
+          description: Subscription or reminder not found
+
+  /days/today:
+    get:
+      summary: Daily Plan - Today
+      security:
+        - BearerAuth: []
+      description: Returns today's plan (user timezone) composed from read-only readers: tasks, habits, events, subscriptions due, and the active timer.
+      responses:
+        '200':
+          description: Day view
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  day:
+                    $ref: '#/components/schemas/DayView'
+  /days/{date}:
+    get:
+      summary: Daily Plan - Specific Date
+      security:
+        - BearerAuth: []
+      description: Returns the plan for the given date in the user's timezone.
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^d{4}-d{2}-d{2}$'
+      responses:
+        '200':
+          description: Day view
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  day:
+                    $ref: '#/components/schemas/DayView'
+        '400':
+          description: Invalid date
+
+  /dashboard/overview:
+    get:
+      summary: Dashboard Overview
+      security:
+        - BearerAuth: []
+      description: Aggregated counts for the dashboard: tasks today/overdue, habits today, events today, subscriptions due in the next 7 days, and the active timer.
+      responses:
+        '200':
+          description: Dashboard overview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overview:
+                    $ref: '#/components/schemas/DashboardOverview'
+
+  /search:
+    get:
+      summary: Global Search
+      security:
+        - BearerAuth: []
+      description: Searches tasks, notes, habits, projects, and events (title/full-text) and merges the results.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Search results grouped by entity type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '400':
+          description: Missing or invalid q
+
   /habits:
     get:
       summary: List Habits
@@ -3848,6 +4247,241 @@ components:
         - skip
         - fail
 
+    DayView:
+      type: object
+      description: Daily Plan view composed from read-only feature readers (P1-05).
+      properties:
+        date:
+          type: string
+          example: '2026-10-11'
+        timezone:
+          type: string
+          example: UTC
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              description: { type: string, nullable: true }
+              status: { type: string }
+              priority: { type: integer }
+              dueDate: { type: string, nullable: true }
+              dueTime: { type: string, nullable: true }
+              plannedDate: { type: string, nullable: true }
+              isFocus: { type: boolean }
+              estimateMinutes: { type: integer, nullable: true }
+        habits:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              color: { type: string, nullable: true }
+              reminderTime: { type: string, nullable: true }
+              status: { type: string }
+              completedOn: { type: boolean }
+              dueOn: { type: boolean }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              startAt: { type: string, format: date-time }
+              endAt: { type: string, format: date-time }
+              allDay: { type: boolean }
+              location: { type: string, nullable: true }
+        subscriptionsDue:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              amountMinor: { type: integer }
+              currency: { type: string }
+              billingUnit: { type: string }
+              nextBillingDate: { type: string }
+        activeTimer:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            taskId: { type: string, format: uuid, nullable: true }
+            taskTitle: { type: string, nullable: true }
+            startedAt: { type: string, format: date-time }
+            mode: { type: string }
+            plannedSeconds: { type: integer, nullable: true }
+      required:
+        - date
+        - timezone
+        - tasks
+        - habits
+        - events
+        - subscriptionsDue
+    DashboardOverview:
+      type: object
+      description: Dashboard aggregates (P1-05).
+      properties:
+        date: { type: string }
+        timezone: { type: string }
+        tasks:
+          type: object
+          properties:
+            dueToday: { type: integer }
+            doneToday: { type: integer }
+            overdue: { type: integer }
+        habits:
+          type: object
+          properties:
+            dueToday: { type: integer }
+            completedToday: { type: integer }
+        eventsToday: { type: integer }
+        subscriptionsDueNext7Days:
+          type: object
+          properties:
+            count: { type: integer }
+            totalMinorByCurrency:
+              type: object
+              additionalProperties: { type: integer }
+        activeSubscriptions: { type: integer }
+        activeTimer:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            taskId: { type: string, format: uuid, nullable: true }
+            startedAt: { type: string, format: date-time }
+      required:
+        - date
+        - timezone
+        - tasks
+        - habits
+        - eventsToday
+        - subscriptionsDueNext7Days
+        - activeSubscriptions
+    SearchResults:
+      type: object
+      description: Global search results grouped by entity type (P1-05).
+      properties:
+        query: { type: string }
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+        notes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string, nullable: true }
+              excerpt: { type: string, nullable: true }
+        habits:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+        projects:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+      required:
+        - query
+        - tasks
+        - notes
+        - habits
+        - projects
+        - events
+    UnifiedReminder:
+      type: object
+      description: Unified reminder attached to a task, habit, event, or subscription parent (FR-REM-01..06).
+      properties:
+        id:
+          type: string
+          format: uuid
+        entityType:
+          type: string
+          enum: [task, habit, event, subscription]
+        entityId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [user, system]
+        remindAt:
+          type: string
+          format: date-time
+        offsetMinutes:
+          type: integer
+          nullable: true
+        channel:
+          type: string
+          enum: [push, in_app, email]
+        status:
+          type: string
+          enum: [pending, processing, sent, failed, cancelled]
+        nextAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        dedupeKey:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - entityType
+        - entityId
+        - source
+        - remindAt
+        - channel
+        - status
+        - createdAt
+    CreateUnifiedReminderRequest:
+      type: object
+      description: Manual reminder input. Exactly one of remindAt or offsetMinutes must be provided (FR-REM-02).
+      properties:
+        remindAt:
+          type: string
+          format: date-time
+        offsetMinutes:
+          type: integer
+          nullable: true
+        channel:
+          type: string
+          enum: [push, in_app, email]
+          default: in_app
+        dedupeKey:
+          type: string
+          nullable: true
+      required:
+        - remindAt
     Habit:
       type: object
       properties:

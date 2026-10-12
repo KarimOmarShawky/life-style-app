@@ -56,3 +56,13 @@ This record captures the fundamental architectural decisions governing the LifeS
 
 ### ADR-041: Strict Refresh-Token Reuse Detection with No Grace Window
 * **Decision:** A rotated or raced refresh token immediately revokes the entire user session. No timing-based exceptions.
+
+### ADR-044: Approved Scope Amendments — SMS Auto-Capture, Server-Side LLM Fallback, Multi-Language UI, Optional-Task Focus Timer (Retroactive, 2026-10-11)
+* **Context:** These capabilities were built and shipped before this record existed. The post-implementation audit (2026-10) flagged them as silent reversals of the R1 exclusions in §2.2/§5.3 and of the English-only UI lock, with no approval trail. The product owner reviewed the audit findings and **approved them retroactively** (decision (b): retrospectively approve) on 2026-10-11.
+* **Decision (supersedes the matching exclusions in `deferred-and-non-goals.md` and the English-only lock):**
+  1. **Android SMS auto-capture (opt-in)** is approved scope. Raw SMS never leaves the phone; messages are sanitized on-device (OTP/phone/account/reference/URL/email/balance/fee/date/percent/promo redaction) before any network use, and re-sanitized server-side. Capture requires an explicit user switch and `RECEIVE_SMS` permission.
+  2. **Server-side LLM (Gemini) fallback for unrecognized wallet SMS** is approved scope. The API key lives only in backend env (`SMS_FALLBACK_GEMINI_KEY`), never in a mobile build. Only sanitized text is sent; model output is validated against a strict transaction schema and re-sanitized. High-confidence results may auto-save (user requirement, stated in the implementation brief); low-confidence results always require user confirmation in the Money review flow.
+  3. **Arabic/RTL + multi-language catalogs (ar/de/es/fr/tr)** are approved scope. MVP UI is no longer locked to English-only.
+  4. **Focus Timer sessions without a task** are approved scope (optional task link). TimerSession→Task is optional.
+* **Guardrails (standing):** No raw SMS in logs or third-party payloads; the mobile AI chat assistant and the SMS fallback may not send financial data beyond the sanitized transaction schema; ADR-039's dependency guard remains (no AI/ML SDK packages — the fallback calls the Gemini HTTPS API directly).
+* **Consequences:** `deferred-and-non-goals.md` keeps only what is genuinely excluded (see its "Scope amendments" section). The earlier lock rows are retired rather than contradicted in place.

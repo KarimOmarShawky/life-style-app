@@ -12,21 +12,25 @@ import { createApp } from './app.js';
 import { getEnv, validateEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 import { setDrainingStatus } from './features/health/health.routes.js';
-import { getPgPool, closePgPool } from './infrastructure/database/postgres/pool.js';
+import { closePgPool } from './infrastructure/database/postgres/pool.js';
 import { closeRedisClient } from './infrastructure/redis/redis-client.js';
-import { ensureDatabaseSchema } from './infrastructure/database/postgres/auto-migrate.js';
 
 // Validate environment variables fail-fast
 validateEnv();
 const env = getEnv();
 
-// Ensure database tables exist for cloud deployments
-void ensureDatabaseSchema(getPgPool()).catch((err) => {
-  logger.warn('Initial schema auto-migration attempt logged warning:', err);
-});
+// NOTE: The schema is NOT bootstrapped here. Migrations run as a separate
+// deployment step (`npm run migrate:up`) with the dedicated lifestyle_migrator
+// role (spec §6.12) — never at API start and never with the application's
+// runtime role. An earlier auto-migrate bootstrap ran DDL with the app pool on
+// every cold boot and was removed as an audit finding (P1-01, 2026-10).
 
 const app = createApp();
 const server = http.createServer(app);
+
+// Auxiliary listeners (Railway compatibility: probes reach both the standard
+// port 8080 and a custom 3000). Tracked so they are closed on shutdown too.
+const auxiliaryServers: http.Server[] = [];
 
 // Keep-alive timeouts tuned per Section 16.2
 server.keepAliveTimeout = 65000;
@@ -45,7 +49,10 @@ async function handleShutdown(signal: string): Promise<void> {
   // 1. Immediately flip readiness health probe to failing (503 degraded) so LB drains traffic
   setDrainingStatus(true);
 
-  // 2. Stop accepting new HTTP connections
+  // 2. Stop accepting new HTTP connections (primary and auxiliary listeners)
+  for (const aux of auxiliaryServers) {
+    aux.close();
+  }
   server.close(async (err) => {
     if (err) {
       logger.error('Error while closing HTTP server', err);
@@ -95,7 +102,9 @@ server.listen(env.PORT, '0.0.0.0', () => {
   logger.info(`LifeStyle API server listening on port ${env.PORT} [NODE_ENV=${env.NODE_ENV}]`);
 });
 
-// Dual listener ensures both Railway standard port (8080) and custom port (3000) respond
+// Dual listener ensures both Railway standard port (8080) and custom port (3000) respond.
+// Intentional for the deployment target (audit P2-02, 2026-10): documented here and in
+// docs/deployment/environment-variables.md; closed on graceful shutdown via auxiliaryServers.
 const secondaryPorts = [3000, 8080].filter((p) => p !== env.PORT);
 for (const p of secondaryPorts) {
   try {
@@ -107,6 +116,7 @@ for (const p of secondaryPorts) {
       .on('error', () => {
         // Ignore if port already in use
       });
+    auxiliaryServers.push(fallbackServer);
   } catch {
     // Continue with primary server
   }

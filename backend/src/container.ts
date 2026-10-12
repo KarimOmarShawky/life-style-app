@@ -114,6 +114,28 @@ import {
   createIngestAuthenticateMiddleware,
   createIngestOrUserAuthenticateMiddleware
 } from './core/middleware/authenticate-ingest.js';
+// Unified Reminders: one reminders domain across task/habit/event/subscription parents
+import { PgRemindersRepository } from './features/reminders/reminders.repository.pg.js';
+import type { RemindersRepository } from './features/reminders/reminders.repository.js';
+import { RemindersService } from './features/reminders/reminders.service.js';
+// Background email queue (Section 11)
+import { Redis as IORedis } from 'ioredis';
+import { QueuedEmailSender, BullEmailQueue } from './jobs/email-queue.js';
+// Query-surface readers (P1-05, feature-architecture rule 2)
+import { PgTaskReader, type TaskReader } from './features/tasks/tasks.reader.js';
+import { PgHabitReader, type HabitReader } from './features/habits/habits.reader.js';
+import { PgCalendarReader, type CalendarReader } from './features/calendar/calendar.reader.js';
+import { PgMoneyReader, type MoneyReader } from './features/money/money.reader.js';
+import {
+  PgTimerReader,
+  type TimerReader
+} from './features/timer-sessions/timer-sessions.reader.js';
+import { PgNotesReader, type NotesReader } from './features/notes/notes.reader.js';
+import { PgProjectsReader, type ProjectsReader } from './features/projects/projects.reader.js';
+// Query features (P1-05)
+import { DaysService } from './features/days/days.service.js';
+import { DashboardService } from './features/dashboard/dashboard.service.js';
+import { SearchService } from './features/search/search.service.js';
 
 export interface AppContainer {
   clock: Clock;
@@ -169,6 +191,11 @@ export interface AppContainer {
   authenticateIngest: RequestHandler;
   authenticateIngestOrUser: RequestHandler;
   smsAnalyzer: SmsTransactionAnalyzer;
+  daysService: DaysService;
+  dashboardService: DashboardService;
+  searchService: SearchService;
+  remindersRepository: RemindersRepository;
+  remindersService: RemindersService;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -193,7 +220,17 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const tokenService = overrides?.tokenService ?? new JoseTokenService();
   const sessionValidator = overrides?.sessionValidator ?? new PgSessionValidator(pgPool);
   const otpStore = overrides?.otpStore ?? new RedisOtpStore(redis);
-  const emailSender = overrides?.emailSender ?? new SmtpEmailSender();
+  // Password-reset emails go through the background queue in normal operation
+  // (Section 11) and fall back to synchronous SMTP when the queue is down. In
+  // tests the synchronous sender keeps behavior deterministic.
+  const emailSender =
+    overrides?.emailSender ??
+    (process.env.NODE_ENV === 'test'
+      ? new SmtpEmailSender()
+      : new QueuedEmailSender(
+          BullEmailQueue.create(new IORedis(getEnv().REDIS_URL, { maxRetriesPerRequest: null })),
+          new SmtpEmailSender()
+        ));
   const auditLogger = overrides?.auditLogger ?? new PgAuditLogger(pgPool);
 
   const authenticate =
@@ -217,6 +254,11 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const usersService = overrides?.usersService ?? new UsersService(usersRepository, auditLogger);
   const usersController = overrides?.usersController ?? new UsersController(usersService);
 
+  // Unified Reminders (FR-REM-01..06) — constructed before the feature services
+  // because task/habit/subscription deletion cancels their pending reminders.
+  const remindersRepository = overrides?.remindersRepository ?? new PgRemindersRepository(db);
+  const remindersService = overrides?.remindersService ?? new RemindersService(remindersRepository);
+
   // Phase P4 Features
   const tasksRepository = overrides?.tasksRepository ?? new PgTasksRepository(db);
   const projectsRepository = overrides?.projectsRepository ?? new PgProjectsRepository(db);
@@ -226,14 +268,14 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     overrides?.timerSessionsRepository ?? new PgTimerSessionsRepository(db);
 
   const tasksService =
-    overrides?.tasksService ?? new TasksService(tasksRepository, projectsRepository, clock);
+    overrides?.tasksService ??
+    new TasksService(tasksRepository, projectsRepository, clock, remindersRepository);
   const projectsService = overrides?.projectsService ?? new ProjectsService(projectsRepository, db);
   const recurringTasksService =
     overrides?.recurringTasksService ??
     new RecurringTasksService(recurringTasksRepository, projectsRepository, clock);
   const timerSessionsService =
-    overrides?.timerSessionsService ??
-    new TimerSessionsService(timerSessionsRepository, tasksRepository, clock);
+    overrides?.timerSessionsService ?? new TimerSessionsService(timerSessionsRepository, tasksRepository, clock);
 
   const tasksController = overrides?.tasksController ?? new TasksController(tasksService);
   const projectsController =
@@ -245,7 +287,8 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
 
   // Phase P5 Habits Feature
   const habitsRepository = overrides?.habitsRepository ?? new PgHabitsRepository(db);
-  const habitsService = overrides?.habitsService ?? new HabitsService(habitsRepository, db, clock);
+  const habitsService =
+    overrides?.habitsService ?? new HabitsService(habitsRepository, db, clock, remindersRepository);
   const habitsController = overrides?.habitsController ?? new HabitsController(habitsService);
 
   // Phase P6 Calendar Feature
@@ -266,7 +309,8 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
 
   // Phase P9 Money Feature
   const moneyRepository = overrides?.moneyRepository ?? new PgMoneyRepository(db);
-  const moneyService = overrides?.moneyService ?? new MoneyService(moneyRepository);
+  const moneyService =
+    overrides?.moneyService ?? new MoneyService(moneyRepository, remindersRepository);
   const moneyController = overrides?.moneyController ?? new MoneyController(moneyService);
 
   // Ingest tokens: background SMS capture without the short-lived access token
@@ -290,6 +334,39 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const authenticateIngestOrUser =
     overrides?.authenticateIngestOrUser ??
     createIngestOrUserAuthenticateMiddleware(authenticateIngest, authenticate);
+
+  // Query-surface readers (P1-05) — read-only adapters per feature
+  const taskReader: TaskReader = new PgTaskReader(db);
+  const habitReader: HabitReader = new PgHabitReader(db);
+  const calendarReader: CalendarReader = new PgCalendarReader(db);
+  const moneyReader: MoneyReader = new PgMoneyReader(db);
+  const timerReader: TimerReader = new PgTimerReader(db);
+  const notesReader: NotesReader = new PgNotesReader(db);
+  const projectsReader: ProjectsReader = new PgProjectsReader(db);
+
+  const daysService = new DaysService(
+    taskReader,
+    habitReader,
+    calendarReader,
+    moneyReader,
+    timerReader,
+    clock
+  );
+  const dashboardService = new DashboardService(
+    taskReader,
+    habitReader,
+    calendarReader,
+    moneyReader,
+    timerReader,
+    clock
+  );
+  const searchService = new SearchService(
+    taskReader,
+    habitReader,
+    calendarReader,
+    notesReader,
+    projectsReader
+  );
 
   const container: AppContainer = {
     clock,
@@ -344,7 +421,12 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     ingestController,
     authenticateIngest,
     authenticateIngestOrUser,
-    smsAnalyzer
+    smsAnalyzer,
+    remindersRepository,
+    remindersService,
+    daysService,
+    dashboardService,
+    searchService
   };
 
   if (!overrides) {

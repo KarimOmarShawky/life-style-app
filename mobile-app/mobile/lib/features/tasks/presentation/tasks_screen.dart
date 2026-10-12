@@ -95,7 +95,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         await ref.read(tasksRepositoryProvider).deleteMultipleTasks(idsToDelete);
         ref.invalidate(tasksProvider);
       } catch (e) {
-        if (mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(_safeMessage(e))),
           );

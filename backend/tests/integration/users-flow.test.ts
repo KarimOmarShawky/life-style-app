@@ -231,7 +231,7 @@ describe('Users Flow Integration Tests', () => {
       .send({ kind: 'expense', name: 'Rent' });
     expect(catBRes.status).toBe(201);
 
-    // Schedule deletion for userA twice (idempotency check)
+    // Schedule deletion for userA; second HTTP request is blocked by pending_deletion guard
     const sched1 = await request(app)
       .post('/api/v1/users/me/deletion')
       .set('Authorization', `Bearer ${tokensA.accessToken}`);
@@ -239,8 +239,8 @@ describe('Users Flow Integration Tests', () => {
       .post('/api/v1/users/me/deletion')
       .set('Authorization', `Bearer ${tokensA.accessToken}`);
     expect(sched1.status).toBe(200);
-    expect(sched2.status).toBe(200);
-    expect(sched2.body.deletionScheduledFor).toBe(sched1.body.deletionScheduledFor);
+    expect(sched2.status).toBe(403);
+    expect(sched2.body.error.code).toBe('ACCOUNT_PENDING_DELETION');
 
     // Expire userA's grace window and run purge
     await pool.query(

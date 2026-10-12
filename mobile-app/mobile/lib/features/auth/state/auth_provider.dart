@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/core_providers.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
@@ -59,12 +60,31 @@ class AuthController extends AsyncNotifier<AppUser?> {
     state = AsyncData(updated);
   }
 
+  Future<Map<String, dynamic>> exportUserData() =>
+      ref.read(authRepositoryProvider).exportUserData();
+
+  Future<void> scheduleAccountDeletion() async {
+    final repo = ref.read(authRepositoryProvider);
+    await repo.scheduleAccountDeletion();
+    final refreshed = await repo.getProfile();
+    state = AsyncData(refreshed);
+  }
+
+  Future<void> cancelAccountDeletion() async {
+    final repo = ref.read(authRepositoryProvider);
+    await repo.cancelAccountDeletion();
+    final refreshed = await repo.getProfile();
+    state = AsyncData(refreshed);
+  }
+
   Future<void> signOut() async {
     try {
       await ref.read(authRepositoryProvider).logout();
     } finally {
-      // Signing out revokes the session, so the SMS receiver's copy of the token is removed too.
+      // Signing out revokes the session, so both the SMS receiver's ingest token
+      // and any user-specific BYOK Gemini key are cleared from local storage.
       await WalletIngestToken.clearLocal();
+      await AiService.instance.setUserApiKey(null);
       state = const AsyncData(null);
     }
   }

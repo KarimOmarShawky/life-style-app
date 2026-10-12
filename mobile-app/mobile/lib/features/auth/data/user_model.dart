@@ -7,6 +7,7 @@ class AppUser {
     required this.locale,
     required this.defaultCurrency,
     required this.status,
+    this.deletionScheduledFor,
   });
 
   final String id;
@@ -16,6 +17,9 @@ class AppUser {
   final String locale;
   final String defaultCurrency;
   final String status;
+  final DateTime? deletionScheduledFor;
+
+  bool get isPendingDeletion => status == 'pending_deletion';
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
     id: _string(json, 'id'),
@@ -25,6 +29,7 @@ class AppUser {
     locale: _string(json, 'locale'),
     defaultCurrency: _string(json, 'defaultCurrency'),
     status: _string(json, 'status'),
+    deletionScheduledFor: _optionalDateTime(json, 'deletionScheduledFor'),
   );
 }
 
@@ -32,4 +37,10 @@ String _string(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is! String) throw FormatException('Missing or invalid $key.');
   return value;
+}
+
+DateTime? _optionalDateTime(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value)?.toLocal();
 }

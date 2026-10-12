@@ -1,19 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/calendar/presentation/calendar_screen.dart';
 import 'package:lifestyle_mobile/features/goals/presentation/goals_screen.dart';
+import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
+import 'package:lifestyle_mobile/features/more/presentation/daily_plan_screen.dart';
 import 'package:lifestyle_mobile/features/projects/presentation/projects_screen.dart';
 import 'package:lifestyle_mobile/features/recurring/presentation/recurring_tasks_screen.dart';
 import 'package:lifestyle_mobile/features/timer/presentation/focus_history_screen.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 /// Hub for the planning areas that do not fit in the bottom navigation bar.
-class MoreScreen extends StatelessWidget {
+class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+    final isAr = l10n.isArabic;
     final items = <_MoreItem>[
+      _MoreItem(
+        icon: Icons.dashboard_outlined,
+        title: isAr ? 'خطة اليوم والملخص' : 'Daily Plan & Overview',
+        subtitle: isAr
+            ? 'ملخص شامل لمهام وعادات وأحداث واشتراكات اليوم'
+            : 'Unified overview of today\'s tasks, habits, events and bills',
+        builder: (_) => const DailyPlanScreen(),
+      ),
       _MoreItem(
         icon: Icons.calendar_month_outlined,
         title: l10n.calendarTitle,
@@ -47,7 +59,21 @@ class MoreScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.moreTitle)),
+      appBar: AppBar(
+        title: Text(l10n.moreTitle),
+        actions: [
+          IconButton(
+            tooltip: l10n.globalSearchTooltip,
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              showSearch<void>(
+                context: context,
+                delegate: GlobalSearchDelegate(ref, isArabic: isAr),
+              );
+            },
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

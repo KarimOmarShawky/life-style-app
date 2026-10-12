@@ -124,6 +124,36 @@ class AuthRepository {
     }
   }
 
+  Future<Map<String, dynamic>> exportUserData() async {
+    final response = await _api.post('users/me/export', body: <String, Object?>{});
+    if (response is! Map<String, dynamic>) {
+      throw const ApiException(
+        statusCode: 502,
+        code: 'INVALID_API_RESPONSE',
+        message: 'The server returned an invalid export response.',
+      );
+    }
+    return response;
+  }
+
+  Future<DateTime?> scheduleAccountDeletion() async {
+    final response = await _api.post(
+      'users/me/deletion',
+      body: <String, Object?>{},
+    );
+    if (response is Map<String, dynamic>) {
+      final raw = response['deletionScheduledFor'];
+      if (raw is String) {
+        return DateTime.tryParse(raw)?.toLocal();
+      }
+    }
+    return null;
+  }
+
+  Future<void> cancelAccountDeletion() async {
+    await _api.delete('users/me/deletion');
+  }
+
   Future<AppUser> _saveAuthentication(dynamic response) async {
     if (response is! Map<String, dynamic> ||
         response['tokens'] is! Map<String, dynamic> ||

@@ -205,7 +205,7 @@ export function globalErrorHandler(
 
   // Spec §15.3: unexpected errors are ALWAYS masked for clients — the raw
   // message may contain credentials, SQL, or internal paths. Full details stay
-  // in the structured log above (and in dev tooling via /health/migrate etc.).
+  // in the structured log above.
   res.status(500).json(
     errorResponse({
       code: 'INTERNAL_ERROR',

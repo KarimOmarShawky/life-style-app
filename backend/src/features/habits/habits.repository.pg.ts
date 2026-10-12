@@ -378,6 +378,7 @@ export class PgHabitsRepository implements HabitsRepository {
       .updateTable('reminders')
       .set({
         status: 'cancelled',
+        next_attempt_at: null,
         updated_at: new Date()
       })
       .where('user_id', '=', userId)

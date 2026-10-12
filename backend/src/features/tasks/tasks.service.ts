@@ -9,6 +9,7 @@ import type { Clock } from '../../core/time/clock.js';
 import { getUserTodayDate } from '../../core/time/date-utils.js';
 import type { TasksRepository } from './tasks.repository.js';
 import type { ProjectsRepository } from '../projects/projects.repository.js';
+import type { RemindersRepository } from '../reminders/reminders.repository.js';
 import type { CreateTaskInput, UpdateTaskInput, ListTasksQuery } from './tasks.validation.js';
 import type { TaskDto, TaskStatus, TaskPriority, ListTasksFilter } from './tasks.types.js';
 import { toTaskDto, priorityToNumber, formatDateOnly } from './tasks.dto.js';
@@ -17,7 +18,8 @@ export class TasksService {
   constructor(
     private readonly tasksRepository: TasksRepository,
     private readonly projectsRepository: ProjectsRepository,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly remindersRepository: RemindersRepository
   ) {}
 
   private async verifyProjectOwnership(userId: string, projectId: string): Promise<void> {
@@ -160,6 +162,8 @@ export class TasksService {
     if (!deleted) {
       throw AppError.notFound('Task not found');
     }
+    // Reminders of a soft-deleted task must never fire (FR-REM lifecycle).
+    await this.remindersRepository.cancelPendingFor('task', id);
   }
 
   async restoreTask(userId: string, id: string): Promise<TaskDto> {

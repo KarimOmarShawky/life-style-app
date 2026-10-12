@@ -31,21 +31,11 @@ healthRouter.get('/live', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
 });
 
-healthRouter.get('/migrate', async (_req: Request, res: Response) => {
-  try {
-    const { getPgPool } = await import('../../infrastructure/database/postgres/pool.js');
-    const { ensureDatabaseSchema } =
-      await import('../../infrastructure/database/postgres/auto-migrate.js');
-    await ensureDatabaseSchema(getPgPool());
-    res.status(200).json({ status: 'ok', message: 'Schema ensured' });
-  } catch (err) {
-    res.status(500).json({
-      status: 'error',
-      error: (err as Error)?.message,
-      stack: (err as Error)?.stack
-    });
-  }
-});
+// NOTE: There is intentionally no GET /health/migrate. Schema changes run
+// exclusively through `npm run migrate:up` with the dedicated lifestyle_migrator
+// role as a separate deployment step (spec §6.12) — never from the API process
+// and never with the application's runtime database role. An unauthenticated
+// DDL endpoint here was a P0 finding (audit 2026-10) and must not return.
 
 /**
  * GET /health/ready

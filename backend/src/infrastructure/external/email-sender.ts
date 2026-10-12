@@ -11,6 +11,7 @@ import { logger } from '../../core/logger/logger.js';
 
 export interface EmailSender {
   sendPasswordResetEmail(to: string, code: string): Promise<void>;
+  sendReminderEmail(to: string, subject: string, body: string): Promise<void>;
 }
 
 export class SmtpEmailSender implements EmailSender {
@@ -30,7 +31,15 @@ export class SmtpEmailSender implements EmailSender {
     const body = `Your 6-digit password reset code is: ${code}\n\nThis code is valid for 15 minutes.\nIf you did not request this reset, please ignore this email.`;
 
     logger.info(`Sending password reset email to [REDACTED] via ${this.host}:${this.port}`);
+    await this.sendRaw(to, subject, body);
+  }
 
+  public async sendReminderEmail(to: string, subject: string, body: string): Promise<void> {
+    logger.info(`Sending reminder email to [REDACTED] via ${this.host}:${this.port}`);
+    await this.sendRaw(to, subject, body);
+  }
+
+  private async sendRaw(to: string, subject: string, body: string): Promise<void> {
     // In local dev/test with Mailpit or mock, attempt simple SMTP socket write
     return new Promise((resolve) => {
       const socket = net.createConnection(this.port, this.host, () => {

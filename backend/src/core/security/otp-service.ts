@@ -37,56 +37,61 @@ export class RedisOtpStore implements OtpStore {
       .digest('hex');
 
     const redisKey = `pwreset:${userId}`;
-    // Store JSON with 15 minutes TTL (900 seconds)
-    const payload = JSON.stringify({ codeHmac, attempts: 0 });
-    await this.redis.set(redisKey, payload, 'EX', 900);
+    // Store the HMAC with 15 minutes TTL (900 seconds). Attempt accounting
+    // lives in its own counter key so it can be incremented atomically.
+    await this.redis.set(redisKey, codeHmac, 'EX', 900);
+    await this.redis.del(this.attemptsKey(userId));
 
     return code;
   }
 
   public async verifyAndConsumeCode(userId: string, code: string): Promise<boolean> {
     const redisKey = `pwreset:${userId}`;
-    const data = await this.redis.get(redisKey);
+    const attemptsKey = this.attemptsKey(userId);
+    const storedHmac = await this.redis.get(redisKey);
 
-    if (!data) {
+    if (!storedHmac) {
       return false;
     }
 
-    let parsed: { codeHmac: string; attempts: number };
-    try {
-      parsed = JSON.parse(data);
-    } catch {
-      await this.redis.del(redisKey);
-      return false;
+    // Count the attempt atomically BEFORE comparing. Every concurrent guess is
+    // accounted for by a single Redis INCR, so the 5-guess cap cannot be
+    // exceeded by parallel requests (a read-modify-write on the code payload
+    // silently undercounted them).
+    const attempts = await this.redis.incr(attemptsKey);
+    if (attempts === 1) {
+      // Tie the counter's lifetime to the code's remaining TTL so both expire
+      // together. A legacy JSON payload has no usable TTL path here; fall back
+      // to the full window.
+      const ttl = await this.redis.ttl(redisKey);
+      await this.redis.expire(attemptsKey, ttl > 0 ? ttl : 900);
     }
 
-    // Increment attempts atomically
-    parsed.attempts += 1;
-    if (parsed.attempts > 5) {
+    if (attempts > 5) {
       // Exceeded 5 attempts: delete code
-      await this.redis.del(redisKey);
+      await this.redis.del(redisKey, attemptsKey);
       return false;
-    }
-
-    // Update attempts with remaining TTL
-    const ttl = await this.redis.ttl(redisKey);
-    if (ttl > 0) {
-      await this.redis.set(redisKey, JSON.stringify(parsed), 'EX', ttl);
     }
 
     const expectedHmac = createHmac('sha256', this.hmacSecret)
       .update(`${userId}:${code}`)
       .digest('hex');
 
-    const bufA = Buffer.from(parsed.codeHmac, 'hex');
+    const bufA = Buffer.from(storedHmac, 'hex');
     const bufB = Buffer.from(expectedHmac, 'hex');
 
     if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
       return false;
     }
 
-    // Single-use guarantee: atomic delete must return 1
+    // Single-use guarantee: deleting the code key must return 1. Exactly one
+    // of any concurrent correct guesses wins; the rest see 0 and fail.
     const delCount = await this.redis.del(redisKey);
+    await this.redis.del(attemptsKey);
     return delCount === 1;
+  }
+
+  private attemptsKey(userId: string): string {
+    return `pwreset-attempts:${userId}`;
   }
 }

@@ -10,8 +10,22 @@ The following capabilities are **explicitly excluded** from the MVP (Release Pha
 | **Authentication** | Cookies & CSRF | Client is Flutter native mobile (iOS/Android). Bearer tokens in secure platform storage eliminate browser cookie attack surfaces. |
 | **Permissions** | RBAC / Roles | LifeStyle App is a single-user personal operating system. Authorization is strictly ownership-based (`user_id`). |
 | **Storage** | File / Image Uploads | MVP handles text, dates, numbers, and structured data. General blob storage is deferred. |
-| **AI / ML** | LLMs, Natural Language Parsing | Core habits, task schedules, and financials are built deterministically. AI is deferred to R3. |
-| **Integrations** | SMS & Email Auto-Ingestion | SMS auto-capture is implemented for Android (opt-in, with a session-bound ingest token). Email auto-ingestion remains deferred to R3. Other transactions are logged explicitly. |
+| **AI / ML** | General LLM features | Core habits, task schedules, and financials are built deterministically. General LLM features are deferred to R3. The two approved exceptions (wallet SMS fallback, AI assistant) are defined in ADR-044 and must stay inside their guardrails. |
+| **Integrations** | Email auto-ingestion | Email auto-ingestion is deferred to R3. Wallet SMS auto-capture is approved scope per ADR-044. Other transactions are logged explicitly. |
 | **Synchronization**| Offline-First Sync Engines | Local offline databases (Drift, SQLite, Hive) are deferred to R4. MVP provides bounded client caching with live REST updates. |
 | **Client Platforms**| Web Client & Desktop | MVP targets native iOS and Android. Web interfaces are non-goals. |
-| **UI Scaffolding** | RTL / Arabic Layouts | Multi-language localization scaffolding is included from day one, but MVP UI is locked to English-only (ADR-043). |
+| **UI** | Web/desktop UI chrome | Native mobile UI only. Multi-language localization (en/ar/de/es/fr/tr) and RTL are approved scope per ADR-044. |
+
+## Scope amendments (approved 2026-10-11 — ADR-044)
+
+The product owner retroactively approved the following scope expansions after the
+post-implementation audit (2026-10). They **supersede** the earlier R1 exclusions
+for these items specifically; the table above lists only what remains excluded.
+
+| Approved capability | Reverses | Standing guardrails |
+| :--- | :--- | :--- |
+| Android SMS auto-capture (opt-in, session-bound ingest token) | R1 "SMS & Email Auto-Ingestion" exclusion (SMS half) | Raw SMS never leaves the phone; sanitization on device and server; explicit user switch + `RECEIVE_SMS` |
+| Server-side Gemini fallback for unrecognized wallet SMS | R1 "AI / ML" exclusion (this use only) | Key in backend env only; sanitized text only; strict schema; high may auto-save, low always confirms |
+| Mobile AI assistant (chat) | R1 "AI / ML" exclusion (this use only) | Same key-handling and no-raw-financial-data rules |
+| Arabic/RTL + de/es/fr/tr catalogs | English-only UI lock | None beyond the standard localization rules |
+| Focus Timer sessions without a task | TimerSession-must-belong-to-a-Task lock | Task link is optional, not removed |

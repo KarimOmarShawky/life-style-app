@@ -50,8 +50,6 @@ fee details, dates, percentages, promotional text); model output is validated
 against the strict transaction schema and sanitized again before it is returned.
 High-confidence results may auto-save on the phone; low-confidence results
 require user confirmation in the Money review flow.
-<<<<<<< ours
-=======
 
 ---
 
@@ -63,4 +61,3 @@ the Railway deployment target — two auxiliary listeners on ports **3000** and
 auxiliary listeners are closed during graceful shutdown alongside the primary
 one. If a future deployment target does not need them, remove the
 `secondaryPorts` block in `backend/src/server.ts`.
->>>>>>> theirs

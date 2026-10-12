@@ -114,8 +114,6 @@ import {
   createIngestAuthenticateMiddleware,
   createIngestOrUserAuthenticateMiddleware
 } from './core/middleware/authenticate-ingest.js';
-<<<<<<< ours
-=======
 // Unified Reminders: one reminders domain across task/habit/event/subscription parents
 import { PgRemindersRepository } from './features/reminders/reminders.repository.pg.js';
 import type { RemindersRepository } from './features/reminders/reminders.repository.js';
@@ -138,7 +136,6 @@ import { PgProjectsReader, type ProjectsReader } from './features/projects/proje
 import { DaysService } from './features/days/days.service.js';
 import { DashboardService } from './features/dashboard/dashboard.service.js';
 import { SearchService } from './features/search/search.service.js';
->>>>>>> theirs
 
 export interface AppContainer {
   clock: Clock;
@@ -194,14 +191,11 @@ export interface AppContainer {
   authenticateIngest: RequestHandler;
   authenticateIngestOrUser: RequestHandler;
   smsAnalyzer: SmsTransactionAnalyzer;
-<<<<<<< ours
-=======
   daysService: DaysService;
   dashboardService: DashboardService;
   searchService: SearchService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
->>>>>>> theirs
 }
 
 let containerInstance: AppContainer | null = null;
@@ -281,8 +275,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     overrides?.recurringTasksService ??
     new RecurringTasksService(recurringTasksRepository, projectsRepository, clock);
   const timerSessionsService =
-    overrides?.timerSessionsService ??
-    new TimerSessionsService(timerSessionsRepository, tasksRepository, clock);
+    overrides?.timerSessionsService ?? new TimerSessionsService(timerSessionsRepository, tasksRepository, clock);
 
   const tasksController = overrides?.tasksController ?? new TasksController(tasksService);
   const projectsController =
@@ -341,8 +334,6 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const authenticateIngestOrUser =
     overrides?.authenticateIngestOrUser ??
     createIngestOrUserAuthenticateMiddleware(authenticateIngest, authenticate);
-<<<<<<< ours
-=======
 
   // Query-surface readers (P1-05) — read-only adapters per feature
   const taskReader: TaskReader = new PgTaskReader(db);
@@ -376,7 +367,6 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     notesReader,
     projectsReader
   );
->>>>>>> theirs
 
   const container: AppContainer = {
     clock,
@@ -431,16 +421,12 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     ingestController,
     authenticateIngest,
     authenticateIngestOrUser,
-<<<<<<< ours
-    smsAnalyzer
-=======
     smsAnalyzer,
     remindersRepository,
     remindersService,
     daysService,
     dashboardService,
     searchService
->>>>>>> theirs
   };
 
   if (!overrides) {

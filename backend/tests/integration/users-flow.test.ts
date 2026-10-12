@@ -12,6 +12,7 @@ import { createApp } from '../../src/app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
 import { getContainer } from '../../src/container.js';
+import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
 
 describe('Users Flow Integration Tests', () => {
   const app = createApp();
@@ -198,5 +199,77 @@ describe('Users Flow Integration Tests', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('ACCOUNT_DISABLED');
+  });
+
+  it('B-07: Purges expired pending_deletion account with categories/transactions without touching other users', async () => {
+    const { user: userA, tokens: tokensA } = await registerUser('purge-a@example.com');
+    const { user: userB, tokens: tokensB } = await registerUser('purge-b@example.com');
+
+    // Create category + transaction for both users (exercises ON DELETE RESTRICT on categories)
+    const catARes = await request(app)
+      .post('/api/v1/money/categories')
+      .set('Authorization', `Bearer ${tokensA.accessToken}`)
+      .send({ kind: 'expense', name: 'Groceries' });
+    expect(catARes.status).toBe(201);
+
+    const txARes = await request(app)
+      .post('/api/v1/money/transactions')
+      .set('Authorization', `Bearer ${tokensA.accessToken}`)
+      .set('Idempotency-Key', '00000000-0000-4000-8000-000000000001')
+      .send({
+        kind: 'expense',
+        amount: '45.00',
+        currency: 'USD',
+        occurredOn: '2026-01-15',
+        categoryId: catARes.body.category.id
+      });
+    expect(txARes.status).toBe(201);
+
+    const catBRes = await request(app)
+      .post('/api/v1/money/categories')
+      .set('Authorization', `Bearer ${tokensB.accessToken}`)
+      .send({ kind: 'expense', name: 'Rent' });
+    expect(catBRes.status).toBe(201);
+
+    // Schedule deletion for userA; second HTTP request is blocked by pending_deletion guard
+    const sched1 = await request(app)
+      .post('/api/v1/users/me/deletion')
+      .set('Authorization', `Bearer ${tokensA.accessToken}`);
+    const sched2 = await request(app)
+      .post('/api/v1/users/me/deletion')
+      .set('Authorization', `Bearer ${tokensA.accessToken}`);
+    expect(sched1.status).toBe(200);
+    expect(sched2.status).toBe(403);
+    expect(sched2.body.error.code).toBe('ACCOUNT_PENDING_DELETION');
+
+    // Expire userA's grace window and run purge
+    await pool.query(
+      `UPDATE users SET deletion_scheduled_for = now() - interval '1 hour' WHERE id = $1`,
+      [userA.id]
+    );
+    const repo = new PgUsersRepository(pool);
+    const purgedCount = await repo.purgeExpiredAccounts(new Date());
+    expect(purgedCount).toBe(1);
+
+    // Repeated purge is idempotent
+    expect(await repo.purgeAccount(userA.id)).toBe(false);
+
+    // userA and all owned rows are gone; userB remains intact
+    const remA = await pool.query('SELECT count(*)::int AS cnt FROM users WHERE id = $1', [
+      userA.id
+    ]);
+    expect(remA.rows[0]?.cnt).toBe(0);
+
+    const remACats = await pool.query(
+      'SELECT count(*)::int AS cnt FROM categories WHERE user_id = $1',
+      [userA.id]
+    );
+    expect(remACats.rows[0]?.cnt).toBe(0);
+
+    const remB = await pool.query(
+      'SELECT count(*)::int AS cnt FROM categories WHERE user_id = $1 AND id = $2',
+      [userB.id, catBRes.body.category.id]
+    );
+    expect(remB.rows[0]?.cnt).toBe(1);
   });
 });

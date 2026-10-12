@@ -81,6 +81,9 @@ export class RedisOtpStore implements OtpStore {
     const bufB = Buffer.from(expectedHmac, 'hex');
 
     if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
+      if (attempts >= 5) {
+        await this.redis.del(redisKey, attemptsKey);
+      }
       return false;
     }
 

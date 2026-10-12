@@ -753,6 +753,8 @@ Future<void> _showSmartQuickAdd(
 
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
+            }
+            if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
@@ -796,12 +798,14 @@ Future<void> _showSmartQuickAdd(
                 });
               } else {
                 setDialogState(() => isListening = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(l10n.noSpeechDetected),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(l10n.noSpeechDetected),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
               }
             }
           } catch (_) {
@@ -1126,11 +1130,11 @@ Future<void> _showAddTask(
 
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
-              if (fullDateTime != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.alarmScheduled)),
-                );
-              }
+            }
+            if (fullDateTime != null && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.alarmScheduled)),
+              );
             }
           } catch (exception) {
             if (dialogContext.mounted) {

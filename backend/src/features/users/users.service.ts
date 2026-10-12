@@ -4,7 +4,7 @@
  * Implements Section 14.3: User Profile & Device Management Service.
  */
 
-import type { UsersRepository } from './users.repository.js';
+import type { UsersRepository, PurgeAccountOptions } from './users.repository.js';
 import type { AuditLogger } from '../../infrastructure/database/postgres/audit-logger.js';
 import type {
   UpdateUserProfileInput,
@@ -73,10 +73,16 @@ export class UsersService {
 
   public async scheduleDeletion(
     userId: string,
-    meta?: RequestMeta
+    meta?: RequestMeta,
+    currentSessionId?: string
   ): Promise<{ status: string; deletionScheduledFor: string }> {
-    const scheduledFor = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-    await this.repo.scheduleDeletion(userId, scheduledFor);
+    const defaultScheduledFor = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const effectiveScheduledFor = await this.repo.scheduleDeletion(
+      userId,
+      defaultScheduledFor,
+      currentSessionId
+    );
+    const scheduledIso = (effectiveScheduledFor ?? defaultScheduledFor).toISOString();
 
     await this.auditLogger.log({
       actorType: 'user',
@@ -86,12 +92,12 @@ export class UsersService {
       requestId: meta?.requestId,
       ip: meta?.ip,
       userAgent: meta?.userAgent,
-      metadata: { scheduledFor: scheduledFor.toISOString() }
+      metadata: { scheduledFor: scheduledIso }
     });
 
     return {
       status: 'pending_deletion',
-      deletionScheduledFor: scheduledFor.toISOString()
+      deletionScheduledFor: scheduledIso
     };
   }
 
@@ -109,6 +115,32 @@ export class UsersService {
     });
 
     return { status: 'active' };
+  }
+
+  public async purgeAccount(
+    userId: string,
+    options?: PurgeAccountOptions,
+    meta?: RequestMeta
+  ): Promise<boolean> {
+    const purged = await this.repo.purgeAccount(userId, options);
+    if (purged) {
+      await this.auditLogger.log({
+        actorType: 'system',
+        actorUserId: null,
+        eventType: 'user.deletion.purged',
+        outcome: 'success',
+        entityType: 'user',
+        entityId: userId,
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      });
+    }
+    return purged;
+  }
+
+  public async purgeExpiredAccounts(cutoff = new Date()): Promise<number> {
+    return this.repo.purgeExpiredAccounts(cutoff);
   }
 
   public async exportUserData(userId: string, meta?: RequestMeta): Promise<UserExportData> {

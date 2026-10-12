@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/presentation/gemini_key_dialog.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
@@ -110,6 +111,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Gemini API Key',
+            icon: const Icon(Icons.key_outlined),
+            onPressed: () => showGeminiApiKeyDialog(context),
+          ),
           IconButton(
             tooltip: l10n.aiClearChatTooltip,
             icon: const Icon(Icons.refresh_outlined),

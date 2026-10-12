@@ -745,6 +745,22 @@ CREATE TABLE reminders (
       ON reminders (user_id, dedupe_key) 
       WHERE dedupe_key IS NOT NULL;
 
+CREATE TABLE ingest_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id UUID NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+      token_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_used_at TIMESTAMPTZ,
+      revoked_at TIMESTAMPTZ
+    );
+
+    CREATE UNIQUE INDEX idx_ingest_tokens_active_session
+      ON ingest_tokens (session_id)
+      WHERE revoked_at IS NULL;
+
+DO $body$ BEGIN IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN GRANT SELECT, INSERT, UPDATE, DELETE ON ingest_tokens TO lifestyle_app; END IF; END $body$;
+
 -- role-conditional grant
 DO $body$ BEGIN IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN GRANT SELECT, INSERT, UPDATE, DELETE ON 
       goals, milestones, projects, recurring_tasks, habits, recurrences,

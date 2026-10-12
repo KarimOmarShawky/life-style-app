@@ -353,6 +353,8 @@ Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
 
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
+            }
+            if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(l10n.transactionSaved)),
               );

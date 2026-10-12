@@ -21,13 +21,9 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 echo [3/3] Building Release APK for Android...
 echo (This may take a few minutes for the first build)...
-rem AI (Gemini) is compiled in only when GEMINI_API_KEY is set in the environment.
-rem The key is never stored in this file.
-set "DART_DEFINES="
-if defined GEMINI_API_KEY set "DART_DEFINES=--dart-define=GEMINI_API_KEY=%GEMINI_API_KEY%"
-if defined GEMINI_API_KEY echo AI features: enabled, GEMINI_API_KEY is set.
-if not defined GEMINI_API_KEY echo AI features: disabled. Set GEMINI_API_KEY before running this file to enable them.
-call flutter build apk --release %DART_DEFINES%
+rem Release APKs must never embed GEMINI_API_KEY (BYOK_ARCHITECTURE_AND_PILOT_PLAN.md §7, B-02).
+rem Server-side SMS fallback uses SMS_FALLBACK_GEMINI_KEY on the backend only.
+call flutter build apk --release --dart-define=GEMINI_API_KEY=
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Build failed. Please check the error messages above.

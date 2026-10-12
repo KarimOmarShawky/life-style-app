@@ -466,6 +466,8 @@ Future<void> _showAddBudget(BuildContext context, WidgetRef ref) async {
             ref.invalidate(budgetsProvider);
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
+            }
+            if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(l10n.transactionSaved)),
               );
@@ -605,6 +607,8 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
 
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
+            }
+            if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(l10n.transactionSaved),
@@ -876,7 +880,7 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
         trailing: const Icon(Icons.chevron_right),
         onTap: () async {
           for (final item in List<WalletReviewItem>.of(_items)) {
-            if (!mounted) return;
+            if (!context.mounted) return;
             await _showReviewSheet(context, item);
             await _reload();
           }
@@ -1022,7 +1026,7 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                                   Navigator.of(sheetContext).pop();
                                 }
                                 messenger.showSnackBar(
-                                  SnackBar(content: Text('${l10n.errorTitle}')),
+                                  SnackBar(content: Text(l10n.errorTitle)),
                                 );
                               }
                             },

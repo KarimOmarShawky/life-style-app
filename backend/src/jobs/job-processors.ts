@@ -58,6 +58,8 @@ export interface TimerMaintenanceStore {
 export interface PurgeStore {
   /** Hard-deletes rows soft-deleted before cutoff. Returns rows removed. */
   purgeSoftDeleted(cutoff: Date): Promise<number>;
+  /** Hard-deletes accounts whose pending_deletion grace window expired at or before now. */
+  purgeExpiredAccounts?(now: Date): Promise<number>;
 }
 
 export interface JobClock {
@@ -155,15 +157,17 @@ export async function processTimerAutoClose(
   return { closed };
 }
 
-/** Hard-deletes rows whose 30-day restore window has expired. */
+/** Hard-deletes rows whose 30-day restore window has expired and accounts whose 14-day deletion grace window has elapsed. */
 export async function processPurge(
   clock: JobClock,
   store: PurgeStore,
   retentionDays = 30
 ): Promise<{ purged: number }> {
-  const cutoff = new Date(clock.now().getTime() - retentionDays * 86_400_000);
-  const purged = await store.purgeSoftDeleted(cutoff);
-  return { purged };
+  const now = clock.now();
+  const cutoff = new Date(now.getTime() - retentionDays * 86_400_000);
+  const softDeleted = await store.purgeSoftDeleted(cutoff);
+  const expiredAccounts = store.purgeExpiredAccounts ? await store.purgeExpiredAccounts(now) : 0;
+  return { purged: softDeleted + expiredAccounts };
 }
 
 /** Sends one queued password-reset email. */

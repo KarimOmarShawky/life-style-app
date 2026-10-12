@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifestyle_mobile/config/app_config.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
+import 'package:lifestyle_mobile/data/token_store.dart';
 
 import 'app.dart';
 
@@ -17,13 +18,9 @@ Future<void> _publishNativeConfig() async {
   try {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(SettingsNotifier.apiBaseKey, AppConfig.apiBaseUrl);
-    // The AI key comes only from --dart-define. It is mirrored for native voice transcription.
-    final geminiKey = AppConfig.geminiApiKey.trim();
-    if (geminiKey.isEmpty) {
-      await prefs.remove(_geminiKeyPref);
-    } else {
-      await prefs.setString(_geminiKeyPref, geminiKey);
-    }
+    // Scrub any legacy plaintext secrets from SharedPreferences (B-01, B-02).
+    await prefs.remove(_geminiKeyPref);
+    await prefs.remove(SecureTokenStore.storageKey);
   } catch (_) {
     // Non-fatal: native code falls back to its built-in default endpoint.
   }

@@ -275,6 +275,8 @@ export class PgPurgeStore implements PurgeStore {
       'projects',
       'goals',
       'recurring_tasks',
+      'transactions',
+      'budgets',
       'subscriptions'
     ];
     let purged = 0;
@@ -289,6 +291,89 @@ export class PgPurgeStore implements PurgeStore {
       }
     }
     return purged;
+  }
+
+  public async purgeExpiredAccounts(now: Date): Promise<number> {
+    const dueUsers = await sql<{ id: string }>`
+      SELECT id
+      FROM users
+      WHERE status = 'pending_deletion'
+        AND deletion_scheduled_for IS NOT NULL
+        AND deletion_scheduled_for <= ${now}
+      ORDER BY deletion_scheduled_for ASC
+    `.execute(this.db);
+
+    const userOwnedTables = [
+      'ingest_tokens',
+      'push_devices',
+      'reminders',
+      'note_links',
+      'timer_sessions',
+      'habit_checkins',
+      'recurrences',
+      'tasks',
+      'recurring_tasks',
+      'habits',
+      'milestones',
+      'projects',
+      'goals',
+      'notes',
+      'events',
+      'transactions',
+      'subscriptions',
+      'budgets',
+      'categories'
+    ];
+
+    let purgedAccounts = 0;
+    for (const row of dueUsers.rows) {
+      const purged = await this.db.transaction().execute(async (trx) => {
+        const locked = await sql<{
+          id: string;
+          status: string;
+          deletion_scheduled_for: Date | null;
+        }>`
+          SELECT id, status, deletion_scheduled_for
+          FROM users
+          WHERE id = ${row.id}
+          FOR UPDATE
+        `.execute(trx);
+
+        const user = locked.rows[0];
+        if (
+          !user ||
+          user.status !== 'pending_deletion' ||
+          user.deletion_scheduled_for === null ||
+          new Date(user.deletion_scheduled_for).getTime() > now.getTime()
+        ) {
+          return false;
+        }
+
+        await sql`
+          UPDATE ingest_tokens SET revoked_at = now()
+          WHERE user_id = ${row.id} AND revoked_at IS NULL
+        `.execute(trx);
+        await sql`
+          UPDATE refresh_tokens SET replaced_by = NULL
+          WHERE user_id = ${row.id} AND replaced_by IS NOT NULL
+        `.execute(trx);
+        await sql`DELETE FROM refresh_tokens WHERE user_id = ${row.id}`.execute(trx);
+        await sql`DELETE FROM auth_sessions WHERE user_id = ${row.id}`.execute(trx);
+
+        for (const table of userOwnedTables) {
+          await sql`DELETE FROM ${sql.table(table)} WHERE user_id = ${row.id}`.execute(trx);
+        }
+
+        await sql`DELETE FROM users WHERE id = ${row.id}`.execute(trx);
+        return true;
+      });
+
+      if (purged) {
+        purgedAccounts += 1;
+      }
+    }
+
+    return purgedAccounts;
   }
 }
 

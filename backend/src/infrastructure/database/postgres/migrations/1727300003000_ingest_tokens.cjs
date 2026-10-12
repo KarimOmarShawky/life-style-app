@@ -24,7 +24,7 @@ exports.up = (pgm) => {
 
     DO $body$ BEGIN
       IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
-        GRANT SELECT, INSERT, UPDATE ON ingest_tokens TO lifestyle_app;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ingest_tokens TO lifestyle_app;
       END IF;
     END $body$;
   `);

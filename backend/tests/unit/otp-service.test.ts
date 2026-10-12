@@ -1,17 +1,126 @@
 /**
  * tests/unit/otp-service.test.ts
  *
- * Validates Section 8.5: OTP generation, HMAC verification, cooldown, and 5-attempt limit.
+ * Validates Section 8.5 & B-10: OTP generation, HMAC verification, cooldown,
+ * and atomic 5-attempt limit under concurrent verification requests.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { Socket } from 'node:net';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import type { Redis } from 'ioredis';
 import { RedisOtpStore } from '../../src/core/security/otp-service.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
 
+class InMemoryRedis {
+  private readonly store = new Map<string, { value: string; expiresAt: number | null }>();
+
+  private purgeIfExpired(key: string): void {
+    const entry = this.store.get(key);
+    if (entry && entry.expiresAt !== null && Date.now() >= entry.expiresAt) {
+      this.store.delete(key);
+    }
+  }
+
+  public async get(key: string): Promise<string | null> {
+    this.purgeIfExpired(key);
+    return this.store.get(key)?.value ?? null;
+  }
+
+  public async set(
+    key: string,
+    value: string,
+    mode?: string,
+    ttlSeconds?: number,
+    nx?: string
+  ): Promise<'OK' | null> {
+    this.purgeIfExpired(key);
+    if (nx === 'NX' && this.store.has(key)) {
+      return null;
+    }
+    const expiresAt = mode === 'EX' && ttlSeconds ? Date.now() + ttlSeconds * 1000 : null;
+    this.store.set(key, { value, expiresAt });
+    return 'OK';
+  }
+
+  public async del(...keys: string[]): Promise<number> {
+    let removed = 0;
+    for (const key of keys) {
+      this.purgeIfExpired(key);
+      if (this.store.delete(key)) {
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
+  public async incr(key: string): Promise<number> {
+    this.purgeIfExpired(key);
+    const existing = this.store.get(key);
+    const current = existing ? Number.parseInt(existing.value, 10) || 0 : 0;
+    const next = current + 1;
+    this.store.set(key, {
+      value: String(next),
+      expiresAt: existing?.expiresAt ?? null
+    });
+    return next;
+  }
+
+  public async ttl(key: string): Promise<number> {
+    this.purgeIfExpired(key);
+    const entry = this.store.get(key);
+    if (!entry) return -2;
+    if (entry.expiresAt === null) return -1;
+    return Math.max(1, Math.ceil((entry.expiresAt - Date.now()) / 1000));
+  }
+
+  public async expire(key: string, seconds: number): Promise<number> {
+    this.purgeIfExpired(key);
+    const entry = this.store.get(key);
+    if (!entry) return 0;
+    entry.expiresAt = Date.now() + seconds * 1000;
+    return 1;
+  }
+
+  public async exists(...keys: string[]): Promise<number> {
+    let count = 0;
+    for (const key of keys) {
+      this.purgeIfExpired(key);
+      if (this.store.has(key)) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+}
+
+async function isRedisReachable(host = '127.0.0.1', port = 6379): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new Socket();
+    const finish = (ok: boolean) => {
+      socket.destroy();
+      resolve(ok);
+    };
+    socket.setTimeout(150);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+    socket.connect(port, host);
+  });
+}
+
 describe('RedisOtpStore', () => {
-  const redis = getRedisClient();
-  const otpStore = new RedisOtpStore(redis);
+  let redis: Redis;
+  let otpStore: RedisOtpStore;
   const testUserId = '33333333-3333-4333-8333-333333333333';
+
+  beforeAll(async () => {
+    if (await isRedisReachable()) {
+      redis = getRedisClient();
+    } else {
+      redis = new InMemoryRedis() as unknown as Redis;
+    }
+    otpStore = new RedisOtpStore(redis);
+  });
 
   beforeEach(async () => {
     await redis.del(
@@ -46,7 +155,7 @@ describe('RedisOtpStore', () => {
     expect(consumed).toBe(false);
   });
 
-  it('fails on wrong code and enforces 5 attempts maximum', async () => {
+  it('fails on wrong code and enforces 5 attempts maximum, destroying the code on the 5th failure', async () => {
     await otpStore.generateAndStoreCode(testUserId);
 
     // Attempts 1 to 5 with wrong code
@@ -55,13 +164,13 @@ describe('RedisOtpStore', () => {
       expect(result).toBe(false);
     }
 
-    // 6th attempt should result in deleted code and return false
+    // Key in Redis should already be destroyed on the 5th failed attempt
+    expect(await redis.exists(`pwreset:${testUserId}`)).toBe(0);
+    expect(await redis.exists(`pwreset-attempts:${testUserId}`)).toBe(0);
+
+    // 6th attempt should also return false
     const sixth = await otpStore.verifyAndConsumeCode(testUserId, '000000');
     expect(sixth).toBe(false);
-
-    // Key in Redis should now be gone
-    const keyExists = await redis.exists(`pwreset:${testUserId}`);
-    expect(keyExists).toBe(0);
   });
 
   it('enforces 60-second cooldown on consecutive requests', async () => {
@@ -87,9 +196,18 @@ describe('RedisOtpStore', () => {
 
     expect(await redis.exists(`pwreset:${testUserId}`)).toBe(0);
     expect(await redis.exists(`pwreset-attempts:${testUserId}`)).toBe(0);
+  });
 
-    // A correct guess afterwards must fail too: the code is gone.
-    // (A fresh code would be needed; this one was burned by the guesses above.)
+  it('allows at most one winner when concurrent requests submit the valid code', async () => {
+    const code = await otpStore.generateAndStoreCode(testUserId);
+
+    const concurrentValid = Array.from({ length: 5 }, () =>
+      otpStore.verifyAndConsumeCode(testUserId, code)
+    );
+    const results = await Promise.all(concurrentValid);
+    const winners = results.filter((r) => r === true);
+    expect(winners).toHaveLength(1);
+    expect(await redis.exists(`pwreset:${testUserId}`)).toBe(0);
   });
 
   it('allows exactly 5 attempts per code, then rejects the correct code', async () => {

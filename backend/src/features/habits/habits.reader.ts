@@ -7,8 +7,7 @@
 
 import { type Kysely } from 'kysely';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
-import { computeOccurrences } from '../recurring-tasks/recurrence-engine.js';
-import type { RecurrenceRule } from '../recurring-tasks/recurrence-engine.js';
+import { computeOccurrences, type RecurrenceRule } from '../recurring-tasks/recurrence-engine.js';
 import { formatDateOnly } from '../../core/time/date-utils.js';
 
 export interface HabitReaderItem {

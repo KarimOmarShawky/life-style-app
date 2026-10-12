@@ -92,7 +92,11 @@ export class UsersController {
       if (!req.user) {
         throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
       }
-      const result = await this.usersService.scheduleDeletion(req.user.id, extractMeta(req));
+      const result = await this.usersService.scheduleDeletion(
+        req.user.id,
+        extractMeta(req),
+        req.sessionId
+      );
       res.status(200).json(result);
     } catch (err) {
       next(err);

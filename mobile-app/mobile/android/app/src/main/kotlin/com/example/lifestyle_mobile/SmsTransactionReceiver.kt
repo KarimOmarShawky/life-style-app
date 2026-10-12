@@ -48,17 +48,14 @@ class SmsTransactionReceiver : BroadcastReceiver() {
 
         private const val PREFS_NAME = "FlutterSharedPreferences"
         private const val KEY_SYNC_ENABLED = "flutter.sms_sync_enabled"
-        private const val KEY_SESSION = "flutter.lifestyle.session.v1"
         private const val KEY_API_BASE = "flutter.lifestyle.api_base_url"
         private const val KEY_INGEST_TOKEN = "flutter.lifestyle.wallet_ingest_token.v1"
         private const val INGEST_PATH = "/ingest/transactions"
-        private const val MONEY_PATH = "/money/transactions"
         private const val ANALYZE_PATH = "/ingest/sms/analyze"
         const val PENDING_PREFIX = "flutter.pending_wallet_tx."
         const val CANDIDATE_PREFIX = "flutter.pending_wallet_candidate."
         const val REVIEW_PREFIX = "flutter.pending_wallet_review."
         private const val DEFAULT_API_BASE = "https://life-style-app-production.up.railway.app/api/v1"
-        private const val TOKEN_MARGIN_MS = 60_000L
         private const val CONNECT_TIMEOUT_MS = 8_000
         private const val READ_TIMEOUT_MS = 8_000
         private const val REVIEW_NOTIFICATION_ID = 998
@@ -274,8 +271,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
 
     /**
      * Sends the queue with the ingest token when one is stored. That token is bound to the login session,
-     * so it works while the app is closed. Without it, the stored access token is used, but only while it
-     * is still valid.
+     * so it works while the app is closed. Without it, queued entries remain in SharedPreferences until
+     * the Flutter app flushes them via ApiClient (which reads session tokens from SecureTokenStore).
      */
     private fun flushPending(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -285,21 +282,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         if (!ingestToken.isNullOrEmpty()) {
             flushQueue(prefs, "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
             flushCandidates(context, prefs, "$apiBase$ANALYZE_PATH", "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
-            return
         }
-
-        val sessionRaw = prefs.getString(KEY_SESSION, null) ?: return
-        val session = try {
-            JSONObject(sessionRaw)
-        } catch (e: Exception) {
-            return
-        }
-        val accessToken = session.optString("accessToken", "")
-        val expiresAtMs = parseIsoMillis(session.optString("accessTokenExpiresAt", "")) ?: return
-        if (accessToken.isEmpty() || expiresAtMs - TOKEN_MARGIN_MS <= System.currentTimeMillis()) return
-
-        flushQueue(prefs, "$apiBase$MONEY_PATH", accessToken, isIngest = false)
-        flushCandidates(context, prefs, "$apiBase$ANALYZE_PATH", "$apiBase$MONEY_PATH", accessToken, isIngest = false)
     }
 
     /**

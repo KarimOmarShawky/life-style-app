@@ -5,13 +5,41 @@
  */
 
 import type pg from 'pg';
-import type { UsersRepository } from './users.repository.js';
+import type { UsersRepository, PurgeAccountOptions } from './users.repository.js';
 import type { UserRow } from '../auth/auth.types.js';
 import type {
   UpdateUserProfileInput,
   RegisterPushDeviceInput,
   UserExportData
 } from './users.types.js';
+import { AppError } from '../../core/errors/app-error.js';
+
+/**
+ * Child tables owned by a user, ordered so foreign-key children (including
+ * `transactions`, `subscriptions`, and `budgets` which have `ON DELETE RESTRICT`
+ * foreign keys to `categories`) are deleted before their parent rows.
+ */
+export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
+  'ingest_tokens',
+  'push_devices',
+  'reminders',
+  'note_links',
+  'timer_sessions',
+  'habit_checkins',
+  'recurrences',
+  'tasks',
+  'recurring_tasks',
+  'habits',
+  'milestones',
+  'projects',
+  'goals',
+  'notes',
+  'events',
+  'transactions',
+  'subscriptions',
+  'budgets',
+  'categories'
+] as const;
 
 export class PgUsersRepository implements UsersRepository {
   constructor(private readonly pool: pg.Pool) {}
@@ -101,13 +129,89 @@ export class PgUsersRepository implements UsersRepository {
     return (res.rowCount ?? 0) > 0;
   }
 
-  public async scheduleDeletion(userId: string, scheduledFor: Date): Promise<void> {
-    await this.pool.query(
-      `UPDATE users 
-       SET status = 'pending_deletion', deletion_scheduled_for = $1, updated_at = now() 
-       WHERE id = $2`,
-      [scheduledFor, userId]
-    );
+  public async scheduleDeletion(
+    userId: string,
+    scheduledFor: Date,
+    currentSessionId?: string
+  ): Promise<Date> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const existingRes = await client.query<{
+        status: 'active' | 'disabled' | 'pending_deletion';
+        deletion_scheduled_for: Date | null;
+      }>(`SELECT status, deletion_scheduled_for FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+
+      const existing = existingRes.rows[0];
+      if (!existing) {
+        throw AppError.notFound('User not found');
+      }
+
+      let effectiveDate = scheduledFor;
+      if (existing.status === 'pending_deletion' && existing.deletion_scheduled_for !== null) {
+        effectiveDate = new Date(existing.deletion_scheduled_for);
+      } else {
+        await client.query(
+          `UPDATE users 
+           SET status = 'pending_deletion', deletion_scheduled_for = $1, updated_at = now() 
+           WHERE id = $2`,
+          [scheduledFor, userId]
+        );
+      }
+
+      // Immediately revoke headless ingest tokens, remove push devices, and cancel pending reminders.
+      await client.query(
+        `UPDATE ingest_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
+        [userId]
+      );
+      await client.query(`DELETE FROM push_devices WHERE user_id = $1`, [userId]);
+      await client.query(
+        `UPDATE reminders
+         SET status = 'cancelled', next_attempt_at = NULL, updated_at = now()
+         WHERE user_id = $1 AND status IN ('pending', 'processing')`,
+        [userId]
+      );
+
+      // Revoke all other sessions and refresh tokens while keeping the current session
+      // able to call the grace-period exempt endpoints (/users/me, /users/me/export,
+      // /users/me/deletion, /auth/logout, /auth/refresh) per AC-AUTH-10.
+      if (currentSessionId) {
+        await client.query(
+          `UPDATE auth_sessions
+           SET revoked_at = now(), revoked_reason = 'account_deletion'
+           WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL`,
+          [userId, currentSessionId]
+        );
+        await client.query(
+          `UPDATE refresh_tokens
+           SET revoked_at = now()
+           WHERE user_id = $1 AND session_id <> $2 AND revoked_at IS NULL`,
+          [userId, currentSessionId]
+        );
+      } else {
+        await client.query(
+          `UPDATE auth_sessions
+           SET revoked_at = now(), revoked_reason = 'account_deletion'
+           WHERE user_id = $1 AND revoked_at IS NULL`,
+          [userId]
+        );
+        await client.query(
+          `UPDATE refresh_tokens
+           SET revoked_at = now()
+           WHERE user_id = $1 AND revoked_at IS NULL`,
+          [userId]
+        );
+      }
+
+      await client.query('COMMIT');
+      return effectiveDate;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   public async cancelDeletion(userId: string): Promise<void> {
@@ -117,6 +221,92 @@ export class PgUsersRepository implements UsersRepository {
        WHERE id = $1`,
       [userId]
     );
+  }
+
+  public async purgeAccount(userId: string, options?: PurgeAccountOptions): Promise<boolean> {
+    const requirePendingDeletion = options?.requirePendingDeletion ?? true;
+    const cutoff = options?.cutoff;
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const userRes = await client.query<{
+        id: string;
+        status: 'active' | 'disabled' | 'pending_deletion';
+        deletion_scheduled_for: Date | null;
+      }>(`SELECT id, status, deletion_scheduled_for FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+
+      const user = userRes.rows[0];
+      if (!user) {
+        await client.query('COMMIT');
+        return false;
+      }
+
+      if (requirePendingDeletion) {
+        if (user.status !== 'pending_deletion' || user.deletion_scheduled_for === null) {
+          await client.query('COMMIT');
+          return false;
+        }
+        if (cutoff && new Date(user.deletion_scheduled_for).getTime() > cutoff.getTime()) {
+          await client.query('COMMIT');
+          return false;
+        }
+      }
+
+      // 1. Revoke and delete authentication/session state (clearing self-referential replaced_by first).
+      await client.query(
+        `UPDATE ingest_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
+        [userId]
+      );
+      await client.query(
+        `UPDATE refresh_tokens SET replaced_by = NULL WHERE user_id = $1 AND replaced_by IS NOT NULL`,
+        [userId]
+      );
+      await client.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [userId]);
+      await client.query(`DELETE FROM auth_sessions WHERE user_id = $1`, [userId]);
+
+      // 2. Delete all user-owned domain records in FK-safe order (transactions, subscriptions,
+      // and budgets before categories to satisfy ON DELETE RESTRICT on categories).
+      for (const table of USER_OWNED_TABLES_IN_DELETE_ORDER) {
+        await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
+      }
+
+      // 3. Delete the user row (audit_logs.actor_user_id is ON DELETE SET NULL).
+      await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+
+      await client.query('COMMIT');
+      return true;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  public async purgeExpiredAccounts(cutoff: Date): Promise<number> {
+    const dueRes = await this.pool.query<{ id: string }>(
+      `SELECT id
+       FROM users
+       WHERE status = 'pending_deletion'
+         AND deletion_scheduled_for IS NOT NULL
+         AND deletion_scheduled_for <= $1
+       ORDER BY deletion_scheduled_for ASC`,
+      [cutoff]
+    );
+
+    let purgedCount = 0;
+    for (const row of dueRes.rows) {
+      const purged = await this.purgeAccount(row.id, {
+        requirePendingDeletion: true,
+        cutoff
+      });
+      if (purged) {
+        purgedCount += 1;
+      }
+    }
+    return purgedCount;
   }
 
   public async getUserExportData(userId: string): Promise<UserExportData> {

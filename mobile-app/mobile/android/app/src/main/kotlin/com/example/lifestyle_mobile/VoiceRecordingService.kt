@@ -34,15 +34,11 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Gemini API key supplied at build time (--dart-define=GEMINI_API_KEY). The Flutter side mirrors it
- * into the app's SharedPreferences, so native code can use it without a running engine. The key is
- * never part of the native source. An empty result means AI features are not configured.
+ * Provider API keys are never stored in SharedPreferences or compiled into release APKs (B-02).
+ * Voice input falls back to the platform SpeechRecognizer unless a server-side proxy is used.
  */
-internal fun readGeminiApiKey(context: Context): String {
-    return context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        .getString("flutter.gemini_api_key", null)
-        .orEmpty()
-        .trim()
+internal fun readGeminiApiKey(@Suppress("UNUSED_PARAMETER") context: Context): String {
+    return ""
 }
 
 class VoiceRecordingService : Service() {
@@ -326,36 +322,9 @@ class VoiceRecordingService : Service() {
     }
 
     private fun syncTaskToBackend(title: String, dueDate: String, dueTime: String) {
-        try {
-            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val sessionJsonStr = prefs.getString("flutter.lifestyle.session.v1", null) ?: return
-            val sessionJson = JSONObject(sessionJsonStr)
-            val accessToken = sessionJson.optString("accessToken", "")
-            if (accessToken.isEmpty()) return
-
-            val taskUrl = URL("${apiBaseUrl()}/tasks")
-            val conn = (taskUrl.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Authorization", "Bearer $accessToken")
-                doOutput = true
-                connectTimeout = 5000
-                readTimeout = 5000
-            }
-
-            val body = JSONObject().apply {
-                put("title", title)
-                put("dueDate", dueDate)
-                put("dueTime", dueTime)
-                put("priority", "high")
-            }
-
-            OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
-            val code = conn.responseCode
-            Log.d(TAG, "Task synced to backend with response code: $code")
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not sync task to backend: ${e.message}")
-        }
+        // Session tokens live exclusively in SecureTokenStore (flutter_secure_storage),
+        // never in FlutterSharedPreferences (B-01).
+        Log.d(TAG, "Local alarm scheduled ($dueDate $dueTime) for task '$title'")
     }
 
     private fun ensureNotificationChannel() {

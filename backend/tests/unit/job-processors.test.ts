@@ -176,4 +176,16 @@ describe('QueuedEmailSender', () => {
     await sender.sendPasswordResetEmail('a@example.com', '654321');
     expect(fallback.sendPasswordResetEmail).toHaveBeenCalledWith('a@example.com', '654321');
   });
+
+  it('processPurge purges both soft-deleted rows and expired pending_deletion accounts', async () => {
+    const store: PurgeStore = {
+      purgeSoftDeleted: vi.fn(async () => 4),
+      purgeExpiredAccounts: vi.fn(async () => 2)
+    };
+
+    const res = await processPurge(clock, store, 30);
+
+    expect(res).toEqual({ purged: 6 });
+    expect(store.purgeExpiredAccounts).toHaveBeenCalledWith(clock.now());
+  });
 });

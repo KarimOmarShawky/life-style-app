@@ -1022,7 +1022,7 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                                   Navigator.of(sheetContext).pop();
                                 }
                                 messenger.showSnackBar(
-                                  SnackBar(content: Text('${l10n.errorTitle}')),
+                                  SnackBar(content: Text(l10n.errorTitle)),
                                 );
                               }
                             },

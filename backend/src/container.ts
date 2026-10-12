@@ -6,7 +6,7 @@
  */
 
 import type pg from 'pg';
-import type { Redis } from 'ioredis';
+import { Redis as IORedis, type Redis } from 'ioredis';
 import type { Kysely } from 'kysely';
 import type { RequestHandler } from 'express';
 import { getEnv } from './config/env.js';
@@ -119,7 +119,6 @@ import { PgRemindersRepository } from './features/reminders/reminders.repository
 import type { RemindersRepository } from './features/reminders/reminders.repository.js';
 import { RemindersService } from './features/reminders/reminders.service.js';
 // Background email queue (Section 11)
-import { Redis as IORedis } from 'ioredis';
 import { QueuedEmailSender, BullEmailQueue } from './jobs/email-queue.js';
 // Query-surface readers (P1-05, feature-architecture rule 2)
 import { PgTaskReader, type TaskReader } from './features/tasks/tasks.reader.js';
@@ -275,7 +274,8 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     overrides?.recurringTasksService ??
     new RecurringTasksService(recurringTasksRepository, projectsRepository, clock);
   const timerSessionsService =
-    overrides?.timerSessionsService ?? new TimerSessionsService(timerSessionsRepository, tasksRepository, clock);
+    overrides?.timerSessionsService ??
+    new TimerSessionsService(timerSessionsRepository, tasksRepository, clock);
 
   const tasksController = overrides?.tasksController ?? new TasksController(tasksService);
   const projectsController =

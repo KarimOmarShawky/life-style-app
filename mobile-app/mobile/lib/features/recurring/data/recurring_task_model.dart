@@ -1,7 +1,12 @@
 import 'package:lifestyle_mobile/data/json_fields.dart';
 
 const List<String> recurringStatuses = ['active', 'paused', 'ended'];
-const List<String> recurrenceFrequencies = ['daily', 'weekly', 'monthly', 'yearly'];
+const List<String> recurrenceFrequencies = [
+  'daily',
+  'weekly',
+  'monthly',
+  'yearly'
+];
 const List<String> taskPriorities = ['none', 'low', 'medium', 'high'];
 
 /// Recurrence rule as returned by the API. `byWeekday` uses 1 for Monday through 7 for Sunday.

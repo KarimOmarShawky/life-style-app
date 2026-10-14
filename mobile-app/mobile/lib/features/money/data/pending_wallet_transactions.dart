@@ -27,13 +27,12 @@ class PendingWalletTransactions {
     // The native SMS receiver writes to this store from outside Dart, and the plugin
     // caches values. Reload so entries written while the app was running are visible.
     await prefs.reload();
-    final keys =
-        prefs
-            .getKeys()
-            .map(_withoutFlutterPrefix)
-            .where((key) => key.startsWith(keyPrefix))
-            .toList()
-          ..sort();
+    final keys = prefs
+        .getKeys()
+        .map(_withoutFlutterPrefix)
+        .where((key) => key.startsWith(keyPrefix))
+        .toList()
+      ..sort();
 
     var stored = 0;
     for (final key in keys) {
@@ -68,9 +67,10 @@ class PendingWalletTransactions {
     return stored;
   }
 
-  static String _withoutFlutterPrefix(String key) => key.startsWith(_flutterPrefix)
-      ? key.substring(_flutterPrefix.length)
-      : key;
+  static String _withoutFlutterPrefix(String key) =>
+      key.startsWith(_flutterPrefix)
+          ? key.substring(_flutterPrefix.length)
+          : key;
 
   static bool _isPermanentRejection(ApiException error) =>
       error.statusCode == 400 ||
@@ -126,9 +126,8 @@ class PendingWalletTransaction {
       amount: amount,
       currency: currency is String && currency.isNotEmpty ? currency : 'EGP',
       occurredOn: occurredOn,
-      description: description is String && description.isNotEmpty
-          ? description
-          : null,
+      description:
+          description is String && description.isNotEmpty ? description : null,
       merchant: merchant is String && merchant.isNotEmpty ? merchant : null,
     );
   }

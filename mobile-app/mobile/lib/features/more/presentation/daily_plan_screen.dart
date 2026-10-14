@@ -1,3 +1,5 @@
+import 'package:lifestyle_mobile/features/focus_shield/routine_wizard_screen.dart';
+import 'package:lifestyle_mobile/features/focus_shield/weekly_review_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/more/data/daily_plan_models.dart';
@@ -87,6 +89,18 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
       appBar: AppBar(
         title: Text(isAr ? 'خطة اليوم والملخص' : 'Daily Plan & Overview'),
         actions: [
+          IconButton(
+              tooltip: 'Daily routines',
+              icon: const Icon(Icons.wb_twilight),
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const RoutineWizardScreen()))),
+          IconButton(
+              tooltip: 'Weekly Brain Report',
+              icon: const Icon(Icons.insights),
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const WeeklyReviewScreen()))),
           IconButton(
             tooltip: l10n.jumpToDate,
             icon: const Icon(Icons.calendar_today_outlined),
@@ -188,7 +202,8 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
               child: _StatCard(
                 icon: Icons.check_circle_outline,
                 title: l10n.tasks,
-                value: '${overview.tasksDoneToday} / ${overview.tasksDueToday + overview.tasksDoneToday}',
+                value:
+                    '${overview.tasksDoneToday} / ${overview.tasksDueToday + overview.tasksDoneToday}',
                 subtitle: overview.tasksOverdue > 0
                     ? (isAr
                         ? '${overview.tasksOverdue} متأخرة'
@@ -201,7 +216,8 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
               child: _StatCard(
                 icon: Icons.repeat,
                 title: l10n.habits,
-                value: '${overview.habitsCompletedToday} / ${overview.habitsDueToday}',
+                value:
+                    '${overview.habitsCompletedToday} / ${overview.habitsDueToday}',
                 subtitle: l10n.completedToday,
               ),
             ),
@@ -287,7 +303,9 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
             child: ListTile(
               leading: Icon(
                 habit.completedOn ? Icons.check_circle : Icons.circle_outlined,
-                color: habit.completedOn ? Colors.green : theme.colorScheme.primary,
+                color: habit.completedOn
+                    ? Colors.green
+                    : theme.colorScheme.primary,
               ),
               title: Text(habit.name),
             ),

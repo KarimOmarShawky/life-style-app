@@ -1,3 +1,5 @@
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -37,6 +39,8 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
   String? _songPath;
   String? _songName;
   late final TimerSessionsRepository _sessionsRepository;
+  late final FocusShieldController _focusController;
+  Future<void> _focusQueue = Future<void>.value();
   Future<void> _syncQueue = Future<void>.value();
   String? _runningSessionId;
   bool _disposed = false;
@@ -49,7 +53,9 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       avatar: Icon(
         icon,
         size: 14,
-        color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
+        color: isSelected
+            ? theme.colorScheme.onPrimary
+            : theme.colorScheme.onSurfaceVariant,
       ),
       label: Text(l10n.ambientLabel(key), style: const TextStyle(fontSize: 12)),
       selected: isSelected,
@@ -61,6 +67,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
   void initState() {
     super.initState();
     _sessionsRepository = ref.read(timerSessionsRepositoryProvider);
+    _focusController = ref.read(focusShieldProvider.notifier);
     _remainingSeconds = focusDurationSeconds;
     _loadPrefs();
   }
@@ -85,12 +92,29 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
   void _startSessionSync() {
     if (_isBreak) return;
     final taskId = _selectedTask?.id;
+    final id = 'timer-${DateTime.now().microsecondsSinceEpoch}';
+    final title = _selectedTask?.title ?? 'Focus';
+    final seconds = _remainingSeconds;
+    _focusQueue = _focusQueue
+        .then((_) => _focusController.beginTimer(
+            id: id, taskTitle: title, seconds: seconds, taskId: taskId))
+        .catchError((Object error) {
+      _reportSyncError(error);
+    });
     _enqueueSync(() async {
       _runningSessionId = await _openSession(taskId);
+      if (_runningSessionId != null) {
+        await _focusController.attachBackendSession(id, _runningSessionId!);
+      }
     });
   }
 
-  void _stopSessionSync() {
+  void _stopSessionSync({bool completed = false}) {
+    _focusQueue = _focusQueue
+        .then((_) => _focusController.finishTimer(completed: completed))
+        .catchError((Object error) {
+      _reportSyncError(error);
+    });
     _enqueueSync(() async {
       final sessionId = _runningSessionId;
       _runningSessionId = null;
@@ -264,7 +288,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     _timer?.cancel();
     _stopAudio();
     setState(() => _isRunning = false);
-    _stopSessionSync();
+    _stopSessionSync(completed: !_isBreak);
 
     final l10n = AppLocalizations.of(context);
     final title = _isBreak ? l10n.breakFinished : l10n.timerFinished;
@@ -304,8 +328,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     final l10n = AppLocalizations.of(context);
     final tasksAsync = ref.watch(tasksProvider);
 
-    final totalSeconds =
-        _isBreak ? breakDurationSeconds : focusDurationSeconds;
+    final totalSeconds = _isBreak ? breakDurationSeconds : focusDurationSeconds;
     final progress = _remainingSeconds / totalSeconds;
 
     final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
@@ -317,6 +340,12 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       appBar: AppBar(
         title: Text(l10n.focusTimer),
         actions: [
+          IconButton(
+              tooltip: 'Focus Shield',
+              icon: const Icon(Icons.shield_outlined),
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const FocusShieldScreen()))),
           IconButton(
             tooltip: l10n.focusHistoryTitle,
             icon: const Icon(Icons.history),
@@ -357,8 +386,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
                 loading: () => const SizedBox.shrink(),
                 error: (_, __) => const SizedBox.shrink(),
                 data: (tasks) {
-                  final activeTasks =
-                      tasks.where((t) => !t.isDone).toList();
+                  final activeTasks = tasks.where((t) => !t.isDone).toList();
                   return DropdownButtonFormField<Task?>(
                     initialValue: _selectedTask,
                     decoration: InputDecoration(
@@ -404,9 +432,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
                       value: progress,
                       strokeWidth: 12,
                       backgroundColor: colorScheme.surfaceContainerHighest,
-                      color: _isBreak
-                          ? Colors.teal
-                          : colorScheme.primary,
+                      color: _isBreak ? Colors.teal : colorScheme.primary,
                     ),
                   ),
                   Column(

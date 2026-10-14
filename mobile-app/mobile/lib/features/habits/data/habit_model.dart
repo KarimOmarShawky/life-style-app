@@ -18,16 +18,16 @@ class Habit {
   final int version;
 
   factory Habit.fromJson(Map<String, dynamic> json) => Habit(
-    id: _string(json, 'id'),
-    name: _string(json, 'name'),
-    description: json['description'] is String
-        ? json['description'] as String
-        : null,
-    status: _string(json, 'status'),
-    currentStreak: _int(json, 'currentStreak'),
-    longestStreak: _int(json, 'longestStreak'),
-    version: _int(json, 'version'),
-  );
+        id: _string(json, 'id'),
+        name: _string(json, 'name'),
+        description: json['description'] is String
+            ? json['description'] as String
+            : null,
+        status: _string(json, 'status'),
+        currentStreak: _int(json, 'currentStreak'),
+        longestStreak: _int(json, 'longestStreak'),
+        version: _int(json, 'version'),
+      );
 }
 
 String _string(Map<String, dynamic> json, String key) {

@@ -1,7 +1,15 @@
 /// Restricts external navigation intents to routes that exist in the MVP.
 /// No query string or fragment is forwarded to a screen or written to logs.
 abstract final class DeepLinkParser {
-  static const _routes = {'/tasks', '/habits', '/money', '/notes', '/profile'};
+  static const _routes = {
+    '/tasks',
+    '/habits',
+    '/money',
+    '/notes',
+    '/profile',
+    '/focus',
+    '/daily-plan'
+  };
 
   static String routeFor(String? rawLocation) {
     if (rawLocation == null || rawLocation.isEmpty || rawLocation == '/') {

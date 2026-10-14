@@ -1,3 +1,5 @@
+import 'package:lifestyle_mobile/features/focus_shield/routine_wizard_screen.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/core_providers.dart';
@@ -39,6 +41,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
       _flushWalletQueue();
       _ensureWalletIngestToken();
       rescheduleCalendarReminders();
+      ref.read(focusShieldProvider.notifier).refreshNative();
     });
   }
 
@@ -53,6 +56,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     if (state == AppLifecycleState.resumed) {
       _flushWalletQueue();
       _ensureWalletIngestToken();
+      ref.read(focusShieldProvider.notifier).refreshNative();
     }
   }
 
@@ -85,6 +89,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(focusShieldProvider);
     final l10n = AppLocalizations.of(context);
 
     final screens = [
@@ -97,6 +102,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
     ];
 
     return Scaffold(
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      floatingActionButton: FloatingActionButton.small(
+          heroTag: 'daily-routines',
+          tooltip: 'Daily routines',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const RoutineWizardScreen())),
+          child: const Icon(Icons.wb_twilight)),
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

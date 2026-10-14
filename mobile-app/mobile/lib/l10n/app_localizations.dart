@@ -22,7 +22,8 @@ class AppLocalizations {
 
   final Locale locale;
 
-  static const Map<String, Map<String, String>> _catalogs = <String, Map<String, String>>{
+  static const Map<String, Map<String, String>> _catalogs =
+      <String, Map<String, String>>{
     'ar': arCatalog,
     'en': enCatalog,
     'fr': frCatalog,
@@ -74,8 +75,7 @@ class AppLocalizations {
   bool get isArabic => locale.languageCode == 'ar';
 
   /// Right-to-left script (drives chat-bubble alignment and similar layout).
-  bool get isRTL =>
-      TextDirection.rtl == direction;
+  bool get isRTL => TextDirection.rtl == direction;
 
   TextDirection get direction =>
       (locale.languageCode == 'ar') ? TextDirection.rtl : TextDirection.ltr;
@@ -327,8 +327,9 @@ class AppLocalizations {
 
   // ---- Parameterized strings -------------------------------------------
 
-  String briefingSummaryText(int total, int completed) =>
-      _f('briefingSummaryText', <String, Object>{'total': total, 'completed': completed});
+  String briefingSummaryText(int total, int completed) => _f(
+      'briefingSummaryText',
+      <String, Object>{'total': total, 'completed': completed});
 
   String billingUnitLabel(String unit) {
     switch (unit) {
@@ -458,18 +459,28 @@ class AppLocalizations {
   String get unitWeeks => _s('unitWeeks');
   String get unitYears => _s('unitYears');
   String get updateProgress => _s('updateProgress');
-  String conflictMessage(String names) => _f('conflictMessage', <String, Object>{'names': names});
+  String conflictMessage(String names) =>
+      _f('conflictMessage', <String, Object>{'names': names});
   String daysBefore(int n) => _f('daysBefore', <String, Object>{'n': n});
-  String durationMinutes(int n) => _f('durationMinutes', <String, Object>{'n': n});
-  String focusSessionsCount(int n) => _f('focusSessionsCount', <String, Object>{'n': n});
-  String focusTotalLabel(int n) => _f('focusTotalLabel', <String, Object>{'n': n});
-  String goalProgressLabel(int p) => _f('goalProgressLabel', <String, Object>{'p': p});
-  String goalValueLabel(String current, String target, String unit) => _f('goalValueLabel', <String, Object>{'current': current, 'target': target, 'unit': unit});
+  String durationMinutes(int n) =>
+      _f('durationMinutes', <String, Object>{'n': n});
+  String focusSessionsCount(int n) =>
+      _f('focusSessionsCount', <String, Object>{'n': n});
+  String focusTotalLabel(int n) =>
+      _f('focusTotalLabel', <String, Object>{'n': n});
+  String goalProgressLabel(int p) =>
+      _f('goalProgressLabel', <String, Object>{'p': p});
+  String goalValueLabel(String current, String target, String unit) => _f(
+      'goalValueLabel',
+      <String, Object>{'current': current, 'target': target, 'unit': unit});
   String hoursBefore(int n) => _f('hoursBefore', <String, Object>{'n': n});
-  String milestonesProgress(int done, int total) => _f('milestonesProgress', <String, Object>{'done': done, 'total': total});
+  String milestonesProgress(int done, int total) =>
+      _f('milestonesProgress', <String, Object>{'done': done, 'total': total});
   String minutesBefore(int n) => _f('minutesBefore', <String, Object>{'n': n});
-  String projectTaskCounts(int open, int done) => _f('projectTaskCounts', <String, Object>{'open': open, 'done': done});
-  String recurrenceEvery(int count, String unit) => _f('recurrenceEvery', <String, Object>{'count': count, 'unit': unit});
+  String projectTaskCounts(int open, int done) =>
+      _f('projectTaskCounts', <String, Object>{'open': open, 'done': done});
+  String recurrenceEvery(int count, String unit) =>
+      _f('recurrenceEvery', <String, Object>{'count': count, 'unit': unit});
 
   String get weekdayMon => _s('weekdayMon');
   String get weekdayTue => _s('weekdayTue');
@@ -488,8 +499,7 @@ class _AppLocalizationsDelegate
   const _AppLocalizationsDelegate();
 
   @override
-  bool isSupported(Locale locale) =>
-      AppLocalizations.isLocaleSupported(locale);
+  bool isSupported(Locale locale) => AppLocalizations.isLocaleSupported(locale);
 
   @override
   Future<AppLocalizations> load(Locale locale) =>

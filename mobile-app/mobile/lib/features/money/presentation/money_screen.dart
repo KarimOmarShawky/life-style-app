@@ -75,8 +75,7 @@ class MoneyScreen extends ConsumerWidget {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor:
-                            Theme.of(context).colorScheme.primary,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         child: const Icon(Icons.subscriptions,
                             color: Colors.white, size: 24),
                       ),
@@ -292,9 +291,7 @@ class MoneyScreen extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: isOver
-                              ? Colors.red
-                              : const Color(0xFF315C4C),
+                          color: isOver ? Colors.red : const Color(0xFF315C4C),
                         ),
                       ),
                     ],
@@ -354,11 +351,13 @@ class MoneyScreen extends ConsumerWidget {
                       children: [
                         Text(
                           b.categoryId ?? l10n.generalBudget,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                         Text(
                           '${sp.toStringAsFixed(0)} / ${lim.toStringAsFixed(0)} ${b.currency}',
-                          style: TextStyle(fontSize: 11, color: colorScheme.outline),
+                          style: TextStyle(
+                              fontSize: 11, color: colorScheme.outline),
                         ),
                       ],
                     ),
@@ -777,7 +776,8 @@ class _SmsSyncCard extends ConsumerWidget {
   static const MethodChannel _channel =
       MethodChannel('com.example.lifestyle_mobile/native_voice');
 
-  Future<void> _toggle(BuildContext context, WidgetRef ref, bool enabled) async {
+  Future<void> _toggle(
+      BuildContext context, WidgetRef ref, bool enabled) async {
     final AppLocalizations l10n = AppLocalizations.of(context);
     if (enabled) {
       try {
@@ -889,7 +889,8 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
     );
   }
 
-  Future<void> _showReviewSheet(BuildContext context, WalletReviewItem item) async {
+  Future<void> _showReviewSheet(
+      BuildContext context, WalletReviewItem item) async {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     var kind = item.kind;
@@ -958,7 +959,8 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                     ),
                     const SizedBox(height: 12),
                     if (item.merchant != null)
-                      Text(item.merchant!, style: Theme.of(sheetContext).textTheme.bodyMedium),
+                      Text(item.merchant!,
+                          style: Theme.of(sheetContext).textTheme.bodyMedium),
                     if (item.description != null)
                       Text(
                         item.description!,
@@ -991,7 +993,8 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                                 Navigator.of(sheetContext).pop();
                               }
                               messenger.showSnackBar(
-                                SnackBar(content: Text(l10n.smsReviewDiscarded)),
+                                SnackBar(
+                                    content: Text(l10n.smsReviewDiscarded)),
                               );
                             },
                             child: Text(l10n.smsReviewDiscard),
@@ -1001,7 +1004,8 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                         Expanded(
                           child: FilledButton(
                             onPressed: () async {
-                              if (!(formKey.currentState?.validate() ?? false)) {
+                              if (!(formKey.currentState?.validate() ??
+                                  false)) {
                                 return;
                               }
                               try {

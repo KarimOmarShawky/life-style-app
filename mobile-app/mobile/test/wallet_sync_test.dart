@@ -31,28 +31,28 @@ class _MemoryTokenStore implements TokenStore {
 }
 
 SessionTokens _session() => SessionTokens(
-  accessToken: 'access-token',
-  refreshToken: 'refresh-token',
-  accessTokenExpiresAt: DateTime.utc(2030),
-  refreshTokenExpiresAt: DateTime.utc(2030),
-);
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      accessTokenExpiresAt: DateTime.utc(2030),
+      refreshTokenExpiresAt: DateTime.utc(2030),
+    );
 
 ApiClient _apiWith(http.Client client) => ApiClient(
-  baseUri: Uri.parse('https://api.example.test/api/v1/'),
-  tokenStore: _MemoryTokenStore(_session()),
-  httpClient: client,
-);
+      baseUri: Uri.parse('https://api.example.test/api/v1/'),
+      tokenStore: _MemoryTokenStore(_session()),
+      httpClient: client,
+    );
 
 String _queuedItem(String id, {String kind = 'expense'}) => jsonEncode({
-  'id': id,
-  'kind': kind,
-  'amount': '125.50',
-  'currency': 'EGP',
-  'occurredOn': '2026-10-08',
-  'description': 'Transfer via InstaPay',
-  'merchant': 'InstaPay',
-  'createdAt': 1,
-});
+      'id': id,
+      'kind': kind,
+      'amount': '125.50',
+      'currency': 'EGP',
+      'occurredOn': '2026-10-08',
+      'description': 'Transfer via InstaPay',
+      'merchant': 'InstaPay',
+      'createdAt': 1,
+    });
 
 http.Response _jsonResponse(int status, Map<String, Object?> body) {
   return http.Response(

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="16dp" android:background="@drawable/lifestyle_widget_background">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="LifeStyle · Last clarity" android:textSize="12sp" android:textColor="#B7CEC6" />
+    <TextView android:id="@+id/widget_clarity" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="No data" android:textSize="26sp" android:textStyle="bold" android:textColor="#FFFFFF" />
+    <TextView android:id="@+id/widget_level" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Lv.1 · 0 XP" android:textSize="12sp" android:textStyle="bold" android:textColor="#E8D59E" />
+    <TextView android:id="@+id/widget_pending" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:text="Tasks today: No data" android:textColor="#FFFFFF" android:textSize="13sp" />
+    <TextView android:id="@+id/widget_top_task" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Choose your next priority" android:maxLines="1" android:ellipsize="end" android:textColor="#B7CEC6" android:textSize="13sp" />
+    <TextView android:id="@+id/widget_shield" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="6dp" android:text="Ready to Focus" android:textColor="#8EE5B6" android:textStyle="bold" android:textSize="13sp" />
+    <TextView android:id="@+id/widget_daily_plan" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingTop="8dp" android:paddingBottom="4dp" android:text="Daily Plan →" android:textColor="#FFFFFF" android:textSize="12sp" />
+</LinearLayout>

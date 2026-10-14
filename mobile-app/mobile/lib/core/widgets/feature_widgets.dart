@@ -36,7 +36,8 @@ class FeatureErrorView extends StatelessWidget {
 
 /// Empty state with an icon and a short explanation.
 class FeatureEmptyView extends StatelessWidget {
-  const FeatureEmptyView({super.key, required this.icon, required this.message});
+  const FeatureEmptyView(
+      {super.key, required this.icon, required this.message});
 
   final IconData icon;
   final String message;

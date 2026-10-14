@@ -17,14 +17,14 @@ final selectedCalendarDayProvider = StateProvider<DateTime>(
 /// Agenda for one day, keyed by YYYY-MM-DD.
 final calendarAgendaProvider = FutureProvider.autoDispose
     .family<List<CalendarEvent>, String>((ref, date) async {
-      final currentUserId = ref.watch(
-        authProvider.select((value) => value.asData?.value?.id),
-      );
-      if (currentUserId == null) return const [];
-      return ref.watch(calendarRepositoryProvider).getAgenda(date);
-    });
+  final currentUserId = ref.watch(
+    authProvider.select((value) => value.asData?.value?.id),
+  );
+  if (currentUserId == null) return const [];
+  return ref.watch(calendarRepositoryProvider).getAgenda(date);
+});
 
 final eventRemindersProvider = FutureProvider.autoDispose
     .family<List<CalendarReminder>, String>((ref, eventId) {
-      return ref.watch(calendarRepositoryProvider).listReminders(eventId);
-    });
+  return ref.watch(calendarRepositoryProvider).listReminders(eventId);
+});

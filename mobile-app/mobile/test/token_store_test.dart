@@ -19,31 +19,30 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(secureStorageChannel, (call) async {
-          final args =
-              (call.arguments as Map<Object?, Object?>?) ??
-              <Object?, Object?>{};
-          final key = args['key'] as String?;
-          switch (call.method) {
-            case 'read':
-              return key == null ? null : secureMemory[key];
-            case 'write':
-              final value = args['value'] as String?;
-              if (key != null && value != null) {
-                secureMemory[key] = value;
-              }
-              return null;
-            case 'delete':
-              if (key != null) {
-                secureMemory.remove(key);
-              }
-              return null;
-            case 'deleteAll':
-              secureMemory.clear();
-              return null;
-            default:
-              return null;
+      final args =
+          (call.arguments as Map<Object?, Object?>?) ?? <Object?, Object?>{};
+      final key = args['key'] as String?;
+      switch (call.method) {
+        case 'read':
+          return key == null ? null : secureMemory[key];
+        case 'write':
+          final value = args['value'] as String?;
+          if (key != null && value != null) {
+            secureMemory[key] = value;
           }
-        });
+          return null;
+        case 'delete':
+          if (key != null) {
+            secureMemory.remove(key);
+          }
+          return null;
+        case 'deleteAll':
+          secureMemory.clear();
+          return null;
+        default:
+          return null;
+      }
+    });
   });
 
   tearDown(() {

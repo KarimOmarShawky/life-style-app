@@ -80,8 +80,7 @@ String recurrenceSummary(AppLocalizations l10n, RecurrenceRule rule) {
           _recurrenceUnitLabel(l10n, rule.freq),
         );
   if (rule.freq != 'weekly' || rule.byWeekday.isEmpty) return base;
-  final days = rule.byWeekday
-      .map((day) => isoWeekdayLabel(l10n, day))
-      .join(', ');
+  final days =
+      rule.byWeekday.map((day) => isoWeekdayLabel(l10n, day)).join(', ');
   return '$base · $days';
 }

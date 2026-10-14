@@ -49,7 +49,8 @@ class GoalsRepository {
       await _api.post('goals/$goalId/milestones', body: fields),
       'milestone',
     );
-    return GoalMilestone.fromJson(jsonObject(response['milestone'], 'milestone'));
+    return GoalMilestone.fromJson(
+        jsonObject(response['milestone'], 'milestone'));
   }
 
   Future<GoalMilestone> updateMilestone(
@@ -61,7 +62,8 @@ class GoalsRepository {
       await _api.patch('goals/$goalId/milestones/$milestoneId', body: changes),
       'milestone',
     );
-    return GoalMilestone.fromJson(jsonObject(response['milestone'], 'milestone'));
+    return GoalMilestone.fromJson(
+        jsonObject(response['milestone'], 'milestone'));
   }
 
   Future<void> deleteMilestone(String goalId, String milestoneId) async {

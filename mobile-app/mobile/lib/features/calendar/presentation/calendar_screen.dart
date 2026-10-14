@@ -39,8 +39,7 @@ class CalendarScreen extends ConsumerWidget {
               IconButton(
                 tooltip: l10n.previousDay,
                 icon: const Icon(Icons.chevron_left),
-                onPressed: () =>
-                    moveTo(day.subtract(const Duration(days: 1))),
+                onPressed: () => moveTo(day.subtract(const Duration(days: 1))),
               ),
               Expanded(
                 child: TextButton(
@@ -69,7 +68,8 @@ class CalendarScreen extends ConsumerWidget {
           const Divider(height: 1),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () async => ref.invalidate(calendarAgendaProvider(dayKey)),
+              onRefresh: () async =>
+                  ref.invalidate(calendarAgendaProvider(dayKey)),
               child: agendaAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => FeatureErrorView(
@@ -112,7 +112,8 @@ class CalendarScreen extends ConsumerWidget {
                         },
                         child: _EventTile(
                           event: event,
-                          onTap: () => openEventForm(context, ref, event: event),
+                          onTap: () =>
+                              openEventForm(context, ref, event: event),
                         ),
                       );
                     },
@@ -152,7 +153,9 @@ class _EventTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         leading: Icon(
-          event.allDay ? Icons.event_available_outlined : Icons.schedule_outlined,
+          event.allDay
+              ? Icons.event_available_outlined
+              : Icons.schedule_outlined,
         ),
         title: Text(
           event.title,

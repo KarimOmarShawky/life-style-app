@@ -167,8 +167,8 @@ class MemoryTokenStore implements TokenStore {
 }
 
 SessionTokens _tokens(String accessToken, String refreshToken) => SessionTokens(
-  accessToken: accessToken,
-  refreshToken: refreshToken,
-  accessTokenExpiresAt: DateTime.utc(2030),
-  refreshTokenExpiresAt: DateTime.utc(2030),
-);
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      accessTokenExpiresAt: DateTime.utc(2030),
+      refreshTokenExpiresAt: DateTime.utc(2030),
+    );

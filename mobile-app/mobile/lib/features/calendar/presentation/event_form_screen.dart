@@ -191,7 +191,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           'allDay': _allDay,
           'timezone': _timezone,
           'reminders': [
-            if (reminder != null) {'channel': 'push', 'offsetMinutes': reminder},
+            if (reminder != null)
+              {'channel': 'push', 'offsetMinutes': reminder},
           ],
         });
         await syncCalendarEventReminders(
@@ -347,8 +348,9 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                   labelText: l10n.eventTitleLabel,
                   border: const OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    (value ?? '').trim().isEmpty ? l10n.eventTitleRequired : null,
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? l10n.eventTitleRequired
+                    : null,
               ),
               TextFormField(
                 controller: _locationController,
@@ -420,7 +422,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                         child: Text(reminderOffsetLabel(l10n, minutes)),
                       ),
                   ],
-                  onChanged: (value) => setState(() => _newEventReminder = value),
+                  onChanged: (value) =>
+                      setState(() => _newEventReminder = value),
                 )
               else
                 _remindersSection(l10n, eventId),

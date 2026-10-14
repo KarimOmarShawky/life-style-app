@@ -12,11 +12,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _SignedInStore implements TokenStore {
   @override
   Future<SessionTokens?> read() async => SessionTokens(
-    accessToken: 'access-token',
-    refreshToken: 'refresh-token',
-    accessTokenExpiresAt: DateTime.utc(2030),
-    refreshTokenExpiresAt: DateTime.utc(2030),
-  );
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        accessTokenExpiresAt: DateTime.utc(2030),
+        refreshTokenExpiresAt: DateTime.utc(2030),
+      );
 
   @override
   Future<void> write(SessionTokens tokens) async {}
@@ -26,16 +26,16 @@ class _SignedInStore implements TokenStore {
 }
 
 ApiClient _apiWith(http.Client httpClient) => ApiClient(
-  baseUri: Uri.parse('https://api.example.test/api/v1/'),
-  tokenStore: _SignedInStore(),
-  httpClient: httpClient,
-);
+      baseUri: Uri.parse('https://api.example.test/api/v1/'),
+      tokenStore: _SignedInStore(),
+      httpClient: httpClient,
+    );
 
 http.Response _json(int status, Map<String, Object?> body) => http.Response(
-  jsonEncode(body),
-  status,
-  headers: {'content-type': 'application/json'},
-);
+      jsonEncode(body),
+      status,
+      headers: {'content-type': 'application/json'},
+    );
 
 void main() {
   test('does nothing while SMS capture is off', () async {
@@ -97,7 +97,9 @@ void main() {
   test('stores nothing when the backend refuses to issue a token', () async {
     SharedPreferences.setMockInitialValues({'sms_sync_enabled': true});
     final api = _apiWith(
-      MockClient((request) async => _json(500, {'error': {'code': 'X'}})),
+      MockClient((request) async => _json(500, {
+            'error': {'code': 'X'}
+          })),
     );
 
     await WalletIngestToken(api).ensure();
@@ -106,7 +108,8 @@ void main() {
     expect(prefs.getString(WalletIngestToken.storageKey), isNull);
   });
 
-  test('revoke removes the local copy and calls DELETE on the backend', () async {
+  test('revoke removes the local copy and calls DELETE on the backend',
+      () async {
     SharedPreferences.setMockInitialValues({
       WalletIngestToken.storageKey: 'lsi_to_revoke',
     });

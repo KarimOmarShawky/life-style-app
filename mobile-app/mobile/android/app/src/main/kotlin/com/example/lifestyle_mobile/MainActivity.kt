@@ -29,6 +29,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var focusShieldBridge: FocusShieldBridge? = null
     private val CHANNEL = "com.example.lifestyle_mobile/native_voice"
     private val REQUEST_SPEECH = 202
     private val REQUEST_SMS = 303
@@ -61,6 +62,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        focusShieldBridge = FocusShieldBridge(this, flutterEngine.dartExecutor.binaryMessenger)
 
         // Native Voice Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
@@ -109,12 +111,27 @@ class MainActivity : FlutterActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        focusShieldBridge?.onPermissionResult(requestCode)
         if (requestCode == REQUEST_SMS) {
             val granted = grantResults.isNotEmpty() &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED
             pendingSmsResult?.success(granted)
             pendingSmsResult = null
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.data?.scheme == "lifestyle" && intent.data?.host == "focus") {
+            FocusShieldEvents.emit(mapOf("type" to "navigateFocus"))
+        }
+    }
+
+    override fun onDestroy() {
+        focusShieldBridge?.close()
+        focusShieldBridge = null
+        super.onDestroy()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

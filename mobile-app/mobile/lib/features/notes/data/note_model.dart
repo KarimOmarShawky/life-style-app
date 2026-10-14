@@ -18,16 +18,17 @@ class Note {
   final int version;
 
   factory Note.fromJson(Map<String, dynamic> json) => Note(
-    id: _string(json, 'id'),
-    title: _string(json, 'title'),
-    body: _string(json, 'body'),
-    tags:
-        (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
-        const [],
-    isPinned: json['isPinned'] == true,
-    updatedAt: _string(json, 'updatedAt'),
-    version: _int(json, 'version'),
-  );
+        id: _string(json, 'id'),
+        title: _string(json, 'title'),
+        body: _string(json, 'body'),
+        tags: (json['tags'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        isPinned: json['isPinned'] == true,
+        updatedAt: _string(json, 'updatedAt'),
+        version: _int(json, 'version'),
+      );
 }
 
 String _string(Map<String, dynamic> json, String key) {

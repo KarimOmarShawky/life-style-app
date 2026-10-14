@@ -121,18 +121,69 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cache Android build dependencies
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
       - name: Setup Flutter stable channel
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
       - name: Dart formatting
-        run: dart format lib test
+        run: |
+          if ! dart format --output=none --set-exit-if-changed lib test; then
+            dart format lib test
+            git diff --binary > "$RUNNER_TEMP/dart-format.patch"
+            # GitHub API annotations also expose the patch where artifact hosts
+            # are unreachable. Only source formatting, never runtime user data.
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(0,min(len(s),35000),3500)]'
+            exit 1
+          fi
+
+      - name: Formatting diagnostics 2
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(10*3500,min(len(s),20*3500),3500)]'
+          fi
+
+      - name: Formatting diagnostics 3
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(20*3500,min(len(s),30*3500),3500)]'
+          fi
+
+      - name: Formatting diagnostics 4
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(30*3500,min(len(s),40*3500),3500)]'
+          fi
+
+      - name: Formatting diagnostics 5
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(40*3500,min(len(s),50*3500),3500)]'
+          fi
+
+      - name: Upload formatting fix when needed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-format-fix
+          path: ${{ runner.temp }}/dart-format.patch
+          if-no-files-found: ignore
 
       - name: Flutter static analysis
+        if: ${{ !cancelled() }}
         run: |
           flutter analyze --fatal-infos > analyze.log 2>&1 || {
             echo '### failure log: analyze.log' >> "$GITHUB_STEP_SUMMARY"
@@ -144,13 +195,26 @@ jobs:
           }
 
       - name: Flutter tests
+        if: ${{ !cancelled() }}
         run: |
           flutter test --coverage > flutter-test.log 2>&1 || {
             echo '### failure log: flutter-test.log' >> "$GITHUB_STEP_SUMMARY"
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 80 flutter-test.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python3 -c 'import re; s=open("flutter-test.log").read(); m=re.search(r"The following .*? was thrown",s); t=s[m.start():m.start()+3500] if m else s[-3500:]; print("::error title=Flutter test context::"+t.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
             grep -E "FAILED|Error|Exception|Expected" flutter-test.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
+            exit 1
+          }
+
+      - name: Kotlin JVM unit tests
+        run: |
+          # Run from the app project so the unqualified test task selects our
+          # JVM suite, not upstream plugins' incompatible Robolectric suites.
+          cd android/app
+          ../gradlew testDebugUnitTest > kotlin-test.log 2>&1 || {
+            tail -n 80 kotlin-test.log
+            grep -E "^e:| FAILED$|Exception|^\* What went wrong" kotlin-test.log | head -40 | sed 's/^/::error title=kotlin-gate-failure::/' | cut -c1-500
             exit 1
           }
 

@@ -107,13 +107,50 @@ Language: Always reply in the same language as the user's latest request (Arabic
 Tone: Friendly, motivating, professional, concise, and focused on execution. Avoid fluff.
 ''';
 
+  /// The weekly coach accepts numbers only, with a fixed allowlist of names.
+  /// Callers must obtain fresh consent before each request. No conversation
+  /// history, note, task title, notification or package is accepted here.
+  Future<String?> generateWeeklyCoaching(
+      {required Map<String, num> aggregates,
+      String languageName = 'English',
+      http.Client? httpClient}) async {
+    const allowed = {
+      'tasksCompleted',
+      'tasksPending',
+      'habitConsistencyPercent',
+      'activeStreaks',
+      'focusMinutes',
+      'focusSessions',
+      'blockedAttempts',
+      'averageClarity',
+      'netSpending'
+    };
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final numbers = <String, num>{
+      for (final entry in aggregates.entries)
+        if (allowed.contains(entry.key) && entry.value.isFinite)
+          entry.key: entry.value
+    };
+    var succeeded = false;
+    final result = await sendMessage(
+        conversationHistory: const [],
+        newMessage:
+            'Create a practical seven-day productivity coaching plan from these aggregated numbers only. Missing metrics are unavailable. Do not infer personal details.\n${jsonEncode(numbers)}',
+        languageName: languageName,
+        httpClient: httpClient,
+        onOutcome: (value) => succeeded = value);
+    return succeeded ? result : null;
+  }
+
   Future<String> sendMessage({
     required List<ChatMessage> conversationHistory,
     required String newMessage,
     String languageName = 'Arabic',
     Duration timeout = const Duration(seconds: 12),
     http.Client? httpClient,
+    void Function(bool succeeded)? onOutcome,
   }) async {
+    onOutcome?.call(false);
     final bool isArabic = languageName == 'Arabic';
     final key = await getEffectiveApiKey();
     if (key.isEmpty) {
@@ -180,6 +217,7 @@ Tone: Friendly, motivating, professional, concise, and focused on execution. Avo
             final firstPart = parts[0] as Map<String, dynamic>?;
             final text = firstPart?['text'] as String?;
             if (text != null && text.trim().isNotEmpty) {
+              onOutcome?.call(true);
               return text.trim();
             }
           }

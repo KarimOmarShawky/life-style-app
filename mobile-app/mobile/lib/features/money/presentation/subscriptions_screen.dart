@@ -57,7 +57,8 @@ class SubscriptionsScreen extends ConsumerWidget {
                           radius: 26,
                           backgroundColor:
                               Theme.of(context).colorScheme.primaryContainer,
-                          child: const Icon(Icons.subscriptions_outlined, size: 28),
+                          child: const Icon(Icons.subscriptions_outlined,
+                              size: 28),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -384,8 +385,9 @@ Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
                       labelText: l10n.subscriptionName,
                       hintText: l10n.subscriptionNameHint,
                     ),
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? l10n.subscriptionName : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? l10n.subscriptionName
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   Row(

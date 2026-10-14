@@ -87,8 +87,9 @@ class SessionAudioPlayer {
       switch (key) {
         case 'rain':
           low = 0.70 * low + 0.30 * w;
-          final drop =
-              rnd.nextDouble() < 0.0006 ? (rnd.nextDouble() * 2 - 1) * 0.6 : 0.0;
+          final drop = rnd.nextDouble() < 0.0006
+              ? (rnd.nextDouble() * 2 - 1) * 0.6
+              : 0.0;
           samples[i] = low * 0.55 + drop;
         case 'cafe':
           low = 0.90 * low + 0.10 * w;

@@ -120,12 +120,10 @@ class GoalDetailScreen extends ConsumerWidget {
             PopupMenuButton<String>(
               tooltip: l10n.statusFieldLabel,
               onSelected: (status) => _run(context, () async {
-                await ref
-                    .read(goalsRepositoryProvider)
-                    .updateGoal(goal.id, {
-                      'status': status,
-                      'version': goal.version,
-                    });
+                await ref.read(goalsRepositoryProvider).updateGoal(goal.id, {
+                  'status': status,
+                  'version': goal.version,
+                });
                 _refresh(ref);
               }),
               itemBuilder: (menuContext) => [
@@ -226,9 +224,9 @@ class GoalDetailScreen extends ConsumerWidget {
           await ref
               .read(goalsRepositoryProvider)
               .updateMilestone(goal.id, milestone.id, {
-                'completed': value ?? false,
-                'version': milestone.version,
-              });
+            'completed': value ?? false,
+            'version': milestone.version,
+          });
           _refresh(ref);
         }),
       ),

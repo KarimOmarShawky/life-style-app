@@ -26,7 +26,8 @@ const Map<String, String> trCatalog = {
   'enterResetCode': '6 haneli kodu gir',
   'newPassword': 'Yeni şifre',
   'confirmNewPassword': 'Yeni şifreyi onayla',
-  'passwordResetSuccess': 'Şifre başarıyla sıfırlandı! Artık giriş yapabilirsin',
+  'passwordResetSuccess':
+      'Şifre başarıyla sıfırlandı! Artık giriş yapabilirsin',
   'passwordsDoNotMatch': 'Şifreler eşleşmiyor',
   'selectAll': 'Tümünü seç',
   'deleteSelected': 'Seçilenleri sil',
@@ -43,7 +44,8 @@ const Map<String, String> trCatalog = {
   'save': 'Kaydet',
   'delete': 'Sil',
   'errorTitle': 'Bir şeyler ters gitti',
-  'apiConfigError': 'API adresi yapılandırılmamış. Uygulamayı API_BASE_URL derleme ayarıyla başlat.',
+  'apiConfigError':
+      'API adresi yapılandırılmamış. Uygulamayı API_BASE_URL derleme ayarıyla başlat.',
   'networkError': 'Bağlanılamadı. Bağlantını kontrol edip tekrar dene.',
   'passwordLengthError': 'En az 10 karakterlik bir şifre kullan.',
   'dailyHabits': 'Günlük Alışkanlıklar',
@@ -112,7 +114,8 @@ const Map<String, String> trCatalog = {
   'pickTime': 'Saat seç',
   'noAlarm': 'Alarm yok',
   'smartAdd': 'Akıllı Hızlı Ekleme',
-  'smartAddHint': 'örn. yarın 19\'da doktor randevusu veya 30 dakika sonra market',
+  'smartAddHint':
+      'örn. yarın 19\'da doktor randevusu veya 30 dakika sonra market',
   'detectedTitle': 'Görev',
   'detectedDate': 'Tarih',
   'detectedAlarm': 'Alarm',
@@ -168,10 +171,12 @@ const Map<String, String> trCatalog = {
   'badgeStreak7': '7 günlük seri',
   'globalSearchTooltip': 'Genel Arama',
   'testAlarmTitleText': 'LifeStyle: Önemli Hatırlatma!',
-  'testAlarmBodyText': 'Alarmı durdurmak için kapat\'a, ertelemek için ertele\'ye bas',
+  'testAlarmBodyText':
+      'Alarmı durdurmak için kapat\'a, ertelemek için ertele\'ye bas',
   'briefingMorning': 'Günaydın',
   'briefingEvening': 'İyi akşamlar',
-  'briefingEmptyText': 'Henüz görev yok. Bugünün ilk görevini eklemek için + simgesine dokun!',
+  'briefingEmptyText':
+      'Henüz görev yok. Bugünün ilk görevini eklemek için + simgesine dokun!',
   'taskDueNowText': 'Planlanmış görevin şimdi vadesi geldi',
   'quickClip30MinLabel': '30 dakika içinde',
   'quickClip30MinText': '30 dakika içinde hatırlatma',
@@ -188,7 +193,8 @@ const Map<String, String> trCatalog = {
   'exportReportTooltip': 'Finansal Raporu Dışa Aktar',
   'budgetBreakdownTitle': 'Bütçe Dökümü',
   'generalBudget': 'Genel Bütçe',
-  'reportCopied': 'Finansal rapor panoya kopyalandı! Artık yapıştırabilir veya paylaşabilirsin.',
+  'reportCopied':
+      'Finansal rapor panoya kopyalandı! Artık yapıştırabilir veya paylaşabilirsin.',
   'reportHeader': 'LifeStyle Aylık Finansal Raporu',
   'reportDateLabel': 'Rapor tarihi:',
   'reportTotalBudgetLabel': '- Toplam bütçe:',
@@ -199,18 +205,21 @@ const Map<String, String> trCatalog = {
   'reportTotalSubsLabel': '- Toplam abonelikler:',
   'reportMonthlySuffix': 'aylık',
   'reportFooter': 'Rapor LifeStyle uygulaması tarafından oluşturuldu',
-  'aiWelcomeMessage': 'Hoş geldin! Ben senin LifeStyle yapay zekâ asistanın. Bugün sana nasıl yardımcı olabilirim? Programını düzenlememi, sağlıklı alışkanlıklar önermemi veya üretkenlik ipuçları vermemi isteyebilirsin.',
+  'aiWelcomeMessage':
+      'Hoş geldin! Ben senin LifeStyle yapay zekâ asistanın. Bugün sana nasıl yardımcı olabilirim? Programını düzenlememi, sağlıklı alışkanlıklar önermemi veya üretkenlik ipuçları vermemi isteyebilirsin.',
   'aiSuggestion1': 'Bugünümü planla',
   'aiSuggestion2': 'İş ve ders dengemi nasıl kurarım?',
   'aiSuggestion3': 'Sağlıklı sabah alışkanlıkları öner',
   'aiSuggestion4': 'Aylık giderlerimi azaltma ipuçları',
   'aiClearChatTooltip': 'Sohbeti temizle',
-  'aiClearedResetMessage': 'Tekrar hoş geldin! Gününü düzenlemene şimdi nasıl yardım edebilirim?',
+  'aiClearedResetMessage':
+      'Tekrar hoş geldin! Gününü düzenlemene şimdi nasıl yardım edebilirim?',
   'aiThinkingMessage': 'Düşünüyorum ve yanıtı yazıyorum...',
   'aiInputHint': 'Yapay zekâ asistanına istediğini sor...',
   'searchFieldPlaceholder': 'Görev, not, abonelik ara...',
   'searchPromptEmpty': 'Tüm verilerinde aramak için herhangi bir kelime yaz',
-  'briefingSummaryText': '{total} planlanmış görevin var, {completed} tanesi başarıyla tamamlandı. Böyle devam et!',
+  'briefingSummaryText':
+      '{total} planlanmış görevin var, {completed} tanesi başarıyla tamamlandı. Böyle devam et!',
   'billingUnit.month': '/ay',
   'billingUnit.year': '/yıl',
   'billingUnit.week': '/hf',
@@ -225,6 +234,8 @@ const Map<String, String> trCatalog = {
   'searchNoResultsFor': '"{q}" için eşleşen sonuç yok',
   'noSpeechDetected': 'Konuşma algılanmadı, lütfen net konuşarak tekrar dene',
   'smsSyncTitle': 'Cüzdan SMS otomatik yakalama',
-  'smsSyncDesc': 'Banka ve cüzdan SMS\'lerini okur (InstaPay, Vodafone Cash...) ve işlemleri otomatik kaydeder.',
-  'smsPermissionDenied': 'Otomatik yakalamayı etkinleştirmek için SMS izni gereklidir.',
+  'smsSyncDesc':
+      'Banka ve cüzdan SMS\'lerini okur (InstaPay, Vodafone Cash...) ve işlemleri otomatik kaydeder.',
+  'smsPermissionDenied':
+      'Otomatik yakalamayı etkinleştirmek için SMS izni gereklidir.',
 };

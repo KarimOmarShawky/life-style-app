@@ -34,7 +34,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Future<void> _handleSendCode() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _errorMessage = AppLocalizations.of(context).enterValidEmailPrompt);
+      setState(() =>
+          _errorMessage = AppLocalizations.of(context).enterValidEmailPrompt);
       return;
     }
 
@@ -55,7 +56,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      setState(
+          () => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -103,7 +105,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      setState(
+          () => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -128,7 +131,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Icon(
-                    _codeSent ? Icons.lock_reset_rounded : Icons.mark_email_read_outlined,
+                    _codeSent
+                        ? Icons.lock_reset_rounded
+                        : Icons.mark_email_read_outlined,
                     size: 64,
                     color: theme.colorScheme.primary,
                   ),
@@ -142,9 +147,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _codeSent
-                        ? l10n.enterResetCode
-                        : l10n.resetCodeSent,
+                    _codeSent ? l10n.enterResetCode : l10n.resetCodeSent,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -213,8 +216,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),

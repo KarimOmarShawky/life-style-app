@@ -26,18 +26,18 @@ class Subscription {
   final int version;
 
   factory Subscription.fromJson(Map<String, dynamic> json) => Subscription(
-    id: _string(json, 'id'),
-    name: _string(json, 'name'),
-    amount: _string(json, 'amount'),
-    currency: _string(json, 'currency'),
-    billingUnit: _string(json, 'billingUnit'),
-    billingInterval: _int(json, 'billingInterval'),
-    nextBillingDate: _string(json, 'nextBillingDate'),
-    status: _string(json, 'status'),
-    monthlyEquivalent: _string(json, 'monthlyEquivalent'),
-    daysUntilNextBilling: _int(json, 'daysUntilNextBilling'),
-    version: _int(json, 'version'),
-  );
+        id: _string(json, 'id'),
+        name: _string(json, 'name'),
+        amount: _string(json, 'amount'),
+        currency: _string(json, 'currency'),
+        billingUnit: _string(json, 'billingUnit'),
+        billingInterval: _int(json, 'billingInterval'),
+        nextBillingDate: _string(json, 'nextBillingDate'),
+        status: _string(json, 'status'),
+        monthlyEquivalent: _string(json, 'monthlyEquivalent'),
+        daysUntilNextBilling: _int(json, 'daysUntilNextBilling'),
+        version: _int(json, 'version'),
+      );
 }
 
 String _string(Map<String, dynamic> json, String key) {

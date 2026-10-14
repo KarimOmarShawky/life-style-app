@@ -57,8 +57,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     } else {
       // First launch: honour the device language when the app ships a
       // catalog for it, otherwise fall back to Arabic (product default).
-      final Locale device =
-          WidgetsBinding.instance.platformDispatcher.locale;
+      final Locale device = WidgetsBinding.instance.platformDispatcher.locale;
       loc = AppLocalizations.isLocaleSupported(device)
           ? Locale(device.languageCode)
           : const Locale('ar');
@@ -104,7 +103,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 }
 
-final settingsProvider =
-    StateNotifierProvider<SettingsNotifier, SettingsState>(
+final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(
   (ref) => SettingsNotifier(),
 );

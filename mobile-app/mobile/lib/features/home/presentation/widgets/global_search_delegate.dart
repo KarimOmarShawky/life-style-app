@@ -50,19 +50,17 @@ class GlobalSearchDelegate extends SearchDelegate<void> {
       return _serverFuture!;
     }
     _lastServerQuery = q;
-    _serverFuture = ref
-        .read(dailyPlanRepositoryProvider)
-        .searchGlobal(q)
-        .catchError(
-          (_) => GlobalSearchResult(
-            query: q,
-            tasks: const <DayPlanTaskItem>[],
-            notes: const <SearchNoteItem>[],
-            habits: const <DayPlanHabitItem>[],
-            projects: const <SearchProjectItem>[],
-            events: const <DayPlanEventItem>[],
-          ),
-        );
+    _serverFuture =
+        ref.read(dailyPlanRepositoryProvider).searchGlobal(q).catchError(
+              (_) => GlobalSearchResult(
+                query: q,
+                tasks: const <DayPlanTaskItem>[],
+                notes: const <SearchNoteItem>[],
+                habits: const <DayPlanHabitItem>[],
+                projects: const <SearchProjectItem>[],
+                events: const <DayPlanEventItem>[],
+              ),
+            );
     return _serverFuture!;
   }
 
@@ -115,7 +113,8 @@ class GlobalSearchDelegate extends SearchDelegate<void> {
       builder: (context, snapshot) {
         final server = snapshot.data;
 
-        final taskById = <String, ({String title, String? dueDate, bool isDone})>{
+        final taskById =
+            <String, ({String title, String? dueDate, bool isDone})>{
           for (final t in localTasks)
             t.id: (title: t.title, dueDate: t.dueDate, isDone: t.isDone),
           if (server != null)
@@ -244,9 +243,8 @@ class GlobalSearchDelegate extends SearchDelegate<void> {
               ...serverEvents.map(
                 (event) => ListTile(
                   title: Text(event.title),
-                  subtitle: event.location != null
-                      ? Text(event.location!)
-                      : null,
+                  subtitle:
+                      event.location != null ? Text(event.location!) : null,
                   onTap: () => close(context, null),
                 ),
               ),

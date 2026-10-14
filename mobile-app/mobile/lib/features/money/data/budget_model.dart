@@ -16,13 +16,13 @@ class BudgetUsage {
   final bool overspent;
 
   factory BudgetUsage.fromJson(Map<String, dynamic> json) => BudgetUsage(
-    periodStart: _string(json, 'periodStart'),
-    periodEnd: _string(json, 'periodEnd'),
-    spent: _string(json, 'spent'),
-    remaining: _string(json, 'remaining'),
-    percentUsed: (json['percentUsed'] as num).toDouble(),
-    overspent: json['overspent'] == true,
-  );
+        periodStart: _string(json, 'periodStart'),
+        periodEnd: _string(json, 'periodEnd'),
+        spent: _string(json, 'spent'),
+        remaining: _string(json, 'remaining'),
+        percentUsed: (json['percentUsed'] as num).toDouble(),
+        overspent: json['overspent'] == true,
+      );
 }
 
 class Budget {
@@ -45,16 +45,15 @@ class Budget {
   final int version;
 
   factory Budget.fromJson(Map<String, dynamic> json) => Budget(
-    id: _string(json, 'id'),
-    categoryId: json['categoryId'] is String
-        ? json['categoryId'] as String
-        : null,
-    amountLimit: _string(json, 'amountLimit'),
-    currency: _string(json, 'currency'),
-    period: _string(json, 'period'),
-    usage: BudgetUsage.fromJson(json['usage'] as Map<String, dynamic>),
-    version: _int(json, 'version'),
-  );
+        id: _string(json, 'id'),
+        categoryId:
+            json['categoryId'] is String ? json['categoryId'] as String : null,
+        amountLimit: _string(json, 'amountLimit'),
+        currency: _string(json, 'currency'),
+        period: _string(json, 'period'),
+        usage: BudgetUsage.fromJson(json['usage'] as Map<String, dynamic>),
+        version: _int(json, 'version'),
+      );
 }
 
 String _string(Map<String, dynamic> json, String key) {

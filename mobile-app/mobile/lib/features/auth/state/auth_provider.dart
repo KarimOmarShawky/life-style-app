@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_platform.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
@@ -31,11 +32,11 @@ class AuthController extends AsyncNotifier<AppUser?> {
     required String email,
     required String password,
     required String displayName,
-  }) => _authenticate(
-    () => ref
-        .read(authRepositoryProvider)
-        .register(email: email, password: password, displayName: displayName),
-  );
+  }) =>
+      _authenticate(
+        () => ref.read(authRepositoryProvider).register(
+            email: email, password: password, displayName: displayName),
+      );
 
   Future<void> _authenticate(Future<AppUser> Function() operation) async {
     state = const AsyncLoading();
@@ -49,14 +50,15 @@ class AuthController extends AsyncNotifier<AppUser?> {
     required String email,
     required String code,
     required String newPassword,
-  }) => ref
-      .read(authRepositoryProvider)
-      .resetPassword(email: email, code: code, newPassword: newPassword);
+  }) =>
+      ref
+          .read(authRepositoryProvider)
+          .resetPassword(email: email, code: code, newPassword: newPassword);
 
   Future<void> updateCurrency(String newCurrency) async {
     final updated = await ref.read(authRepositoryProvider).updateProfile(
-      defaultCurrency: newCurrency,
-    );
+          defaultCurrency: newCurrency,
+        );
     state = AsyncData(updated);
   }
 
@@ -81,11 +83,24 @@ class AuthController extends AsyncNotifier<AppUser?> {
     try {
       await ref.read(authRepositoryProvider).logout();
     } finally {
+      // Revoke account-driven widget sync before clearing its native snapshot.
+      state = const AsyncData(null);
+      try {
+        await MethodChannelFocusShieldPlatform().invoke('stopShield');
+      } catch (_) {/* Native support is optional. */}
+      try {
+        await MethodChannelFocusShieldPlatform().invoke('updateHomeWidget', {
+          'clarityScore': null,
+          'level': 1,
+          'xp': 0,
+          'pendingTasksCount': 0,
+          'topTaskTitle': ''
+        });
+      } catch (_) {/* Native support is optional. */}
       // Signing out revokes the session, so both the SMS receiver's ingest token
       // and any user-specific BYOK Gemini key are cleared from local storage.
       await WalletIngestToken.clearLocal();
       await AiService.instance.setUserApiKey(null);
-      state = const AsyncData(null);
     }
   }
 

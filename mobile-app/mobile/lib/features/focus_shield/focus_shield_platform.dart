@@ -60,7 +60,9 @@ class FakeFocusShieldPlatform extends FocusShieldPlatform {
     } else if (method == 'stopShield') {
       shield = ShieldState(
           sessionId: shield.sessionId,
-          blockedAttemptsCount: shield.blockedAttemptsCount);
+          blockedAttemptsCount: shield.blockedAttemptsCount,
+          manualBypassesCount: shield.manualBypassesCount,
+          endReason: arguments['reason'] as String? ?? 'manual');
     }
     return {
       'schemaVersion': 1,
@@ -69,6 +71,8 @@ class FakeFocusShieldPlatform extends FocusShieldPlatform {
       'taskTitle': shield.taskTitle,
       'endTimestampMs': shield.endTimestampMs,
       'blockedAttemptsCount': shield.blockedAttemptsCount,
+      'manualBypassesCount': shield.manualBypassesCount,
+      'endReason': shield.endReason,
       if (method == 'sendReply') 'result': replyResult.name,
       if (method == 'getInstalledApps') 'apps': <Object>[],
       if (method == 'getPermissionStatus') ...{

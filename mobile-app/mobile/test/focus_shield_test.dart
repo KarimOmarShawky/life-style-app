@@ -169,4 +169,51 @@ void main() {
     await fake.invoke('stopShield');
     expect((await fake.getShieldState()).active, isFalse);
   });
+  test(
+      'native owns attempts; final count is read once and completion is idempotent',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final fake = FakeFocusShieldPlatform();
+    final container = ProviderContainer(overrides: [
+      focusAccountIdProvider.overrideWithValue('native-count-test'),
+      focusShieldPlatformProvider.overrideWithValue(fake),
+    ]);
+    addTearDown(container.dispose);
+    addTearDown(fake.dispose);
+    await container.read(focusShieldProvider.future);
+    final controller = container.read(focusShieldProvider.notifier);
+    await controller.setEnabled(true);
+    await controller.beginTimer(
+        id: 'session', taskTitle: 'Study', seconds: 1500);
+    fake.shield = const ShieldState(
+        active: true, sessionId: 'session', blockedAttemptsCount: 7);
+    await controller.finishTimer(completed: true);
+    await controller.finishTimer(completed: true);
+    final data = container.read(focusShieldProvider).requireValue;
+    expect(data.history.single.attempts, 7);
+    expect(data.history.single.clarityScore, 30);
+    expect(data.ledger.totalXp, 55);
+    expect(fake.calls.where((method) => method == 'stopShield').length, 1);
+    expect(data.badges, isNot(contains(FocusBadge.ironWill)));
+  });
+  test('cancellation awards no focus XP and records no invented attempts',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final fake = FakeFocusShieldPlatform();
+    final container = ProviderContainer(overrides: [
+      focusAccountIdProvider.overrideWithValue('cancel-test'),
+      focusShieldPlatformProvider.overrideWithValue(fake),
+    ]);
+    addTearDown(container.dispose);
+    addTearDown(fake.dispose);
+    await container.read(focusShieldProvider.future);
+    final controller = container.read(focusShieldProvider.notifier);
+    await controller.beginTimer(
+        id: 'cancel', taskTitle: 'Study', seconds: 1500);
+    await controller.finishTimer(completed: false);
+    final data = container.read(focusShieldProvider).requireValue;
+    expect(data.history.single.completed, isFalse);
+    expect(data.history.single.attempts, 0);
+    expect(data.ledger.totalXp, 0);
+  });
 }

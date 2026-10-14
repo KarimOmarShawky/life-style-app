@@ -1,3 +1,5 @@
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
+import 'package:lifestyle_mobile/features/more/presentation/daily_plan_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,6 +81,8 @@ class LifeStyleApp extends ConsumerWidget {
   }
 
   Widget _authenticatedPage(AppUser user, String path) {
+    if (path == '/focus') return const FocusShieldScreen();
+    if (path == '/daily-plan') return const DailyPlanScreen();
     if (path == '/profile') {
       return ProfileScreen(user: user);
     }

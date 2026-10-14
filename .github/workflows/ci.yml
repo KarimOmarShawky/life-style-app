@@ -204,6 +204,17 @@ jobs:
             exit 1
           }
 
+      - name: Kotlin JVM unit tests
+        run: |
+          # Run from the app project so the unqualified test task selects our
+          # JVM suite, not upstream plugins' incompatible Robolectric suites.
+          cd android/app
+          ../gradlew testDebugUnitTest > kotlin-test.log 2>&1 || {
+            tail -n 80 kotlin-test.log
+            grep -E "^e:| FAILED$|Exception|^\* What went wrong" kotlin-test.log | head -40 | sed 's/^/::error title=kotlin-gate-failure::/' | cut -c1-500
+            exit 1
+          }
+
       - name: Build Android Release APK
         run: |
           flutter build apk --release > build.log 2>&1 || {

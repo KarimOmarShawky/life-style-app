@@ -1,4 +1,3 @@
-import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:flutter/material.dart';
@@ -629,7 +628,7 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
       if (done) {
         await ref
             .read(focusShieldProvider.notifier)
-            .award(XpType.task, widget.task.id);
+            .taskCompleted(widget.task.id);
       }
       ref.invalidate(tasksProvider);
     } catch (error) {

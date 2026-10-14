@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_platform.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
@@ -82,6 +83,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
     try {
       await ref.read(authRepositoryProvider).logout();
     } finally {
+      try {
+        await MethodChannelFocusShieldPlatform().invoke('stopShield');
+      } catch (_) {/* Native support is optional. */}
       // Signing out revokes the session, so both the SMS receiver's ingest token
       // and any user-specific BYOK Gemini key are cleared from local storage.
       await WalletIngestToken.clearLocal();

@@ -162,18 +162,24 @@ class ShieldState {
       this.sessionId = '',
       this.taskTitle = '',
       this.endTimestampMs = 0,
-      this.blockedAttemptsCount = 0});
+      this.blockedAttemptsCount = 0,
+      this.manualBypassesCount = 0,
+      this.endReason = ''});
   final bool active;
   final String sessionId;
   final String taskTitle;
   final int endTimestampMs;
   final int blockedAttemptsCount;
+  final int manualBypassesCount;
+  final String endReason;
   factory ShieldState.fromJson(Map<String, dynamic> json) => ShieldState(
         active: json['active'] as bool? ?? false,
         sessionId: json['sessionId'] as String? ?? '',
         taskTitle: json['taskTitle'] as String? ?? '',
         endTimestampMs: json['endTimestampMs'] as int? ?? 0,
         blockedAttemptsCount: json['blockedAttemptsCount'] as int? ?? 0,
+        manualBypassesCount: json['manualBypassesCount'] as int? ?? 0,
+        endReason: json['endReason'] as String? ?? '',
       );
 }
 

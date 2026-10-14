@@ -97,7 +97,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     final seconds = _remainingSeconds;
     _focusQueue = _focusQueue
         .then((_) => _focusController.beginTimer(
-            id: id, taskTitle: title, seconds: seconds))
+            id: id, taskTitle: title, seconds: seconds, taskId: taskId))
         .catchError((Object error) {
       _reportSyncError(error);
     });

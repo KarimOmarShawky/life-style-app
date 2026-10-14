@@ -78,10 +78,13 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                             }.sortedBy { it["label"] }
                         result.success(ok() + ("apps" to apps))
                     }
-                    // Phase 3/5 register these implementations without changing the contract.
+                    // Both bridges retain schemaVersion 1.
                     "sendReply" -> result.success(ok() + ("result" to FocusNotificationListenerService.sendInlineReply(
                         activity, call.argument<String>("key") ?: "", call.argument<String>("text") ?: "").name))
-                    "updateHomeWidget" -> result.success(ok())
+                    "updateHomeWidget" -> {
+                        LifeStyleAppWidgetProvider.saveDisplayData(activity, call.arguments as? Map<*, *> ?: emptyMap<Any, Any>())
+                        result.success(ok())
+                    }
                     else -> result.notImplemented()
                 }
             } catch (_: Exception) {

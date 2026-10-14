@@ -32,7 +32,12 @@ class FocusShieldAccessibilityService : AccessibilityService() {
         val currentId = store.snapshot()["sessionId"] as String
         if (sessionId != currentId) { lastEvents.clear(); sessionId = currentId }
         val now = System.currentTimeMillis()
-        if (!engine.shouldBlock(packageName, now, state, lastEvents[packageName])) return
+        if (!engine.shouldBlock(packageName, now, state, lastEvents[packageName])) {
+            // Debounce counting/navigation, not safety: a rapid second launch
+            // must not remain in a blocked app until another window event.
+            if (engine.shouldBlock(packageName, now, state, null)) performGlobalAction(GLOBAL_ACTION_HOME)
+            return
+        }
         lastEvents[packageName] = now
         val snapshot = store.recordAttempt()
         FocusShieldEvents.emit(snapshot + mapOf("type" to "intercept", "packageName" to packageName))

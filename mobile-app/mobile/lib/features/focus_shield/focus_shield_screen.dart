@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/features/timer/presentation/focus_timer_screen.dart';
 import 'weekly_review_screen.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -192,6 +193,7 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
         _drafts.clear();
         _messages.clear();
         _failed.clear();
+        _sending.clear();
       }
     });
     return Scaffold(
@@ -305,6 +307,11 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
                         padding: const EdgeInsets.all(16),
                         child: Text(
                             '${data.shield.taskTitle}\n${remaining ~/ 60}:${(remaining % 60).toString().padLeft(2, '0')} remaining\nBlocked Distraction Attempts: ${data.shield.blockedAttemptsCount}\n${data.lastInterceptPackage ?? ''}'))),
+              OutlinedButton(
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const FocusTimerScreen())),
+                  child: const Text('Open focus timer')),
               const Divider(),
               const Text('Focus Inbox'),
               if (visibleMessages.isEmpty)

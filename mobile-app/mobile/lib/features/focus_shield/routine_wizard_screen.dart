@@ -114,6 +114,7 @@ class _RoutineWizardScreenState extends ConsumerState<RoutineWizardScreen> {
     await prefs.setStringList(
         'routine.${ref.read(focusAccountIdProvider)}.${localDateKey(DateTime.now())}.top3',
         _priorities.take(3).toList());
+    ref.invalidate(tasksProvider);
   }
 
   Future<void> _moveTasks() => _run(() async {

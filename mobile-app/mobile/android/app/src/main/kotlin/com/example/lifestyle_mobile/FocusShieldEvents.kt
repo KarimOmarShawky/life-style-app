@@ -6,36 +6,47 @@ import io.flutter.plugin.common.EventChannel
 
 /** Process-only FIFO. No message/sender/action ever enters preferences or logs. */
 object FocusShieldEvents {
+    private val lock = Any()
     private val pending = ArrayDeque<Map<String, Any?>>()
     private var sink: EventChannel.EventSink? = null
+    private var drainPosted = false
     private val main = Handler(Looper.getMainLooper())
-    var onSessionEnded: (() -> Unit)? = null
+    @Volatile var onSessionEnded: (() -> Unit)? = null
 
-    fun emit(event: Map<String, Any?>) {
+    fun emit(event: Map<String, Any?>) = synchronized(lock) {
+        if (pending.size >= 100) pending.removeFirst()
+        pending.addLast(event + ("schemaVersion" to 1))
+        scheduleDrain()
+    }
+    // One data-free Runnable, not one Runnable retaining each incoming message.
+    // Even callbacks on pre-N binder threads cannot create an unbounded queue.
+    private fun scheduleDrain() {
+        if (sink == null || drainPosted) return
+        drainPosted = true
         main.post {
-            val versioned = event + ("schemaVersion" to 1)
-            val target = sink
-            if (target == null) {
-                if (pending.size >= 100) pending.removeFirst()
-                pending.addLast(versioned)
-            } else target.success(versioned)
+            synchronized(lock) {
+                drainPosted = false
+                val target = sink ?: return@synchronized
+                while (pending.isNotEmpty()) {
+                    try { target.success(pending.removeFirst()) } catch (_: RuntimeException) {
+                        sink = null // Detached engine; retain only the bounded remainder.
+                        break
+                    }
+                }
+            }
         }
     }
-    fun attach(target: EventChannel.EventSink, sessionId: String, active: Boolean) {
+    fun attach(target: EventChannel.EventSink, sessionId: String, active: Boolean) = synchronized(lock) {
         sink = target
-        while (pending.isNotEmpty()) {
-            val event = pending.removeFirst()
-            if (event["type"] == "inbox" && (!active || event["sessionId"] != sessionId)) continue
-            target.success(event)
-        }
+        pending.removeAll { it["type"] == "inbox" && (!active || it["sessionId"] != sessionId) }
+        scheduleDrain()
     }
-    fun detach() { sink = null }
-    fun removeNotification(key: String) {
-        main.post { pending.removeAll { it["type"] == "inbox" && it["key"] == key } }
+    fun detach() = synchronized(lock) { sink = null }
+    fun removeNotification(key: String) = synchronized(lock) {
+        pending.removeAll { it["type"] == "inbox" && it["key"] == key }
     }
     fun endSession() {
-        // Store, services and channel calls all execute on Android's main thread.
+        synchronized(lock) { pending.removeAll { it["type"] == "inbox" || it["type"] == "removed" } }
         onSessionEnded?.invoke()
-        main.post { pending.removeAll { it["type"] == "inbox" || it["type"] == "removed" } }
     }
 }

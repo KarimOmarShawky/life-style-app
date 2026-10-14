@@ -19,15 +19,21 @@ class FocusNotificationListenerService : NotificationListenerService() {
         FocusShieldSessionStore(this).current()
     }
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        val store = FocusShieldSessionStore(this)
-        if (!store.current().active) { replies.clear(); return }
+        try { capture(sbn) } catch (_: RuntimeException) {
+            replies.remove(sbn.key)
+            FocusShieldEvents.removeNotification(sbn.key)
+        }
+    }
+    private fun capture(sbn: StatusBarNotification) {
+        FocusShieldSessionStore(this).withActiveSession { sessionId -> captureActive(sbn, sessionId) }
+    }
+    private fun captureActive(sbn: StatusBarNotification, sessionId: String) {
         val notification = sbn.notification
         if (sbn.packageName == packageName ||
             (sbn.packageName !in MESSAGING_PACKAGES && sbn.packageName != Telephony.Sms.getDefaultSmsPackage(this)) ||
             (notification.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT)) != 0) return
         val messaging = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
         if (notification.category != Notification.CATEGORY_MESSAGE && messaging == null) return
-        val sessionId = store.snapshot()["sessionId"] as String
         val action = notification.actions?.firstOrNull { candidate -> candidate.remoteInputs?.any { it.allowFreeFormInput } == true }
         val evicted = replies.put(sbn.key, CachedReply(sessionId, action, System.currentTimeMillis()))
         if (evicted != null) {
@@ -72,13 +78,17 @@ class FocusNotificationListenerService : NotificationListenerService() {
             }
             if (text.isBlank() || text.length > 10000) return ReplyResult.failed
             val action = cached.action ?: return ReplyResult.noReplyAction
+            val pendingIntent = action.actionIntent ?: return ReplyResult.noReplyAction
+            // Immutable actions discard fill-in reply data; activity actions can
+            // open the distracting app. Neither is a supported inline reply.
+            if (Build.VERSION.SDK_INT >= 31 && (pendingIntent.isImmutable || pendingIntent.isActivity)) return ReplyResult.noReplyAction
             val input = action.remoteInputs?.firstOrNull { it.allowFreeFormInput } ?: return ReplyResult.noReplyAction
             return try {
                 val results = Bundle().apply { putCharSequence(input.resultKey, text) }
                 val fillIn = Intent()
                 RemoteInput.addResultsToIntent(arrayOf(input), fillIn, results)
                 if (Build.VERSION.SDK_INT >= 28) RemoteInput.setResultsSource(fillIn, RemoteInput.SOURCE_FREE_FORM_INPUT)
-                action.actionIntent.send(context, 0, fillIn)
+                pendingIntent.send(context, 0, fillIn)
                 ReplyResult.sent
             } catch (_: PendingIntent.CanceledException) {
                 replies.remove(key)

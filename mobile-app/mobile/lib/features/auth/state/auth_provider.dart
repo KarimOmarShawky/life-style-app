@@ -83,14 +83,24 @@ class AuthController extends AsyncNotifier<AppUser?> {
     try {
       await ref.read(authRepositoryProvider).logout();
     } finally {
+      // Revoke account-driven widget sync before clearing its native snapshot.
+      state = const AsyncData(null);
       try {
         await MethodChannelFocusShieldPlatform().invoke('stopShield');
+      } catch (_) {/* Native support is optional. */}
+      try {
+        await MethodChannelFocusShieldPlatform().invoke('updateHomeWidget', {
+          'clarityScore': null,
+          'level': 1,
+          'xp': 0,
+          'pendingTasksCount': 0,
+          'topTaskTitle': ''
+        });
       } catch (_) {/* Native support is optional. */}
       // Signing out revokes the session, so both the SMS receiver's ingest token
       // and any user-specific BYOK Gemini key are cleared from local storage.
       await WalletIngestToken.clearLocal();
       await AiService.instance.setUserApiKey(null);
-      state = const AsyncData(null);
     }
   }
 

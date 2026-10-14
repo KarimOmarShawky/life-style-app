@@ -45,12 +45,16 @@ class FakeFocusShieldPlatform extends FocusShieldPlatform {
   ShieldState shield = const ShieldState();
   ReplyResult replyResult = ReplyResult.sent;
   final calls = <String>[];
+  final widgetUpdates = <Map<String, Object?>>[];
   @override
   Stream<Map<String, dynamic>> get events => controller.stream;
   @override
   Future<Map<String, dynamic>> invoke(String method,
       [Map<String, Object?> arguments = const {}]) async {
     calls.add(method);
+    if (method == 'updateHomeWidget') {
+      widgetUpdates.add(Map.of(arguments));
+    }
     if (method == 'startShield') {
       shield = ShieldState(
           active: true,

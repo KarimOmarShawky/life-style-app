@@ -162,6 +162,8 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
   }
 
   Future<void> _save(FocusData data, {bool persistPending = true}) async {
+    final before = state.asData?.value;
+    final storageKey = _storageKey;
     // Allowlisted persistence only. Never notification content, sender or draft.
     final saved = await _prefs.setString(
         _storageKey,
@@ -186,6 +188,18 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
         }));
     if (!saved) {
       throw StateError('Could not save productivity data.');
+    }
+    if (_storageKey != storageKey) return;
+    final after = state.asData?.value;
+    // Disk I/O must not overwrite an intercept, a new Inbox message or a native
+    // stop that arrived while an unrelated XP/settings write was in flight.
+    if (before != null &&
+        after != null &&
+        identical(data.shield, before.shield)) {
+      data = data.copyWith(
+          shield: after.shield,
+          inbox: identical(data.inbox, before.inbox) ? after.inbox : data.inbox,
+          lastInterceptPackage: after.lastInterceptPackage);
     }
     state = AsyncData(data);
   }

@@ -92,6 +92,14 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".LifeStyleAppWidgetProvider" android:exported="false" android:label="LifeStyle Brain Report">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.lifestyle_mobile.SHIELD_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/lifestyle_widget_info" />
+        </receiver>
         <service android:name=".FocusNotificationListenerService"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true" android:label="Focus Inbox">

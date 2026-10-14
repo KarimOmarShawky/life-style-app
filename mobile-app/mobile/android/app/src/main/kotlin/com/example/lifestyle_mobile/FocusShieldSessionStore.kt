@@ -71,6 +71,14 @@ class FocusShieldSessionStore(context: Context) {
         "taskTitle" to prefs.getString("taskTitle", ""), "endTimestampMs" to prefs.getLong("endTimestampMs", 0),
         "blockedAttemptsCount" to prefs.getInt("blockedAttemptsCount", 0))
 
+    // Notification callbacks on older Android releases may run off main. Capture
+    // and session teardown share the lock, so nothing can re-enter the cache
+    // after endSession has cleared it.
+    fun <T> withActiveSession(operation: (String) -> T): T? = synchronized(lock) {
+        if (!current().active) return@synchronized null
+        operation(prefs.getString("sessionId", "")!!)
+    }
+
     fun recordAttempt(): Map<String, Any?> = synchronized(lock) {
         if (current().active) prefs.edit().putInt("blockedAttemptsCount", prefs.getInt("blockedAttemptsCount", 0) + 1).commit()
         snapshot()
@@ -125,9 +133,9 @@ class FocusShieldSessionStore(context: Context) {
             .addAction(0, "End Shield Now", stop).build()
         try { manager.notify(NOTIFICATION_ID, notification) } catch (_: SecurityException) { /* Screen exit remains available. */ }
     }
-    // Phase 5 registers the widget receiver; no-op with no installed widgets.
+    // Native events update the widget without a running Flutter engine.
     private fun refreshWidget() {
-        context.sendBroadcast(Intent("com.example.lifestyle_mobile.SHIELD_CHANGED").setPackage(context.packageName))
+        context.sendBroadcast(Intent(context, LifeStyleAppWidgetProvider::class.java).setAction(LifeStyleAppWidgetProvider.SHIELD_CHANGED))
     }
     companion object {
         private val lock = Any()

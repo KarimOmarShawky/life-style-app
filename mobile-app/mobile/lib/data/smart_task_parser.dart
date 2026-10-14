@@ -59,26 +59,28 @@ Return a JSON object with:
 "hasTime": (boolean, true if explicit or relative time is mentioned, false otherwise).
 ''';
 
-        final response = await http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-goog-api-key': key,
-          },
-          body: jsonEncode({
-            'generationConfig': {
-              'responseMimeType': 'application/json',
-              'temperature': 0.1,
-            },
-            'contents': [
-              {
-                'parts': [
-                  {'text': prompt}
+        final response = await http
+            .post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'X-goog-api-key': key,
+              },
+              body: jsonEncode({
+                'generationConfig': {
+                  'responseMimeType': 'application/json',
+                  'temperature': 0.1,
+                },
+                'contents': [
+                  {
+                    'parts': [
+                      {'text': prompt}
+                    ]
+                  }
                 ]
-              }
-            ]
-          }),
-        ).timeout(timeout);
+              }),
+            )
+            .timeout(timeout);
 
         if (response.statusCode == 200) {
           final decoded = jsonDecode(response.body) as Map<String, dynamic>;
@@ -89,7 +91,8 @@ Return a JSON object with:
             if (parts != null && parts.isNotEmpty) {
               final jsonText = parts[0]['text'] as String?;
               if (jsonText != null && jsonText.isNotEmpty) {
-                final parsedJson = jsonDecode(jsonText.trim()) as Map<String, dynamic>;
+                final parsedJson =
+                    jsonDecode(jsonText.trim()) as Map<String, dynamic>;
                 final title = (parsedJson['title'] as String?)?.trim();
                 final dueDate = (parsedJson['dueDate'] as String?)?.trim();
                 final dueTime = (parsedJson['dueTime'] as String?)?.trim();
@@ -156,7 +159,8 @@ Return a JSON object with:
         title: cleanTitle.isEmpty ? text : cleanTitle,
         scheduledDateTime: relativeMatch.dateTime,
         dueDate: _formatDate(relativeMatch.dateTime),
-        dueTime: _formatTime(relativeMatch.dateTime.hour, relativeMatch.dateTime.minute),
+        dueTime: _formatTime(
+            relativeMatch.dateTime.hour, relativeMatch.dateTime.minute),
         hasTime: true,
       );
     }
@@ -233,15 +237,19 @@ Return a JSON object with:
         .replaceAll('٩', '9');
   }
 
-  static _RelativeResult? _matchRelativeDuration(String text, DateTime current) {
-    if (RegExp(r'\b(بعد\s+(نص|نصف)\s*ساعه|in\s+half\s+an?\s+hour)\b').hasMatch(text)) {
+  static _RelativeResult? _matchRelativeDuration(
+      String text, DateTime current) {
+    if (RegExp(r'\b(بعد\s+(نص|نصف)\s*ساعه|in\s+half\s+an?\s+hour)\b')
+        .hasMatch(text)) {
       final dt = current.add(const Duration(minutes: 30));
-      return _RelativeResult(dt, ['بعد نص ساعه', 'بعد نصف ساعه', 'بعد نص ساعة', 'in half an hour']);
+      return _RelativeResult(dt,
+          ['بعد نص ساعه', 'بعد نصف ساعه', 'بعد نص ساعة', 'in half an hour']);
     }
 
     if (RegExp(r'\b(بعد\s+ربع\s*ساعه|in\s+15\s*min(utes)?)\b').hasMatch(text)) {
       final dt = current.add(const Duration(minutes: 15));
-      return _RelativeResult(dt, ['بعد ربع ساعه', 'بعد ربع ساعة', 'in 15 min', 'in 15 minutes']);
+      return _RelativeResult(
+          dt, ['بعد ربع ساعه', 'بعد ربع ساعة', 'in 15 min', 'in 15 minutes']);
     }
 
     if (RegExp(r'\b(بعد\s*ساعتين|in\s+2\s*hours?)\b').hasMatch(text)) {
@@ -251,19 +259,26 @@ Return a JSON object with:
 
     if (RegExp(r'\b(بعد\s*ساعه|in\s+an?\s+hour)\b').hasMatch(text)) {
       final dt = current.add(const Duration(hours: 1));
-      return _RelativeResult(dt, ['بعد ساعه', 'بعد ساعة', 'in an hour', 'in 1 hour']);
+      return _RelativeResult(
+          dt, ['بعد ساعه', 'بعد ساعة', 'in an hour', 'in 1 hour']);
     }
 
-    final minMatch = RegExp(r'\b(بعد\s+(\d+)\s*(دقايق|دقيقه|دقائق)|in\s+(\d+)\s*min(utes)?)\b').firstMatch(text);
+    final minMatch = RegExp(
+            r'\b(بعد\s+(\d+)\s*(دقايق|دقيقه|دقائق)|in\s+(\d+)\s*min(utes)?)\b')
+        .firstMatch(text);
     if (minMatch != null) {
-      final n = int.tryParse(minMatch.group(2) ?? minMatch.group(4) ?? '') ?? 10;
+      final n =
+          int.tryParse(minMatch.group(2) ?? minMatch.group(4) ?? '') ?? 10;
       final dt = current.add(Duration(minutes: n));
       return _RelativeResult(dt, [minMatch.group(0)!]);
     }
 
-    final hourMatch = RegExp(r'\b(بعد\s+(\d+)\s*(ساعات|ساعه)|in\s+(\d+)\s*hours?)\b').firstMatch(text);
+    final hourMatch =
+        RegExp(r'\b(بعد\s+(\d+)\s*(ساعات|ساعه)|in\s+(\d+)\s*hours?)\b')
+            .firstMatch(text);
     if (hourMatch != null) {
-      final n = int.tryParse(hourMatch.group(2) ?? hourMatch.group(4) ?? '') ?? 1;
+      final n =
+          int.tryParse(hourMatch.group(2) ?? hourMatch.group(4) ?? '') ?? 1;
       final dt = current.add(Duration(hours: n));
       return _RelativeResult(dt, [hourMatch.group(0)!]);
     }
@@ -279,7 +294,8 @@ Return a JSON object with:
       );
     }
 
-    if (RegExp(r'\b(بعد\s*(بكره|بكرة|غد|غدا)|day after tomorrow)\b').hasMatch(text)) {
+    if (RegExp(r'\b(بعد\s*(بكره|بكرة|غد|غدا)|day after tomorrow)\b')
+        .hasMatch(text)) {
       final d = current.add(const Duration(days: 2));
       return _DateResult(
         DateTime(d.year, d.month, d.day),
@@ -330,7 +346,8 @@ Return a JSON object with:
     if (directMatch != null) {
       var hour = int.parse(directMatch.group(1)!);
       final minute = int.parse(directMatch.group(2)!);
-      final isPm = RegExp(r'\b(بليل|بالليل|مساء|عصرا|العصر|المغرب|العشا|pm)\b').hasMatch(text);
+      final isPm = RegExp(r'\b(بليل|بالليل|مساء|عصرا|العصر|المغرب|العشا|pm)\b')
+          .hasMatch(text);
       if (isPm && hour < 12) hour += 12;
       return _TimeResult(hour, minute, [directMatch.group(0)!]);
     }
@@ -372,9 +389,11 @@ Return a JSON object with:
     }
 
     if (hour != null) {
-      final isNight = RegExp(r'\b(بليل|بالليل|مساء|مساءا|عصرا|العصر|المغرب|العشا|pm|night|evening)\b')
+      final isNight = RegExp(
+              r'\b(بليل|بالليل|مساء|مساءا|عصرا|العصر|المغرب|العشا|pm|night|evening)\b')
           .hasMatch(text);
-      final isMorning = RegExp(r'\b(الصبح|صباحا|صباح|الفجر|فجر|am|morning)\b').hasMatch(text);
+      final isMorning =
+          RegExp(r'\b(الصبح|صباحا|صباح|الفجر|فجر|am|morning)\b').hasMatch(text);
       final isNoon = RegExp(r'\b(الظهر|ظهرا|ظهر|noon)\b').hasMatch(text);
 
       if (isNight && hour < 12) {
@@ -475,12 +494,17 @@ Return a JSON object with:
 
     for (final phrase in phrasesToRemove) {
       if (phrase.trim().isNotEmpty) {
-        result = result.replaceAll(RegExp('\\b${RegExp.escape(phrase.trim())}\\b', caseSensitive: false), ' ');
+        result = result.replaceAll(
+            RegExp('\\b${RegExp.escape(phrase.trim())}\\b',
+                caseSensitive: false),
+            ' ');
       }
     }
 
     result = result.replaceAll(
-      RegExp(r'\b(بليل|بالليل|الصبح|صباحا|مساء|مساءا|الظهر|ظهرا|العصر|عصرا|المغرب|العشا|am|pm|today|tomorrow)\b', caseSensitive: false),
+      RegExp(
+          r'\b(بليل|بالليل|الصبح|صباحا|مساء|مساءا|الظهر|ظهرا|العصر|عصرا|المغرب|العشا|am|pm|today|tomorrow)\b',
+          caseSensitive: false),
       ' ',
     );
 

@@ -51,7 +51,9 @@ Future<bool> showGeminiApiKeyDialog(BuildContext context) async {
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
                   ),
                   onPressed: () => setDialogState(() => obscure = !obscure),
                 ),
@@ -102,9 +104,7 @@ Future<bool> showGeminiApiKeyDialog(BuildContext context) async {
                 ? (isAr
                     ? 'تم حفظ مفتاح Gemini API المشفر بنجاح'
                     : 'Gemini API key saved securely')
-                : (isAr
-                    ? 'تم مسح مفتاح Gemini API'
-                    : 'Gemini API key cleared'),
+                : (isAr ? 'تم مسح مفتاح Gemini API' : 'Gemini API key cleared'),
           ),
         ),
       );

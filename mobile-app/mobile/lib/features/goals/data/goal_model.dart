@@ -88,8 +88,8 @@ class Goal {
       completedMilestones: jsonOptionalInt(json, 'completedMilestones') ?? 0,
       milestones: rawMilestones is List<dynamic>
           ? jsonObjectList(rawMilestones, 'milestones')
-                .map(GoalMilestone.fromJson)
-                .toList(growable: false)
+              .map(GoalMilestone.fromJson)
+              .toList(growable: false)
           : const <GoalMilestone>[],
       startDate: jsonOptionalDate(json, 'startDate'),
       targetDate: jsonOptionalDate(json, 'targetDate'),

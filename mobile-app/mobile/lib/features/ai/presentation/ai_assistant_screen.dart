@@ -105,7 +105,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(Icons.auto_awesome, size: 20, color: theme.colorScheme.primary),
+            Icon(Icons.auto_awesome,
+                size: 20, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Text(l10n.aiAssistant),
           ],
@@ -167,8 +168,12 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                   final isUser = message.role == 'user';
                   return Align(
                     alignment: isUser
-                        ? (l10n.isRTL ? Alignment.centerLeft : Alignment.centerRight)
-                        : (l10n.isRTL ? Alignment.centerRight : Alignment.centerLeft),
+                        ? (l10n.isRTL
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight)
+                        : (l10n.isRTL
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft),
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       constraints: BoxConstraints(
@@ -206,7 +211,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             ),
             if (_isGenerating) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Row(
                   children: [
                     const SizedBox.square(
@@ -228,7 +234,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             // Voice listening banner if active
             if (_isListening) ...[
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 color: Colors.red.withAlpha(20),
                 child: Row(
                   children: [
@@ -261,9 +268,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                     tooltip: l10n.voiceMicPrompt,
                     icon: Icon(
                       _isListening ? Icons.mic : Icons.mic_none,
-                      color: _isListening
-                          ? Colors.red
-                          : theme.colorScheme.primary,
+                      color:
+                          _isListening ? Colors.red : theme.colorScheme.primary,
                     ),
                     onPressed: () {
                       setState(() => _isListening = !_isListening);

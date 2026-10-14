@@ -80,7 +80,8 @@ class CalendarRepository {
   }
 
   /// Adds a push reminder that fires [offsetMinutes] before the event starts.
-  Future<CalendarReminder> addReminder(String eventId, int offsetMinutes) async {
+  Future<CalendarReminder> addReminder(
+      String eventId, int offsetMinutes) async {
     final response = jsonObject(
       await _api.post(
         'events/$eventId/reminders',
@@ -88,7 +89,8 @@ class CalendarRepository {
       ),
       'reminder',
     );
-    return CalendarReminder.fromJson(jsonObject(response['reminder'], 'reminder'));
+    return CalendarReminder.fromJson(
+        jsonObject(response['reminder'], 'reminder'));
   }
 
   Future<void> deleteReminder(String eventId, String reminderId) async {

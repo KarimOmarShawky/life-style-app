@@ -65,7 +65,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       final idsToDelete = _selectedNoteIds.toList();
       setState(() => _selectedNoteIds.clear());
       try {
-        await ref.read(notesRepositoryProvider).deleteMultipleNotes(idsToDelete);
+        await ref
+            .read(notesRepositoryProvider)
+            .deleteMultipleNotes(idsToDelete);
         ref.invalidate(notesProvider);
       } catch (e) {
         if (context.mounted) {
@@ -85,7 +87,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     return Scaffold(
       appBar: _isSelectionMode
           ? AppBar(
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
               leading: IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(() => _selectedNoteIds.clear()),
@@ -138,15 +141,20 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                           color: Colors.red.shade700,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(Icons.delete_outline, color: Colors.white),
+                        child: const Icon(Icons.delete_outline,
+                            color: Colors.white),
                       ),
                       onDismissed: (_) async {
-                        await ref.read(notesRepositoryProvider).deleteNote(note.id);
+                        await ref
+                            .read(notesRepositoryProvider)
+                            .deleteNote(note.id);
                         ref.invalidate(notesProvider);
                       },
                       child: InkWell(
                         onLongPress: () => _toggleNoteSelection(note.id),
-                        onTap: _isSelectionMode ? () => _toggleNoteSelection(note.id) : null,
+                        onTap: _isSelectionMode
+                            ? () => _toggleNoteSelection(note.id)
+                            : null,
                         borderRadius: BorderRadius.circular(16),
                         child: Stack(
                           children: [
@@ -163,12 +171,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                                         : Theme.of(context).colorScheme.surface,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                       width: 2,
                                     ),
                                   ),
                                   child: isSelected
-                                      ? const Icon(Icons.check, size: 18, color: Colors.white)
+                                      ? const Icon(Icons.check,
+                                          size: 18, color: Colors.white)
                                       : const SizedBox.square(dimension: 18),
                                 ),
                               ),
@@ -217,10 +227,10 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
                     .where((t) => t.isNotEmpty)
                     .toList();
             await ref.read(notesRepositoryProvider).createNote(
-              title: titleController.text,
-              body: bodyController.text,
-              tags: tags,
-            );
+                  title: titleController.text,
+                  body: bodyController.text,
+                  tags: tags,
+                );
             ref.invalidate(notesProvider);
             if (dialogContext.mounted) Navigator.of(dialogContext).pop();
           } catch (e) {
@@ -246,8 +256,9 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? l10n.fieldRequired : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.fieldRequired
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -259,8 +270,9 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? l10n.fieldRequired : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.fieldRequired
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

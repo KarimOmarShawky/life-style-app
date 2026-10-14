@@ -58,7 +58,8 @@ class ProjectsScreen extends ConsumerWidget {
                   },
                   child: _ProjectCard(
                     project: project,
-                    onTap: () => openProjectForm(context, ref, project: project),
+                    onTap: () =>
+                        openProjectForm(context, ref, project: project),
                   ),
                 );
               },

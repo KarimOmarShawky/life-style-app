@@ -44,17 +44,18 @@ class LifeStyleApp extends ConsumerWidget {
   }
 
   Widget _authHome(AsyncValue<AppUser?> authState) => authState.when(
-    loading: () => const _LoadingPage(),
-    data: (user) => user == null
-        ? const AuthScreen()
-        : _authenticatedPage(user, DeepLinkParser.routeFor(initialLocation)),
-    error: (error, _) {
-      if (error is StateError) {
-        return _ConfigurationError(message: error.message.toString());
-      }
-      return AuthScreen(errorMessage: _safeMessage(error));
-    },
-  );
+        loading: () => const _LoadingPage(),
+        data: (user) => user == null
+            ? const AuthScreen()
+            : _authenticatedPage(
+                user, DeepLinkParser.routeFor(initialLocation)),
+        error: (error, _) {
+          if (error is StateError) {
+            return _ConfigurationError(message: error.message.toString());
+          }
+          return AuthScreen(errorMessage: _safeMessage(error));
+        },
+      );
 
   Route<dynamic>? _routeFor(
     RouteSettings settings,
@@ -105,13 +106,13 @@ class _ConfigurationError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(message, textAlign: TextAlign.center),
-      ),
-    ),
-  );
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(message, textAlign: TextAlign.center),
+          ),
+        ),
+      );
 }
 
 String _safeMessage(Object error) {

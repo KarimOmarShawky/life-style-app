@@ -199,9 +199,9 @@ class _ScheduledReminder {
   final DateTime remindAt;
 
   Map<String, Object> toJson() => <String, Object>{
-    'id': reminderId,
-    'remindAt': remindAt.toUtc().toIso8601String(),
-  };
+        'id': reminderId,
+        'remindAt': remindAt.toUtc().toIso8601String(),
+      };
 
   static _ScheduledReminder? fromJson(Object? raw) {
     if (raw is! Map<String, dynamic>) {
@@ -232,12 +232,12 @@ class _RegistryEntry {
   final List<_ScheduledReminder> reminders;
 
   Map<String, Object> toJson() => <String, Object>{
-    'title': title,
-    'startAt': startAt.toUtc().toIso8601String(),
-    'reminders': <Object>[
-      for (final reminder in reminders) reminder.toJson(),
-    ],
-  };
+        'title': title,
+        'startAt': startAt.toUtc().toIso8601String(),
+        'reminders': <Object>[
+          for (final reminder in reminders) reminder.toJson(),
+        ],
+      };
 
   static _RegistryEntry? fromJson(Object? raw) {
     if (raw is! Map<String, dynamic>) {

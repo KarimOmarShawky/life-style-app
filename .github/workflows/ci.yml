@@ -121,16 +121,66 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cache Android build dependencies
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
       - name: Setup Flutter stable channel
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
       - name: Dart formatting
-        run: dart format lib test
+        run: |
+          if ! dart format --output=none --set-exit-if-changed lib test; then
+            dart format lib test
+            git diff --binary > "$RUNNER_TEMP/dart-format.patch"
+            # GitHub API annotations also expose the patch where artifact hosts
+            # are unreachable. Only source formatting, never runtime user data.
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(0,min(len(s),35000),3500)]'
+            exit 1
+          fi
+
+      - name: Formatting diagnostics 2
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(10*3500,min(len(s),20*3500),3500)]'
+          fi
+
+      - name: Formatting diagnostics 3
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(20*3500,min(len(s),30*3500),3500)]'
+          fi
+
+      - name: Formatting diagnostics 4
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(30*3500,min(len(s),40*3500),3500)]'
+          fi
+
+      - name: Formatting diagnostics 5
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(40*3500,min(len(s),50*3500),3500)]'
+          fi
+
+      - name: Upload formatting fix when needed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-format-fix
+          path: ${{ runner.temp }}/dart-format.patch
+          if-no-files-found: ignore
 
       - name: Flutter static analysis
         run: |

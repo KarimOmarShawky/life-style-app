@@ -114,8 +114,8 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final goals = ref.watch(goalsProvider).valueOrNull ?? const <Goal>[];
     final selectedGoalId = _goalId;
-    final selectedIsListed =
-        selectedGoalId == null || goals.any((goal) => goal.id == selectedGoalId);
+    final selectedIsListed = selectedGoalId == null ||
+        goals.any((goal) => goal.id == selectedGoalId);
     final error = _error;
 
     return Scaffold(
@@ -297,7 +297,8 @@ class _ColorSwatch extends StatelessWidget {
           color: fill,
           shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? colorScheme.onSurface : colorScheme.outlineVariant,
+            color:
+                selected ? colorScheme.onSurface : colorScheme.outlineVariant,
             width: selected ? 3 : 1,
           ),
         ),

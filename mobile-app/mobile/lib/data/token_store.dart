@@ -20,8 +20,8 @@ class SecureTokenStore implements TokenStore {
   SecureTokenStore({
     FlutterSecureStorage? storage,
     Future<SharedPreferences> Function()? legacyPreferences,
-  }) : _storage = storage ?? const FlutterSecureStorage(),
-       _legacyPreferences = legacyPreferences ?? SharedPreferences.getInstance;
+  })  : _storage = storage ?? const FlutterSecureStorage(),
+        _legacyPreferences = legacyPreferences ?? SharedPreferences.getInstance;
 
   static const storageKey = 'lifestyle.session.v1';
   final FlutterSecureStorage _storage;

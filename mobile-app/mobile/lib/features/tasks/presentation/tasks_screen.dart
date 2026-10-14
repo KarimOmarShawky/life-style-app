@@ -1,3 +1,6 @@
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,13 +28,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   @override
   void initState() {
     super.initState();
-    NotificationService.instance.quickVoiceTrigger.addListener(_checkQuickVoice);
+    NotificationService.instance.quickVoiceTrigger
+        .addListener(_checkQuickVoice);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkQuickVoice());
   }
 
   @override
   void dispose() {
-    NotificationService.instance.quickVoiceTrigger.removeListener(_checkQuickVoice);
+    NotificationService.instance.quickVoiceTrigger
+        .removeListener(_checkQuickVoice);
     super.dispose();
   }
 
@@ -92,7 +97,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       final idsToDelete = _selectedTaskIds.toList();
       setState(() => _selectedTaskIds.clear());
       try {
-        await ref.read(tasksRepositoryProvider).deleteMultipleTasks(idsToDelete);
+        await ref
+            .read(tasksRepositoryProvider)
+            .deleteMultipleTasks(idsToDelete);
         ref.invalidate(tasksProvider);
       } catch (e) {
         if (context.mounted) {
@@ -112,12 +119,14 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     return Scaffold(
       appBar: _isSelectionMode
           ? AppBar(
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
               leading: IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(() => _selectedTaskIds.clear()),
               ),
-              title: Text('${_selectedTaskIds.length} ${localization.selectedCount}'),
+              title: Text(
+                  '${_selectedTaskIds.length} ${localization.selectedCount}'),
               actions: [
                 IconButton(
                   tooltip: localization.selectAll,
@@ -138,12 +147,19 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               title: Text(localization.tasks),
               actions: [
                 IconButton(
+                    tooltip: 'Focus Shield',
+                    icon: const Icon(Icons.shield_outlined),
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                            builder: (_) => const FocusShieldScreen()))),
+                IconButton(
                   tooltip: localization.globalSearchTooltip,
                   icon: const Icon(Icons.search),
                   onPressed: () {
                     showSearch(
                       context: context,
-                      delegate: GlobalSearchDelegate(ref, isArabic: localization.isArabic),
+                      delegate: GlobalSearchDelegate(ref,
+                          isArabic: localization.isArabic),
                     );
                   },
                 ),
@@ -182,7 +198,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   tooltip: localization.testAlarm,
                   icon: const Icon(Icons.notifications_active_outlined),
                   onPressed: () async {
-                    await NotificationService.instance.triggerInstantPersistentAlarm(
+                    await NotificationService.instance
+                        .triggerInstantPersistentAlarm(
                       id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
                       title: localization.testAlarmTitleText,
                       body: localization.testAlarmBodyText,
@@ -276,7 +293,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                               task: task,
                               isSelectionMode: _isSelectionMode,
                               isSelected: _selectedTaskIds.contains(task.id),
-                              onToggleSelect: () => _toggleTaskSelection(task.id),
+                              onToggleSelect: () =>
+                                  _toggleTaskSelection(task.id),
                               onDelete: () async {
                                 await ref
                                     .read(tasksRepositoryProvider)
@@ -396,9 +414,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 color: isSelected
                     ? Theme.of(context).colorScheme.primaryContainer
                     : isToday
-                        ? Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
+                        ? Theme.of(context).colorScheme.surfaceContainerHighest
                         : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
@@ -416,8 +432,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     dayName,
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight:
-                          isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected || isToday
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       color: isSelected
                           ? Theme.of(context).colorScheme.onPrimaryContainer
                           : null,
@@ -530,7 +547,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, size: 18, color: theme.colorScheme.primary),
+              Icon(Icons.auto_awesome,
+                  size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 '$greeting • ${l10n.aiDailyBriefing}',
@@ -608,6 +626,11 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
     setState(() => _saving = true);
     try {
       await ref.read(tasksRepositoryProvider).setDone(widget.task, done);
+      if (done) {
+        await ref
+            .read(focusShieldProvider.notifier)
+            .award(XpType.task, widget.task.id);
+      }
       ref.invalidate(tasksProvider);
     } catch (error) {
       if (mounted) {
@@ -640,9 +663,8 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
               ? Theme.of(context).colorScheme.primaryContainer.withAlpha(60)
               : null,
           child: CheckboxListTile(
-            value: widget.isSelectionMode
-                ? widget.isSelected
-                : widget.task.isDone,
+            value:
+                widget.isSelectionMode ? widget.isSelected : widget.task.isDone,
             onChanged: _saving
                 ? null
                 : (value) {
@@ -781,7 +803,8 @@ Future<void> _showSmartQuickAdd(
           }
           setDialogState(() => isListening = true);
           try {
-            const channel = MethodChannel('com.example.lifestyle_mobile/native_voice');
+            const channel =
+                MethodChannel('com.example.lifestyle_mobile/native_voice');
             final spokenText = await channel.invokeMethod<String>(
               'startVoiceRecognition',
               <String, String>{
@@ -831,7 +854,9 @@ Future<void> _showSmartQuickAdd(
               IconButton(
                 icon: Icon(
                   isListening ? Icons.mic : Icons.mic_none,
-                  color: isListening ? Colors.red : Theme.of(context).colorScheme.primary,
+                  color: isListening
+                      ? Colors.red
+                      : Theme.of(context).colorScheme.primary,
                 ),
                 tooltip: l10n.voiceMicPrompt,
                 onPressed: triggerVoiceInput,
@@ -845,7 +870,8 @@ Future<void> _showSmartQuickAdd(
               children: [
                 if (isListening) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
                       color: Colors.red.withAlpha(20),
@@ -856,13 +882,17 @@ Future<void> _showSmartQuickAdd(
                       children: [
                         const SizedBox.square(
                           dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.red),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             l10n.voiceMicPrompt,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red),
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red),
                           ),
                         ),
                       ],
@@ -899,31 +929,37 @@ Future<void> _showSmartQuickAdd(
                     children: [
                       ActionChip(
                         avatar: const Icon(Icons.schedule, size: 14),
-                        label: Text(l10n.quickClip30MinLabel, style: const TextStyle(fontSize: 11)),
+                        label: Text(l10n.quickClip30MinLabel,
+                            style: const TextStyle(fontSize: 11)),
                         onPressed: () {
                           final text = l10n.quickClip30MinText;
                           controller.text = text;
-                          setDialogState(() => parsed = SmartTaskParser.parse(text));
+                          setDialogState(
+                              () => parsed = SmartTaskParser.parse(text));
                         },
                       ),
                       const SizedBox(width: 6),
                       ActionChip(
                         avatar: const Icon(Icons.calendar_today, size: 14),
-                        label: Text(l10n.quickClipTomorrow7PMLabel, style: const TextStyle(fontSize: 11)),
+                        label: Text(l10n.quickClipTomorrow7PMLabel,
+                            style: const TextStyle(fontSize: 11)),
                         onPressed: () {
                           final text = l10n.quickClipTomorrow7PMText;
                           controller.text = text;
-                          setDialogState(() => parsed = SmartTaskParser.parse(text));
+                          setDialogState(
+                              () => parsed = SmartTaskParser.parse(text));
                         },
                       ),
                       const SizedBox(width: 6),
                       ActionChip(
                         avatar: const Icon(Icons.alarm, size: 14),
-                        label: Text(l10n.quickClip2HoursLabel, style: const TextStyle(fontSize: 11)),
+                        label: Text(l10n.quickClip2HoursLabel,
+                            style: const TextStyle(fontSize: 11)),
                         onPressed: () {
                           final text = l10n.quickClip2HoursText;
                           controller.text = text;
-                          setDialogState(() => parsed = SmartTaskParser.parse(text));
+                          setDialogState(
+                              () => parsed = SmartTaskParser.parse(text));
                         },
                       ),
                     ],

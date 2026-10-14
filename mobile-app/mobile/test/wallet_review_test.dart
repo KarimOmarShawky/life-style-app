@@ -30,17 +30,17 @@ class _MemoryTokenStore implements TokenStore {
 }
 
 SessionTokens _session() => SessionTokens(
-  accessToken: 'access-token',
-  refreshToken: 'refresh-token',
-  accessTokenExpiresAt: DateTime.utc(2030),
-  refreshTokenExpiresAt: DateTime.utc(2030),
-);
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      accessTokenExpiresAt: DateTime.utc(2030),
+      refreshTokenExpiresAt: DateTime.utc(2030),
+    );
 
 ApiClient _apiWith(http.Client client) => ApiClient(
-  baseUri: Uri.parse('https://api.example.test/api/v1/'),
-  tokenStore: _MemoryTokenStore(_session()),
-  httpClient: client,
-);
+      baseUri: Uri.parse('https://api.example.test/api/v1/'),
+      tokenStore: _MemoryTokenStore(_session()),
+      httpClient: client,
+    );
 
 String _reviewItem(
   String id, {
@@ -62,12 +62,12 @@ String _reviewItem(
     });
 
 String _candidateItem(String id, {int attempts = 0}) => jsonEncode({
-  'id': id,
-  'text': 'Debited 450 EGP at UNKNOWN SHOP',
-  'sender': '[PHONE]',
-  'receivedAtMs': 1791460000000,
-  'attempts': attempts,
-});
+      'id': id,
+      'text': 'Debited 450 EGP at UNKNOWN SHOP',
+      'sender': '[PHONE]',
+      'receivedAtMs': 1791460000000,
+      'attempts': attempts,
+    });
 
 String _analyzeResponse({
   required String status,
@@ -94,8 +94,10 @@ void main() {
     test('rejects missing, malformed and invalid entries', () {
       expect(WalletReviewItem.tryParse(null), isNull);
       expect(WalletReviewItem.tryParse('not json'), isNull);
-      expect(WalletReviewItem.tryParse(_reviewItem('a', kind: 'transfer')), isNull);
-      expect(WalletReviewItem.tryParse(_reviewItem('b', amount: '250.999')), isNull);
+      expect(WalletReviewItem.tryParse(_reviewItem('a', kind: 'transfer')),
+          isNull);
+      expect(WalletReviewItem.tryParse(_reviewItem('b', amount: '250.999')),
+          isNull);
       expect(WalletReviewItem.tryParse(_reviewItem('c', amount: '-5')), isNull);
       expect(
         WalletReviewItem.tryParse(jsonEncode({'id': 'd', 'kind': 'expense'})),
@@ -121,10 +123,13 @@ void main() {
   });
 
   group('PendingWalletReviews', () {
-    test('loads queued reviews oldest first and drops malformed entries', () async {
+    test('loads queued reviews oldest first and drops malformed entries',
+        () async {
       SharedPreferences.setMockInitialValues({
-        'flutter.pending_wallet_review.later': _reviewItem('later', createdAt: 20),
-        'flutter.pending_wallet_review.earlier': _reviewItem('earlier', createdAt: 10),
+        'flutter.pending_wallet_review.later':
+            _reviewItem('later', createdAt: 20),
+        'flutter.pending_wallet_review.earlier':
+            _reviewItem('earlier', createdAt: 10),
         'flutter.pending_wallet_review.bad': 'not json',
       });
       final reviews = PendingWalletReviews(MoneyRepository(_apiWith(MockClient(
@@ -136,7 +141,9 @@ void main() {
       expect(items.map((item) => item.id).toList(), ['earlier', 'later']);
     });
 
-    test('confirm saves the edited values with the review id as idempotency key', () async {
+    test(
+        'confirm saves the edited values with the review id as idempotency key',
+        () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_review.one': _reviewItem('one'),
       });
@@ -190,7 +197,9 @@ void main() {
   });
 
   group('PendingWalletCandidates.flush', () {
-    test('auto-saves a high-confidence parse with the candidate id as idempotency key', () async {
+    test(
+        'auto-saves a high-confidence parse with the candidate id as idempotency key',
+        () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.high': _candidateItem('high'),
       });
@@ -224,26 +233,29 @@ void main() {
       expect(resolved, 1);
       expect(requestedPaths.single, endsWith('/ingest/sms/analyze'));
       expect(sentKeys, ['high']);
-      expect(await PendingWalletReviews(MoneyRepository(_apiWith(MockClient(
-        (request) async => http.Response('', 500),
-      )))).load(), isEmpty);
+      expect(
+          await PendingWalletReviews(MoneyRepository(_apiWith(MockClient(
+            (request) async => http.Response('', 500),
+          )))).load(),
+          isEmpty);
     });
 
-    test('low confidence becomes a review item instead of being saved', () async {
+    test('low confidence becomes a review item instead of being saved',
+        () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.low': _candidateItem('low'),
       });
       var saved = false;
       final candidates = PendingWalletCandidates(
         _apiWith(MockClient((request) async => http.Response(
-          _analyzeResponse(
-            status: 'recognized',
-            confidence: 'low',
-            transaction: _strictTransaction,
-          ),
-          200,
-          headers: {'content-type': 'application/json'},
-        ))),
+              _analyzeResponse(
+                status: 'recognized',
+                confidence: 'low',
+                transaction: _strictTransaction,
+              ),
+              200,
+              headers: {'content-type': 'application/json'},
+            ))),
         MoneyRepository(_apiWith(MockClient((request) async {
           saved = true;
           return http.Response('', 201);
@@ -268,11 +280,12 @@ void main() {
       });
       final candidates = PendingWalletCandidates(
         _apiWith(MockClient((request) async => http.Response(
-          _analyzeResponse(status: 'unrecognized'),
-          200,
-          headers: {'content-type': 'application/json'},
-        ))),
-        MoneyRepository(_apiWith(MockClient((request) async => http.Response('', 201)))),
+              _analyzeResponse(status: 'unrecognized'),
+              200,
+              headers: {'content-type': 'application/json'},
+            ))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
       );
 
       expect(await candidates.flush(), 1);
@@ -286,14 +299,15 @@ void main() {
       });
       final candidates = PendingWalletCandidates(
         _apiWith(MockClient((request) async => http.Response(
-          jsonEncode({
-            'success': false,
-            'error': {'code': 'INTERNAL_ERROR', 'message': 'Down'},
-          }),
-          500,
-          headers: {'content-type': 'application/json'},
-        ))),
-        MoneyRepository(_apiWith(MockClient((request) async => http.Response('', 201)))),
+              jsonEncode({
+                'success': false,
+                'error': {'code': 'INTERNAL_ERROR', 'message': 'Down'},
+              }),
+              500,
+              headers: {'content-type': 'application/json'},
+            ))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
       );
 
       expect(await candidates.flush(), 0);
@@ -310,14 +324,15 @@ void main() {
       });
       final candidates = PendingWalletCandidates(
         _apiWith(MockClient((request) async => http.Response(
-          jsonEncode({
-            'success': false,
-            'error': {'code': 'VALIDATION_ERROR', 'message': 'Invalid'},
-          }),
-          400,
-          headers: {'content-type': 'application/json'},
-        ))),
-        MoneyRepository(_apiWith(MockClient((request) async => http.Response('', 201)))),
+              jsonEncode({
+                'success': false,
+                'error': {'code': 'VALIDATION_ERROR', 'message': 'Invalid'},
+              }),
+              400,
+              headers: {'content-type': 'application/json'},
+            ))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
       );
 
       expect(await candidates.flush(), 1);
@@ -328,7 +343,8 @@ void main() {
 
     test('a candidate that exhausted its attempts is dropped', () async {
       SharedPreferences.setMockInitialValues({
-        'flutter.pending_wallet_candidate.old': _candidateItem('old', attempts: 5),
+        'flutter.pending_wallet_candidate.old':
+            _candidateItem('old', attempts: 5),
       });
       var called = false;
       final candidates = PendingWalletCandidates(
@@ -336,7 +352,8 @@ void main() {
           called = true;
           return http.Response('', 200);
         })),
-        MoneyRepository(_apiWith(MockClient((request) async => http.Response('', 201)))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
       );
 
       await candidates.flush();

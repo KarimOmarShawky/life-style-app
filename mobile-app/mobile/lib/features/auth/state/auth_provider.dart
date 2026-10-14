@@ -31,11 +31,11 @@ class AuthController extends AsyncNotifier<AppUser?> {
     required String email,
     required String password,
     required String displayName,
-  }) => _authenticate(
-    () => ref
-        .read(authRepositoryProvider)
-        .register(email: email, password: password, displayName: displayName),
-  );
+  }) =>
+      _authenticate(
+        () => ref.read(authRepositoryProvider).register(
+            email: email, password: password, displayName: displayName),
+      );
 
   Future<void> _authenticate(Future<AppUser> Function() operation) async {
     state = const AsyncLoading();
@@ -49,14 +49,15 @@ class AuthController extends AsyncNotifier<AppUser?> {
     required String email,
     required String code,
     required String newPassword,
-  }) => ref
-      .read(authRepositoryProvider)
-      .resetPassword(email: email, code: code, newPassword: newPassword);
+  }) =>
+      ref
+          .read(authRepositoryProvider)
+          .resetPassword(email: email, code: code, newPassword: newPassword);
 
   Future<void> updateCurrency(String newCurrency) async {
     final updated = await ref.read(authRepositoryProvider).updateProfile(
-      defaultCurrency: newCurrency,
-    );
+          defaultCurrency: newCurrency,
+        );
     state = AsyncData(updated);
   }
 

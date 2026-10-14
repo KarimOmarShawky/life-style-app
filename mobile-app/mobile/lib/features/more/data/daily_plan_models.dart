@@ -181,22 +181,22 @@ class DayPlanView {
   final List<DayPlanSubscriptionItem> subscriptionsDue;
 
   factory DayPlanView.fromJson(Map<String, dynamic> json) => DayPlanView(
-    date: jsonString(json, 'date'),
-    timezone: jsonString(json, 'timezone'),
-    tasks: jsonObjectList(json['tasks'], 'tasks')
-        .map(DayPlanTaskItem.fromJson)
-        .toList(growable: false),
-    habits: jsonObjectList(json['habits'], 'habits')
-        .map(DayPlanHabitItem.fromJson)
-        .toList(growable: false),
-    events: jsonObjectList(json['events'], 'events')
-        .map(DayPlanEventItem.fromJson)
-        .toList(growable: false),
-    subscriptionsDue: jsonObjectList(
-      json['subscriptionsDue'],
-      'subscriptionsDue',
-    ).map(DayPlanSubscriptionItem.fromJson).toList(growable: false),
-  );
+        date: jsonString(json, 'date'),
+        timezone: jsonString(json, 'timezone'),
+        tasks: jsonObjectList(json['tasks'], 'tasks')
+            .map(DayPlanTaskItem.fromJson)
+            .toList(growable: false),
+        habits: jsonObjectList(json['habits'], 'habits')
+            .map(DayPlanHabitItem.fromJson)
+            .toList(growable: false),
+        events: jsonObjectList(json['events'], 'events')
+            .map(DayPlanEventItem.fromJson)
+            .toList(growable: false),
+        subscriptionsDue: jsonObjectList(
+          json['subscriptionsDue'],
+          'subscriptionsDue',
+        ).map(DayPlanSubscriptionItem.fromJson).toList(growable: false),
+      );
 }
 
 class SearchNoteItem {
@@ -213,11 +213,11 @@ class SearchNoteItem {
   final bool isPinned;
 
   factory SearchNoteItem.fromJson(Map<String, dynamic> json) => SearchNoteItem(
-    id: jsonString(json, 'id'),
-    title: jsonOptionalString(json, 'title') ?? '',
-    excerpt: jsonOptionalString(json, 'excerpt'),
-    isPinned: json['isPinned'] == true,
-  );
+        id: jsonString(json, 'id'),
+        title: jsonOptionalString(json, 'title') ?? '',
+        excerpt: jsonOptionalString(json, 'excerpt'),
+        isPinned: json['isPinned'] == true,
+      );
 }
 
 class SearchProjectItem {

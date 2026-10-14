@@ -167,8 +167,9 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
                   labelText: l10n.goalTitleLabel,
                   border: const OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    (value ?? '').trim().isEmpty ? l10n.goalTitleRequired : null,
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? l10n.goalTitleRequired
+                    : null,
               ),
               TextFormField(
                 controller: _descriptionController,
@@ -289,7 +290,8 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
                   _startDate,
                   emptyText: l10n.notSet,
                 ),
-                onTap: () => _pickDate(_startDate, (value) => _startDate = value),
+                onTap: () =>
+                    _pickDate(_startDate, (value) => _startDate = value),
                 onClear: _startDate == null
                     ? null
                     : () => setState(() => _startDate = null),
@@ -331,7 +333,8 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
 }
 
 /// Opens the goal form and refreshes the list when a goal was saved.
-Future<void> openGoalForm(BuildContext context, WidgetRef ref, {Goal? goal}) async {
+Future<void> openGoalForm(BuildContext context, WidgetRef ref,
+    {Goal? goal}) async {
   final saved = await Navigator.of(context).push<bool>(
     MaterialPageRoute<bool>(builder: (_) => GoalFormScreen(goal: goal)),
   );

@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/calendar/presentation/calendar_screen.dart';
@@ -18,6 +19,13 @@ class MoreScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final isAr = l10n.isArabic;
     final items = <_MoreItem>[
+      _MoreItem(
+          icon: Icons.shield_outlined,
+          title: 'Focus Shield',
+          subtitle: isAr
+              ? 'التركيز، النقاط وصندوق رسائل التركيز'
+              : 'Focus, XP and Focus Inbox',
+          builder: (_) => const FocusShieldScreen()),
       _MoreItem(
         icon: Icons.dashboard_outlined,
         title: isAr ? 'خطة اليوم والملخص' : 'Daily Plan & Overview',

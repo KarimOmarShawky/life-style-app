@@ -188,7 +188,8 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
               child: _StatCard(
                 icon: Icons.check_circle_outline,
                 title: l10n.tasks,
-                value: '${overview.tasksDoneToday} / ${overview.tasksDueToday + overview.tasksDoneToday}',
+                value:
+                    '${overview.tasksDoneToday} / ${overview.tasksDueToday + overview.tasksDoneToday}',
                 subtitle: overview.tasksOverdue > 0
                     ? (isAr
                         ? '${overview.tasksOverdue} متأخرة'
@@ -201,7 +202,8 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
               child: _StatCard(
                 icon: Icons.repeat,
                 title: l10n.habits,
-                value: '${overview.habitsCompletedToday} / ${overview.habitsDueToday}',
+                value:
+                    '${overview.habitsCompletedToday} / ${overview.habitsDueToday}',
                 subtitle: l10n.completedToday,
               ),
             ),
@@ -287,7 +289,9 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
             child: ListTile(
               leading: Icon(
                 habit.completedOn ? Icons.check_circle : Icons.circle_outlined,
-                color: habit.completedOn ? Colors.green : theme.colorScheme.primary,
+                color: habit.completedOn
+                    ? Colors.green
+                    : theme.colorScheme.primary,
               ),
               title: Text(habit.name),
             ),

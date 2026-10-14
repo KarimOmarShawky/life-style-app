@@ -152,9 +152,10 @@ class PendingWalletReviews {
     await prefs.remove('$keyPrefix$id');
   }
 
-  static String _withoutFlutterPrefix(String key) => key.startsWith(_flutterPrefix)
-      ? key.substring(_flutterPrefix.length)
-      : key;
+  static String _withoutFlutterPrefix(String key) =>
+      key.startsWith(_flutterPrefix)
+          ? key.substring(_flutterPrefix.length)
+          : key;
 }
 
 /// One fallback candidate written by the Android SMS receiver.
@@ -328,7 +329,8 @@ class PendingWalletCandidates {
     // Low confidence requires user confirmation in the Money review flow. On a
     // real device the plugin stores this as `flutter.pending_wallet_review.<id>`,
     // the same key format the native receiver uses.
-    await prefs.setString('${PendingWalletReviews.keyPrefix}${review.id}', reviewRaw);
+    await prefs.setString(
+        '${PendingWalletReviews.keyPrefix}${review.id}', reviewRaw);
     await prefs.remove(key);
   }
 
@@ -345,9 +347,10 @@ class PendingWalletCandidates {
   bool _isPermanentRejection(ApiException error) =>
       error.statusCode == 400 || error.statusCode == 422;
 
-  static String _withoutFlutterPrefix(String key) => key.startsWith(_flutterPrefix)
-      ? key.substring(_flutterPrefix.length)
-      : key;
+  static String _withoutFlutterPrefix(String key) =>
+      key.startsWith(_flutterPrefix)
+          ? key.substring(_flutterPrefix.length)
+          : key;
 
   static Object? _decodeOrNull(String? raw) {
     if (raw == null) return null;

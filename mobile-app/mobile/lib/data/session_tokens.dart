@@ -14,18 +14,19 @@ class SessionTokens {
   final DateTime refreshTokenExpiresAt;
 
   factory SessionTokens.fromJson(Map<String, dynamic> json) => SessionTokens(
-    accessToken: _requiredString(json, 'accessToken'),
-    refreshToken: _requiredString(json, 'refreshToken'),
-    accessTokenExpiresAt: _requiredDate(json, 'accessTokenExpiresAt'),
-    refreshTokenExpiresAt: _requiredDate(json, 'refreshTokenExpiresAt'),
-  );
+        accessToken: _requiredString(json, 'accessToken'),
+        refreshToken: _requiredString(json, 'refreshToken'),
+        accessTokenExpiresAt: _requiredDate(json, 'accessTokenExpiresAt'),
+        refreshTokenExpiresAt: _requiredDate(json, 'refreshTokenExpiresAt'),
+      );
 
   Map<String, Object> toJson() => {
-    'accessToken': accessToken,
-    'refreshToken': refreshToken,
-    'accessTokenExpiresAt': accessTokenExpiresAt.toUtc().toIso8601String(),
-    'refreshTokenExpiresAt': refreshTokenExpiresAt.toUtc().toIso8601String(),
-  };
+        'accessToken': accessToken,
+        'refreshToken': refreshToken,
+        'accessTokenExpiresAt': accessTokenExpiresAt.toUtc().toIso8601String(),
+        'refreshTokenExpiresAt':
+            refreshTokenExpiresAt.toUtc().toIso8601String(),
+      };
 
   String encode() => jsonEncode(toJson());
 

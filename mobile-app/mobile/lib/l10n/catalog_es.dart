@@ -30,7 +30,8 @@ const Map<String, String> esCatalog = {
   'passwordsDoNotMatch': 'Las contraseñas no coinciden',
   'selectAll': 'Seleccionar todo',
   'deleteSelected': 'Eliminar selección',
-  'deleteSelectedConfirm': '¿Seguro que quieres eliminar los elementos seleccionados?',
+  'deleteSelectedConfirm':
+      '¿Seguro que quieres eliminar los elementos seleccionados?',
   'selectedCount': 'seleccionado(s)',
   'aiAssistant': 'Asistente IA',
   'aiDailyBriefing': 'Resumen inteligente del día',
@@ -43,8 +44,10 @@ const Map<String, String> esCatalog = {
   'save': 'Guardar',
   'delete': 'Eliminar',
   'errorTitle': 'Algo salió mal',
-  'apiConfigError': 'La dirección de la API no está configurada. Inicia la app con el parámetro API_BASE_URL.',
-  'networkError': 'No se pudo conectar. Comprueba tu conexión e inténtalo de nuevo.',
+  'apiConfigError':
+      'La dirección de la API no está configurada. Inicia la app con el parámetro API_BASE_URL.',
+  'networkError':
+      'No se pudo conectar. Comprueba tu conexión e inténtalo de nuevo.',
   'passwordLengthError': 'Usa una contraseña de al menos 10 caracteres.',
   'dailyHabits': 'Hábitos diarios',
   'noHabits': 'Aún no hay hábitos.\n¡Crea tu rutina diaria!',
@@ -168,10 +171,12 @@ const Map<String, String> esCatalog = {
   'badgeStreak7': 'Racha de 7 días',
   'globalSearchTooltip': 'Búsqueda global',
   'testAlarmTitleText': 'LifeStyle: ¡recordatorio importante!',
-  'testAlarmBodyText': 'Pulsa descartar para detener la alarma o posponer para retrasarla',
+  'testAlarmBodyText':
+      'Pulsa descartar para detener la alarma o posponer para retrasarla',
   'briefingMorning': 'Buenos días',
   'briefingEvening': 'Buenas tardes',
-  'briefingEmptyText': 'Aún no hay tareas. ¡Toca el icono + para añadir tu primera tarea de hoy!',
+  'briefingEmptyText':
+      'Aún no hay tareas. ¡Toca el icono + para añadir tu primera tarea de hoy!',
   'taskDueNowText': 'Tu tarea programada vence ahora',
   'quickClip30MinLabel': 'En 30 minutos',
   'quickClip30MinText': 'Recordatorio en 30 minutos',
@@ -188,7 +193,8 @@ const Map<String, String> esCatalog = {
   'exportReportTooltip': 'Exportar informe financiero',
   'budgetBreakdownTitle': 'Desglose del presupuesto',
   'generalBudget': 'Presupuesto general',
-  'reportCopied': '¡Informe financiero copiado al portapapeles! Ya puedes pegarlo o compartirlo.',
+  'reportCopied':
+      '¡Informe financiero copiado al portapapeles! Ya puedes pegarlo o compartirlo.',
   'reportHeader': 'Informe financiero mensual de LifeStyle',
   'reportDateLabel': 'Fecha del informe:',
   'reportTotalBudgetLabel': '- Presupuesto total:',
@@ -199,18 +205,22 @@ const Map<String, String> esCatalog = {
   'reportTotalSubsLabel': '- Total de suscripciones:',
   'reportMonthlySuffix': 'al mes',
   'reportFooter': 'Informe generado por la app LifeStyle',
-  'aiWelcomeMessage': '¡Bienvenido! Soy tu asistente IA de LifeStyle. ¿En qué puedo ayudarte hoy? Puedes pedirme que organice tu agenda, sugiera hábitos saludables o te dé consejos de productividad.',
+  'aiWelcomeMessage':
+      '¡Bienvenido! Soy tu asistente IA de LifeStyle. ¿En qué puedo ayudarte hoy? Puedes pedirme que organice tu agenda, sugiera hábitos saludables o te dé consejos de productividad.',
   'aiSuggestion1': 'Planifica mi día de hoy',
   'aiSuggestion2': '¿Cómo equilibro trabajo y estudio?',
   'aiSuggestion3': 'Sugiéreme hábitos matinales saludables',
   'aiSuggestion4': 'Consejos para reducir mis gastos mensuales',
   'aiClearChatTooltip': 'Borrar conversación',
-  'aiClearedResetMessage': '¡Bienvenido de nuevo! ¿En qué puedo ayudarte a organizar tu día ahora?',
+  'aiClearedResetMessage':
+      '¡Bienvenido de nuevo! ¿En qué puedo ayudarte a organizar tu día ahora?',
   'aiThinkingMessage': 'Pensando y redactando la respuesta...',
   'aiInputHint': 'Pregúntale lo que quieras al asistente IA...',
   'searchFieldPlaceholder': 'Buscar tareas, notas, suscripciones...',
-  'searchPromptEmpty': 'Escribe cualquier palabra para buscar en todos tus datos',
-  'briefingSummaryText': 'Tienes {total} tareas programadas, {completed} completadas con éxito. ¡Sigue así!',
+  'searchPromptEmpty':
+      'Escribe cualquier palabra para buscar en todos tus datos',
+  'briefingSummaryText':
+      'Tienes {total} tareas programadas, {completed} completadas con éxito. ¡Sigue así!',
   'billingUnit.month': '/mes',
   'billingUnit.year': '/año',
   'billingUnit.week': '/sem',
@@ -223,8 +233,11 @@ const Map<String, String> esCatalog = {
   'timer.pickSong': 'Elige una canción de tu dispositivo',
   'timer.clearSong': 'Quitar canción',
   'searchNoResultsFor': 'No hay resultados coincidentes con «{q}»',
-  'noSpeechDetected': 'No se detectó voz, inténtalo de nuevo hablando con claridad',
+  'noSpeechDetected':
+      'No se detectó voz, inténtalo de nuevo hablando con claridad',
   'smsSyncTitle': 'Captura automática de SMS de billeteras',
-  'smsSyncDesc': 'Lee los SMS de banca y billeteras (InstaPay, Vodafone Cash...) y registra las transacciones automáticamente.',
-  'smsPermissionDenied': 'Se necesita el permiso de SMS para activar la captura automática.',
+  'smsSyncDesc':
+      'Lee los SMS de banca y billeteras (InstaPay, Vodafone Cash...) y registra las transacciones automáticamente.',
+  'smsPermissionDenied':
+      'Se necesita el permiso de SMS para activar la captura automática.',
 };

@@ -1,7 +1,12 @@
 import 'package:lifestyle_mobile/data/json_fields.dart';
 
 /// Status values accepted by the projects API.
-const List<String> projectStatuses = ['active', 'on_hold', 'completed', 'archived'];
+const List<String> projectStatuses = [
+  'active',
+  'on_hold',
+  'completed',
+  'archived'
+];
 
 /// Preset colors offered in the project form (all valid #RRGGBB values).
 const List<String> projectColorOptions = [

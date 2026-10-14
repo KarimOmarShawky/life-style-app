@@ -22,7 +22,8 @@ DateTime? parseApiDate(String? value) {
 }
 
 /// Strips a calendar date to midnight, so date-only comparisons are exact.
-DateTime dateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+DateTime dateOnly(DateTime value) =>
+    DateTime(value.year, value.month, value.day);
 
 /// Converts a local instant into the UTC ISO-8601 text that the API validates.
 String toApiInstant(DateTime local) => local.toUtc().toIso8601String();

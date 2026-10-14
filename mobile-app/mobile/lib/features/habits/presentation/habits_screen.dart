@@ -45,7 +45,8 @@ class HabitsScreen extends ConsumerWidget {
                           color: Colors.red.shade700,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(Icons.delete_outline, color: Colors.white),
+                        child: const Icon(Icons.delete_outline,
+                            color: Colors.white),
                       ),
                       confirmDismiss: (_) async {
                         return await showDialog<bool>(
@@ -59,7 +60,8 @@ class HabitsScreen extends ConsumerWidget {
                                 child: Text(l10n.cancel),
                               ),
                               FilledButton(
-                                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.red),
                                 onPressed: () => Navigator.of(ctx).pop(true),
                                 child: Text(l10n.delete),
                               ),
@@ -68,7 +70,9 @@ class HabitsScreen extends ConsumerWidget {
                         );
                       },
                       onDismissed: (_) async {
-                        await ref.read(habitsRepositoryProvider).deleteHabit(habit.id);
+                        await ref
+                            .read(habitsRepositoryProvider)
+                            .deleteHabit(habit.id);
                         ref.invalidate(habitsProvider);
                       },
                       child: HabitCard(habit: habit),
@@ -108,12 +112,12 @@ Future<void> _showAddHabit(BuildContext context, WidgetRef ref) async {
             final today =
                 '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
             await ref.read(habitsRepositoryProvider).createHabit(
-              name: nameController.text,
-              description: descController.text.trim().isEmpty
-                  ? null
-                  : descController.text,
-              startDate: today,
-            );
+                  name: nameController.text,
+                  description: descController.text.trim().isEmpty
+                      ? null
+                      : descController.text,
+                  startDate: today,
+                );
             ref.invalidate(habitsProvider);
             if (dialogContext.mounted) Navigator.of(dialogContext).pop();
           } catch (e) {

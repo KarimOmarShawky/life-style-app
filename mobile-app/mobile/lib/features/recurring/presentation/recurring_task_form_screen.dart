@@ -186,10 +186,10 @@ class _RecurringTaskFormScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
-    final projects = ref.watch(projectsProvider).valueOrNull ?? const <Project>[];
+    final projects =
+        ref.watch(projectsProvider).valueOrNull ?? const <Project>[];
     final selectedProjectId = _projectId;
-    final selectedIsListed =
-        selectedProjectId == null ||
+    final selectedIsListed = selectedProjectId == null ||
         projects.any((project) => project.id == selectedProjectId);
     final error = _error;
     final endDate = _endDate;
@@ -213,8 +213,9 @@ class _RecurringTaskFormScreenState
                   labelText: l10n.taskTitleLabel,
                   border: const OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    (value ?? '').trim().isEmpty ? l10n.taskTitleRequired : null,
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? l10n.taskTitleRequired
+                    : null,
               ),
               TextFormField(
                 controller: _descriptionController,

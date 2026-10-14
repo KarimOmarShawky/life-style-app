@@ -11,11 +11,11 @@ import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/more/data/daily_plan_models.dart';
 
 SessionTokens _tokens() => SessionTokens(
-  accessToken: 'access-token',
-  accessTokenExpiresAt: DateTime.utc(2026, 10, 12, 12),
-  refreshToken: 'refresh-token',
-  refreshTokenExpiresAt: DateTime.utc(2026, 11, 12, 12),
-);
+      accessToken: 'access-token',
+      accessTokenExpiresAt: DateTime.utc(2026, 10, 12, 12),
+      refreshToken: 'refresh-token',
+      refreshTokenExpiresAt: DateTime.utc(2026, 11, 12, 12),
+    );
 
 class _MemoryTokenStore implements TokenStore {
   _MemoryTokenStore(this.tokens);
@@ -45,11 +45,13 @@ void main() {
       AiService.instance.resetFailureCount();
     });
 
-    test('stores, uses, and clears user BYOK key with X-goog-api-key header', () async {
+    test('stores, uses, and clears user BYOK key with X-goog-api-key header',
+        () async {
       expect(await AiService.instance.hasUserApiKey(), isFalse);
       await AiService.instance.setUserApiKey('user-byok-key-123');
       expect(await AiService.instance.hasUserApiKey(), isTrue);
-      expect(await AiService.instance.getEffectiveApiKey(), 'user-byok-key-123');
+      expect(
+          await AiService.instance.getEffectiveApiKey(), 'user-byok-key-123');
 
       String? capturedHeader;
       final mockClient = MockClient((request) async {
@@ -87,7 +89,9 @@ void main() {
       expect(await AiService.instance.hasUserApiKey(), isFalse);
     });
 
-    test('pauses requests after 3 consecutive provider errors until key is updated', () async {
+    test(
+        'pauses requests after 3 consecutive provider errors until key is updated',
+        () async {
       await AiService.instance.setUserApiKey('bad-key');
       var calls = 0;
       final failingClient = MockClient((_) async {
@@ -123,7 +127,8 @@ void main() {
   });
 
   group('AuthRepository export and account deletion endpoints', () {
-    test('calls export, schedule deletion, and cancel deletion endpoints', () async {
+    test('calls export, schedule deletion, and cancel deletion endpoints',
+        () async {
       final store = _MemoryTokenStore(_tokens());
       final seenPaths = <String>[];
       final client = ApiClient(
@@ -135,7 +140,10 @@ void main() {
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'exportedAt': '2026-10-12T10:00:00.000Z',
-                'user': <String, dynamic>{'id': 'u-1', 'email': 'u@example.com'},
+                'user': <String, dynamic>{
+                  'id': 'u-1',
+                  'email': 'u@example.com'
+                },
               }),
               200,
               headers: <String, String>{'content-type': 'application/json'},
@@ -186,7 +194,8 @@ void main() {
   });
 
   group('DailyPlanRepository dashboard, day plan, and global search', () {
-    test('parses dashboard overview, day view, and global search results', () async {
+    test('parses dashboard overview, day view, and global search results',
+        () async {
       final store = _MemoryTokenStore(_tokens());
       final client = ApiClient(
         baseUri: Uri.parse('https://api.example.test/api/v1/'),

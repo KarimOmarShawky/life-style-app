@@ -123,8 +123,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ),
                         validator: (value) =>
                             (value == null || value.trim().isEmpty)
-                            ? localization.enterNamePrompt
-                            : null,
+                                ? localization.enterNamePrompt
+                                : null,
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -199,9 +199,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       onPressed: _busy
                           ? null
                           : () => setState(() {
-                              _creatingAccount = !_creatingAccount;
-                              _formError = null;
-                            }),
+                                _creatingAccount = !_creatingAccount;
+                                _formError = null;
+                              }),
                       child: Text(
                         _creatingAccount
                             ? '${localization.alreadyHaveAccount} ${localization.signIn}'

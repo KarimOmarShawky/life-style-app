@@ -22,15 +22,15 @@ class AppUser {
   bool get isPendingDeletion => status == 'pending_deletion';
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-    id: _string(json, 'id'),
-    email: _string(json, 'email'),
-    displayName: _string(json, 'displayName'),
-    timezone: _string(json, 'timezone'),
-    locale: _string(json, 'locale'),
-    defaultCurrency: _string(json, 'defaultCurrency'),
-    status: _string(json, 'status'),
-    deletionScheduledFor: _optionalDateTime(json, 'deletionScheduledFor'),
-  );
+        id: _string(json, 'id'),
+        email: _string(json, 'email'),
+        displayName: _string(json, 'displayName'),
+        timezone: _string(json, 'timezone'),
+        locale: _string(json, 'locale'),
+        defaultCurrency: _string(json, 'defaultCurrency'),
+        status: _string(json, 'status'),
+        deletionScheduledFor: _optionalDateTime(json, 'deletionScheduledFor'),
+      );
 }
 
 String _string(Map<String, dynamic> json, String key) {

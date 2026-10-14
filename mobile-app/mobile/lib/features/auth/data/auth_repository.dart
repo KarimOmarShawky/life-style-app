@@ -6,8 +6,8 @@ import 'package:lifestyle_mobile/data/token_store.dart';
 
 class AuthRepository {
   const AuthRepository({required ApiClient api, required TokenStore tokens})
-    : _api = api,
-      _tokens = tokens;
+      : _api = api,
+        _tokens = tokens;
 
   final ApiClient _api;
   final TokenStore _tokens;
@@ -125,7 +125,8 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>> exportUserData() async {
-    final response = await _api.post('users/me/export', body: <String, Object?>{});
+    final response =
+        await _api.post('users/me/export', body: <String, Object?>{});
     if (response is! Map<String, dynamic>) {
       throw const ApiException(
         statusCode: 502,
@@ -182,11 +183,11 @@ class AuthRepository {
   }
 
   Map<String, Object?> _device() => {
-    'platform': _platformName(),
-    'name': 'Arena Mobile Client',
-    'deviceName': 'Arena Mobile Client',
-    'appVersion': '1.0.1',
-  };
+        'platform': _platformName(),
+        'name': 'Arena Mobile Client',
+        'deviceName': 'Arena Mobile Client',
+        'appVersion': '1.0.1',
+      };
 
   String _platformName() {
     switch (defaultTargetPlatform) {

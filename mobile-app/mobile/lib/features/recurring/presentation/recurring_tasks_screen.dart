@@ -147,9 +147,12 @@ class _RecurringTaskCard extends StatelessWidget {
               ),
               if (!isEnded)
                 IconButton(
-                  tooltip: isActive ? l10n.pauseRecurring : l10n.resumeRecurring,
+                  tooltip:
+                      isActive ? l10n.pauseRecurring : l10n.resumeRecurring,
                   icon: Icon(
-                    isActive ? Icons.pause_circle_outline : Icons.play_circle_outline,
+                    isActive
+                        ? Icons.pause_circle_outline
+                        : Icons.play_circle_outline,
                   ),
                   onPressed: onToggle,
                 ),

@@ -26,11 +26,13 @@ const Map<String, String> deCatalog = {
   'enterResetCode': '6-stelligen Code eingeben',
   'newPassword': 'Neues Passwort',
   'confirmNewPassword': 'Neues Passwort bestätigen',
-  'passwordResetSuccess': 'Passwort erfolgreich zurückgesetzt! Du kannst dich jetzt anmelden',
+  'passwordResetSuccess':
+      'Passwort erfolgreich zurückgesetzt! Du kannst dich jetzt anmelden',
   'passwordsDoNotMatch': 'Passwörter stimmen nicht überein',
   'selectAll': 'Alle auswählen',
   'deleteSelected': 'Auswahl löschen',
-  'deleteSelectedConfirm': 'Möchtest du die ausgewählten Elemente wirklich löschen?',
+  'deleteSelectedConfirm':
+      'Möchtest du die ausgewählten Elemente wirklich löschen?',
   'selectedCount': 'ausgewählt',
   'aiAssistant': 'KI-Assistent',
   'aiDailyBriefing': 'Intelligentes Tagesbriefing',
@@ -43,11 +45,14 @@ const Map<String, String> deCatalog = {
   'save': 'Speichern',
   'delete': 'Löschen',
   'errorTitle': 'Etwas ist schiefgelaufen',
-  'apiConfigError': 'Die API-Adresse ist nicht konfiguriert. Starte die App mit der Build-Einstellung API_BASE_URL.',
-  'networkError': 'Keine Verbindung möglich. Prüfe deine Verbindung und versuche es erneut.',
+  'apiConfigError':
+      'Die API-Adresse ist nicht konfiguriert. Starte die App mit der Build-Einstellung API_BASE_URL.',
+  'networkError':
+      'Keine Verbindung möglich. Prüfe deine Verbindung und versuche es erneut.',
   'passwordLengthError': 'Verwende ein Passwort mit mindestens 10 Zeichen.',
   'dailyHabits': 'Tägliche Gewohnheiten',
-  'noHabits': 'Noch keine Gewohnheiten angelegt.\nBaue deine tägliche Routine auf!',
+  'noHabits':
+      'Noch keine Gewohnheiten angelegt.\nBaue deine tägliche Routine auf!',
   'addHabit': 'Neue Gewohnheit',
   'habitName': 'Name der Gewohnheit',
   'description': 'Beschreibung (optional)',
@@ -112,7 +117,8 @@ const Map<String, String> deCatalog = {
   'pickTime': 'Zeit wählen',
   'noAlarm': 'Kein Wecker',
   'smartAdd': 'Intelligentes Schnell-Hinzufügen',
-  'smartAddHint': 'z. B. Arzttermin morgen um 19 Uhr, oder Einkauf in 30 Minuten',
+  'smartAddHint':
+      'z. B. Arzttermin morgen um 19 Uhr, oder Einkauf in 30 Minuten',
   'detectedTitle': 'Aufgabe',
   'detectedDate': 'Datum',
   'detectedAlarm': 'Wecker',
@@ -168,10 +174,12 @@ const Map<String, String> deCatalog = {
   'badgeStreak7': '7-Tage-Serie',
   'globalSearchTooltip': 'Globale Suche',
   'testAlarmTitleText': 'LifeStyle: Wichtige Erinnerung!',
-  'testAlarmBodyText': 'Zum Stoppen „Beenden" drücken oder zum Verschieben „Schlummern"',
+  'testAlarmBodyText':
+      'Zum Stoppen „Beenden" drücken oder zum Verschieben „Schlummern"',
   'briefingMorning': 'Guten Morgen',
   'briefingEvening': 'Guten Abend',
-  'briefingEmptyText': 'Noch keine Aufgaben. Tippe auf das +-Symbol, um deine erste Aufgabe für heute anzulegen!',
+  'briefingEmptyText':
+      'Noch keine Aufgaben. Tippe auf das +-Symbol, um deine erste Aufgabe für heute anzulegen!',
   'taskDueNowText': 'Deine geplante Aufgabe ist jetzt fällig',
   'quickClip30MinLabel': 'In 30 Minuten',
   'quickClip30MinText': 'Erinnerung in 30 Minuten',
@@ -188,7 +196,8 @@ const Map<String, String> deCatalog = {
   'exportReportTooltip': 'Finanzbericht exportieren',
   'budgetBreakdownTitle': 'Budgetaufschlüsselung',
   'generalBudget': 'Allgemeines Budget',
-  'reportCopied': 'Finanzbericht in die Zwischenablage kopiert! Du kannst ihn jetzt einfügen oder teilen.',
+  'reportCopied':
+      'Finanzbericht in die Zwischenablage kopiert! Du kannst ihn jetzt einfügen oder teilen.',
   'reportHeader': 'Monatlicher LifeStyle-Finanzbericht',
   'reportDateLabel': 'Berichtsdatum:',
   'reportTotalBudgetLabel': '- Gesamtbudget:',
@@ -199,18 +208,21 @@ const Map<String, String> deCatalog = {
   'reportTotalSubsLabel': '- Abonnements insgesamt:',
   'reportMonthlySuffix': 'monatlich',
   'reportFooter': 'Bericht erstellt von der LifeStyle-App',
-  'aiWelcomeMessage': 'Willkommen! Ich bin dein LifeStyle-KI-Assistent. Wie kann ich dir heute helfen? Du kannst mich bitten, deinen Tag zu planen, gesunde Gewohnheiten vorzuschlagen oder Produktivitätstipps zu geben.',
+  'aiWelcomeMessage':
+      'Willkommen! Ich bin dein LifeStyle-KI-Assistent. Wie kann ich dir heute helfen? Du kannst mich bitten, deinen Tag zu planen, gesunde Gewohnheiten vorzuschlagen oder Produktivitätstipps zu geben.',
   'aiSuggestion1': 'Plane meinen heutigen Tag',
   'aiSuggestion2': 'Wie balanciere ich Arbeit und Studium?',
   'aiSuggestion3': 'Schlage gesunde Morgengewohnheiten vor',
   'aiSuggestion4': 'Tipps zur Senkung meiner Monatsausgaben',
   'aiClearChatTooltip': 'Unterhaltung löschen',
-  'aiClearedResetMessage': 'Willkommen zurück! Wie kann ich dir jetzt helfen, deinen Tag zu organisieren?',
+  'aiClearedResetMessage':
+      'Willkommen zurück! Wie kann ich dir jetzt helfen, deinen Tag zu organisieren?',
   'aiThinkingMessage': 'Ich denke nach und formuliere die Antwort...',
   'aiInputHint': 'Frag den KI-Assistenten alles...',
   'searchFieldPlaceholder': 'Aufgaben, Notizen, Abonnements durchsuchen...',
   'searchPromptEmpty': 'Tippe ein Stichwort, um alle Daten zu durchsuchen',
-  'briefingSummaryText': 'Du hast {total} geplante Aufgaben, {completed} davon erfolgreich erledigt. Bleib dran!',
+  'briefingSummaryText':
+      'Du hast {total} geplante Aufgaben, {completed} davon erfolgreich erledigt. Bleib dran!',
   'billingUnit.month': '/Mon.',
   'billingUnit.year': '/Jahr',
   'billingUnit.week': '/Wo.',
@@ -223,8 +235,11 @@ const Map<String, String> deCatalog = {
   'timer.pickSong': 'Song von deinem Gerät wählen',
   'timer.clearSong': 'Song entfernen',
   'searchNoResultsFor': 'Keine passenden Ergebnisse für „{q}"',
-  'noSpeechDetected': 'Keine Sprache erkannt, bitte sprich deutlich und versuche es erneut',
+  'noSpeechDetected':
+      'Keine Sprache erkannt, bitte sprich deutlich und versuche es erneut',
   'smsSyncTitle': 'Automatische Wallet-SMS-Erfassung',
-  'smsSyncDesc': 'Liest Bank- und Wallet-SMS (InstaPay, Vodafone Cash ...) und bucht Transaktionen automatisch.',
-  'smsPermissionDenied': 'SMS-Berechtigung ist für die automatische Erfassung erforderlich.',
+  'smsSyncDesc':
+      'Liest Bank- und Wallet-SMS (InstaPay, Vodafone Cash ...) und bucht Transaktionen automatisch.',
+  'smsPermissionDenied':
+      'SMS-Berechtigung ist für die automatische Erfassung erforderlich.',
 };

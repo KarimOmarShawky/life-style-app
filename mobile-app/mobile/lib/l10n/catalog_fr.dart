@@ -26,11 +26,13 @@ const Map<String, String> frCatalog = {
   'enterResetCode': 'Saisissez le code à 6 chiffres',
   'newPassword': 'Nouveau mot de passe',
   'confirmNewPassword': 'Confirmer le nouveau mot de passe',
-  'passwordResetSuccess': 'Mot de passe réinitialisé ! Vous pouvez vous connecter',
+  'passwordResetSuccess':
+      'Mot de passe réinitialisé ! Vous pouvez vous connecter',
   'passwordsDoNotMatch': 'Les mots de passe ne correspondent pas',
   'selectAll': 'Tout sélectionner',
   'deleteSelected': 'Supprimer la sélection',
-  'deleteSelectedConfirm': 'Voulez-vous vraiment supprimer les éléments sélectionnés ?',
+  'deleteSelectedConfirm':
+      'Voulez-vous vraiment supprimer les éléments sélectionnés ?',
   'selectedCount': 'sélectionné(s)',
   'aiAssistant': 'Assistant IA',
   'aiDailyBriefing': 'Briefing intelligent du jour',
@@ -43,11 +45,14 @@ const Map<String, String> frCatalog = {
   'save': 'Enregistrer',
   'delete': 'Supprimer',
   'errorTitle': 'Une erreur est survenue',
-  'apiConfigError': 'L\'adresse de l\'API n\'est pas configurée. Démarrez l\'application avec le paramètre API_BASE_URL.',
-  'networkError': 'Connexion impossible. Vérifiez votre connexion puis réessayez.',
+  'apiConfigError':
+      'L\'adresse de l\'API n\'est pas configurée. Démarrez l\'application avec le paramètre API_BASE_URL.',
+  'networkError':
+      'Connexion impossible. Vérifiez votre connexion puis réessayez.',
   'passwordLengthError': 'Utilisez un mot de passe d\'au moins 10 caractères.',
   'dailyHabits': 'Habitudes quotidiennes',
-  'noHabits': 'Aucune habitude pour le moment.\nCréez votre routine quotidienne !',
+  'noHabits':
+      'Aucune habitude pour le moment.\nCréez votre routine quotidienne !',
   'addHabit': 'Nouvelle habitude',
   'habitName': 'Nom de l\'habitude',
   'description': 'Description (facultatif)',
@@ -112,7 +117,8 @@ const Map<String, String> frCatalog = {
   'pickTime': 'Choisir l\'heure',
   'noAlarm': 'Sans alarme',
   'smartAdd': 'Ajout rapide intelligent',
-  'smartAddHint': 'ex. : rendez-vous chez le médecin demain à 19 h, ou courses dans 30 minutes',
+  'smartAddHint':
+      'ex. : rendez-vous chez le médecin demain à 19 h, ou courses dans 30 minutes',
   'detectedTitle': 'Tâche',
   'detectedDate': 'Date',
   'detectedAlarm': 'Alarme',
@@ -153,7 +159,8 @@ const Map<String, String> frCatalog = {
   'enterPasswordPrompt': 'Saisissez votre mot de passe.',
   'alreadyHaveAccount': 'Vous avez déjà un compte ?',
   'newToApp': 'Nouveau sur LifeStyle ?',
-  'passwordMinLengthError': 'Le mot de passe doit contenir au moins 8 caractères.',
+  'passwordMinLengthError':
+      'Le mot de passe doit contenir au moins 8 caractères.',
   'currencyUpdated': 'Devise mise à jour :',
   'currencyUpdateFailed': 'Échec de la mise à jour de la devise',
   'accountRank': 'Rang : achieveur actif',
@@ -168,10 +175,12 @@ const Map<String, String> frCatalog = {
   'badgeStreak7': 'Série de 7 jours',
   'globalSearchTooltip': 'Recherche globale',
   'testAlarmTitleText': 'LifeStyle : rappel important !',
-  'testAlarmBodyText': 'Appuyez sur ignorer pour arrêter l\'alarme, ou sur répétition pour reporter',
+  'testAlarmBodyText':
+      'Appuyez sur ignorer pour arrêter l\'alarme, ou sur répétition pour reporter',
   'briefingMorning': 'Bonjour',
   'briefingEvening': 'Bonsoir',
-  'briefingEmptyText': 'Aucune tâche pour le moment. Touchez l\'icône + pour ajouter votre première tâche du jour !',
+  'briefingEmptyText':
+      'Aucune tâche pour le moment. Touchez l\'icône + pour ajouter votre première tâche du jour !',
   'taskDueNowText': 'Votre tâche planifiée est échéante maintenant',
   'quickClip30MinLabel': 'Dans 30 minutes',
   'quickClip30MinText': 'Rappel dans 30 minutes',
@@ -188,7 +197,8 @@ const Map<String, String> frCatalog = {
   'exportReportTooltip': 'Exporter le rapport financier',
   'budgetBreakdownTitle': 'Détail du budget',
   'generalBudget': 'Budget général',
-  'reportCopied': 'Rapport financier copié dans le presse-papiers ! Vous pouvez maintenant le coller ou le partager.',
+  'reportCopied':
+      'Rapport financier copié dans le presse-papiers ! Vous pouvez maintenant le coller ou le partager.',
   'reportHeader': 'Rapport financier mensuel LifeStyle',
   'reportDateLabel': 'Date du rapport :',
   'reportTotalBudgetLabel': '- Budget total :',
@@ -199,18 +209,22 @@ const Map<String, String> frCatalog = {
   'reportTotalSubsLabel': '- Total des abonnements :',
   'reportMonthlySuffix': 'par mois',
   'reportFooter': 'Rapport généré par l\'application LifeStyle',
-  'aiWelcomeMessage': 'Bienvenue ! Je suis votre assistant IA LifeStyle. Comment puis-je vous aider aujourd\'hui ? Vous pouvez me demander d\'organiser votre emploi du temps, de suggérer des habitudes saines ou de vous donner des conseils de productivité.',
+  'aiWelcomeMessage':
+      'Bienvenue ! Je suis votre assistant IA LifeStyle. Comment puis-je vous aider aujourd\'hui ? Vous pouvez me demander d\'organiser votre emploi du temps, de suggérer des habitudes saines ou de vous donner des conseils de productivité.',
   'aiSuggestion1': 'Planifie ma journée',
   'aiSuggestion2': 'Comment équilibrer travail et études ?',
   'aiSuggestion3': 'Suggère-moi des habitudes matinales saines',
   'aiSuggestion4': 'Des astuces pour réduire mes dépenses mensuelles',
   'aiClearChatTooltip': 'Effacer la conversation',
-  'aiClearedResetMessage': 'Bon retour ! Comment puis-je vous aider à organiser votre journée maintenant ?',
+  'aiClearedResetMessage':
+      'Bon retour ! Comment puis-je vous aider à organiser votre journée maintenant ?',
   'aiThinkingMessage': 'Réflexion et rédaction de la réponse...',
   'aiInputHint': 'Demandez n\'importe quoi à l\'assistant IA...',
   'searchFieldPlaceholder': 'Rechercher tâches, notes, abonnements...',
-  'searchPromptEmpty': 'Saisissez un mot-clé pour rechercher dans toutes vos données',
-  'briefingSummaryText': 'Vous avez {total} tâches planifiées, dont {completed} terminées avec succès. Continuez sur votre lancée !',
+  'searchPromptEmpty':
+      'Saisissez un mot-clé pour rechercher dans toutes vos données',
+  'briefingSummaryText':
+      'Vous avez {total} tâches planifiées, dont {completed} terminées avec succès. Continuez sur votre lancée !',
   'billingUnit.month': '/mois',
   'billingUnit.year': '/an',
   'billingUnit.week': '/sem',
@@ -223,8 +237,11 @@ const Map<String, String> frCatalog = {
   'timer.pickSong': 'Choisir une chanson de votre appareil',
   'timer.clearSong': 'Retirer la chanson',
   'searchNoResultsFor': 'Aucun résultat correspondant à « {q} »',
-  'noSpeechDetected': 'Aucune parole détectée, veuillez réessayer en parlant clairement',
+  'noSpeechDetected':
+      'Aucune parole détectée, veuillez réessayer en parlant clairement',
   'smsSyncTitle': 'Capture auto des SMS portefeuille',
-  'smsSyncDesc': 'Lit les SMS bancaires et portefeuille (InstaPay, Vodafone Cash...) et enregistre automatiquement les transactions.',
-  'smsPermissionDenied': 'L\'autorisation SMS est requise pour activer la capture automatique.',
+  'smsSyncDesc':
+      'Lit les SMS bancaires et portefeuille (InstaPay, Vodafone Cash...) et enregistre automatiquement les transactions.',
+  'smsPermissionDenied':
+      'L\'autorisation SMS est requise pour activer la capture automatique.',
 };

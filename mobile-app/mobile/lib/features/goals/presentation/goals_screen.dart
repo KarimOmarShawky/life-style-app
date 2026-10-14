@@ -90,7 +90,8 @@ class _GoalCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final subtitle = goal.isMilestoneGoal
-        ? l10n.milestonesProgress(goal.completedMilestones, goal.totalMilestones)
+        ? l10n.milestonesProgress(
+            goal.completedMilestones, goal.totalMilestones)
         : l10n.goalValueLabel(
             formatDecimal(goal.currentValue).isEmpty
                 ? '0'

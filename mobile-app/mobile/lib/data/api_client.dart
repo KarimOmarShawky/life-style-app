@@ -34,11 +34,11 @@ class ApiClient {
     required Uri baseUri,
     required TokenStore tokenStore,
     http.Client? httpClient,
-  }) : _baseUri = baseUri.replace(
-         path: baseUri.path.endsWith('/') ? baseUri.path : '${baseUri.path}/',
-       ),
-       _tokenStore = tokenStore,
-       _httpClient = httpClient ?? http.Client();
+  })  : _baseUri = baseUri.replace(
+          path: baseUri.path.endsWith('/') ? baseUri.path : '${baseUri.path}/',
+        ),
+        _tokenStore = tokenStore,
+        _httpClient = httpClient ?? http.Client();
 
   final Uri _baseUri;
   final TokenStore _tokenStore;
@@ -51,32 +51,36 @@ class ApiClient {
     String path, {
     Map<String, String>? query,
     bool authenticated = true,
-  }) => request('GET', path, query: query, authenticated: authenticated);
+  }) =>
+      request('GET', path, query: query, authenticated: authenticated);
 
   Future<Object?> post(
     String path, {
     Object? body,
     Map<String, String>? headers,
     bool authenticated = true,
-  }) => request(
-    'POST',
-    path,
-    body: body,
-    headers: headers,
-    authenticated: authenticated,
-  );
+  }) =>
+      request(
+        'POST',
+        path,
+        body: body,
+        headers: headers,
+        authenticated: authenticated,
+      );
 
   Future<Object?> patch(
     String path, {
     Object? body,
     bool authenticated = true,
-  }) => request('PATCH', path, body: body, authenticated: authenticated);
+  }) =>
+      request('PATCH', path, body: body, authenticated: authenticated);
 
   Future<Object?> delete(
     String path, {
     Object? body,
     bool authenticated = true,
-  }) => request('DELETE', path, body: body, authenticated: authenticated);
+  }) =>
+      request('DELETE', path, body: body, authenticated: authenticated);
 
   Future<Object?> request(
     String method,
@@ -184,9 +188,13 @@ class ApiClient {
 
   Future<void> _rotate(SessionTokens current) async {
     try {
-      final response = await _send('POST', _uri('auth/refresh', null), {
-        'refreshToken': current.refreshToken,
-      }, null);
+      final response = await _send(
+          'POST',
+          _uri('auth/refresh', null),
+          {
+            'refreshToken': current.refreshToken,
+          },
+          null);
       final error = _exceptionFor(response);
       if (error != null) throw error;
       final decoded = _decodeSuccess(response);
@@ -232,9 +240,8 @@ class ApiClient {
     }
 
     try {
-      final streamed = await _httpClient
-          .send(request)
-          .timeout(const Duration(seconds: 30));
+      final streamed =
+          await _httpClient.send(request).timeout(const Duration(seconds: 30));
       final response = await http.Response.fromStream(streamed);
       if (response.statusCode >= 300 && response.statusCode < 400) {
         throw const ApiException(
@@ -250,7 +257,8 @@ class ApiClient {
       throw const ApiException(
         statusCode: 0,
         code: 'NETWORK_ERROR',
-        message: 'Could not connect to LifeStyle. Check your connection and try again.',
+        message:
+            'Could not connect to LifeStyle. Check your connection and try again.',
       );
     }
   }
@@ -271,9 +279,8 @@ class ApiClient {
             : decoded;
         return ApiException(
           statusCode: response.statusCode,
-          code: error['code'] is String
-              ? error['code'] as String
-              : 'HTTP_ERROR',
+          code:
+              error['code'] is String ? error['code'] as String : 'HTTP_ERROR',
           message: error['message'] is String
               ? error['message'] as String
               : 'The request could not be completed.',

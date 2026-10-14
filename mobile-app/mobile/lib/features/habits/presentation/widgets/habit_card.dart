@@ -1,3 +1,5 @@
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/habits/data/habit_model.dart';
@@ -73,7 +75,8 @@ class _HabitCardState extends ConsumerState<HabitCard> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.local_fire_department, size: 16, color: Colors.deepOrange),
+                      const Icon(Icons.local_fire_department,
+                          size: 16, color: Colors.deepOrange),
                       const SizedBox(width: 4),
                       Text(
                         '${habit.currentStreak} ${l10n.days}',
@@ -102,8 +105,10 @@ class _HabitCardState extends ConsumerState<HabitCard> {
                           try {
                             await ref
                                 .read(habitsRepositoryProvider)
-                                .checkinHabit(habit.id, today,
-                                    status: 'done');
+                                .checkinHabit(habit.id, today, status: 'done');
+                            await ref
+                                .read(focusShieldProvider.notifier)
+                                .award(XpType.habit, habit.id, dateKey: today);
                             ref.invalidate(habitsProvider);
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(

@@ -34,7 +34,8 @@ class NotificationService {
   static const String normalChannelDesc =
       'General alerts and notification reminders';
 
-  static const String calendarChannelId = 'lifestyle_calendar_reminders_channel';
+  static const String calendarChannelId =
+      'lifestyle_calendar_reminders_channel';
   static const String calendarChannelName = 'LifeStyle Calendar Reminders';
   static const String calendarChannelDesc = 'Reminders before calendar events';
 
@@ -161,7 +162,8 @@ class NotificationService {
     );
 
     // Quick Voice trigger from pinned notification
-    if (response.payload == 'quick_voice' || response.actionId == 'quick_voice_action') {
+    if (response.payload == 'quick_voice' ||
+        response.actionId == 'quick_voice_action') {
       quickVoiceTrigger.value = true;
       return;
     }
@@ -180,8 +182,12 @@ class NotificationService {
         _notificationsPlugin.cancel(response.id!);
         scheduleAlarm(
           id: response.id!,
-          title: _isDeviceArabic ? '(غفوة) تذكير بموعدك' : '(Snooze) Appointment Reminder',
-          body: _isDeviceArabic ? 'حان الوقت لإنجاز مهمتك المجدولة' : 'Time for your scheduled task',
+          title: _isDeviceArabic
+              ? '(غفوة) تذكير بموعدك'
+              : '(Snooze) Appointment Reminder',
+          body: _isDeviceArabic
+              ? 'حان الوقت لإنجاز مهمتك المجدولة'
+              : 'Time for your scheduled task',
           scheduledDateTime: DateTime.now().add(const Duration(minutes: 5)),
         );
       }
@@ -202,8 +208,11 @@ class NotificationService {
       final alarmId = parsed.title.hashCode;
       await scheduleAlarm(
         id: alarmId,
-        title: _isDeviceArabic ? 'موعد: ${parsed.title}' : 'Task: ${parsed.title}',
-        body: _isDeviceArabic ? 'حان الوقت لإنجاز مهمتك المجدولة' : 'Time for your scheduled task',
+        title:
+            _isDeviceArabic ? 'موعد: ${parsed.title}' : 'Task: ${parsed.title}',
+        body: _isDeviceArabic
+            ? 'حان الوقت لإنجاز مهمتك المجدولة'
+            : 'Time for your scheduled task',
         scheduledDateTime: scheduledTime,
       );
 
@@ -286,7 +295,8 @@ class NotificationService {
         fullScreenIntent: true,
         ongoing: true,
         autoCancel: false,
-        additionalFlags: Int32List.fromList([4]), // FLAG_INSISTENT: loops continuously
+        additionalFlags:
+            Int32List.fromList([4]), // FLAG_INSISTENT: loops continuously
         actions: [
           AndroidNotificationAction(
             'dismiss_alarm',

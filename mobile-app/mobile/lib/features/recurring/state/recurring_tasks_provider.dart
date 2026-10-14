@@ -10,9 +10,9 @@ final recurringTasksRepositoryProvider = Provider<RecurringTasksRepository>(
 
 final recurringTasksProvider =
     FutureProvider.autoDispose<List<RecurringTask>>((ref) async {
-      final currentUserId = ref.watch(
-        authProvider.select((value) => value.asData?.value?.id),
-      );
-      if (currentUserId == null) return const [];
-      return ref.watch(recurringTasksRepositoryProvider).listRecurringTasks();
-    });
+  final currentUserId = ref.watch(
+    authProvider.select((value) => value.asData?.value?.id),
+  );
+  if (currentUserId == null) return const [];
+  return ref.watch(recurringTasksRepositoryProvider).listRecurringTasks();
+});

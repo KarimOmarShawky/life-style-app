@@ -206,8 +206,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busyAction = true);
     try {
-      final exportPayload = await ref.read(authProvider.notifier).exportUserData();
-      final prettyJson = const JsonEncoder.withIndent('  ').convert(exportPayload);
+      final exportPayload =
+          await ref.read(authProvider.notifier).exportUserData();
+      final prettyJson =
+          const JsonEncoder.withIndent('  ').convert(exportPayload);
       await Clipboard.setData(ClipboardData(text: prettyJson));
       if (!context.mounted) return;
       await showDialog<void>(
@@ -231,14 +233,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Theme.of(dialogContext).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(dialogContext)
+                        .colorScheme
+                        .surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     prettyJson.length > 600
                         ? '${prettyJson.substring(0, 600)}...\n'
                         : prettyJson,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                    style:
+                        const TextStyle(fontFamily: 'monospace', fontSize: 11),
                   ),
                 ),
               ],
@@ -353,12 +358,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       themeLabel = localization.themeDark;
     }
 
-    final langLabel =
-        AppLocalizations.endonyms[settings.locale.languageCode] ??
-            settings.locale.languageCode;
+    final langLabel = AppLocalizations.endonyms[settings.locale.languageCode] ??
+        settings.locale.languageCode;
 
     final statusLabel = activeUser.isPendingDeletion
-        ? (isAr ? 'مجدول للحذف (مهلة 14 يوماً)' : 'pending_deletion (14-day grace)')
+        ? (isAr
+            ? 'مجدول للحذف (مهلة 14 يوماً)'
+            : 'pending_deletion (14-day grace)')
         : localization.activeStatus;
 
     return Scaffold(
@@ -394,7 +400,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                        const Icon(Icons.warning_amber_rounded,
+                            color: Colors.orange),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -408,10 +415,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 10),
                     FilledButton.icon(
-                      onPressed: _busyAction ? null : () => _handleCancelDeletion(context),
+                      onPressed: _busyAction
+                          ? null
+                          : () => _handleCancelDeletion(context),
                       icon: const Icon(Icons.restore),
                       label: Text(
-                        isAr ? 'إلغاء حذف الحساب واستعادته' : 'Cancel Deletion & Restore Account',
+                        isAr
+                            ? 'إلغاء حذف الحساب واستعادته'
+                            : 'Cancel Deletion & Restore Account',
                       ),
                     ),
                   ],
@@ -425,7 +436,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer.withAlpha(90),
+              color:
+                  Theme.of(context).colorScheme.primaryContainer.withAlpha(90),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: Theme.of(context).colorScheme.primary.withAlpha(50),
@@ -446,7 +458,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primary,
                         borderRadius: BorderRadius.circular(12),
@@ -468,7 +481,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: LinearProgressIndicator(
                     value: 0.7,
                     minHeight: 6,
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -488,17 +502,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Text(
             localization.achievementBadges,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              _buildBadgeItem(context, localization.badgeStrongStart, localization.badgeFirstTask, Icons.verified_outlined, true),
+              _buildBadgeItem(context, localization.badgeStrongStart,
+                  localization.badgeFirstTask, Icons.verified_outlined, true),
               const SizedBox(width: 8),
-              _buildBadgeItem(context, localization.badgeFocusHero, localization.badgePomodoro, Icons.timer_outlined, true),
+              _buildBadgeItem(context, localization.badgeFocusHero,
+                  localization.badgePomodoro, Icons.timer_outlined, true),
               const SizedBox(width: 8),
-              _buildBadgeItem(context, localization.badgeDiscipline, localization.badgeStreak7, Icons.local_fire_department_outlined, false),
+              _buildBadgeItem(
+                  context,
+                  localization.badgeDiscipline,
+                  localization.badgeStreak7,
+                  Icons.local_fire_department_outlined,
+                  false),
             ],
           ),
           const SizedBox(height: 24),
@@ -529,10 +550,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.key_outlined),
-            title: Text(isAr ? 'مفتاح Gemini API الشخصي (BYOK)' : 'Personal Gemini API Key (BYOK)'),
+            title: Text(isAr
+                ? 'مفتاح Gemini API الشخصي (BYOK)'
+                : 'Personal Gemini API Key (BYOK)'),
             subtitle: Text(
               _hasGeminiKey
-                  ? (isAr ? 'مُعَدّ ومشفر على الجهاز' : 'Configured & encrypted on device')
+                  ? (isAr
+                      ? 'مُعَدّ ومشفر على الجهاز'
+                      : 'Configured & encrypted on device')
                   : localization.notSet,
             ),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -546,7 +571,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.download_outlined),
-            title: Text(isAr ? 'تصدير بيانات الحساب (JSON)' : 'Export Account Data (JSON)'),
+            title: Text(isAr
+                ? 'تصدير بيانات الحساب (JSON)'
+                : 'Export Account Data (JSON)'),
             subtitle: Text(
               isAr
                   ? 'نسخ أرشيف كامل لجميع بياناتك إلى الحافظة'
@@ -558,13 +585,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           if (!activeUser.isPendingDeletion)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+              leading:
+                  const Icon(Icons.delete_forever_outlined, color: Colors.red),
               title: Text(
-                isAr ? 'حذف الحساب (مهلة سماح 14 يوماً)' : 'Delete Account (14-day grace period)',
+                isAr
+                    ? 'حذف الحساب (مهلة سماح 14 يوماً)'
+                    : 'Delete Account (14-day grace period)',
                 style: const TextStyle(color: Colors.red),
               ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red),
-              onTap: _busyAction ? null : () => _handleScheduleDeletion(context),
+              trailing: const Icon(Icons.arrow_forward_ios,
+                  size: 16, color: Colors.red),
+              onTap:
+                  _busyAction ? null : () => _handleScheduleDeletion(context),
             ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
@@ -600,7 +632,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               : theme.colorScheme.surfaceContainerHighest.withAlpha(40),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: unlocked ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
+            color: unlocked
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
             width: 1,
           ),
         ),
@@ -609,7 +643,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Icon(
               icon,
               size: 24,
-              color: unlocked ? theme.colorScheme.primary : theme.colorScheme.outline,
+              color: unlocked
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
             ),
             const SizedBox(height: 6),
             Text(
@@ -617,7 +653,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: unlocked ? theme.colorScheme.onSurface : theme.colorScheme.outline,
+                color: unlocked
+                    ? theme.colorScheme.onSurface
+                    : theme.colorScheme.outline,
               ),
               textAlign: TextAlign.center,
             ),
@@ -647,8 +685,8 @@ class _ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    title: Text(label),
-    subtitle: Text(value),
-  );
+        contentPadding: EdgeInsets.zero,
+        title: Text(label),
+        subtitle: Text(value),
+      );
 }

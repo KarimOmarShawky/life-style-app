@@ -105,17 +105,15 @@ abstract final class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         height: 68,
         elevation: 2,
-        backgroundColor:
-            isDark ? scheme.surfaceContainerHigh : scheme.surface,
+        backgroundColor: isDark ? scheme.surfaceContainerHigh : scheme.surface,
         indicatorColor: scheme.primaryContainer,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (Set<WidgetState> states) => TextStyle(
             fontSize: 12,
-            fontWeight:
-                states.contains(WidgetState.selected)
-                    ? FontWeight.w700
-                    : FontWeight.w500,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
           ),
         ),
       ),
@@ -174,10 +172,9 @@ abstract final class AppTheme {
       ),
       switchTheme: SwitchThemeData(
         trackColor: WidgetStateProperty.resolveWith(
-          (Set<WidgetState> states) =>
-              states.contains(WidgetState.selected)
-                  ? scheme.primary
-                  : scheme.surfaceContainerHighest,
+          (Set<WidgetState> states) => states.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.surfaceContainerHighest,
         ),
       ),
     );

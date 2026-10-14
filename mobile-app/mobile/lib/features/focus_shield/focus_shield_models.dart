@@ -109,7 +109,8 @@ class FocusSessionRecord {
       required this.shieldCompleted,
       required this.manualBypasses,
       required this.completed,
-      required this.clarityScore});
+      required this.clarityScore,
+      this.backendSessionId});
   final String id;
   final DateTime endedAt;
   final int durationSeconds;
@@ -118,6 +119,17 @@ class FocusSessionRecord {
   final int manualBypasses;
   final bool completed;
   final int clarityScore;
+  final String? backendSessionId;
+  FocusSessionRecord withBackendId(String backendId) => FocusSessionRecord(
+      id: id,
+      endedAt: endedAt,
+      durationSeconds: durationSeconds,
+      attempts: attempts,
+      shieldCompleted: shieldCompleted,
+      manualBypasses: manualBypasses,
+      completed: completed,
+      clarityScore: clarityScore,
+      backendSessionId: backendId);
   Map<String, Object> toJson() => {
         'id': id,
         'endedAt': endedAt.toIso8601String(),
@@ -127,6 +139,7 @@ class FocusSessionRecord {
         'manualBypasses': manualBypasses,
         'completed': completed,
         'clarityScore': clarityScore,
+        if (backendSessionId != null) 'backendSessionId': backendSessionId!,
       };
   factory FocusSessionRecord.fromJson(Map<String, dynamic> json) =>
       FocusSessionRecord(
@@ -137,7 +150,8 @@ class FocusSessionRecord {
           shieldCompleted: json['shieldCompleted'] as bool,
           manualBypasses: json['manualBypasses'] as int,
           completed: json['completed'] as bool,
-          clarityScore: json['clarityScore'] as int);
+          clarityScore: json['clarityScore'] as int,
+          backendSessionId: json['backendSessionId'] as String?);
 }
 
 Set<FocusBadge> earnedBadges(

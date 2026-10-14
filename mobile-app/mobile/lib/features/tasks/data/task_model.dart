@@ -7,6 +7,8 @@ class Task {
     required this.version,
     this.dueDate,
     this.dueTime,
+    this.recurringTaskId,
+    this.completedAt,
   });
 
   final String id;
@@ -16,6 +18,8 @@ class Task {
   final int version;
   final String? dueDate;
   final String? dueTime;
+  final String? recurringTaskId;
+  final DateTime? completedAt;
 
   bool get isDone => status == 'done';
 
@@ -26,6 +30,10 @@ class Task {
         priority: _string(json, 'priority'),
         version: _int(json, 'version'),
         dueDate: json['dueDate'] is String ? json['dueDate'] as String : null,
+        recurringTaskId: json['recurringTaskId'] as String?,
+        completedAt: json['completedAt'] is String
+            ? DateTime.parse(json['completedAt'] as String)
+            : null,
         dueTime: json['dueTime'] is String ? json['dueTime'] as String : null,
       );
 }

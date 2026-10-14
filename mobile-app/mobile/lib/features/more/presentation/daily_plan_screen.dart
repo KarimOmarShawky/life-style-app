@@ -1,3 +1,5 @@
+import 'package:lifestyle_mobile/features/focus_shield/routine_wizard_screen.dart';
+import 'package:lifestyle_mobile/features/focus_shield/weekly_review_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/more/data/daily_plan_models.dart';
@@ -87,6 +89,18 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> {
       appBar: AppBar(
         title: Text(isAr ? 'خطة اليوم والملخص' : 'Daily Plan & Overview'),
         actions: [
+          IconButton(
+              tooltip: 'Daily routines',
+              icon: const Icon(Icons.wb_twilight),
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const RoutineWizardScreen()))),
+          IconButton(
+              tooltip: 'Weekly Brain Report',
+              icon: const Icon(Icons.insights),
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const WeeklyReviewScreen()))),
           IconButton(
             tooltip: l10n.jumpToDate,
             icon: const Icon(Icons.calendar_today_outlined),

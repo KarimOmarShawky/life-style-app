@@ -103,6 +103,9 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     });
     _enqueueSync(() async {
       _runningSessionId = await _openSession(taskId);
+      if (_runningSessionId != null) {
+        await _focusController.attachBackendSession(id, _runningSessionId!);
+      }
     });
   }
 

@@ -1,3 +1,5 @@
+import 'package:lifestyle_mobile/features/focus_shield/routine_wizard_screen.dart';
+import 'package:lifestyle_mobile/features/focus_shield/weekly_review_screen.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +21,16 @@ class MoreScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final isAr = l10n.isArabic;
     final items = <_MoreItem>[
+      _MoreItem(
+          icon: Icons.wb_twilight,
+          title: 'Daily routines',
+          subtitle: 'Morning Kickoff & Night Shutdown',
+          builder: (_) => const RoutineWizardScreen()),
+      _MoreItem(
+          icon: Icons.insights,
+          title: 'Weekly Brain Report',
+          subtitle: 'Private metrics and optional AI coaching',
+          builder: (_) => const WeeklyReviewScreen()),
       _MoreItem(
           icon: Icons.shield_outlined,
           title: 'Focus Shield',

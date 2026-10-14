@@ -1,3 +1,4 @@
+import 'weekly_review_screen.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -194,7 +195,13 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
       }
     });
     return Scaffold(
-      appBar: AppBar(title: const Text('Focus Shield')),
+      appBar: AppBar(title: const Text('Focus Shield'), actions: [
+        IconButton(
+            tooltip: 'Weekly Brain Report',
+            icon: const Icon(Icons.insights),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const WeeklyReviewScreen())))
+      ]),
       body: Column(children: [
         // Safety exit is outside async loading/error branches and never hidden.
         Padding(

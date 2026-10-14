@@ -9,6 +9,7 @@ Future<List<Map<String, dynamic>>> fetchAllPages(
   String path, {
   Map<String, String>? query,
   int maxPages = 10,
+  bool requireComplete = false,
 }) async {
   final items = <Map<String, dynamic>>[];
   String? cursor;
@@ -27,6 +28,10 @@ Future<List<Map<String, dynamic>>> fetchAllPages(
     final next = meta is Map<String, dynamic> ? meta['nextCursor'] : null;
     if (next is! String || next.isEmpty) break;
     cursor = next;
+    if (requireComplete && page == maxPages - 1) {
+      throw StateError(
+          'The result exceeds the safe pagination limit. Narrow the date range.');
+    }
   }
   return items;
 }

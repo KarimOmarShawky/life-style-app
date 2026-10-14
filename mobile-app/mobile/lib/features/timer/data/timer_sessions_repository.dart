@@ -49,6 +49,17 @@ class TimerSessionsRepository {
     return items.map(TimerSession.fromJson).toList(growable: false);
   }
 
+  Future<List<TimerSession>> listWindow(DateTime from, DateTime to) async {
+    final items = await fetchAllPages(_api, 'timer-sessions',
+        maxPages: 30,
+        requireComplete: true,
+        query: {
+          'from': from.toUtc().toIso8601String(),
+          'to': to.toUtc().toIso8601String()
+        });
+    return items.map(TimerSession.fromJson).toList(growable: false);
+  }
+
   Future<void> deleteSession(String sessionId) async {
     await _api.delete('timer-sessions/$sessionId');
   }

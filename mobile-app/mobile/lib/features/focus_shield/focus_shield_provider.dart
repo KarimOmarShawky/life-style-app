@@ -68,6 +68,7 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
   Future<void> _queue = Future<void>.value();
   String? _timerId;
   String? _taskId;
+  String? _backendSessionId;
   String? _morningDate;
   DateTime? _startedAt;
   int _plannedSeconds = 0;
@@ -106,6 +107,7 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
       if (pending is Map<String, dynamic>) {
         _timerId = pending['id'] as String;
         _taskId = pending['taskId'] as String?;
+        _backendSessionId = pending['backendSessionId'] as String?;
         _morningDate = pending['morningDate'] as String?;
         _startedAt = DateTime.parse(pending['startedAt'] as String);
         _plannedSeconds = pending['seconds'] as int;
@@ -173,6 +175,7 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
             'pending': {
               'id': _timerId,
               'taskId': _taskId,
+              'backendSessionId': _backendSessionId,
               'morningDate': _morningDate,
               'startedAt': _startedAt!.toIso8601String(),
               'seconds': _plannedSeconds,
@@ -245,6 +248,7 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
           await _finish(completed: false);
         }
         _timerId = id;
+        _backendSessionId = null;
         _taskId = taskId;
         _morningDate = morningDate;
         _startedAt = DateTime.now();
@@ -279,6 +283,18 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
         }
         _armCompletion(seconds);
       });
+  Future<void> attachBackendSession(String localId, String backendId) =>
+      _mutate(() async {
+        final data = state.requireValue;
+        if (_timerId == localId) {
+          _backendSessionId = backendId;
+        }
+        await _save(data.copyWith(history: [
+          for (final session in data.history)
+            session.id == localId ? session.withBackendId(backendId) : session
+        ]));
+      });
+
   void _armCompletion(int seconds) {
     _completion?.cancel();
     _completion = Timer(Duration(seconds: seconds < 0 ? 0 : seconds), () {
@@ -314,6 +330,7 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
             ? _plannedSeconds
             : DateTime.now().difference(started).inSeconds,
         attempts: native.blockedAttemptsCount,
+        backendSessionId: _backendSessionId,
         shieldCompleted: shieldCompleted,
         manualBypasses: _manualBypasses,
         completed: completed,

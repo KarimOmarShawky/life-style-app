@@ -26,3 +26,14 @@ final subscriptionsProvider = FutureProvider.autoDispose<List<Subscription>>((
   if (currentUserId == null) return const [];
   return ref.watch(moneyRepositoryProvider).listSubscriptions();
 });
+
+final moneyControllerProvider = Provider<MoneyController>(
+    (ref) => MoneyController(ref.watch(moneyRepositoryProvider)));
+
+class MoneyController {
+  const MoneyController(this._repository);
+  final MoneyRepository _repository;
+  Future<WeeklySpending> weeklySpending(
+          String from, String to, String currency) =>
+      _repository.weeklySpending(from, to, currency);
+}

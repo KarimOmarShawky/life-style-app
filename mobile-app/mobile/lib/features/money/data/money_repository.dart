@@ -7,6 +7,19 @@ class MoneyRepository {
 
   final ApiClient _api;
 
+  Future<WeeklySpending> weeklySpending(
+      String from, String to, String currency) async {
+    final response = await _api.get('money/reports/summary',
+        query: {'from': from, 'to': to, 'currency': currency});
+    if (response is! Map<String, dynamic> ||
+        response['totals'] is! Map<String, dynamic>) {
+      throw const FormatException('Invalid money summary');
+    }
+    final totals = response['totals'] as Map<String, dynamic>;
+    return WeeklySpending(
+        response['currency'] as String, -double.parse(totals['net'] as String));
+  }
+
   Future<List<Budget>> listBudgets() async {
     final response = await _api.get('money/budgets');
     if (response is! Map<String, dynamic> ||
@@ -108,4 +121,10 @@ class MoneyRepository {
       },
     );
   }
+}
+
+class WeeklySpending {
+  const WeeklySpending(this.currency, this.netSpending);
+  final String currency;
+  final double netSpending;
 }

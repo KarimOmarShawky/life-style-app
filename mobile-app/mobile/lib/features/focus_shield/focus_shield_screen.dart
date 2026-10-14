@@ -82,7 +82,7 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
               builder: (context) => AlertDialog(
                     title: const Text('Enable Focus Shield?'),
                     content: const Text(
-                        'LifeStyle can return you from selected apps during focus and read message notifications into a temporary inbox. Messages stay in memory, are never sent to AI, and are cleared when the session ends. You can end the shield at any time. Android permissions are optional and can be revoked in Settings.'),
+                        'LifeStyle can return you from selected apps during focus and read message notifications from supported messaging apps into a temporary inbox. Messages stay in memory, are never sent to AI, and are cleared when the session ends. You can end the shield at any time. Android permissions are optional and can be revoked in Settings.'),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(context, false),
@@ -234,6 +234,21 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
             for (final message in data.inbox.values) {
               _messages[message.key] = message;
               _drafts.putIfAbsent(message.key, TextEditingController.new);
+            }
+            for (final key in _messages.keys.toList()) {
+              if (!data.inbox.containsKey(key)) {
+                final old = _messages[key]!;
+                if (_drafts[key]?.text.isNotEmpty ?? false) {
+                  _messages[key] = FocusInboxMessage(
+                      key: key,
+                      packageName: old.packageName,
+                      sender: '',
+                      text: 'Notification removed or stale');
+                } else {
+                  _messages.remove(key);
+                  _drafts.remove(key)?.dispose();
+                }
+              }
             }
             final visibleMessages = _messages.values.where((m) =>
                 data.inbox.containsKey(m.key) ||

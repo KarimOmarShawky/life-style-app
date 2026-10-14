@@ -92,6 +92,11 @@
             </intent-filter>
         </receiver>
 
+        <service android:name=".FocusNotificationListenerService"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true" android:label="Focus Inbox">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
         <service android:name=".FocusShieldAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true" android:label="Focus Shield">

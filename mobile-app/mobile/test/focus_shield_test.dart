@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -215,5 +217,87 @@ void main() {
     expect(data.history.single.completed, isFalse);
     expect(data.history.single.attempts, 0);
     expect(data.ledger.totalXp, 0);
+  });
+  testWidgets(
+      'failed and removed replies retain draft; copy/open grants only a temporary pass',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final fake = FakeFocusShieldPlatform()..replyResult = ReplyResult.stale;
+    final container = ProviderContainer(overrides: [
+      focusAccountIdProvider.overrideWithValue('reply-widget'),
+      focusShieldPlatformProvider.overrideWithValue(fake),
+    ]);
+    String? copied;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied = (call.arguments as Map<Object?, Object?>)['text'] as String;
+      }
+      return null;
+    });
+    try {
+      await container.read(focusShieldProvider.future);
+      final controller = container.read(focusShieldProvider.notifier);
+      await controller.setEnabled(true);
+      await controller.beginTimer(
+          id: 'reply-session', taskTitle: 'Study', seconds: 1500);
+      await tester.pumpWidget(UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: FocusShieldScreen())));
+      await tester.pumpAndSettle();
+      fake.controller.add({
+        'schemaVersion': 1,
+        'type': 'inbox',
+        'sessionId': 'reply-session',
+        'key': 'message',
+        'packageName': 'com.whatsapp',
+        'sender': 'private sender',
+        'text': 'private body'
+      });
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Send reply'), 250,
+          scrollable: find.byType(Scrollable).first);
+      await tester.enterText(find.byType(TextField).first, 'preserved draft');
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Send reply'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Send reply'));
+      await tester.pumpAndSettle();
+      expect(fake.calls, contains('sendReply'));
+      expect(find.text('preserved draft'), findsOneWidget);
+      await tester.ensureVisible(find.text('Copy & open app for 60s'));
+      await tester.tap(find.text('Copy & open app for 60s'));
+      await tester.pumpAndSettle();
+      expect(copied, 'preserved draft');
+      expect(fake.calls, contains('grantTemporaryBypass'));
+      expect(fake.shield.manualBypassesCount, 1);
+      fake.controller.add({
+        'schemaVersion': 1,
+        'type': 'removed',
+        'sessionId': 'reply-session',
+        'key': 'message'
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('private body'), findsNothing);
+      expect(find.text('preserved draft'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('focus_suite.v1.reply-widget')!;
+      for (final secret in [
+        'private sender',
+        'private body',
+        'preserved draft'
+      ]) {
+        expect(saved, isNot(contains(secret)));
+      }
+      await controller.finishTimer(completed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('preserved draft'), findsNothing);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      container.dispose();
+      await fake.dispose();
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    }
   });
 }

@@ -183,6 +183,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Flutter static analysis
+        if: ${{ !cancelled() }}
         run: |
           flutter analyze --fatal-infos > analyze.log 2>&1 || {
             echo '### failure log: analyze.log' >> "$GITHUB_STEP_SUMMARY"
@@ -194,12 +195,14 @@ jobs:
           }
 
       - name: Flutter tests
+        if: ${{ !cancelled() }}
         run: |
           flutter test --coverage > flutter-test.log 2>&1 || {
             echo '### failure log: flutter-test.log' >> "$GITHUB_STEP_SUMMARY"
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 80 flutter-test.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python3 -c 'import re; s=open("flutter-test.log").read(); m=re.search(r"The following .*? was thrown",s); t=s[m.start():m.start()+3500] if m else s[-3500:]; print("::error title=Flutter test context::"+t.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
             grep -E "FAILED|Error|Exception|Expected" flutter-test.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
             exit 1
           }

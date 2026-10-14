@@ -114,6 +114,12 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
         _manualBypasses = pending['bypasses'] as int;
       }
     }
+    try {
+      data = data.copyWith(
+          shield: await ref.read(focusShieldPlatformProvider).getShieldState());
+    } catch (_) {
+      /* Other productivity features work without Android services. */
+    }
     final buffered = <Map<String, dynamic>>[];
     var ready = false;
     final subscription =
@@ -427,6 +433,11 @@ class FocusShieldController extends AsyncNotifier<FocusData> {
   void _onEvent(Map<String, dynamic> event) {
     final data = state.asData?.value;
     if (data == null) return;
+    if (event['sessionId'] != null &&
+        data.shield.sessionId.isNotEmpty &&
+        event['sessionId'] != data.shield.sessionId) {
+      return;
+    }
     if (event['type'] == 'intercept') {
       state = AsyncData(data.copyWith(
           lastInterceptPackage: event['packageName'] as String,

@@ -57,6 +57,14 @@ class FakeFocusShieldPlatform extends FocusShieldPlatform {
           sessionId: arguments['sessionId'] as String,
           taskTitle: arguments['taskTitle'] as String,
           endTimestampMs: arguments['endTimestampMs'] as int);
+    } else if (method == 'grantTemporaryBypass') {
+      shield = ShieldState(
+          active: shield.active,
+          sessionId: shield.sessionId,
+          taskTitle: shield.taskTitle,
+          endTimestampMs: shield.endTimestampMs,
+          blockedAttemptsCount: shield.blockedAttemptsCount,
+          manualBypassesCount: shield.manualBypassesCount + 1);
     } else if (method == 'stopShield') {
       shield = ShieldState(
           sessionId: shield.sessionId,

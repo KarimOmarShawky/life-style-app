@@ -79,7 +79,8 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                         result.success(ok() + ("apps" to apps))
                     }
                     // Phase 3/5 register these implementations without changing the contract.
-                    "sendReply" -> result.success(ok() + ("result" to "noReplyAction"))
+                    "sendReply" -> result.success(ok() + ("result" to FocusNotificationListenerService.sendInlineReply(
+                        activity, call.argument<String>("key") ?: "", call.argument<String>("text") ?: "").name))
                     "updateHomeWidget" -> result.success(ok())
                     else -> result.notImplemented()
                 }

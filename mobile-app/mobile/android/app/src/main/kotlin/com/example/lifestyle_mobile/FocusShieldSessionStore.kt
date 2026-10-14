@@ -77,9 +77,11 @@ class FocusShieldSessionStore(context: Context) {
     }
     fun grantTemporaryBypass(packageName: String) = synchronized(lock) {
         check(current().active) { "No active session" }
+        val until = System.currentTimeMillis() + 60000
         prefs.edit().putString("tempBypassPackage", packageName)
-            .putLong("tempBypassUntilMs", System.currentTimeMillis() + 60000)
+            .putLong("tempBypassUntilMs", until)
             .putInt("manualBypassesCount", prefs.getInt("manualBypassesCount", 0) + 1).commit()
+        FocusShieldAccessibilityService.scheduleBypassRecheck(packageName, until)
     }
     private fun safePackages(): Set<String> {
         val packages = ShieldDecisionEngine.SAFE_PACKAGES.toMutableSet()

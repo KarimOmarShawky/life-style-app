@@ -145,7 +145,7 @@ paths:
   /auth/forgot-password:
     post:
       summary: Request Password Reset OTP
-      description: Sends an OTP to the user email if registered. Response timing is equalized.
+      description: Accepts a bounded volatile background request before account lookup. Does not guarantee email delivery or durability across process termination. Registered, unknown, disabled and cooldown requests share admission; aggregate resource contention is not constant-time.
       requestBody:
         required: true
         content:
@@ -159,8 +159,10 @@ paths:
               required:
                 - email
       responses:
-        '200':
-          description: If the email is registered, a reset code was sent.
+        '202':
+          description: Request accepted for best-effort background processing; empty object, no delivery assertion.
+        '503':
+          description: Global admission capacity exhausted or server draining; no request was accepted.
   /auth/reset-password:
     post:
       summary: Reset Password with OTP
@@ -257,26 +259,116 @@ paths:
       summary: Schedule Account Deletion
       security:
         - BearerAuth: []
-      description: Schedules account deletion with a 30-day grace period.
+      description: Schedules account deletion with a 14-day grace period.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [currentPassword]
+              properties:
+                currentPassword: { type: string, minLength: 1, maxLength: 1024, writeOnly: true }
       responses:
         '200':
           description: Account deletion scheduled
+        '400':
+          description: Missing or invalid current-password proof
+        '403':
+          description: Current-password verification failed
+        '429':
+          description: Shared sensitive-action attempt budget exhausted
+        '503':
+          description: Security rate-limit backend unavailable; action not performed
     delete:
       summary: Cancel Account Deletion
       security:
         - BearerAuth: []
-      description: Cancels scheduled account deletion within the 30-day grace window.
+      description: Cancels scheduled account deletion within the 14-day grace window.
       responses:
         '200':
           description: Deletion cancelled
   /users/me/export:
     post:
-      summary: Export User Data (GDPR)
+      summary: Export Account Metadata
       security:
         - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [currentPassword]
+              properties:
+                currentPassword: { type: string, minLength: 1, maxLength: 1024, writeOnly: true }
       responses:
         '200':
-          description: Complete user data dump
+          description: Account profile, sessions, categories and push-device metadata only; not a complete data portability archive. Each list is capped at 1000 rows and overflow returns 413, never silent truncation
+        '400':
+          description: Missing or invalid current-password proof
+        '403':
+          description: Current-password verification failed
+        '413':
+          description: Metadata list exceeds 1000 rows; use the domain archive endpoint
+        '429':
+          description: Shared sensitive-action attempt budget exhausted
+        '503':
+          description: Security rate-limit backend unavailable; action not performed
+
+  /users/me/export/archive:
+    post:
+      summary: Stream a versioned account domain archive
+      description: >-
+        Additive NDJSON attachment with a read-only repeatable-read snapshot of 21
+        explicitly projected profile/domain/metadata sections, including soft-deleted rows.
+        Secrets, audit/infrastructure data and device-only data are excluded in its manifest.
+        Decimal numeric values are strings. Clients must verify the final complete record,
+        byte count, section counts and SHA-256 over all preceding UTF-8 lines; a partial
+        stream is not a successful archive. Maximum 128 MiB, 512 KiB per projected row,
+        60 seconds, two concurrent database archive readers per API process and one per user per process.
+        No background job or archive retention is created. Existing JSON metadata export
+        is unchanged. See docs/api/account-archive.md; Android save integration is authored but Flutter/bridge/provider/device execution remains unverified.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [currentPassword]
+              properties:
+                currentPassword: { type: string, minLength: 1, maxLength: 1024, writeOnly: true }
+      responses:
+        '200':
+          description: NDJSON manifest/record lines followed by a verified completion footer; errors after headers terminate the stream without a completion record
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: Fixed NDJSON attachment filename
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/x-ndjson:
+              schema: { type: string }
+        '400':
+          description: Missing or invalid strict current-password body
+        '401':
+          description: Authentication required
+        '403':
+          description: Account disabled or current-password verification failed
+        '404':
+          description: Account absent from the export snapshot
+        '413':
+          description: Export limits exceeded before headers; after headers the stream aborts without a completion footer
+        '429':
+          description: Shared sensitive-action budget or archive capacity exceeded
+        '503':
+          description: Security limiter, database or export deadline unavailable before headers; mid-stream failures abort
 
   # Phase P4: Tasks Endpoints
   /tasks:
@@ -4302,7 +4394,8 @@ components:
             properties:
               id: { type: string, format: uuid }
               name: { type: string }
-              amountMinor: { type: integer }
+              amountMinor: { type: string, pattern: '^-?[0-9]+$' }
+              currencyExponent: { type: integer }
               currency: { type: string }
               billingUnit: { type: string }
               nextBillingDate: { type: string }
@@ -4347,7 +4440,7 @@ components:
             count: { type: integer }
             totalMinorByCurrency:
               type: object
-              additionalProperties: { type: integer }
+              additionalProperties: { type: string }
         activeSubscriptions: { type: integer }
         activeTimer:
           type: object

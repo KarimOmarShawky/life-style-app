@@ -67,6 +67,7 @@ describe('IngestService.analyzeCandidate', () => {
 
     expect(calls).toHaveLength(1);
     const seen = calls[0];
+    if (!seen) throw new Error('Expected sanitized analyzer input');
     expect(seen.text).not.toContain('918273');
     expect(seen.text).not.toContain('100 000 0000');
     expect(seen.text).not.toContain('08/10/2026');

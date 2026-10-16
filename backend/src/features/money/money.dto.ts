@@ -20,6 +20,8 @@ import type {
 import { calculateMonthlyEquivalent, calculateDaysUntilNextBilling } from './money.cycle.js';
 
 export const CURRENCY_EXPONENTS: Record<string, number> = {
+  CLF: 4,
+  UYW: 4,
   BIF: 0,
   CLP: 0,
   DJF: 0,

@@ -9,3 +9,6 @@ android/.gradle/
 android/local.properties
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
+
+# Flutter tooling regenerates this after dependency resolution.
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java

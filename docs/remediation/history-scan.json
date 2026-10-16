@@ -1,0 +1,312 @@
+{
+  "result": "FAIL",
+  "scan_head": "4d698901164d5306055d3f33a32a864b74e49209",
+  "local_reachable_commits": 112,
+  "is_shallow_repository": false,
+  "provenance_report": "docs/remediation/history-provenance.json",
+  "unique_utf8_blobs_scanned": 1377,
+  "metadata_only_findings": [
+    {
+      "blob": "bbe414f1a0714a534d618337f022009e37f4b560",
+      "path": ".env.example",
+      "line": 16,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "bbe414f1a0714a534d618337f022009e37f4b560",
+      "path": ".env.example",
+      "line": 19,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "bbe414f1a0714a534d618337f022009e37f4b560",
+      "path": ".env.example",
+      "line": 22,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "b1c6093d9a7c6f4dc3d1029fd8a260025bb3f381",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "b1c6093d9a7c6f4dc3d1029fd8a260025bb3f381",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "54b7488404138d61c1fccf74d28ca0e5550f46eb",
+      "path": "backend/tests/setup.ts",
+      "line": 9,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "ee9fe059b092aa7041396d42b9f5211cb52cb5fe",
+      "path": "docker-compose.yml",
+      "line": 69,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "ee9fe059b092aa7041396d42b9f5211cb52cb5fe",
+      "path": "docker-compose.yml",
+      "line": 95,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "ee9fe059b092aa7041396d42b9f5211cb52cb5fe",
+      "path": "docker-compose.yml",
+      "line": 96,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "995cb541ef2ab3e5ccfcbb2e1c70d5230388789c",
+      "path": "scripts/ensure-env.sh",
+      "line": 36,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "e0ce4f0eca4db07f744a2c2a243d9368a272c17e",
+      "path": "scripts/verify-ci.sh",
+      "line": 25,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "960c46df385e6362ec78682ae973310a40e8abe5",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "960c46df385e6362ec78682ae973310a40e8abe5",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "78b91864422e2e767fb907f36bf28f50eb835862",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "78b91864422e2e767fb907f36bf28f50eb835862",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "aa5d3ca38ee6aaab45c21f4f95a0f1748d562399",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "aa5d3ca38ee6aaab45c21f4f95a0f1748d562399",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "38033b0f9cee8909f54f51db6d4a633db576432f",
+      "path": ".env.example",
+      "line": 16,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "38033b0f9cee8909f54f51db6d4a633db576432f",
+      "path": ".env.example",
+      "line": 19,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "38033b0f9cee8909f54f51db6d4a633db576432f",
+      "path": ".env.example",
+      "line": 22,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "850a3455926c30edce5500c998a9780c7b548ff7",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "850a3455926c30edce5500c998a9780c7b548ff7",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "aa20e0ee3a9b76bed9584e90447a480f601d40ad",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "aa20e0ee3a9b76bed9584e90447a480f601d40ad",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "1c81343c8f5a35a906b1294ca43041bd836f23f3",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "1c81343c8f5a35a906b1294ca43041bd836f23f3",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "20b67c12a65dd69ee03736d0ba86e2fb2e4f75c8",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "20b67c12a65dd69ee03736d0ba86e2fb2e4f75c8",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "d097aa32dc4c5956e6d8e1989bb1413caf16bfb8",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "d097aa32dc4c5956e6d8e1989bb1413caf16bfb8",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "df57db97c4a2a3978ca87c01f700e7a3f32fbb6e",
+      "path": ".github/workflows/ci.yml",
+      "line": 83,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "df57db97c4a2a3978ca87c01f700e7a3f32fbb6e",
+      "path": ".github/workflows/ci.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "f204dee36cd0d539acfb63a03b0be064d20443f6",
+      "path": ".github/workflows/ci.yml",
+      "line": 80,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "f204dee36cd0d539acfb63a03b0be064d20443f6",
+      "path": ".github/workflows/ci.yml",
+      "line": 91,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "638a8694232540869478fca609a3a393b8fc8428",
+      "path": "docker/docker-compose.yml",
+      "line": 69,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "638a8694232540869478fca609a3a393b8fc8428",
+      "path": "docker/docker-compose.yml",
+      "line": 94,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    },
+    {
+      "blob": "638a8694232540869478fca609a3a393b8fc8428",
+      "path": "docker/docker-compose.yml",
+      "line": 95,
+      "rule": "@secretlint/secretlint-rule-database-connection-string",
+      "review": "Separate provenance review required; see history-provenance.json; no value emitted"
+    }
+  ],
+  "skipped": [
+    {
+      "blob": "db77bb4b7b0906d62b1847e87f15cdcacf6a4f29",
+      "path": "mobile-app/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "reason": "binary/NUL"
+    },
+    {
+      "blob": "17987b79bb8a35cc66c3c1fd44f5a5526c1b78be",
+      "path": "mobile-app/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "reason": "binary/NUL"
+    },
+    {
+      "blob": "09d4391482be68e9e4a07fab769b5de337d16eb1",
+      "path": "mobile-app/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "reason": "binary/NUL"
+    },
+    {
+      "blob": "d5f1c8d34e7a88e3f88bea192c3a370d44689c3c",
+      "path": "mobile-app/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "reason": "binary/NUL"
+    },
+    {
+      "blob": "4d6372eebdb28e45604e46eeda8dd24651419bc0",
+      "path": "mobile-app/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "reason": "binary/NUL"
+    },
+    {
+      "blob": "13372aef5e24af05341d49695ee84e5f9b594659",
+      "path": "mobile-app/mobile/android/gradle/wrapper/gradle-wrapper.jar",
+      "reason": "binary/NUL"
+    },
+    {
+      "blob": "55c4c9633d7ecd385ed374ea5304d4b29a12c602",
+      "path": "mobile-app/mobile/android/app/release.keystore",
+      "reason": "binary/NUL"
+    },
+    {
+      "blob": "ad63b8bdf196b6140830f66eff8e1c3ba419dee2",
+      "path": "lifestyle-app-p2.zip",
+      "reason": "binary/NUL"
+    }
+  ],
+  "scope": "Locally reachable Git refs only; unique UTF-8 blobs <=2 MiB; batches separated by blank lines. Binary/large/unfetched/unreachable/image/private-runtime contents not certified. Matches require review, not proof of live credential reuse."
+}

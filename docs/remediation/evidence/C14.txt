@@ -1,0 +1,6 @@
+$ /home/user/.venv/bin/python scripts/package-remediation.py --output /home/user
+Exit: 0 (completion asserted by command)
+Source packaging gate: executed private-path rejection/template-acceptance fixtures, ZIP inventory/CRC and SHA-256 round trip.
+Base: 47cf1fd09540e7bcc8b291d6d9a1559cf0c5f855
+Patch set only; 4 explicit reviewed deletions.
+PDF text extraction, 57 finding IDs, three deliverables and manifest coverage are asserted by the packaging command.

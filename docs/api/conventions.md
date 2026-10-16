@@ -11,35 +11,19 @@
 
 ---
 
-## 2. Uniform Response Envelopes
+## 2. Response contracts
 
-### Success Envelope (Single Entity)
-```json
-{
-  "success": true,
-  "data": {
-    "id": "e604f2f4-7f28-44fa-8c54-7a91176b5093",
-    "title": "Complete P1 Foundation",
-    "isCompleted": false
-  }
-}
-```
-
-### Success Envelope (Paginated Collection)
-```json
-{
-  "success": true,
-  "data": [
-    { "id": "uuid-1", "title": "First task" },
-    { "id": "uuid-2", "title": "Second task" }
-  ],
-  "meta": {
-    "limit": 25,
-    "hasMore": false,
-    "nextCursor": null
-  }
-}
-```
+Existing v1 contracts are preserved (no blanket wrapper migration):
+- Single resources use named raw DTOs, e.g. `{ "task": { "id": "uuid" } }`.
+- Dashboard: `GET /api/v1/dashboard/overview` returns `{ "overview": { ... } }`.
+- Day plan: `GET /api/v1/days/today` and `/days/{date}` return `{ "day": { ... } }`.
+- Lists use `{ "data": [...], "meta": { "limit": 25, "hasMore": false, "nextCursor": null } }`.
+- Some actions return status DTOs or 204 (no JSON). Refer to OpenAPI per operation.
+- Success responses do not acquire `success: true`. The optional helper in
+  `core/http/envelope.ts` does not describe all controller success responses.
+- Monetary dashboard/day minor units are integer **strings**, never JSON numbers;
+  day subscriptions include `currencyExponent`. Round HALF_UP per currency at
+  display conversion, preserving historical ledger values. JPY=0, USD=2, KWD=3.
 
 ### Error Envelope
 ```json
@@ -62,3 +46,26 @@
 
 * `details` is present only for `VALIDATION_ERROR` responses.
 * Error responses NEVER contain stack traces, database column names, raw SQL, or server file paths.
+
+## Sensitive user actions
+Account export and deletion scheduling require a current-password JSON proof and
+are additionally limited to five attempts per 15 minutes per authenticated user,
+shared across metadata export, domain archive and deletion. Missing proof is 400; wrong proof is
+403 REAUTHENTICATION_FAILED; exceeding the budget is 429. Clients must be updated
+with the server, not given a passwordless compatibility bypass. See
+`docs/remediation/sensitive-actions.md`. The deletion grace period is 14 days.
+
+Sensitive export/deletion fail with 503 SERVICE_UNAVAILABLE if the rate-limit
+backend is unavailable (before proof verification/action). Quota exhaustion remains
+429. User responses carry Cache-Control: no-store; this is not retroactive erasure
+of prior caches. General endpoint outage policy is unchanged.
+
+
+### Additive NDJSON domain archive
+`POST /users/me/export/archive` shares the same proof/security controls but returns
+an attachment, not the ordinary JSON success envelope. Verify its versioned manifest,
+counts, exact UTF-8 byte count/hash and mandatory final completion footer; an early
+HTTP 200 or EOF is not success. Mid-stream errors terminate without a footer/error
+envelope. The legacy metadata route keeps its shape with an explicit 1000-row list
+limit/413 overflow. See `account-archive.md`; mobile secure-file integration and
+actual PostgreSQL/proxy behavior remain separate incomplete/unverified work.

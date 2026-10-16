@@ -113,6 +113,45 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
   );
 
   // Mount Tasks routes
+  // Mount Unified Reminders routes (Section 14.13, FR-REM-01..06): reminders on
+  // tasks, habits, and subscriptions (events keep the calendar routes), plus the
+  // unified listing across all parent types.
+  v1Router.use(
+    '/reminders',
+    createUnifiedRemindersRouter({
+      service: container.remindersService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  v1Router.use(
+    '/tasks/:id/reminders',
+    createEntityRemindersRouter({
+      parentKind: 'task',
+      service: container.remindersService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  v1Router.use(
+    '/habits/:id/reminders',
+    createEntityRemindersRouter({
+      parentKind: 'habit',
+      service: container.remindersService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  v1Router.use(
+    '/subscriptions/:id/reminders',
+    createEntityRemindersRouter({
+      parentKind: 'subscription',
+      service: container.remindersService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
   v1Router.use(
     '/tasks',
     createTasksRouter({
@@ -236,45 +275,6 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/search',
     createSearchRouter({
       service: container.searchService,
-      authenticate: container.authenticate,
-      rateLimiter: container.rateLimiter
-    })
-  );
-
-  // Mount Unified Reminders routes (Section 14.13, FR-REM-01..06): reminders on
-  // tasks, habits, and subscriptions (events keep the calendar routes), plus the
-  // unified listing across all parent types.
-  v1Router.use(
-    '/reminders',
-    createUnifiedRemindersRouter({
-      service: container.remindersService,
-      authenticate: container.authenticate,
-      rateLimiter: container.rateLimiter
-    })
-  );
-  v1Router.use(
-    '/tasks/:id/reminders',
-    createEntityRemindersRouter({
-      parentKind: 'task',
-      service: container.remindersService,
-      authenticate: container.authenticate,
-      rateLimiter: container.rateLimiter
-    })
-  );
-  v1Router.use(
-    '/habits/:id/reminders',
-    createEntityRemindersRouter({
-      parentKind: 'habit',
-      service: container.remindersService,
-      authenticate: container.authenticate,
-      rateLimiter: container.rateLimiter
-    })
-  );
-  v1Router.use(
-    '/subscriptions/:id/reminders',
-    createEntityRemindersRouter({
-      parentKind: 'subscription',
-      service: container.remindersService,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

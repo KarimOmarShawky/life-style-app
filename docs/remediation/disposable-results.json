@@ -1,0 +1,121 @@
+{
+  "result": "PASS",
+  "checks": [
+    {
+      "name": "Scratch PostgreSQL version",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "psql client version",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Scratch Redis version",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "initdb NEW private owned directory (SCRAM host authentication)",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "OWNERSHIP proof: PostgreSQL data directory and loopback binding",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "OWNERSHIP proof: Redis child PID, dedicated authenticated instance",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Create uniquely named owned disposable database",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Actual psql fresh-role bootstrap script",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Actual psql repeat bootstrap MUST refuse existing roles",
+      "result": "PASS",
+      "exit_code": 3
+    },
+    {
+      "name": "Actual fresh forward migrations (migration identity)",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Migration history before repeat",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Actual repeat forward migrations",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Migration history stable after repeat",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Runtime role least privilege",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Runtime role DDL MUST fail",
+      "result": "PASS",
+      "exit_code": 1
+    },
+    {
+      "name": "Owned populated fixture before repeat",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Actual populated forward repeat (no rollback)",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Populated fixture preserved",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Intentional failed migration MUST rollback (owned temporary migration copy)",
+      "result": "PASS",
+      "exit_code": 1
+    },
+    {
+      "name": "Failed migration leaves no partial table/history",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Failed migration preserves populated fixture",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Actual integration suite on OWNED PostgreSQL/Redis",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "Actual security suite on OWNED PostgreSQL/Redis",
+      "result": "PASS",
+      "exit_code": 0
+    }
+  ],
+  "scope": "Actual owned scratch PostgreSQL/Redis only; no Docker/deployed schema/Flutter/device/SMTP verification"
+}

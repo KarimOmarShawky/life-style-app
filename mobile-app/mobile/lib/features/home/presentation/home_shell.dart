@@ -61,8 +61,21 @@ class _HomeShellState extends ConsumerState<HomeShell>
   }
 
   /// Keeps the token that the SMS receiver uses in step with the SMS capture setting.
-  Future<void> _ensureWalletIngestToken() =>
-      WalletIngestToken(ref.read(apiClientProvider)).ensure();
+  Future<void> _ensureWalletIngestToken() async {
+    try {
+      await WalletIngestToken(ref.read(apiClientProvider)).ensure();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Background wallet sync is unavailable. Check connection and secure storage, then retry.',
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   /// Sends the SMS transactions that were captured while the app was not running,
   /// then retries any fallback candidates the receiver could not deliver (the

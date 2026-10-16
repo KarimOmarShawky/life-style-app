@@ -1,0 +1,5 @@
+$ node scripts/check-forbidden.mjs
+Exit: 0
+🔍 Running ADR-039 Forbidden-Dependency Guard...
+✅ ADR-039 Check PASSED: Zero unauthorized forbidden dependencies detected.
+Local-only focus audio entries permitted; server upload dependencies remain forbidden. Not a runtime no-leak certification.

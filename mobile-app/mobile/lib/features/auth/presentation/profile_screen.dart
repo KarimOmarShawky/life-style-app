@@ -1,12 +1,15 @@
+import 'package:lifestyle_mobile/core/archive/archive_cancellation.dart';
+import 'package:lifestyle_mobile/features/auth/presentation/account_archive_dialog.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/gemini_key_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
+import 'package:lifestyle_mobile/features/auth/presentation/account_export_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -39,6 +42,36 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _hasGeminiKey = false;
   bool _busyAction = false;
+  ArchiveCancellation? _archiveCancel;
+  String? _archiveUserId;
+
+  @override
+  void dispose() {
+    _archiveCancel?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleDomainArchive(BuildContext context, String userId) async {
+    if (_busyAction) return;
+    final cancel = ArchiveCancellation();
+    _archiveCancel = cancel;
+    _archiveUserId = userId;
+    setState(() => _busyAction = true);
+    try {
+      await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AccountArchiveDialog(
+              userId: userId,
+              cancel: cancel,
+              download: ref.read(authRepositoryProvider).streamAccountArchive));
+    } finally {
+      cancel.cancel();
+      _archiveCancel = null;
+      _archiveUserId = null;
+      if (mounted) setState(() => _busyAction = false);
+    }
+  }
 
   @override
   void initState() {
@@ -200,62 +233,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<String?> _requestCurrentPassword(BuildContext context) =>
+      showDialog<String>(
+        context: context,
+        builder: (_) => const CurrentPasswordDialog(),
+      );
+
   Future<void> _handleExportData(BuildContext context) async {
-    final l10n = AppLocalizations.of(context);
-    final isAr = l10n.isArabic;
     final messenger = ScaffoldMessenger.of(context);
+    final currentPassword = await _requestCurrentPassword(context);
+    if (currentPassword == null || !mounted) return;
     setState(() => _busyAction = true);
     try {
       final exportPayload =
-          await ref.read(authProvider.notifier).exportUserData();
+          await ref.read(authProvider.notifier).exportUserData(currentPassword);
       final prettyJson =
           const JsonEncoder.withIndent('  ').convert(exportPayload);
-      await Clipboard.setData(ClipboardData(text: prettyJson));
       if (!context.mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(
-            isAr ? 'تم تصدير بيانات الحساب' : 'Account Data Exported',
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isAr
-                      ? 'تم نسخ نسخة JSON الكاملة لبيانات حسابك إلى الحافظة.'
-                      : 'Your complete account JSON export has been copied to the clipboard.',
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(dialogContext)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    prettyJson.length > 600
-                        ? '${prettyJson.substring(0, 600)}...\n'
-                        : prettyJson,
-                    style:
-                        const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.back),
-            ),
-          ],
-        ),
+        builder: (_) => AccountExportDialog(jsonText: prettyJson),
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -296,10 +293,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
+    final currentPassword = await _requestCurrentPassword(context);
+    if (currentPassword == null || !mounted) return;
     setState(() => _busyAction = true);
     try {
-      await ref.read(authProvider.notifier).scheduleAccountDeletion();
+      await ref
+          .read(authProvider.notifier)
+          .scheduleAccountDeletion(currentPassword);
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -348,6 +349,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final localization = AppLocalizations.of(context);
     final isAr = localization.isArabic;
     final settings = ref.watch(settingsProvider);
+    ref.listen(authProvider, (_, next) {
+      if (_archiveUserId != null && next.valueOrNull?.id != _archiveUserId) {
+        _archiveCancel?.cancel();
+      }
+    });
     final activeUser = ref.watch(authProvider).valueOrNull ?? widget.user;
 
     String themeLabel = localization.themeSystem;
@@ -570,15 +576,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const Divider(height: 24),
           ListTile(
             contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.save_alt),
+            title: Text(localization.archiveTitle),
+            subtitle: Text(localization.archiveSubtitle),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _busyAction
+                ? null
+                : () => _handleDomainArchive(context, activeUser.id),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.download_outlined),
-            title: Text(isAr
-                ? 'تصدير بيانات الحساب (JSON)'
-                : 'Export Account Data (JSON)'),
-            subtitle: Text(
-              isAr
-                  ? 'نسخ أرشيف كامل لجميع بياناتك إلى الحافظة'
-                  : 'Copy a full archive of your account data to clipboard',
-            ),
+            title: Text(localization.accountExportTitle),
+            subtitle: Text(localization.accountExportPreviewSubtitle),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _busyAction ? null : () => _handleExportData(context),
           ),

@@ -1,3 +1,4 @@
+import { streamAccountArchive } from './account-archive.js';
 /**
  * src/features/users/users.repository.pg.ts
  *
@@ -19,6 +20,8 @@ import { AppError } from '../../core/errors/app-error.js';
  * `transactions`, `subscriptions`, and `budgets` which have `ON DELETE RESTRICT`
  * foreign keys to `categories`) are deleted before their parent rows.
  */
+export const LEGACY_METADATA_ROW_LIMIT = 1000;
+
 export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
   'ingest_tokens',
   'push_devices',
@@ -43,6 +46,10 @@ export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
 
 export class PgUsersRepository implements UsersRepository {
   constructor(private readonly pool: pg.Pool) {}
+
+  public streamUserArchive(userId: string, signal: AbortSignal) {
+    return streamAccountArchive(this.pool, userId, signal);
+  }
 
   public async getUserProfile(userId: string): Promise<UserRow | null> {
     const res = await this.pool.query<UserRow>(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [
@@ -310,24 +317,53 @@ export class PgUsersRepository implements UsersRepository {
   }
 
   public async getUserExportData(userId: string): Promise<UserExportData> {
-    const userRes = await this.pool.query<UserRow>(`SELECT * FROM users WHERE id = $1`, [userId]);
-    const user = userRes.rows[0]!;
+    // This legacy endpoint exports account metadata only, not all domain data.
+    // Never fetch authentication hashes just to discard them in serialization.
+    type ExportProfile = Pick<
+      UserRow,
+      | 'id'
+      | 'email'
+      | 'display_name'
+      | 'timezone'
+      | 'locale'
+      | 'week_start'
+      | 'default_currency'
+      | 'status'
+      | 'created_at'
+    >;
+    const userRes = await this.pool.query<ExportProfile>(
+      `SELECT id, email, display_name, timezone, locale, week_start,
+              default_currency, status, created_at FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+    const user = userRes.rows[0];
+    if (!user) throw AppError.notFound('User not found');
 
     const sessionsRes = await this.pool.query(
       `SELECT id, device_platform, device_name, app_version, created_at, last_used_at 
-       FROM auth_sessions WHERE user_id = $1 ORDER BY created_at DESC`,
+       FROM auth_sessions WHERE user_id = $1 ORDER BY created_at DESC, id LIMIT ${LEGACY_METADATA_ROW_LIMIT + 1}`,
       [userId]
     );
 
     const categoriesRes = await this.pool.query(
-      `SELECT id, kind, name, color FROM categories WHERE user_id = $1 ORDER BY created_at ASC`,
+      `SELECT id, kind, name, color FROM categories WHERE user_id = $1 ORDER BY created_at ASC, id LIMIT ${LEGACY_METADATA_ROW_LIMIT + 1}`,
       [userId]
     );
 
     const pushRes = await this.pool.query(
-      `SELECT platform, last_seen_at, created_at FROM push_devices WHERE user_id = $1`,
+      `SELECT platform, last_seen_at, created_at FROM push_devices WHERE user_id = $1 ORDER BY id LIMIT ${LEGACY_METADATA_ROW_LIMIT + 1}`,
       [userId]
     );
+
+    if (
+      [sessionsRes, categoriesRes, pushRes].some(
+        (result) => result.rows.length > LEGACY_METADATA_ROW_LIMIT
+      )
+    ) {
+      throw AppError.payloadTooLarge(
+        'Metadata export exceeds its limit; use the domain archive endpoint'
+      );
+    }
 
     return {
       exportedAt: new Date().toISOString(),

@@ -1,40 +1,74 @@
--- ==============================================================================
--- src/infrastructure/database/postgres/init-roles.sql
--- 
--- Implements Section 6.11: Database Roles (Least Privilege Architecture).
--- 
--- This script must be executed by the postgres superuser during cluster init.
--- ==============================================================================
+-- Fresh local/isolated-CI bootstrap ONLY; not an upgrade or password rotation.
+-- PostgreSQL/psql 16. Credentials must be supplied in the process environment.
+-- No fallback passwords. Existing roles or user objects cause a transaction abort.
+\set ON_ERROR_STOP on
+\getenv app_password LIFESTYLE_APP_PASSWORD
+\getenv migrator_password LIFESTYLE_MIGRATOR_PASSWORD
+\getenv maintenance_password LIFESTYLE_MAINTENANCE_PASSWORD
+\getenv bootstrap_ack LIFESTYLE_FRESH_BOOTSTRAP
 
--- 1. Create Migration Role (DDL Owner)
-DO $$
+-- Fail before interpolating any credential if an environment variable is absent.
+\if :{?app_password}
+\else
+DO $guard$ BEGIN RAISE EXCEPTION 'Required fresh-bootstrap environment is missing'; END; $guard$;
+\endif
+\if :{?migrator_password}
+\else
+DO $guard$ BEGIN RAISE EXCEPTION 'Required fresh-bootstrap environment is missing'; END; $guard$;
+\endif
+\if :{?maintenance_password}
+\else
+DO $guard$ BEGIN RAISE EXCEPTION 'Required fresh-bootstrap environment is missing'; END; $guard$;
+\endif
+\if :{?bootstrap_ack}
+\else
+DO $guard$ BEGIN RAISE EXCEPTION 'Required fresh-bootstrap environment is missing'; END; $guard$;
+\endif
+
+BEGIN;
+-- gset consumes results instead of echoing values to bootstrap logs.
+SELECT set_config('lifestyle.fresh_bootstrap', :'bootstrap_ack', true) AS bootstrap_ack_set,
+       set_config('lifestyle.credentials_present',
+         ((length(:'app_password') > 0) AND (length(:'migrator_password') > 0)
+          AND (length(:'maintenance_password') > 0))::text, true) AS credentials_present_set
+\gset
+
+DO $body$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'lifestyle_migrator') THEN
-    CREATE ROLE lifestyle_migrator WITH LOGIN PASSWORD 'migrator_local_pass';
+  IF current_setting('lifestyle.fresh_bootstrap', true) IS DISTINCT FROM 'fresh-local-or-ci-only'
+     OR current_setting('lifestyle.credentials_present', true) IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'Fresh bootstrap acknowledgement and nonempty credentials are required';
   END IF;
-END $$;
+  IF current_database() <> 'lifestyle_dev' AND current_database() !~ '^lifestyle_test(_[a-z0-9_]+)?$' THEN
+    RAISE EXCEPTION 'Bootstrap is restricted to local development or isolated test database names';
+  END IF;
+  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname IN
+      ('lifestyle_app', 'lifestyle_migrator', 'lifestyle_maintenance')) THEN
+    RAISE EXCEPTION 'Existing application roles found; bootstrap refuses changes or rotation';
+  END IF;
+  IF EXISTS (SELECT FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_namespace n
+      ON d.refclassid = 'pg_catalog.pg_namespace'::regclass AND d.refobjid = n.oid
+      WHERE n.nspname = 'public')
+     OR EXISTS (SELECT FROM pg_catalog.pg_namespace
+      WHERE nspname <> 'public' AND nspname <> 'information_schema' AND nspname !~ '^pg_') THEN
+    RAISE EXCEPTION 'Existing public objects found or non-default schemas present; bootstrap requires a fresh database';
+  END IF;
+END;
+$body$;
 
--- 2. Create Application Runtime Role (DML Only, No DDL)
-DO $$
+CREATE ROLE lifestyle_migrator WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+  PASSWORD :'migrator_password';
+CREATE ROLE lifestyle_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+  PASSWORD :'app_password';
+CREATE ROLE lifestyle_maintenance WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+  PASSWORD :'maintenance_password';
+
+DO $body$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'lifestyle_app') THEN
-    CREATE ROLE lifestyle_app WITH LOGIN PASSWORD 'app_local_pass';
-  END IF;
-END $$;
-
--- 3. Create Maintenance / Purge Role (Dedicated connection for retention deletions)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'lifestyle_maintenance') THEN
-    CREATE ROLE lifestyle_maintenance WITH LOGIN PASSWORD 'maintenance_local_pass';
-  END IF;
-END $$;
-
--- Grant database connection permissions
-GRANT CONNECT, CREATE ON DATABASE lifestyle_dev TO lifestyle_migrator;
-GRANT CONNECT ON DATABASE lifestyle_dev TO lifestyle_app;
-GRANT CONNECT ON DATABASE lifestyle_dev TO lifestyle_maintenance;
-
--- Migrator owns database and schema public
-ALTER DATABASE lifestyle_dev OWNER TO lifestyle_migrator;
+  EXECUTE format('GRANT CONNECT, CREATE ON DATABASE %I TO lifestyle_migrator', current_database());
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO lifestyle_app, lifestyle_maintenance', current_database());
+  EXECUTE format('ALTER DATABASE %I OWNER TO lifestyle_migrator', current_database());
+END;
+$body$;
 ALTER SCHEMA public OWNER TO lifestyle_migrator;
+COMMIT;

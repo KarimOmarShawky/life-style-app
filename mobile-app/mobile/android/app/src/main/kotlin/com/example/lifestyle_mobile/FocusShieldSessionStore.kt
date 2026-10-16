@@ -10,6 +10,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
+import android.provider.Settings
 import android.os.Handler
 import android.os.Looper
 import android.view.inputmethod.InputMethodManager
@@ -22,6 +24,18 @@ class FocusShieldSessionStore(context: Context) {
     private val prefs = this.context.getSharedPreferences("focus_shield_prefs", Context.MODE_PRIVATE)
 
     fun current(now: Long = System.currentTimeMillis()): ShieldSessionState = synchronized(lock) {
+        if (prefs.getBoolean("active", false) && prefs.contains("elapsedEnd")) {
+            val elapsed = SystemClock.elapsedRealtime()
+            val boot = Settings.Global.getInt(context.contentResolver, "boot_count", -1)
+            val expectedWall = prefs.getLong("endTimestampMs", 0) - (prefs.getLong("elapsedEnd", 0) - elapsed)
+            if (boot != prefs.getInt("bootCount", -1) || elapsed < prefs.getLong("elapsedStart", 0)) {
+                stop("reboot")
+            } else if (kotlin.math.abs(now - expectedWall) > 120000) {
+                stop("clock_changed")
+            } else if (elapsed >= prefs.getLong("elapsedEnd", 0)) {
+                stop("expired")
+            }
+        }
         if (prefs.getBoolean("active", false) && now >= prefs.getLong("endTimestampMs", 0)) stop("expired")
         ShieldSessionState(
             active = prefs.getBoolean("active", false), endTimestampMs = prefs.getLong("endTimestampMs", 0),
@@ -30,6 +44,7 @@ class FocusShieldSessionStore(context: Context) {
             tempBypassUntilMs = prefs.getLong("tempBypassUntilMs", 0),
         )
     }
+    fun selectedPackages(): Set<String> = prefs.getStringSet("blockedPackages", emptySet())!!.toSet()
     fun snapshot(): Map<String, Any?> {
         val state = current()
         return mapOf("schemaVersion" to 1, "active" to state.active,
@@ -41,6 +56,9 @@ class FocusShieldSessionStore(context: Context) {
         require(id.isNotBlank() && end > System.currentTimeMillis() && end <= System.currentTimeMillis() + 24 * 60 * 60 * 1000) { "Invalid session duration" }
         check(!current().active) { "A shield session is already active" }
         prefs.edit().putBoolean("active", true).putString("sessionId", id).putString("taskTitle", title.take(300))
+            .putLong("elapsedStart", SystemClock.elapsedRealtime())
+            .putLong("elapsedEnd", SystemClock.elapsedRealtime() + end - System.currentTimeMillis())
+            .putInt("bootCount", Settings.Global.getInt(context.contentResolver, "boot_count", -1))
             .putLong("endTimestampMs", end).putStringSet("blockedPackages", packages.toSet())
             .putStringSet("allowlistedPackages", safePackages()).remove("tempBypassPackage")
             .putLong("tempBypassUntilMs", 0).putInt("blockedAttemptsCount", 0)
@@ -91,7 +109,7 @@ class FocusShieldSessionStore(context: Context) {
             .putInt("manualBypassesCount", prefs.getInt("manualBypassesCount", 0) + 1).commit()
         FocusShieldAccessibilityService.scheduleBypassRecheck(packageName, until)
     }
-    private fun safePackages(): Set<String> {
+    fun safePackages(): Set<String> {
         val packages = ShieldDecisionEngine.SAFE_PACKAGES.toMutableSet()
         packages.add(context.packageName) // Actual applicationId differs from Kotlin namespace.
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)

@@ -1,0 +1,3 @@
+$ node scripts/check-dart-syntax.mjs /home/user/tooling/node_modules/@wasm-fmt/dart_fmt/dart_fmt_node.js
+Exit: 0
+Parsed 39 changed Dart files using WASM dart_style (language 3.5.0). Syntax only; no Flutter analysis or tests.

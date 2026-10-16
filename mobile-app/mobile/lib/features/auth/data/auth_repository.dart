@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/core/archive/archive_cancellation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
@@ -124,9 +125,13 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> exportUserData() async {
-    final response =
-        await _api.post('users/me/export', body: <String, Object?>{});
+  Stream<List<int>> streamAccountArchive(
+          String currentPassword, ArchiveCancellation cancel) =>
+      _api.streamAccountArchive(currentPassword, cancel);
+
+  Future<Map<String, dynamic>> exportUserData(String currentPassword) async {
+    final response = await _api
+        .post('users/me/export', body: {'currentPassword': currentPassword});
     if (response is! Map<String, dynamic>) {
       throw const ApiException(
         statusCode: 502,
@@ -137,10 +142,10 @@ class AuthRepository {
     return response;
   }
 
-  Future<DateTime?> scheduleAccountDeletion() async {
+  Future<DateTime?> scheduleAccountDeletion(String currentPassword) async {
     final response = await _api.post(
       'users/me/deletion',
-      body: <String, Object?>{},
+      body: {'currentPassword': currentPassword},
     );
     if (response is Map<String, dynamic>) {
       final raw = response['deletionScheduledFor'];

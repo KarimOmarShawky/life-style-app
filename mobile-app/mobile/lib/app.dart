@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/features/digital_detox/detox_provider.dart';
 import 'package:lifestyle_mobile/features/focus_shield/home_widget_sync.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:lifestyle_mobile/features/more/presentation/daily_plan_screen.dart';
@@ -27,6 +28,7 @@ class LifeStyleApp extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     if (authState.asData?.value != null) {
       ref.watch(homeWidgetSyncProvider);
+      ref.watch(detoxProvider);
     }
 
     return MaterialApp(

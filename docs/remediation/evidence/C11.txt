@@ -1,0 +1,27 @@
+$ cd backend && ./node_modules/.bin/vitest run tests/integration/health.test.ts
+Exit: 1
+
+ RUN  v3.2.7 /home/user/life-style-app/backend
+
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/health.test.ts [ tests/integration/health.test.ts ]
+Error: Destructive tests require ALLOW_DESTRUCTIVE_TESTS=isolated-resources-only
+ ❯ assertTestTargets tests/test-safety.ts:4:11
+      2| export function assertTestTargets(env: Record<string, string | undefin…
+      3|   if (env.ALLOW_DESTRUCTIVE_TESTS !== 'isolated-resources-only') {
+      4|     throw new Error('Destructive tests require ALLOW_DESTRUCTIVE_TESTS…
+       |           ^
+      5|   }
+      6|   const db = new URL(env.DATABASE_URL ?? 'invalid:');
+ ❯ tests/setup.ts:6:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  14:34:56
+   Duration  407ms (transform 86ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 132ms)
+

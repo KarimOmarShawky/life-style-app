@@ -62,7 +62,7 @@ export interface AuthRepository {
     client?: pg.PoolClient
   ): Promise<void>;
   updateUserPassword(userId: string, passwordHash: string, client?: pg.PoolClient): Promise<void>;
-  updateLastLogin(userId: string): Promise<void>;
+  updateLastLogin(userId: string, client?: pg.PoolClient): Promise<void>;
   deleteSessionPushDevices(sessionId: string, client?: pg.PoolClient): Promise<void>;
   deleteAllUserPushDevices(
     userId: string,

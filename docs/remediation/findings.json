@@ -1,0 +1,1066 @@
+[
+  {
+    "id": "P0-01",
+    "source_severity": "Critical (P0)",
+    "source_description": "Unauthenticated health/migrate DDL and stack disclosure",
+    "current_code_status": "already fixed",
+    "root_cause": "Health router exposes live/ready only; startup no DDL.",
+    "planned_and_actual_action": "Preserved. Real router removal test executes without database.",
+    "files": [
+      "backend/src/features/health/health.routes.ts",
+      "backend/tests/unit/startup-ddl-guard.test.ts"
+    ],
+    "regression_tests": "Unit 404/no startup DDL guard; deployed image unknown.",
+    "final_status": "fixed_verified",
+    "group": "P0-01"
+  },
+  {
+    "id": "B-01",
+    "source_severity": "High (P1)",
+    "source_description": "Mobile tokens in plaintext preferences and default backup scope",
+    "current_code_status": "confirmed",
+    "root_cause": "Access/refresh already in secure storage. Ingest token and SMS queues still used preferences.",
+    "planned_and_actual_action": "Keystore AES-GCM native ingest credential + migration; backup/device-transfer exclusions. SMS queues remain private plaintext.",
+    "files": [
+      "mobile-app/mobile/lib/data/token_store.dart",
+      "mobile-app/mobile/lib/features/money/data/wallet_ingest_token.dart",
+      "mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/WalletCredentialStore.kt",
+      "mobile-app/mobile/android/app/src/main/AndroidManifest.xml"
+    ],
+    "regression_tests": "Wallet tests updated with injected credential store; native migration/backup/device tests BLOCKED.",
+    "final_status": "partial",
+    "group": "B-01"
+  },
+  {
+    "id": "B-02",
+    "source_severity": "High (P1)",
+    "source_description": "Gemini API key compiled into release app",
+    "current_code_status": "already fixed",
+    "root_cause": "app_config.dart disables compile-time key in release; secure BYOK storage and logout clearing present.",
+    "planned_and_actual_action": "Preserved release key guard; no reimplementation.",
+    "files": [
+      "mobile-app/mobile/lib/config/app_config.dart",
+      "mobile-app/mobile/lib/features/ai/data/ai_service.dart"
+    ],
+    "regression_tests": "Release extraction remains BLOCKED. Actual source-pinned Flutter suite execution is C20; it does not prove release key extraction is absent.",
+    "final_status": "code_unverified",
+    "group": "B-02"
+  },
+  {
+    "id": "B-03",
+    "source_severity": "High (P1)",
+    "source_description": "SMS capture conflicts with original D-09 exclusion",
+    "current_code_status": "already fixed",
+    "root_cause": "ADR-044 records scope approval; actual historical approval event cannot be independently authenticated.",
+    "planned_and_actual_action": "Preserve recorded decision; no invented approval.",
+    "files": [
+      "docs/architecture/design-decisions.md",
+      "mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/SmsTransactionReceiver.kt"
+    ],
+    "regression_tests": "Policy record inspection only; device opt-in flow BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-03"
+  },
+  {
+    "id": "B-04",
+    "source_severity": "High (P1)",
+    "source_description": "AI features conflict with D-07 exclusion",
+    "current_code_status": "already fixed",
+    "root_cause": "ADR-044 records exceptions; server SMS key and BYOK guard remain. Voice not explicitly named.",
+    "planned_and_actual_action": "Preserve AI approval record; add truthful voice clarification without retroactive approval.",
+    "files": [
+      "docs/architecture/design-decisions.md",
+      "mobile-app/mobile/lib/features/ai/data/ai_service.dart"
+    ],
+    "regression_tests": "External provider/device flows BLOCKED; R-22 unresolved scope.",
+    "final_status": "partial",
+    "group": "B-04"
+  },
+  {
+    "id": "B-05",
+    "source_severity": "High (P1)",
+    "source_description": "Arabic default/RTL/extra locales conflict with English-only policy",
+    "current_code_status": "already fixed",
+    "root_cause": "ADR-044 records multi-language approval. Registered locales are six, not eleven.",
+    "planned_and_actual_action": "Preserve architecture, correct six-locale implementation documentation.",
+    "files": [
+      "docs/architecture/deferred-and-non-goals.md",
+      "docs/mobile/flutter-integration.md",
+      "mobile-app/mobile/lib/l10n/app_localizations.dart"
+    ],
+    "regression_tests": "Static locale inventory preserved. Actual Flutter suite is C20; physical RTL/localization verification remains BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-05"
+  },
+  {
+    "id": "B-06",
+    "source_severity": "High (P1)",
+    "source_description": "Dashboard and Daily Plan missing/incomplete",
+    "current_code_status": "confirmed",
+    "root_cause": "Backend readers exist; client calls nonexistent dashboard root; minor-unit summaries used Number*100.",
+    "planned_and_actual_action": "Use registered /dashboard/overview and string/currency-exponent money contract; preserve authenticated routes.",
+    "files": [
+      "backend/src/features/dashboard/dashboard.service.ts",
+      "backend/src/features/money/money.reader.ts",
+      "mobile-app/mobile/lib/features/more/data/daily_plan_models.dart"
+    ],
+    "regression_tests": "Real-router success/401/failure and exact arithmetic PASS. Actual Flutter suite is C20; full dashboard widget/API+DB end-to-end verification remains NOT RUN.",
+    "final_status": "code_unverified",
+    "group": "B-06"
+  },
+  {
+    "id": "B-07",
+    "source_severity": "High (P1)",
+    "source_description": "Account erasure and retention purges do not execute completely",
+    "current_code_status": "confirmed",
+    "root_cause": "Worker scheduling exists; duplicate account purge, missing upgrade grant, silent soft purge errors; audit/session retention absent.",
+    "planned_and_actual_action": "Consolidate account purge into tested UsersRepository; propagate errors; forward grant repair. No new audit/session deletion implemented without database verification.",
+    "files": [
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/features/users/users.repository.pg.ts",
+      "backend/src/infrastructure/database/postgres/migrations/1792022400000_ingest_delete_grant.cjs",
+      "scripts/run-disposable-verification.py",
+      "docs/remediation/runtime-and-cleanup.md"
+    ],
+    "regression_tests": "Account deletion unit tests PASS. Real populated purge, 12-month audit retention and expired-session cleanup remain open/BLOCKED. Current C15/C32 executes real owned-database scheduling/grace-period/purge/worker integration; an initial 3-case deletion failure exposed invalid paginated DELETE, now fixed with an added unit and all 154 integration cases passing. Retention policy remains unresolved, no user data touched.",
+    "final_status": "partial",
+    "group": "B-07"
+  },
+  {
+    "id": "B-08",
+    "source_severity": "High (P1)",
+    "source_description": "Recurring tasks stop after first seven days",
+    "current_code_status": "already fixed",
+    "root_cause": "Hourly rolling horizon generator with occurrence limits and conflict handling already present.",
+    "planned_and_actual_action": "Preserved existing fix.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/features/recurring-tasks/recurrence-engine.ts"
+    ],
+    "regression_tests": "Recurrence unit tests PASS; populated worker generation and per-template failure isolation not verified.",
+    "final_status": "code_unverified",
+    "group": "B-08"
+  },
+  {
+    "id": "B-09",
+    "source_severity": "High (P1)",
+    "source_description": "Boot DDL/schema drift/runtime superuser allowed",
+    "current_code_status": "confirmed",
+    "root_cause": "Boot DDL already removed; missing image migrations; root nullable-task drift; production allowed postgres.",
+    "planned_and_actual_action": "Ship/gate migrations; restore nullable reference; reject production admin role. Legacy history adoption and comprehensive schema equivalence still unverified. After reviewing all 18 source-credential matches, production URI validation rejects known public role defaults (including encoded/query forms) and query-user bypasses. Local database/Redis/mail host ports are loopback-only; runtime Docker/role behavior remains unverified. Fresh-local bootstrap now requires supplied credentials/acknowledgement and refuses existing roles/public objects/non-default schemas, while Compose requires coherent generated settings and a unique project. Existing installations require an approved backed-up forward/rotation plan; no automatic password changes or volume deletion. Owned fresh/repeated/populated/failed PostgreSQL fixtures and role/grant/DDL checks execute under C17/C32; actual Compose/images and deployed legacy rehearsal remain BLOCKED/NOT RUN.",
+    "files": [
+      "backend/Dockerfile",
+      "docker-compose.yml",
+      "schema.sql",
+      "backend/src/config/env.ts",
+      "backend/tests/unit/production-db-defaults.test.ts",
+      "docs/remediation/secret-triage.md",
+      "docs/remediation/secret-triage.json",
+      "scripts/local-setup.mjs",
+      "scripts/local-stack.mjs",
+      "scripts/local-setup.test.mjs",
+      "scripts/ci-database-env.mjs",
+      "backend/src/infrastructure/database/postgres/init-roles.sql",
+      "docs/development/local-setup.md",
+      ".env.example",
+      "backend/.env.example",
+      ".gitignore"
+    ],
+    "regression_tests": "Role/startup/known-column guards plus actual owned PostgreSQL16 fresh/repeated/populated/intentional-failure/least-privilege probes execute in C17/C32. These are current-schema fixtures, not actual deployed legacy history, Docker/image deployment or restore; C18/C35 remain BLOCKED. Final raw evidence governs outcomes.",
+    "final_status": "partial",
+    "group": "B-09"
+  },
+  {
+    "id": "B-10",
+    "source_severity": "Medium (P2)",
+    "source_description": "Non-atomic reset attempt counter",
+    "current_code_status": "already fixed",
+    "root_cause": "INCR accounts guesses atomically; code deletion provides one winner.",
+    "planned_and_actual_action": "Preserve algorithm; make OTP unit tests always in-memory and add expiry test.",
+    "files": [
+      "backend/src/core/security/otp-service.ts",
+      "backend/tests/unit/otp-service.test.ts"
+    ],
+    "regression_tests": "8 OTP tests including expiry, invalid, consumed and parallel valid/invalid cases PASS using fake Redis.",
+    "final_status": "fixed_verified",
+    "group": "B-10"
+  },
+  {
+    "id": "B-11",
+    "source_severity": "Medium (P2)",
+    "source_description": "Worker is a stub / BullMQ absent",
+    "current_code_status": "already fixed",
+    "root_cause": "BullMQ maintenance workers already exist. Failure listeners and shutdown ownership were incomplete.",
+    "planned_and_actual_action": "Preserve worker; add sanitized failed/error events and fail initialization on schedule error; remove reset queue.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-processors.ts",
+      "backend/src/container.ts"
+    ],
+    "regression_tests": "Unit processors PASS, real worker startup/crash/shutdown BLOCKED. Memory limiter NODE_ENV branch remains.",
+    "final_status": "partial",
+    "group": "B-11"
+  },
+  {
+    "id": "B-12",
+    "source_severity": "Medium (P2)",
+    "source_description": "Reminders event-only / no dispatch or push",
+    "current_code_status": "confirmed",
+    "root_cause": "Unified API and dispatcher exist; push always throws; stale processing leases and double attempt counts.",
+    "planned_and_actual_action": "Use in_app for client event reminders; truthful unavailable push; recover/fence leases and correct retries. Provider integration NOT implemented.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/jobs/job-processors.ts",
+      "mobile-app/mobile/lib/features/calendar/data/calendar_repository.dart"
+    ],
+    "regression_tests": "Retry boundary and SQL-generation tests PASS; real DB reclaim and device local notification tests BLOCKED.",
+    "final_status": "partial",
+    "group": "B-12"
+  },
+  {
+    "id": "B-13",
+    "source_severity": "Medium (P2)",
+    "source_description": "Plain SMTP transport silently swallows failures",
+    "current_code_status": "confirmed",
+    "root_cause": "Raw TCP did not follow SMTP replies/TLS/auth; queue payload also exposed codes and depended on worker.",
+    "planned_and_actual_action": "Replace with Nodemailer behind same interface; TLS required in production, auth/timeouts, accepted-recipient check, sanitized rejection. SMTP now runs inside a bounded volatile in-process reset-request worker, not on the public response path; OTP is generated after dequeue and never persisted in a delivery queue.",
+    "files": [
+      "backend/src/infrastructure/external/email-sender.ts",
+      "backend/src/features/auth/auth.service.ts",
+      "backend/src/container.ts",
+      "backend/src/core/security/reset-request-dispatcher.ts",
+      "backend/tests/unit/reset-request-dispatcher.test.ts"
+    ],
+    "regression_tests": "Injected SMTP success/reject/timeout/network boundary tests PASS; real SMTP/TLS delivery BLOCKED. Forgot request stays generic and records failure.",
+    "final_status": "code_unverified",
+    "group": "B-13"
+  },
+  {
+    "id": "B-14",
+    "source_severity": "Medium (P2)",
+    "source_description": "Success-envelope documentation contradicts raw DTOs",
+    "current_code_status": "confirmed",
+    "root_cause": "Controllers and mobile use named DTOs; docs claimed success/data wrapper universally.",
+    "planned_and_actual_action": "Document existing v1 contracts rather than break all clients. Optional helper remains unused, not universal.",
+    "files": [
+      "docs/api/conventions.md",
+      "docs/api/openapi.yaml",
+      "backend/src/core/http/envelope.ts"
+    ],
+    "regression_tests": "Actual dashboard router DTO tests PASS; static per-operation documentation reconciliation only.",
+    "final_status": "code_unverified",
+    "group": "B-14"
+  },
+  {
+    "id": "B-15",
+    "source_severity": "Medium (P2)",
+    "source_description": "Forbidden-dependency guard misses Flutter manifest",
+    "current_code_status": "targeted guard and policy corrected",
+    "root_cause": "Guard scanned the wrong Flutter path and conflated a server-upload prohibition with an existing local audio picker. Its ADR-008 storage label was inaccurate: the actual ADR-008 concerns UUID primary keys.",
+    "planned_and_actual_action": "Corrected manifest paths. Owner explicitly clarified on 2026-10-15 that server uploads are forbidden to avoid leaks, while existing local audio selection remains allowed. Permit only reviewed mobile dependency/lock entries and existing audio-only consumer, not a global file_picker allowlist. Preserve production server multipart/blob dependency bans, fail closed on invalid policy and emit metadata-only diagnostics. No mobile feature removal, new permission, upload endpoint or native/network certification.",
+    "files": [
+      "scripts/check-forbidden.mjs",
+      "scripts/forbidden-allowlist.json",
+      "mobile-app/mobile/pubspec.yaml",
+      "scripts/check-forbidden.test.mjs",
+      "backend/tests/unit/upload-boundary.test.ts",
+      "docs/security/local-audio-boundary.md",
+      "docs/architecture/design-decisions.md",
+      "docs/architecture/deferred-and-non-goals.md"
+    ],
+    "regression_tests": "C10 executes the real clarified guard. C31: 21 Node negative/source/actual-CLI fixture tests; server dependency/new consumer/broad picker/malformed policy cases fail as expected. C06 includes 13 real HTTP middleware regressions for non-JSON rejection, JSON acceptance and size limit. Native picker/playback/network observation remains BLOCKED; fixed_verified is scoped only to this guard/policy finding.",
+    "final_status": "fixed_verified",
+    "group": "B-15"
+  },
+  {
+    "id": "B-16",
+    "source_severity": "Medium (P2)",
+    "source_description": "Coverage gaps",
+    "current_code_status": "confirmed",
+    "root_cause": "Many domains and concurrency/limiters lack meaningful integration coverage. Typecheck originally excluded all tests.",
+    "planned_and_actual_action": "Add targeted remediation tests and strict test-source compilation. Existing project/recurring/concurrent refresh/limiters coverage still incomplete. Replaced the disconnected logger test with actual production output capture; added limiter expiry/outage/atomic-call contracts and sensitive-route outage regressions. Added 39 authentication transaction/refresh/last-login units and two account-metadata export SQL-harness units; corrected transaction ownership in seven auth flows without changing reuse policy.",
+    "files": [
+      "backend/tests/unit/remediation-regressions.test.ts",
+      "backend/tsconfig.verification.json",
+      "mobile-app/mobile/test/digital_detox_test.dart",
+      "backend/tests/unit/logger-redaction.test.ts",
+      "backend/tests/unit/rate-limiter.test.ts",
+      "backend/tests/unit/sensitive-actions.test.ts",
+      "mobile-app/mobile/test/account_export_dialog_test.dart",
+      "backend/tests/unit/auth-transactions.test.ts",
+      "backend/tests/unit/account-export.test.ts",
+      "backend/src/features/auth/auth.service.ts",
+      "backend/src/features/auth/auth.repository.ts",
+      "backend/src/features/auth/auth.repository.pg.ts",
+      "backend/tests/unit/production-db-defaults.test.ts",
+      "scripts/check-environment.test.mjs"
+    ],
+    "regression_tests": "Historical batch: 280 backend tests / 27 files PASS; final C06/report govern current totals; source+test strict compilation PASS. An initial 18-test transaction probe failed 10 cases before the fix; final 39 transaction/last-login tests and 2 metadata-export tests PASS. Owned PostgreSQL/Redis integration/security now executes under C15/C16/C32; this does not certify every concurrency scenario. Actual Flutter suite and Android debug evidence are C19/C20/C40; owner-key release and physical-device verification remain BLOCKED. Added 26 production URI-default regressions; 17 separate Node helper/provenance/source tests PASS in C26 (not included in backend count).",
+    "final_status": "partial",
+    "group": "B-16"
+  },
+  {
+    "id": "B-17",
+    "source_severity": "Medium (P2)",
+    "source_description": "Destructive tests target development DB and Redis",
+    "current_code_status": "confirmed",
+    "root_cause": "Setup overwrote endpoints with lifestyle_dev/Redis0. OTP unit test also opportunistically contacted Redis.",
+    "planned_and_actual_action": "Require explicit acknowledgement + lifestyle_test DB + nonzero Redis DB before importing integration/security files; inert unit endpoints and in-memory OTP. CI ephemeral services. Every integration/security suite has a first-import guard, protecting direct runner invocations too. Replaced unsafe legacy helper setup/down-up defaults: configuration-only ensure-env, unit-only verify-ci default, explicit isolated guards for matching application/migration targets and nonzero Redis, forward-up/repeat only, propagated errors. Authorized hosted CI services are exercised under C39 with ephemeral credentials; this is not deployed legacy-data or production verification. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.",
+    "files": [
+      "backend/tests/setup.ts",
+      "backend/tests/test-safety.ts",
+      "backend/tests/unit/otp-service.test.ts",
+      ".github/workflows/ci.yml",
+      "backend/tests/infrastructure-safety.ts",
+      "scripts/ensure-env.sh",
+      "scripts/verify-ci.sh",
+      "scripts/check-environment.mjs",
+      "scripts/check-environment.test.mjs",
+      ".github/workflows/isolated-runtime.yml",
+      "scripts/ci-resource-guard.mjs",
+      "scripts/ci-resource-guard.test.mjs"
+    ],
+    "regression_tests": "Guard accept/refuse unit tests PASS; actual unsafe integration invocation rejected before test import. Actual destructive hooks execute only after C32 proves fresh owned process/data-directory/DB identity; no existing user service is used or cleaned. C26: 17 standalone configuration/command-spy/provenance/Compose source tests PASS; simulated commands are not actual migration or isolation proof.",
+    "final_status": "fixed_verified",
+    "group": "B-17"
+  },
+  {
+    "id": "B-18",
+    "source_severity": "Medium (P2)",
+    "source_description": "Export/deletion lack reauthentication",
+    "current_code_status": "partially remediated",
+    "root_cause": "Sensitive authenticated actions lacked proof. The reused general Redis limiter failed open on outage; export UI automatically copied private data. Legacy export was unbounded/materialized and metadata-only despite complete/GDPR wording, and fetched unused password hashes. New bounded archive/mobile source does not prove end-to-end delivery.",
+    "planned_and_actual_action": "Required current-password proof with shared 5 attempts/15-minute budget and opt-in fail-closed 503 on limiter outage; Cache-Control no-store on user responses. Updated client prompts and contracts. Removed automatic clipboard copy; explicit warning/acknowledgement/action UI added (Flutter suite C20; physical UI unverified). Disclosed metadata-only scope in UI/OpenAPI; selected only required profile columns; controlled 404 if the account disappears. Added a separate streamed version-1 domain archive across 21 explicit sections with excluded security/infrastructure fields, repeatable-read read-only cursor snapshot, decimal-string amounts, byte/row/time/concurrency limits, cancellation/backpressure and validated completion footer. Legacy metadata responses remain compatible below an explicit 1000-row-per-list limit; overflow fails 413, never silent truncation. Added Android source for incremental exact-byte validation, encrypted private staging and explicit SAF plaintext-destination save/readback with cancellation/owned cleanup and no new permissions. Large-account/other-platform adapters, Flutter/Android bridge compilation and deployed PostgreSQL/proxy/provider/device verification remain incomplete; retention unchanged; local-only audio policy clarified separately under B-15, without authorizing server uploads.",
+    "files": [
+      "backend/src/features/users/users.controller.ts",
+      "backend/src/features/users/users.service.ts",
+      "mobile-app/mobile/lib/features/auth/data/auth_repository.dart",
+      "backend/src/features/users/users.validation.ts",
+      "backend/src/features/users/users.routes.ts",
+      "backend/tests/unit/sensitive-actions.test.ts",
+      "mobile-app/mobile/lib/features/auth/state/auth_provider.dart",
+      "mobile-app/mobile/lib/features/auth/presentation/profile_screen.dart",
+      "docs/remediation/sensitive-actions.md",
+      "mobile-app/mobile/lib/features/auth/presentation/current_password_dialog.dart",
+      "mobile-app/mobile/test/current_password_dialog_test.dart",
+      "mobile-app/mobile/lib/l10n/app_localizations.dart",
+      "mobile-app/mobile/lib/l10n/catalog_en.dart",
+      "backend/src/core/middleware/rate-limiter.ts",
+      "backend/src/core/logger/logger.ts",
+      "backend/tests/unit/logger-redaction.test.ts",
+      "backend/tests/unit/rate-limiter.test.ts",
+      "mobile-app/mobile/lib/features/auth/presentation/account_export_dialog.dart",
+      "mobile-app/mobile/test/account_export_dialog_test.dart",
+      "docs/remediation/follow-up-hardening.md",
+      "backend/src/features/users/users.repository.pg.ts",
+      "backend/tests/unit/account-export.test.ts",
+      "backend/src/features/users/account-archive.ts",
+      "backend/src/features/users/account-archive.sources.ts",
+      "backend/tests/unit/account-archive.test.ts",
+      "backend/tests/integration/account-archive.test.ts",
+      "backend/src/core/middleware/authenticate.ts",
+      "docs/api/account-archive.md",
+      "mobile-app/mobile/lib/data/api_client.dart",
+      "mobile-app/mobile/lib/core/archive/archive_verifier.dart",
+      "mobile-app/mobile/lib/core/archive/archive_cancellation.dart",
+      "mobile-app/mobile/lib/core/archive/archive_export.dart",
+      "mobile-app/mobile/lib/features/auth/presentation/account_archive_dialog.dart",
+      "mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/AccountArchiveStage.kt",
+      "mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/AccountArchiveBridge.kt",
+      "mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/MainActivity.kt",
+      "mobile-app/mobile/pubspec.yaml",
+      "mobile-app/mobile/pubspec.lock",
+      "mobile-app/mobile/test/account_archive_test.dart",
+      "mobile-app/mobile/test/account_archive_transport_test.dart",
+      "mobile-app/mobile/test/account_archive_dialog_test.dart",
+      "mobile-app/mobile/test/fixtures/account_archive_v1.ndjson",
+      "scripts/archive-mobile-contract.test.mjs",
+      "scripts/check-archive-stage.py",
+      "scripts/kotlin/AccountArchiveStageHarness.kt",
+      "docs/mobile/account-archive.md"
+    ],
+    "regression_tests": "Six real-router proof/no-store units, logger-redaction and nine limiter units execute within C06. Prior 280-test/27-file batch is historical; final C06/evidence and generated report govern the current backend count (earlier 323/29 snapshot, not current totals). Authored Flutter tests are included by the actual C20 suite; no physical clipboard/password-flow certification is inferred. Metadata projection/owner/missing-account/overflow and archive SQL/HTTP/control-flow units execute without a live DB; live snapshot/grants/tenancy/grace-period HTTP cases now execute in owned PostgreSQL/Redis C15/C32; deployment/native gates remain BLOCKED. C29: 8 synthetic fixture/source checks, NOT Dart runtime. C30: 10 actual Android-free JVM staging/crypto checks, including EOF-time revocation, NOT Android bridge/provider execution. 25 new archive Flutter protocol/coordinator/transport/widget cases authored NOT RUN. C12 parsed 34 changed Dart files, syntax only. No end-to-end portability/release claim.",
+    "final_status": "partial",
+    "group": "B-18"
+  },
+  {
+    "id": "B-19",
+    "source_severity": "Medium (P2)",
+    "source_description": "Timer sessions without task versus documented requirement",
+    "current_code_status": "confirmed",
+    "root_cause": "ADR-044 allows optional task; stale schema/tasks docs required task_id.",
+    "planned_and_actual_action": "Preserve approved optional behavior, align reference schema/docs.",
+    "files": [
+      "schema.sql",
+      "docs/architecture/tasks.md",
+      "backend/src/infrastructure/database/postgres/migrations/1727300004000_timer_sessions_optional_task.cjs"
+    ],
+    "regression_tests": "Known-column static unit guard PASS; actual constraints/migration BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-09"
+  },
+  {
+    "id": "B-20",
+    "source_severity": "Medium (P2)",
+    "source_description": "Documentation overstates/nonexistent controls and features",
+    "current_code_status": "confirmed",
+    "root_cause": "Conventions, locale count, AI key mirroring and timer docs stale; broad historic docs still need review.",
+    "planned_and_actual_action": "Correct focused contracts/storage/locale/timer docs and add runbooks; no claim all historic documents reconciled. Removed complete/GDPR export claims from live contract/UI; marked two prior P2 reports historical and non-authoritative for current gates. Documented per-match credential triage, helper compatibility changes and loopback-only infrastructure; marked old P3/P5 helper verification assertions historical.",
+    "files": [
+      "docs/api/conventions.md",
+      "docs/mobile/flutter-integration.md",
+      "docs/architecture/deferred-and-non-goals.md",
+      "docs/database/migrations.md",
+      "docs/security/p2-security-review.md",
+      "docs/reports/phase-p2-delivery-report.md",
+      "docs/remediation/session-and-scanner-hardening.md",
+      "docs/security/p3-security-review.md",
+      "docs/reports/phase-p5-delivery-report.md",
+      "docs/remediation/secret-triage.md",
+      "docs/remediation/secret-triage.json",
+      "docs/development/testing.md"
+    ],
+    "regression_tests": "Focused static reconciliation; documentation inventory not a runtime PASS.",
+    "final_status": "partial",
+    "group": "B-20"
+  },
+  {
+    "id": "B-21",
+    "source_severity": "Medium (P2)",
+    "source_description": "Search coverage incomplete",
+    "current_code_status": "confirmed",
+    "root_cause": "Search covers five readers; no goals/subscriptions/transactions. MoneyReader explicitly disallows full transaction-list exposure. LIKE metacharacters unescaped.",
+    "planned_and_actual_action": "Escape wildcard input across five readers. Coverage expansion still open pending approved result contract/privacy reconciliation.",
+    "files": [
+      "backend/src/features/search/search.service.ts",
+      "backend/src/core/pagination/search-pattern.ts",
+      "backend/src/features/notes/notes.reader.ts"
+    ],
+    "regression_tests": "Literal wildcard unit PASS; cross-user HTTP and index plans BLOCKED.",
+    "final_status": "partial",
+    "group": "B-21"
+  },
+  {
+    "id": "B-22",
+    "source_severity": "Low (P3)",
+    "source_description": "Auxiliary listeners not closed on shutdown",
+    "current_code_status": "already fixed",
+    "root_cause": "server.ts tracks and closes auxiliary servers.",
+    "planned_and_actual_action": "Preserve prior fix.",
+    "files": [
+      "backend/src/server.ts"
+    ],
+    "regression_tests": "Static inspection only; process shutdown test NOT RUN.",
+    "final_status": "code_unverified",
+    "group": "B-22"
+  },
+  {
+    "id": "B-23",
+    "source_severity": "Low (P3)",
+    "source_description": "Demo HTML embedded in app.ts",
+    "current_code_status": "already fixed",
+    "root_cause": "Demo moved to demo module and gated away from production.",
+    "planned_and_actual_action": "Preserve prior fix.",
+    "files": [
+      "backend/src/app.ts",
+      "backend/src/demo/live-preview-page.ts"
+    ],
+    "regression_tests": "Static inspection only; production deployment NOT RUN.",
+    "final_status": "code_unverified",
+    "group": "B-23"
+  },
+  {
+    "id": "B-24",
+    "source_severity": "Low (P3)",
+    "source_description": "Unsafe casts and services accessing DB",
+    "current_code_status": "confirmed",
+    "root_cause": "Layering/casts remain widespread; tests previously excluded from strict compilation.",
+    "planned_and_actual_action": "No mass refactor. Add strict source+test typecheck, fix focused test narrowing errors, retain unrelated architecture.",
+    "files": [
+      "backend/tsconfig.verification.json",
+      "backend/tests/unit/ingest-analyze.test.ts",
+      "backend/tests/integration/ingest-analyze-flow.test.ts"
+    ],
+    "regression_tests": "Strict test and source compilation PASS; casts/service DB boundaries still open.",
+    "final_status": "partial",
+    "group": "B-24"
+  },
+  {
+    "id": "B-25",
+    "source_severity": "Low (P3)",
+    "source_description": "Rate-limit values differ from specification",
+    "current_code_status": "unclear",
+    "root_cause": "Current routes have explicit IP/account limits; latest report does not supply required alternative values; earlier audit unavailable.",
+    "planned_and_actual_action": "Do not invent policy values. Obtain original expected thresholds before changing security policy.",
+    "files": [
+      "backend/src/features/auth/auth.routes.ts"
+    ],
+    "regression_tests": "Limiters inspected; exact-spec comparison BLOCKED by absent original description.",
+    "final_status": "unclear",
+    "group": "B-25"
+  },
+  {
+    "id": "B-26",
+    "source_severity": "Low (P3)",
+    "source_description": "Weak password denylist / unvalidated timezone/currency",
+    "current_code_status": "confirmed",
+    "root_cause": "Denylist has eight entries; registration/profile timezone unchecked and any 3 uppercase currency accepted.",
+    "planned_and_actual_action": "Reject blank passwords; validate IANA timezone and ICU ISO currencies across registration/profile/money. Broader denylist policy remains open.",
+    "files": [
+      "backend/src/core/security/profile-validation.ts",
+      "backend/src/features/auth/auth.validation.ts",
+      "backend/src/features/users/users.validation.ts",
+      "backend/src/features/money/money.validation.ts"
+    ],
+    "regression_tests": "Invalid timezone/currency/blank-password tests PASS; denylist breadth not fixed.",
+    "final_status": "partial",
+    "group": "B-26"
+  },
+  {
+    "id": "B-27",
+    "source_severity": "Low (P3)",
+    "source_description": "Forgot/reset password timing differential",
+    "current_code_status": "confirmed",
+    "root_cause": "Historical direct account/cooldown/SMTP branches held the public request open; invalid-reset expensive-operation parity also differed.",
+    "planned_and_actual_action": "Retained invalid-reset dummy-comparison parity. Forgot-password now admits bounded volatile work before account lookup/cooldown/OTP/SMTP, with generic 202 and account-independent full/draining 503. Per-process singleton limits 64 outstanding/four workers/60-second queue wait. Email and capped metadata only; no OTP/password queued, no durable-delivery assertion or fake delay. Worker errors/expiry are sanitized; SMTP failure remains audited. Detached HTTP context; stop admission and drain before infrastructure close, with explicit 30-second forced-loss diagnostics. OpenAPI corrected to actual 202/503 semantics. Aggregate-load/statistical timing, actual process-signal shutdown and live-provider verification remain unverified; no constant-time claim. The new integration correlation assertion exposed existing extractMeta reading req.requestId instead of middleware req.id; corrected that field, retained the assertion and raw first failure. All six mobile reset-request messages now use conditional best-effort wording instead of asserting that a code was sent.",
+    "files": [
+      "backend/src/features/auth/auth.service.ts",
+      "backend/tests/unit/auth-transactions.test.ts",
+      "docs/remediation/runtime-and-cleanup.md",
+      "backend/src/core/security/reset-request-dispatcher.ts",
+      "backend/src/server.ts",
+      "backend/src/container.ts",
+      "backend/src/docs/openapi-generator.ts",
+      "docs/api/openapi.yaml",
+      "backend/tests/unit/reset-request-dispatcher.test.ts",
+      "backend/tests/unit/remediation-regressions.test.ts",
+      "backend/tests/integration/auth-flow.test.ts",
+      "backend/src/features/auth/auth.controller.ts",
+      "mobile-app/mobile/lib/l10n/catalog_en.dart",
+      "mobile-app/mobile/lib/l10n/catalog_ar.dart",
+      "mobile-app/mobile/lib/l10n/catalog_fr.dart",
+      "mobile-app/mobile/lib/l10n/catalog_es.dart",
+      "mobile-app/mobile/lib/l10n/catalog_de.dart",
+      "mobile-app/mobile/lib/l10n/catalog_tr.dart"
+    ],
+    "regression_tests": "C06 includes 17 new admission/bounds/expiry/projection/context/drain/service/HTTP tests plus retained three invalid-reset parity tests. Stalled lookup/cooldown/SMTP cannot hold HTTP 202 open. C15 auth integration drains background work and asserts HMAC-only Redis state and correlated audit with no secret metadata. These are targeted disposable/mocked-boundary tests, not live provider/statistical enumeration-resistance or actual process-signal certification; final checks.json/evidence governs results.",
+    "final_status": "partial",
+    "group": "B-27"
+  },
+  {
+    "id": "B-28",
+    "source_severity": "Low (P3)",
+    "source_description": "Configured refresh/session TTLs ignored",
+    "current_code_status": "confirmed",
+    "root_cause": "AuthService used literal 90/30 days in registration/login/refresh.",
+    "planned_and_actual_action": "Use validated SESSION_ABSOLUTE_TTL_DAYS and REFRESH_TOKEN_TTL_DAYS; preserve absolute cap.",
+    "files": [
+      "backend/src/features/auth/auth.service.ts",
+      "backend/tests/unit/remediation-regressions.test.ts"
+    ],
+    "regression_tests": "Registration nondefault TTL test PASS; source review confirms same configured values in login/refresh.",
+    "final_status": "fixed_verified",
+    "group": "B-28"
+  },
+  {
+    "id": "B-29",
+    "source_severity": "Low (P3)",
+    "source_description": "Non-strict schemas / extra transaction fields",
+    "current_code_status": "confirmed",
+    "root_cause": "Money/calendar Zod objects stripped unknown fields; subscriptionId/billingDate are still explicit accepted fields used by callers.",
+    "planned_and_actual_action": "Make reported object schemas strict. Do not remove explicit linked-transaction fields without original spec/caller decision.",
+    "files": [
+      "backend/src/features/money/money.validation.ts",
+      "backend/src/features/calendar/calendar.validation.ts"
+    ],
+    "regression_tests": "Extra transaction key rejection PASS; policy for explicit extra fields remains unclear.",
+    "final_status": "partial",
+    "group": "B-29"
+  },
+  {
+    "id": "B-30",
+    "source_severity": "Low (P3)",
+    "source_description": "Debug signing fallback / no obfuscation / lock-screen display",
+    "current_code_status": "confirmed",
+    "root_cause": "Release fell back to debug signing; main activity exposed showWhenLocked/turnScreenOn; Dart obfuscation absent.",
+    "planned_and_actual_action": "Removed debug release fallback and main-activity lock-screen overrides. Release preReleaseBuild now depends on complete signing properties/readable keystore; release selects only release identity. Corrected plugins-block ordering, explicitly applied Kotlin to match existing AGP9 opt-out and selected Java17 in CI. Automatic CI explicitly builds/signature-checks a debug validation APK with offline-by-default endpoint and honest name; approved HTTPS test backend can be explicitly supplied manually. Separate manual-main signed build requires both quality gates, private environment keys and expected public certificate, uses obfuscation/separate symbols, disables cache export and cleans only owned signing files. APK verifier requires actual SDK signature success, one expected non-debug signer before release upload. Workflow authored only; actual Gradle/obfuscation/APK/signature/device execution remains BLOCKED/NOT RUN, so no verified release is asserted.",
+    "files": [
+      "mobile-app/mobile/android/app/build.gradle.kts",
+      "mobile-app/mobile/android/app/src/main/AndroidManifest.xml",
+      ".github/workflows/ci.yml",
+      ".gitignore",
+      "scripts/prepare-android-signing.mjs",
+      "scripts/verify-android-apk.mjs",
+      "scripts/android-build-preparation.test.mjs",
+      "docs/mobile/build-preparation.md"
+    ],
+    "regression_tests": "C37 executes 17 real filesystem/negative/public-certificate parser/CLI-refusal/source/YAML/bash checks, not actual application signatures. Actual source-pinned hosted Flutter analysis/tests and debug Android JVM/build/SDK signature/compiled-package/upload are separately C19/C20/C39/C40. A real SDK transient packaging probe publishes no fixture artifact. Owner-key release/obfuscation extraction and physical-device checks remain C21/C22 BLOCKED.",
+    "final_status": "partial",
+    "group": "B-30"
+  },
+  {
+    "id": "B-31",
+    "source_severity": "Low (P3)",
+    "source_description": "CI scanning and DB timeout gaps",
+    "current_code_status": "partial implementation; actual current-source scan PASS; historical detector FAIL with reviewed local-default provenance; actual hosted CI separately C39; image scanning NOT RUN",
+    "root_cause": "No image/secret scanners; pool lacked statement timeout.",
+    "planned_and_actual_action": "Retained 15s statement_timeout; pinned isolated Secretlint and metadata-only Git worktree scanning, independent CI workflow, parseable short-Ed25519 coverage and real positive/negative probes. No detector exceptions. Retained all 18 historical match records and the earlier 18/16 FAIL history. Removed two unsafe helper defaults, then replaced remaining tracked application defaults with independent per-installation local/per-job CI credentials and matching bootstrap/Compose wiring. Fresh-only private files, exclusive creation, namespace/socket pinning and existing-config/role refusal; no overwrite, deletion or automatic rotation. CI public ephemeral administrator fixture remains. Current-source scan reports zero findings; deployed reuse is unknown; Owned PostgreSQL runtime executes under C32; Docker/hosted/container verification remains unexecuted. Historical detection/provenance now executes separately in C36/C38. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.",
+    "files": [
+      "backend/src/infrastructure/database/postgres/pool.ts",
+      ".github/workflows/ci.yml",
+      "tools/security/package.json",
+      "tools/security/package-lock.json",
+      "tools/security/.secretlintrc.json",
+      "tools/security/.secretlintignore",
+      "tools/security/rules/parseable-private-key.mjs",
+      "scripts/scan-secrets.mjs",
+      ".github/workflows/security.yml",
+      "docs/remediation/session-and-scanner-hardening.md",
+      "docs/remediation/secret-triage.md",
+      "docs/remediation/secret-triage.json",
+      "backend/tests/unit/production-db-defaults.test.ts",
+      "scripts/check-environment.mjs",
+      "scripts/check-environment.test.mjs",
+      "scripts/ensure-env.sh",
+      "scripts/verify-ci.sh",
+      "docker-compose.yml",
+      "docker/docker-compose.yml",
+      "scripts/local-setup.mjs",
+      "scripts/local-stack.mjs",
+      "scripts/local-setup.test.mjs",
+      "scripts/ci-database-env.mjs",
+      "backend/src/infrastructure/database/postgres/init-roles.sql",
+      "docs/development/local-setup.md",
+      ".env.example",
+      "backend/.env.example",
+      ".gitignore",
+      ".github/workflows/isolated-runtime.yml",
+      "scripts/ci-resource-guard.mjs",
+      "scripts/ci-resource-guard.test.mjs",
+      "scripts/scan-git-history.py",
+      "docs/remediation/history-scan.json",
+      "scripts/review-history-provenance.py",
+      "docs/remediation/history-provenance.json"
+    ],
+    "regression_tests": "C25 actual current-source detector/probes, C26 17 helper/provenance tests, C27 22 fresh-config tests and C28 16 hosted-resource command-spy tests are separate scoped gates; see final checks.json for fresh outcomes. C32 actually runs owned PostgreSQL/Redis migrations/integration/security, not Docker or deployed resources. Previous shallow C36 result (459 blobs/one commit/11 URI matches) is preserved in history. After actual unshallow fetch, C36 at 4d69890 scans 1,377 UTF-8 blobs/112 reachable commits (including the preserved local recovery stash refs): 37 URI matches/eight skips, FAIL. C38 exact in-memory comparison identifies all 37 as baseline repository development-role defaults at local service hosts, with negative controls and metadata-only output: provenance PASS, deployed reuse BLOCKED. No rewrite/suppression/live rotation. Original 18 source records retained; CI edits append reasoned fingerprint chains. Images/hosted CI NOT RUN.",
+    "final_status": "partial",
+    "group": "B-31"
+  },
+  {
+    "id": "B-32",
+    "source_severity": "Low (P3)",
+    "source_description": "Repository hygiene",
+    "current_code_status": "partial cleanup",
+    "root_cause": "Duplicate Dockerfile text copies, duplicate compose and generated registrant tracked.",
+    "planned_and_actual_action": "Deleted audited root Dockerfile.txt and Dockerfile (1).txt duplicates, removed generated plugin registrant and added its Flutter ignore rule; added unreleased CHANGELOG. Canonical backend/docker Dockerfiles and compose compatibility paths retained deliberately. Broader dead/duplicate voice code and release-policy cleanup remain.",
+    "files": [
+      "Dockerfile.txt",
+      "Dockerfile (1).txt",
+      "docker/docker-compose.yml",
+      "mobile-app/mobile/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java",
+      "mobile-app/mobile/.gitignore",
+      "CHANGELOG.md"
+    ],
+    "regression_tests": "Reference search found no consumers of deleted Dockerfile text copies; diff/package deletion inventory checked. Actual Android debug compilation is C40; iOS regeneration and physical-device behavior remain NOT RUN. C34 strict unused-local/parameter TypeScript check PASS, no backend candidates invented. Removed proven dead native provider/recording scaffolding; C33 eight source checks only, not native execution.",
+    "final_status": "partial",
+    "group": "B-32"
+  },
+  {
+    "id": "B-33",
+    "source_severity": "Low (P3)",
+    "source_description": "Client budget monetary arithmetic uses double",
+    "current_code_status": "targeted pure-money runtime verified in actual hosted Flutter suite; physical UI not certified",
+    "root_cause": "Mobile overview used double and aggregated unrelated currencies and subscription periods.",
+    "planned_and_actual_action": "Introduced four-place BigInt DecimalAmount, integer HALF_UP currency formatting, exact +/- totals, per-currency budget/subscription cards and exports. Active subscriptions use server monthlyEquivalent. Only bounded dimensionless progress uses double. No ledger records rewritten.",
+    "files": [
+      "mobile-app/mobile/lib/features/money/presentation/money_screen.dart",
+      "mobile-app/mobile/lib/core/money/decimal_amount.dart",
+      "mobile-app/mobile/test/decimal_amount_test.dart"
+    ],
+    "regression_tests": "Five non-skipped pure-money regressions in decimal_amount_test.dart are included by the actual unfiltered flutter test --coverage suite, C20 PASS with clean source-pinned formatter/analysis prerequisites: 0.1+0.2, large values, JPY/KWD/CLF/negative ties, currency separation and input/progress. Targeted arithmetic verification only; no physical UI, ledger reconciliation or full financial application E2E certification.",
+    "final_status": "fixed_verified",
+    "group": "B-33"
+  },
+  {
+    "id": "R-01",
+    "source_severity": "High",
+    "source_description": "Mobile Daily Plan requests unregistered dashboard root",
+    "current_code_status": "confirmed",
+    "root_cause": "Backend readers exist; client calls nonexistent dashboard root; minor-unit summaries used Number*100.",
+    "planned_and_actual_action": "Actual router success/401/failure and static client/OpenAPI path contract PASS; no device runtime claim.",
+    "files": [
+      "backend/src/features/dashboard/dashboard.service.ts",
+      "backend/src/features/money/money.reader.ts",
+      "mobile-app/mobile/lib/features/more/data/daily_plan_models.dart"
+    ],
+    "regression_tests": "Actual router success/401/failure and static client/OpenAPI path contract PASS; no device runtime claim.",
+    "final_status": "fixed_verified",
+    "group": "B-06"
+  },
+  {
+    "id": "R-02",
+    "source_severity": "Medium",
+    "source_description": "Reusable plaintext reset code in BullMQ payload",
+    "current_code_status": "confirmed",
+    "root_cause": "Raw TCP did not follow SMTP replies/TLS/auth; queue payload also exposed codes and depended on worker.",
+    "planned_and_actual_action": "Producer/payload/worker reset consumer removed. Secret remains only in memory and hashed OTP state; source boundary regression PASS.",
+    "files": [
+      "backend/src/infrastructure/external/email-sender.ts",
+      "backend/src/features/auth/auth.service.ts",
+      "backend/src/container.ts"
+    ],
+    "regression_tests": "Producer/payload/worker reset consumer removed. Secret remains only in memory and hashed OTP state; source boundary regression PASS.",
+    "final_status": "fixed_verified",
+    "group": "B-13"
+  },
+  {
+    "id": "R-03",
+    "source_severity": "Medium",
+    "source_description": "SMTP failures resolve, defeating retries",
+    "current_code_status": "confirmed",
+    "root_cause": "Raw TCP did not follow SMTP replies/TLS/auth; queue payload also exposed codes and depended on worker.",
+    "planned_and_actual_action": "SMTP boundary rejects/sanitizes and tests PASS; actual TLS/provider delivery BLOCKED.",
+    "files": [
+      "backend/src/infrastructure/external/email-sender.ts",
+      "backend/src/features/auth/auth.service.ts",
+      "backend/src/container.ts"
+    ],
+    "regression_tests": "SMTP boundary rejects/sanitizes and tests PASS; actual TLS/provider delivery BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-13"
+  },
+  {
+    "id": "R-04",
+    "source_severity": "Medium",
+    "source_description": "Push sender stub while mobile requests push",
+    "current_code_status": "confirmed",
+    "root_cause": "Unified API and dispatcher exist; push always throws; stale processing leases and double attempt counts.",
+    "planned_and_actual_action": "Mobile uses in_app plus existing local notifications; push explicitly unavailable, not implemented. Device delivery BLOCKED.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/jobs/job-processors.ts",
+      "mobile-app/mobile/lib/features/calendar/data/calendar_repository.dart"
+    ],
+    "regression_tests": "Mobile uses in_app plus existing local notifications; push explicitly unavailable, not implemented. Device delivery BLOCKED.",
+    "final_status": "partial",
+    "group": "B-12"
+  },
+  {
+    "id": "R-05",
+    "source_severity": "Medium",
+    "source_description": "Applied migration edited; existing installs miss DELETE grant",
+    "current_code_status": "confirmed",
+    "root_cause": "Worker scheduling exists; duplicate account purge, missing upgrade grant, silent soft purge errors; audit/session retention absent.",
+    "planned_and_actual_action": "Original ingest grant restored; forward-only grant repair plus manual upgrade correction. PostgreSQL upgrade/grant verification BLOCKED.",
+    "files": [
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/features/users/users.repository.pg.ts",
+      "backend/src/infrastructure/database/postgres/migrations/1792022400000_ingest_delete_grant.cjs"
+    ],
+    "regression_tests": "Original ingest grant restored; forward-only grant repair plus manual upgrade correction. PostgreSQL upgrade/grant verification BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-07"
+  },
+  {
+    "id": "R-06",
+    "source_severity": "Medium",
+    "source_description": "Processing reminders never recovered after crash",
+    "current_code_status": "confirmed",
+    "root_cause": "Unified API and dispatcher exist; push always throws; stale processing leases and double attempt counts.",
+    "planned_and_actual_action": "10-minute claim lease, max-five terminal handling and attempt fences added. SQL-generation PASS; real DB crash/reclaim test added but BLOCKED.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/jobs/job-processors.ts",
+      "mobile-app/mobile/lib/features/calendar/data/calendar_repository.dart"
+    ],
+    "regression_tests": "10-minute claim lease, max-five terminal handling and attempt fences added. SQL-generation PASS; real DB crash/reclaim test added but BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-12"
+  },
+  {
+    "id": "R-07",
+    "source_severity": "Medium",
+    "source_description": "Floating point and fixed two-decimal dashboard/day money",
+    "current_code_status": "confirmed",
+    "root_cause": "Backend readers exist; client calls nonexistent dashboard root; minor-unit summaries used Number*100.",
+    "planned_and_actual_action": "Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Actual Flutter suite is C20; full Flutter/API/database end-to-end contract execution remains NOT RUN.",
+    "files": [
+      "backend/src/features/dashboard/dashboard.service.ts",
+      "backend/src/features/money/money.reader.ts",
+      "mobile-app/mobile/lib/features/more/data/daily_plan_models.dart"
+    ],
+    "regression_tests": "Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Actual Flutter suite is C20; full Flutter/API/database end-to-end contract execution remains NOT RUN.",
+    "final_status": "code_unverified",
+    "group": "B-06"
+  },
+  {
+    "id": "R-08",
+    "source_severity": "Medium",
+    "source_description": "Ingest credential/SMS queues plaintext and backed up",
+    "current_code_status": "confirmed",
+    "root_cause": "Access/refresh already in secure storage. Ingest token and SMS queues still used preferences.",
+    "planned_and_actual_action": "Credential encrypted with device-bound Keystore; legacy migration and backup exclusions added. Native tests BLOCKED; SMS queues remain plaintext.",
+    "files": [
+      "mobile-app/mobile/lib/data/token_store.dart",
+      "mobile-app/mobile/lib/features/money/data/wallet_ingest_token.dart",
+      "mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/WalletCredentialStore.kt",
+      "mobile-app/mobile/android/app/src/main/AndroidManifest.xml"
+    ],
+    "regression_tests": "Credential encrypted with device-bound Keystore; legacy migration and backup exclusions added. Native tests BLOCKED; SMS queues remain plaintext.",
+    "final_status": "partial",
+    "group": "B-01"
+  },
+  {
+    "id": "R-09",
+    "source_severity": "Medium",
+    "source_description": "Reset delivery requires live worker consumer",
+    "current_code_status": "confirmed",
+    "root_cause": "Raw TCP did not follow SMTP replies/TLS/auth; queue payload also exposed codes and depended on worker.",
+    "planned_and_actual_action": "API uses direct SMTP sender independent of NODE_ENV/worker. Worker remains required for maintenance, not reset delivery. Boundary tests PASS.",
+    "files": [
+      "backend/src/infrastructure/external/email-sender.ts",
+      "backend/src/features/auth/auth.service.ts",
+      "backend/src/container.ts"
+    ],
+    "regression_tests": "API uses direct SMTP sender independent of NODE_ENV/worker. Worker remains required for maintenance, not reset delivery. Boundary tests PASS.",
+    "final_status": "fixed_verified",
+    "group": "B-13"
+  },
+  {
+    "id": "R-10",
+    "source_severity": "Medium",
+    "source_description": "Fresh containers lack schema-creation deployment step",
+    "current_code_status": "confirmed",
+    "root_cause": "Boot DDL already removed; missing image migrations; root nullable-task drift; production allowed postgres.",
+    "planned_and_actual_action": "Images ship migrations; Compose one-shot gates API/worker. Fresh/repeat/populated/failed owned PostgreSQL fixture runtime executes in C32; actual image deployment remains BLOCKED; legacy baseline not automated. Fresh-local bootstrap now requires supplied credentials/acknowledgement and refuses existing roles/public objects/non-default schemas, while Compose requires coherent generated settings and a unique project. Existing installations require an approved backed-up forward/rotation plan; no automatic password changes or volume deletion. Owned fresh/repeated/populated/failed PostgreSQL fixtures and role/grant/DDL checks execute under C17/C32; actual Compose/images and deployed legacy rehearsal remain BLOCKED/NOT RUN.",
+    "files": [
+      "backend/Dockerfile",
+      "docker-compose.yml",
+      "schema.sql",
+      "backend/src/config/env.ts",
+      "scripts/local-setup.mjs",
+      "scripts/local-stack.mjs",
+      "scripts/local-setup.test.mjs",
+      "scripts/ci-database-env.mjs",
+      "backend/src/infrastructure/database/postgres/init-roles.sql",
+      "docs/development/local-setup.md",
+      ".env.example",
+      "backend/.env.example",
+      ".gitignore"
+    ],
+    "regression_tests": "Role/startup/known-column guards plus actual owned PostgreSQL16 fresh/repeated/populated/intentional-failure/least-privilege probes execute in C17/C32. These are current-schema fixtures, not actual deployed legacy history, Docker/image deployment or restore; C18/C35 remain BLOCKED. Final raw evidence governs outcomes.",
+    "final_status": "code_unverified",
+    "group": "B-09"
+  },
+  {
+    "id": "R-11",
+    "source_severity": "Low",
+    "source_description": "Duplicate account purge; production copy untested",
+    "current_code_status": "confirmed",
+    "root_cause": "Worker scheduling exists; duplicate account purge, missing upgrade grant, silent soft purge errors; audit/session retention absent.",
+    "planned_and_actual_action": "Job store delegates to single UsersRepository purge implementation. Existing unit tests PASS; populated production-path integration test still BLOCKED.",
+    "files": [
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/features/users/users.repository.pg.ts",
+      "backend/src/infrastructure/database/postgres/migrations/1792022400000_ingest_delete_grant.cjs"
+    ],
+    "regression_tests": "Job store delegates to single UsersRepository purge implementation. Existing unit tests PASS; populated production-path integration test still BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-07"
+  },
+  {
+    "id": "R-12",
+    "source_severity": "Low",
+    "source_description": "Soft-delete purge catches all errors silently",
+    "current_code_status": "confirmed",
+    "root_cause": "Worker scheduling exists; duplicate account purge, missing upgrade grant, silent soft purge errors; audit/session retention absent.",
+    "planned_and_actual_action": "Remove catch-all; permission/constraint/connection errors propagate to observable failed worker event. Failure-injection unit PASS.",
+    "files": [
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/features/users/users.repository.pg.ts",
+      "backend/src/infrastructure/database/postgres/migrations/1792022400000_ingest_delete_grant.cjs"
+    ],
+    "regression_tests": "Remove catch-all; permission/constraint/connection errors propagate to observable failed worker event. Failure-injection unit PASS.",
+    "final_status": "fixed_verified",
+    "group": "B-07"
+  },
+  {
+    "id": "R-13",
+    "source_severity": "Low",
+    "source_description": "Day endpoint accepts impossible dates",
+    "current_code_status": "confirmed",
+    "root_cause": "Day endpoint accepts impossible dates",
+    "planned_and_actual_action": "Zod real-date and 1900\u20139999 range validation. Leap-day and impossible-date units PASS.",
+    "files": [
+      "backend/src/features/days/days.validation.ts"
+    ],
+    "regression_tests": "Zod real-date and 1900\u20139999 range validation. Leap-day and impossible-date units PASS.",
+    "final_status": "fixed_verified",
+    "group": "R-13"
+  },
+  {
+    "id": "R-14",
+    "source_severity": "Low",
+    "source_description": "Search LIKE metacharacters treated as patterns; note body unindexed",
+    "current_code_status": "confirmed",
+    "root_cause": "Search covers five readers; no goals/subscriptions/transactions. MoneyReader explicitly disallows full transaction-list exposure. LIKE metacharacters unescaped.",
+    "planned_and_actual_action": "Escape backslash/percent/underscore in five readers; literal pattern unit PASS. Trigram index/performance validation deferred pending DB plans.",
+    "files": [
+      "backend/src/features/search/search.service.ts",
+      "backend/src/core/pagination/search-pattern.ts",
+      "backend/src/features/notes/notes.reader.ts"
+    ],
+    "regression_tests": "Escape backslash/percent/underscore in five readers; literal pattern unit PASS. Trigram index/performance validation deferred pending DB plans.",
+    "final_status": "partial",
+    "group": "B-21"
+  },
+  {
+    "id": "R-15",
+    "source_severity": "Low",
+    "source_description": "Worker errors unobservable and failed reset jobs discarded",
+    "current_code_status": "confirmed",
+    "root_cause": "BullMQ maintenance workers already exist. Failure listeners and shutdown ownership were incomplete.",
+    "planned_and_actual_action": "Sanitized failed/error listeners; schedule registration failure closes worker/queue and exits nonzero. Reset queue removed. Worker runtime BLOCKED.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-processors.ts",
+      "backend/src/container.ts"
+    ],
+    "regression_tests": "Sanitized failed/error listeners; schedule registration failure closes worker/queue and exits nonzero. Reset queue removed. Worker runtime BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "B-11"
+  },
+  {
+    "id": "R-16",
+    "source_severity": "Low",
+    "source_description": "Reminder attempt counter incremented twice",
+    "current_code_status": "confirmed",
+    "root_cause": "Unified API and dispatcher exist; push always throws; stale processing leases and double attempt counts.",
+    "planned_and_actual_action": "Claim is sole increment source; processor uses returned count. Fourth retry/fifth terminal boundary unit PASS.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/jobs/job-processors.ts",
+      "mobile-app/mobile/lib/features/calendar/data/calendar_repository.dart"
+    ],
+    "regression_tests": "Claim is sole increment source; processor uses returned count. Fourth retry/fifth terminal boundary unit PASS.",
+    "final_status": "fixed_verified",
+    "group": "B-12"
+  },
+  {
+    "id": "R-17",
+    "source_severity": "Low",
+    "source_description": "Timer job closes at now, overstating tracked time",
+    "current_code_status": "confirmed",
+    "root_cause": "Timer job closes at now, overstating tracked time",
+    "planned_and_actual_action": "Set ended_at = started_at + 12 hours. Generated SQL unit PASS; exact-duration real DB assertion added but BLOCKED.",
+    "files": [
+      "backend/src/jobs/job-stores.pg.ts"
+    ],
+    "regression_tests": "Set ended_at = started_at + 12 hours. Generated SQL unit PASS; exact-duration real DB assertion added but BLOCKED.",
+    "final_status": "code_unverified",
+    "group": "R-17"
+  },
+  {
+    "id": "R-18",
+    "source_severity": "Low",
+    "source_description": "Table-only schema test misses nullable-task drift",
+    "current_code_status": "confirmed",
+    "root_cause": "Boot DDL already removed; missing image migrations; root nullable-task drift; production allowed postgres.",
+    "planned_and_actual_action": "Nullable reference fixed; guard renamed as inventory-only and adds exact known-column check. Comprehensive schema-dump comparison still BLOCKED.",
+    "files": [
+      "backend/Dockerfile",
+      "docker-compose.yml",
+      "schema.sql",
+      "backend/src/config/env.ts"
+    ],
+    "regression_tests": "Nullable reference fixed; guard renamed as inventory-only and adds exact known-column check. Comprehensive schema-dump comparison still BLOCKED.",
+    "final_status": "partial",
+    "group": "B-09"
+  },
+  {
+    "id": "R-19",
+    "source_severity": "Low",
+    "source_description": "Unclosed API queue connection; NODE_ENV selection",
+    "current_code_status": "confirmed",
+    "root_cause": "BullMQ maintenance workers already exist. Failure listeners and shutdown ownership were incomplete.",
+    "planned_and_actual_action": "Remove API email queue and its connection entirely. Memory-vs-Redis limiter still selected by environment; not broadly refactored.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-processors.ts",
+      "backend/src/container.ts"
+    ],
+    "regression_tests": "Remove API email queue and its connection entirely. Memory-vs-Redis limiter still selected by environment; not broadly refactored.",
+    "final_status": "partial",
+    "group": "B-11"
+  },
+  {
+    "id": "R-20",
+    "source_severity": "Low",
+    "source_description": "Reminder routes authenticate/rate-limit twice; cross-feature repositories",
+    "current_code_status": "confirmed",
+    "root_cause": "Unified API and dispatcher exist; push always throws; stale processing leases and double attempt counts.",
+    "planned_and_actual_action": "Mount specific reminder routers first. Actual app authentication-count unit PASS; cross-feature repository coupling remains.",
+    "files": [
+      "backend/src/worker.ts",
+      "backend/src/jobs/job-stores.pg.ts",
+      "backend/src/jobs/job-processors.ts",
+      "mobile-app/mobile/lib/features/calendar/data/calendar_repository.dart"
+    ],
+    "regression_tests": "Mount specific reminder routers first. Actual app authentication-count unit PASS; cross-feature repository coupling remains.",
+    "final_status": "partial",
+    "group": "B-12"
+  },
+  {
+    "id": "R-21",
+    "source_severity": "Informational",
+    "source_description": "AI sends name/counts/typed text to third party",
+    "current_code_status": "confirmed",
+    "root_cause": "AI sends name/counts/typed text to third party",
+    "planned_and_actual_action": "Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Actual Flutter suite is C20; no specific consent UI/provider/device execution is inferred from a general suite PASS.",
+    "files": [
+      "mobile-app/mobile/lib/features/ai/presentation/ai_assistant_screen.dart"
+    ],
+    "regression_tests": "Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Actual Flutter suite is C20; no specific consent UI/provider/device execution is inferred from a general suite PASS.",
+    "final_status": "code_unverified",
+    "group": "R-21"
+  },
+  {
+    "id": "R-22",
+    "source_severity": "Informational",
+    "source_description": "Voice missing from ADR-044; dead Gemini transcription",
+    "current_code_status": "unclear",
+    "root_cause": "ADR-044 records exceptions; server SMS key and BYOK guard remain. Voice not explicitly named.",
+    "planned_and_actual_action": "Clarify actual platform recognition and unverified scope; do not invent authorization. Unreachable Gemini branch remains; device verification BLOCKED. 2026-10-16 cleanup removes both native dead Gemini upload/recording branches and misleading instant-alarm promises; retains existing OS speech channel/locale and compatibility notification entries. App-owned microphone/foreground-microphone capabilities removed; OS provider may use network. Original voice-scope approval remains unproven and native/device behavior BLOCKED.",
+    "files": [
+      "docs/architecture/design-decisions.md",
+      "mobile-app/mobile/lib/features/ai/data/ai_service.dart",
+      "mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/VoiceActionReceiver.kt",
+      "scripts/native-voice-cleanup.test.mjs",
+      "docs/remediation/runtime-and-cleanup.md"
+    ],
+    "regression_tests": "Clarify actual platform recognition and unverified scope; do not invent authorization. Unreachable Gemini branch remains; device verification BLOCKED. C33 eight source-contract checks PASS; Actual Android debug compilation is separately C40; no speech/provider/device PASS inferred.",
+    "final_status": "unclear",
+    "group": "B-04"
+  },
+  {
+    "id": "R-23",
+    "source_severity": "Informational",
+    "source_description": "Offline dependency/build observations",
+    "current_code_status": "confirmed",
+    "root_cause": "Offline dependency/build observations",
+    "planned_and_actual_action": "npm lock install/build/audit execute; audit zero production vulnerabilities. Actual source-pinned debug Flutter/Android build evidence is C39/C40; owner-key release and physical plugin behavior remain BLOCKED.",
+    "files": [
+      "backend/package.json",
+      "backend/package-lock.json",
+      "mobile-app/mobile/pubspec.yaml"
+    ],
+    "regression_tests": "npm lock install/build/audit execute; audit zero production vulnerabilities. Actual source-pinned debug Flutter/Android build evidence is C39/C40; owner-key release and physical plugin behavior remain BLOCKED.",
+    "final_status": "partial",
+    "group": "R-23"
+  }
+]

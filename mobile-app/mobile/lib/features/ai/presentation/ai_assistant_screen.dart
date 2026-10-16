@@ -17,6 +17,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isGenerating = false;
+  bool _consentedToEgress = false;
   bool _isListening = false;
 
   @override
@@ -56,6 +57,31 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     final text = (presetText ?? _textController.text).trim();
     if (text.isEmpty || _isGenerating) return;
 
+    if (!_consentedToEgress) {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Send conversation to Google Gemini?'),
+          content: const Text(
+            'Your typed text, conversation history, display name and task/habit counts are sent to Google using your API key. '
+            'Financial records are not included automatically. Do not type secrets or sensitive information. Google applies its own data policies.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Agree and send'),
+            ),
+          ],
+        ),
+      );
+      if (approved != true || !mounted) return;
+      _consentedToEgress = true;
+    }
+    if (!mounted) return;
     final l10n = AppLocalizations.of(context);
 
     _textController.clear();

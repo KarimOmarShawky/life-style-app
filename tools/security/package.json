@@ -1,0 +1,11 @@
+{
+  "name": "lifestyle-security-tools",
+  "private": true,
+  "description": "Isolated developer tooling; not shipped with the application",
+  "engines": { "node": ">=22" },
+  "scripts": { "scan": "node ../../scripts/scan-secrets.mjs" },
+  "devDependencies": {
+    "secretlint": "13.0.7",
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.7"
+  }
+}

@@ -8,7 +8,6 @@
  */
 
 import type { EmailSender } from '../infrastructure/external/email-sender.js';
-import type { PasswordResetEmailJob } from './email-queue.js';
 
 export interface DispatchableReminder {
   id: string;
@@ -23,15 +22,22 @@ export interface DispatchableReminder {
 export interface ReminderDispatchStore {
   /** Atomically claims due pending reminders (SKIP LOCKED) and marks them processing. */
   claimDue(now: Date, limit: number): Promise<DispatchableReminder[]>;
-  markSent(id: string, sentAt: Date): Promise<void>;
+  markSent(id: string, sentAt: Date, attemptCount: number): Promise<void>;
   /** Schedules a retry with an explicit next attempt time. */
   markRetry(
     id: string,
     nextAttemptAt: Date,
     errorCode: string,
-    errorMessage: string
+    errorMessage: string,
+    attemptCount: number
   ): Promise<void>;
-  markFailed(id: string, failedAt: Date, errorCode: string, errorMessage: string): Promise<void>;
+  markFailed(
+    id: string,
+    failedAt: Date,
+    errorCode: string,
+    errorMessage: string,
+    attemptCount: number
+  ): Promise<void>;
   /** Cancels reminders whose parent entity was soft-deleted or hard-deleted. */
   cancelOrphans(): Promise<number>;
 }
@@ -114,20 +120,21 @@ export async function processReminderDispatch(
         await push.send(reminder.userId, 'Reminder', 'You have a scheduled reminder');
       }
       // 'in_app': delivered by presence in the API listing.
-      await store.markSent(reminder.id, now);
+      await store.markSent(reminder.id, now, reminder.attemptCount);
       sent += 1;
     } catch (err) {
       const message = truncate(err instanceof Error ? err.message : String(err));
-      const attempts = reminder.attemptCount + 1;
+      const attempts = reminder.attemptCount; // claimDue already increments this attempt
       if (attempts >= MAX_REMINDER_ATTEMPTS) {
-        await store.markFailed(reminder.id, now, 'DELIVERY_FAILED', message);
+        await store.markFailed(reminder.id, now, 'DELIVERY_FAILED', message, reminder.attemptCount);
         failed += 1;
       } else {
         await store.markRetry(
           reminder.id,
           new Date(now.getTime() + RETRY_BACKOFF_MS * attempts),
           'DELIVERY_FAILED',
-          message
+          message,
+          reminder.attemptCount
         );
         retried += 1;
       }
@@ -168,12 +175,4 @@ export async function processPurge(
   const softDeleted = await store.purgeSoftDeleted(cutoff);
   const expiredAccounts = store.purgeExpiredAccounts ? await store.purgeExpiredAccounts(now) : 0;
   return { purged: softDeleted + expiredAccounts };
-}
-
-/** Sends one queued password-reset email. */
-export async function processPasswordResetEmail(
-  payload: PasswordResetEmailJob,
-  emailSender: EmailSender
-): Promise<void> {
-  await emailSender.sendPasswordResetEmail(payload.to, payload.code);
 }

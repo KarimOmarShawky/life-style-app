@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/tasks-flow.test.ts
  *
@@ -74,7 +75,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
       expect(doneRes.status).toBe(200);
       expect(doneRes.body.task.status).toBe('done');
       expect(doneRes.body.task.completedAt).not.toBeNull();
-      const _firstCompletedAt = doneRes.body.task.completedAt;
+      expect(Number.isNaN(Date.parse(doneRes.body.task.completedAt))).toBe(false);
 
       // 3. Reopen task
       const reopenRes = await request(app)

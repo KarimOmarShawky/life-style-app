@@ -1,0 +1,7 @@
+$ python scripts/record-hosted-build.py
+Exit: 0
+PASS: hosted run 38915340992, commit 4d698901164d5306055d3f33a32a864b74e49209; application/workflow source match checked. No raw logs or private URLs retained.
+Flutter and Android debug validation (not a release): success
+Backend Quality, Security & API Contract Gate: success
+Real SDK verifier fixture (not application or device test): success
+Explicit signed Android build (no deployment): skipped

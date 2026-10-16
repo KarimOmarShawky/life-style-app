@@ -1,0 +1,6 @@
+$ npm --prefix backend run lint
+Exit: 0
+
+> lifestyle-backend@1.0.1 lint
+> eslint "src/**/*.ts" "tests/**/*.ts"
+

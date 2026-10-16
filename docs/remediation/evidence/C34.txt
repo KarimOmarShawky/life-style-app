@@ -1,0 +1,6 @@
+$ npm --prefix backend run typecheck -- --noUnusedLocals --noUnusedParameters
+Exit: 0
+
+> lifestyle-backend@1.0.1 typecheck
+> tsc --noEmit --noUnusedLocals --noUnusedParameters
+

@@ -2,9 +2,22 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, arena/3f871eac-life-style-app]
   pull_request:
     branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      build_signed_release:
+        description: Build a signed APK using the android-release environment (never deploys)
+        type: boolean
+        required: false
+        default: false
+      validation_api_base_url:
+        description: Explicit approved HTTPS test API for the debug APK; default is intentionally offline
+        type: string
+        required: false
+        default: https://validation.invalid/api/v1
 
 permissions:
   contents: read
@@ -18,7 +31,7 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: lifestyle_dev
+          POSTGRES_DB: lifestyle_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres_local_pass
         ports:
@@ -50,12 +63,18 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      - name: Generate ephemeral isolated database credentials
+        run: node scripts/ci-database-env.mjs
+
       - name: Install dependencies with lockfile
         working-directory: backend
         run: npm ci
 
       - name: Forbidden-dependency guard (ADR-039)
-        run: node scripts/check-forbidden.mjs
+        run: node --test scripts/check-forbidden.test.mjs && node scripts/check-forbidden.mjs
+
+      - name: Android build-preparation helper and source regressions (not a native build)
+        run: node --test scripts/android-build-preparation.test.mjs
 
       - name: Code style & lint
         working-directory: backend
@@ -65,7 +84,9 @@ jobs:
 
       - name: Strict TypeScript check
         working-directory: backend
-        run: npm run typecheck
+        run: |
+          npm run typecheck
+          npm run typecheck:tests
 
       - name: OpenAPI drift check
         working-directory: backend
@@ -73,28 +94,25 @@ jobs:
           npm run openapi:generate
           git diff --exit-code ../docs/api/openapi.yaml
 
-      - name: Initialize database roles
-        run: |
-          PGPASSWORD=postgres_local_pass psql -h localhost -U postgres -d lifestyle_dev -f backend/src/infrastructure/database/postgres/init-roles.sql
-
-      - name: Migration reversibility check (up -> down -> up)
-        working-directory: backend
+      - name: Initialize fresh isolated database roles
         env:
-          DATABASE_MIGRATION_URL: postgresql://lifestyle_migrator:migrator_local_pass@localhost:5432/lifestyle_dev
+          LIFESTYLE_FRESH_BOOTSTRAP: fresh-local-or-ci-only
+        run: |
+          PGPASSWORD=postgres_local_pass psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d lifestyle_test -f backend/src/infrastructure/database/postgres/init-roles.sql
+
+      - name: Forward migration idempotency (fresh up -> repeat up)
+        working-directory: backend
         run: |
           npm run migrate:up
-          npm run migrate:down
           npm run migrate:up
 
       - name: Unit, integration & security tests
         working-directory: backend
         env:
+          ALLOW_DESTRUCTIVE_TESTS: isolated-resources-only
           NODE_ENV: test
           PORT: 3000
-          DATABASE_URL: postgresql://lifestyle_app:app_local_pass@localhost:5432/lifestyle_dev
-          REDIS_URL: redis://localhost:6379
-          JWT_ACCESS_SECRET: test-secret-at-least-32-characters-long-for-hs256
-          OTP_HMAC_SECRET: test-otp-secret-at-least-32-characters-long
+          REDIS_URL: redis://localhost:6379/15
           LOG_LEVEL: silent
         run: |
           npm test > npm-test.log 2>&1 || {
@@ -111,8 +129,11 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
   mobile-gate:
-    name: Flutter Static Analysis & Tests
+    name: Flutter and Android debug validation (not a release)
     runs-on: ubuntu-latest
+    # Public pilot ingress returned HTTP403; no implicit connected endpoint or fallback to production.
+    env:
+      VALIDATION_API_BASE_URL: ${{ inputs.validation_api_base_url || 'https://validation.invalid/api/v1' }}
     defaults:
       run:
         working-directory: mobile-app/mobile
@@ -121,12 +142,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup signature-verification runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Cache Android build dependencies
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
 
+      - name: Approved temporary pilot public HTTPS and real API roundtrip (not device)
+        if: ${{ env.VALIDATION_API_BASE_URL != 'https://validation.invalid/api/v1' }}
+        env:
+          PILOT_API_BASE_URL: ${{ env.VALIDATION_API_BASE_URL }}
+        run: python3 ../../scripts/check-pilot-api.py
+
       - name: Setup Flutter stable channel
+        id: flutter_sdk
         uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -136,6 +175,7 @@ jobs:
         run: flutter pub get
 
       - name: Dart formatting
+        id: dart_format
         run: |
           if ! dart format --output=none --set-exit-if-changed lib test; then
             dart format lib test
@@ -147,35 +187,35 @@ jobs:
           fi
 
       - name: Formatting diagnostics 2
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(10*3500,min(len(s),20*3500),3500)]'
           fi
 
       - name: Formatting diagnostics 3
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(20*3500,min(len(s),30*3500),3500)]'
           fi
 
       - name: Formatting diagnostics 4
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(30*3500,min(len(s),40*3500),3500)]'
           fi
 
       - name: Formatting diagnostics 5
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(40*3500,min(len(s),50*3500),3500)]'
           fi
 
       - name: Upload formatting fix when needed
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: dart-format-fix
@@ -183,19 +223,27 @@ jobs:
           if-no-files-found: ignore
 
       - name: Flutter static analysis
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flutter_sdk.outcome == 'success' }}
         run: |
           flutter analyze --fatal-infos > analyze.log 2>&1 || {
             echo '### failure log: analyze.log' >> "$GITHUB_STEP_SUMMARY"
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 80 analyze.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            # Diagnostic-only official fix candidate; this step STILL FAILS and no APK is built.
+            python3 -c 'import base64,zlib; print("::notice title=Flutter analysis diagnostics::"+base64.b64encode(zlib.compress(open("analyze.log","rb").read())).decode())'
+            if ! dart fix --apply --code=curly_braces_in_flow_control_structures; then
+              echo '::notice title=Diagnostic fix unavailable::Official fixer did not produce this diagnostic code; original analysis remains failed.'
+            fi
+            dart format lib test
+            git diff --binary > "$RUNNER_TEMP/dart-analysis-fix.patch"
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-analysis-fix.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart analysis fix %03d::"%(i//3500)+s[i:i+3500]) for i in range(0,len(s),3500)]'
             grep -E "error •|error -|warning -|info -|\.dart" analyze.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
             exit 1
           }
 
       - name: Flutter tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flutter_sdk.outcome == 'success' }}
         run: |
           flutter test --coverage > flutter-test.log 2>&1 || {
             echo '### failure log: flutter-test.log' >> "$GITHUB_STEP_SUMMARY"
@@ -218,9 +266,16 @@ jobs:
             exit 1
           }
 
-      - name: Build Android Release APK
+      - name: Build Android debug validation APK (offline by default, not release)
         run: |
-          flutter build apk --release > build.log 2>&1 || {
+          node --input-type=module <<'JS'
+          try {
+            const url = new URL(process.env.VALIDATION_API_BASE_URL);
+            if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
+                !url.pathname.replace(/\/+$/, '').endsWith('/api/v1')) throw new Error();
+          } catch { console.error('FAIL: validation API must be explicit HTTPS without credentials/query/fragment and end in /api/v1'); process.exit(1); }
+          JS
+          flutter build apk --debug --dart-define="API_BASE_URL=$VALIDATION_API_BASE_URL" > build.log 2>&1 || {
             echo '### failure log: build.log' >> "$GITHUB_STEP_SUMMARY"
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 80 build.log >> "$GITHUB_STEP_SUMMARY"
@@ -229,8 +284,120 @@ jobs:
             exit 1
           }
 
-      - name: Upload APK Artifact
+      - name: Verify validation APK signature
+        run: node ../../scripts/verify-android-apk.mjs debug build/app/outputs/flutter-apk/app-debug.apk
+
+      - name: Upload debug validation APK (not a release or connected backend test)
         uses: actions/upload-artifact@v4
         with:
-          name: lifestyle-app-release-apk
+          name: lifestyle-android-debug-validation-NOT-RELEASE
+          path: mobile-app/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+
+  android-signed-release:
+    name: Explicit signed Android build (no deployment)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_signed_release && github.ref == 'refs/heads/main' }}
+    needs: [backend-gate, mobile-gate]
+    runs-on: ubuntu-latest
+    environment: android-release
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Never export Gradle state from a job handling private signing material.
+          cache-disabled: true
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Validate explicitly configured HTTPS API and expected public signer
+        env:
+          API_BASE_URL: ${{ vars.ANDROID_RELEASE_API_BASE_URL }}
+          ANDROID_RELEASE_CERT_SHA256: ${{ vars.ANDROID_RELEASE_CERT_SHA256 }}
+        run: |
+          node --input-type=module <<'JS'
+          try {
+            const url = new URL(process.env.API_BASE_URL);
+            if (url.protocol !== 'https:' || !url.hostname || url.username || url.password ||
+                url.search || url.hash || !url.pathname.replace(/\/+$/, '').endsWith('/api/v1') ||
+                url.hostname.endsWith('.invalid')) throw new Error();
+            if (!/^[a-fA-F0-9]{64}$/.test((process.env.ANDROID_RELEASE_CERT_SHA256 || '').replaceAll(':', ''))) throw new Error();
+          } catch {
+            console.error('FAIL: configure HTTPS ANDROID_RELEASE_API_BASE_URL and public ANDROID_RELEASE_CERT_SHA256 privately in android-release settings');
+            process.exit(1);
+          }
+          JS
+
+      - name: Prepare private release signing (no key generation or debug fallback)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: node scripts/prepare-android-signing.mjs
+
+      - name: Build explicitly configured signed release
+        working-directory: mobile-app/mobile
+        env:
+          API_BASE_URL: ${{ vars.ANDROID_RELEASE_API_BASE_URL }}
+        run: |
+          flutter pub get
+          flutter build apk --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-symbols" --dart-define="API_BASE_URL=$API_BASE_URL"
+
+      - name: Verify signature against expected release certificate, rejecting debug identity
+        env:
+          ANDROID_RELEASE_CERT_SHA256: ${{ vars.ANDROID_RELEASE_CERT_SHA256 }}
+        run: node scripts/verify-android-apk.mjs release mobile-app/mobile/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Preserve matching obfuscation symbols separately (never packaged into APK)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifestyle-android-release-symbols
+          path: ${{ runner.temp }}/lifestyle-symbols
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload signature-verified release APK (not deployment/device certification)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifestyle-android-signed-release
           path: mobile-app/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove only this job's private signing files
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${ANDROID_SIGNING_DIRECTORY:-}" && "$ANDROID_SIGNING_DIRECTORY" == "$RUNNER_TEMP"/lifestyle-signing-* ]]; then
+            rm -f -- mobile-app/mobile/android/key.properties
+            rm -rf -- "$ANDROID_SIGNING_DIRECTORY"
+          fi
+
+
+  android-verifier-probe:
+    name: Real SDK verifier fixture (not application or device test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Real SDK transient fixture probe, no published artifact
+        run: bash scripts/smoke-android-verifier.sh

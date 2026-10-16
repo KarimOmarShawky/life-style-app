@@ -5,11 +5,9 @@
  * and atomic 5-attempt limit under concurrent verification requests.
  */
 
-import { Socket } from 'node:net';
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import type { Redis } from 'ioredis';
 import { RedisOtpStore } from '../../src/core/security/otp-service.js';
-import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
 
 class InMemoryRedis {
   private readonly store = new Map<string, { value: string; expiresAt: number | null }>();
@@ -93,32 +91,13 @@ class InMemoryRedis {
   }
 }
 
-async function isRedisReachable(host = '127.0.0.1', port = 6379): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = new Socket();
-    const finish = (ok: boolean) => {
-      socket.destroy();
-      resolve(ok);
-    };
-    socket.setTimeout(150);
-    socket.once('connect', () => finish(true));
-    socket.once('timeout', () => finish(false));
-    socket.once('error', () => finish(false));
-    socket.connect(port, host);
-  });
-}
-
 describe('RedisOtpStore', () => {
   let redis: Redis;
   let otpStore: RedisOtpStore;
   const testUserId = '33333333-3333-4333-8333-333333333333';
 
   beforeAll(async () => {
-    if (await isRedisReachable()) {
-      redis = getRedisClient();
-    } else {
-      redis = new InMemoryRedis() as unknown as Redis;
-    }
+    redis = new InMemoryRedis() as unknown as Redis;
     otpStore = new RedisOtpStore(redis);
   });
 
@@ -171,6 +150,17 @@ describe('RedisOtpStore', () => {
     // 6th attempt should also return false
     const sixth = await otpStore.verifyAndConsumeCode(testUserId, '000000');
     expect(sixth).toBe(false);
+  });
+
+  it('rejects an expired code without consuming a live replacement', async () => {
+    vi.useFakeTimers();
+    try {
+      const expired = await otpStore.generateAndStoreCode(testUserId);
+      vi.advanceTimersByTime(901_000);
+      expect(await otpStore.verifyAndConsumeCode(testUserId, expired)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('enforces 60-second cooldown on consecutive requests', async () => {

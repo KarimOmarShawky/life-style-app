@@ -22,7 +22,8 @@ const Map<String, String> frCatalog = {
   'dueDate': 'Date d\'échéance',
   'resetPassword': 'Réinitialiser le mot de passe',
   'sendResetCode': 'Envoyer le code',
-  'resetCodeSent': 'Code de réinitialisation envoyé par e-mail',
+  'resetCodeSent':
+      'Si cette adresse est éligible, nous essaierons de vous envoyer un code. Vérifiez votre boîte de réception.',
   'enterResetCode': 'Saisissez le code à 6 chiffres',
   'newPassword': 'Nouveau mot de passe',
   'confirmNewPassword': 'Confirmer le nouveau mot de passe',

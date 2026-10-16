@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/features/digital_detox/detox_screen.dart';
 import 'package:lifestyle_mobile/features/focus_shield/routine_wizard_screen.dart';
 import 'package:lifestyle_mobile/features/focus_shield/weekly_review_screen.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
@@ -22,22 +23,31 @@ class MoreScreen extends ConsumerWidget {
     final isAr = l10n.isArabic;
     final items = <_MoreItem>[
       _MoreItem(
-          icon: Icons.wb_twilight,
-          title: 'Daily routines',
-          subtitle: 'Morning Kickoff & Night Shutdown',
-          builder: (_) => const RoutineWizardScreen()),
+        icon: Icons.phonelink_lock,
+        title: 'Digital Detox',
+        subtitle: '45/15 focus cycles with verified restriction status',
+        builder: (_) => const DigitalDetoxScreen(),
+      ),
       _MoreItem(
-          icon: Icons.insights,
-          title: 'Weekly Brain Report',
-          subtitle: 'Private metrics and optional AI coaching',
-          builder: (_) => const WeeklyReviewScreen()),
+        icon: Icons.wb_twilight,
+        title: 'Daily routines',
+        subtitle: 'Morning Kickoff & Night Shutdown',
+        builder: (_) => const RoutineWizardScreen(),
+      ),
       _MoreItem(
-          icon: Icons.shield_outlined,
-          title: 'Focus Shield',
-          subtitle: isAr
-              ? 'التركيز، النقاط وصندوق رسائل التركيز'
-              : 'Focus, XP and Focus Inbox',
-          builder: (_) => const FocusShieldScreen()),
+        icon: Icons.insights,
+        title: 'Weekly Brain Report',
+        subtitle: 'Private metrics and optional AI coaching',
+        builder: (_) => const WeeklyReviewScreen(),
+      ),
+      _MoreItem(
+        icon: Icons.shield_outlined,
+        title: 'Focus Shield',
+        subtitle: isAr
+            ? 'التركيز، النقاط وصندوق رسائل التركيز'
+            : 'Focus, XP and Focus Inbox',
+        builder: (_) => const FocusShieldScreen(),
+      ),
       _MoreItem(
         icon: Icons.dashboard_outlined,
         title: isAr ? 'خطة اليوم والملخص' : 'Daily Plan & Overview',

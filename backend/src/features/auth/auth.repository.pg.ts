@@ -297,8 +297,8 @@ export class PgAuthRepository implements AuthRepository {
     );
   }
 
-  public async updateLastLogin(userId: string): Promise<void> {
-    await this.pool.query(
+  public async updateLastLogin(userId: string, client?: pg.PoolClient): Promise<void> {
+    await this.getExecutor(client).query(
       `UPDATE users SET last_login_at = now(), updated_at = now() WHERE id = $1`,
       [userId]
     );

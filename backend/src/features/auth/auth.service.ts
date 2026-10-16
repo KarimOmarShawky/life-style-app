@@ -1,3 +1,9 @@
+import {
+  ResetRequestDispatcher,
+  type ResetDispatcherOptions
+} from '../../core/security/reset-request-dispatcher.js';
+import { logger } from '../../core/logger/logger.js';
+import { getEnv } from '../../config/env.js';
 /**
  * src/features/auth/auth.service.ts
  *
@@ -31,6 +37,7 @@ export interface RequestMeta {
 }
 
 export class AuthService {
+  private readonly resetRequests: ResetRequestDispatcher;
   constructor(
     private readonly repo: AuthRepository,
     private readonly pool: pg.Pool,
@@ -38,15 +45,26 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly otpStore: OtpStore,
     private readonly emailSender: EmailSender,
-    private readonly auditLogger: AuditLogger
-  ) {}
+    private readonly auditLogger: AuditLogger,
+    resetOptions?: ResetDispatcherOptions
+  ) {
+    this.resetRequests = new ResetRequestDispatcher(
+      ({ email, meta }) => this.processPasswordResetRequest(email, meta),
+      resetOptions
+    );
+  }
 
   public async register(input: RegisterInput, meta?: RequestMeta): Promise<AuthResponseDto> {
     const passwordHash = await this.passwordHasher.hash(input.password);
 
     const client = await this.pool.connect();
+    let transactionOpen = false;
+    // A failed BEGIN may leave an unusable/uncertain connection: discard it.
+    let discardClient = true;
     try {
       await client.query('BEGIN');
+      transactionOpen = true;
+      discardClient = false;
 
       const user = await this.repo.createUser(
         {
@@ -65,7 +83,9 @@ export class AuthService {
 
       // Create session (90 days absolute cap)
       const now = new Date();
-      const absoluteExpiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      const absoluteExpiresAt = new Date(
+        now.getTime() + getEnv().SESSION_ABSOLUTE_TTL_DAYS * 24 * 60 * 60 * 1000
+      );
 
       const session = await this.repo.createSession(
         {
@@ -82,7 +102,10 @@ export class AuthService {
       // Create initial refresh token (30 days sliding TTL, capped at absolute session expiry)
       const { rawToken, tokenHash } = generateRefreshToken();
       const refreshExpiresAt = new Date(
-        Math.min(now.getTime() + 30 * 24 * 60 * 60 * 1000, absoluteExpiresAt.getTime())
+        Math.min(
+          now.getTime() + getEnv().REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+          absoluteExpiresAt.getTime()
+        )
       );
 
       await this.repo.createRefreshToken(
@@ -96,6 +119,8 @@ export class AuthService {
       );
 
       await client.query('COMMIT');
+
+      transactionOpen = false;
 
       // Audit event
       await this.auditLogger.log({
@@ -125,14 +150,22 @@ export class AuthService {
         })
       };
     } catch (err: unknown) {
-      await client.query('ROLLBACK');
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          discardClient = true;
+          // Never replace the original error or log raw database/provider details.
+          logger.error('Authentication transaction rollback failed; discarding connection');
+        }
+      }
       const pgErr = err as { code?: string };
       if (pgErr.code === '23505') {
         throw AppError.conflict('EMAIL_ALREADY_REGISTERED', 'Email address is already registered');
       }
       throw err;
     } finally {
-      client.release();
+      client.release(discardClient);
     }
   }
 
@@ -173,11 +206,18 @@ export class AuthService {
     }
 
     const client = await this.pool.connect();
+    let transactionOpen = false;
+    // A failed BEGIN may leave an unusable/uncertain connection: discard it.
+    let discardClient = true;
     try {
       await client.query('BEGIN');
+      transactionOpen = true;
+      discardClient = false;
 
       const now = new Date();
-      const absoluteExpiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      const absoluteExpiresAt = new Date(
+        now.getTime() + getEnv().SESSION_ABSOLUTE_TTL_DAYS * 24 * 60 * 60 * 1000
+      );
 
       const session = await this.repo.createSession(
         {
@@ -193,7 +233,10 @@ export class AuthService {
 
       const { rawToken, tokenHash } = generateRefreshToken();
       const refreshExpiresAt = new Date(
-        Math.min(now.getTime() + 30 * 24 * 60 * 60 * 1000, absoluteExpiresAt.getTime())
+        Math.min(
+          now.getTime() + getEnv().REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+          absoluteExpiresAt.getTime()
+        )
       );
 
       await this.repo.createRefreshToken(
@@ -206,8 +249,9 @@ export class AuthService {
         client
       );
 
-      await this.repo.updateLastLogin(user.id);
+      await this.repo.updateLastLogin(user.id, client);
       await client.query('COMMIT');
+      transactionOpen = false;
 
       await this.auditLogger.log({
         actorType: 'user',
@@ -235,10 +279,18 @@ export class AuthService {
         })
       };
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          discardClient = true;
+          // Never replace the original error or log raw database/provider details.
+          logger.error('Authentication transaction rollback failed; discarding connection');
+        }
+      }
       throw err;
     } finally {
-      client.release();
+      client.release(discardClient);
     }
   }
 
@@ -294,12 +346,20 @@ export class AuthService {
     // 5. Rotate atomically
     const { rawToken: newRawToken, tokenHash: newTokenHash } = generateRefreshToken();
     const newRefreshExpiresAt = new Date(
-      Math.min(now.getTime() + 30 * 24 * 60 * 60 * 1000, session.absoluteExpiresAt.getTime())
+      Math.min(
+        now.getTime() + getEnv().REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+        session.absoluteExpiresAt.getTime()
+      )
     );
 
     const client = await this.pool.connect();
+    let transactionOpen = false;
+    // A failed BEGIN may leave an unusable/uncertain connection: discard it.
+    let discardClient = true;
     try {
       await client.query('BEGIN');
+      transactionOpen = true;
+      discardClient = false;
 
       const rotated = await this.repo.rotateRefreshToken(
         token.id,
@@ -317,6 +377,7 @@ export class AuthService {
         await this.repo.revokeSession(session.id, 'reuse_detected', client);
         await this.repo.deleteSessionPushDevices(session.id, client);
         await client.query('COMMIT');
+        transactionOpen = false;
 
         await this.auditLogger.log({
           actorType: 'user',
@@ -334,6 +395,8 @@ export class AuthService {
 
       await client.query('COMMIT');
 
+      transactionOpen = false;
+
       const signedAccess = await this.tokenService.signAccessToken({
         sub: user.id,
         sid: session.id
@@ -346,10 +409,18 @@ export class AuthService {
         refreshTokenExpiresAt: newRefreshExpiresAt
       });
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          discardClient = true;
+          // Never replace the original error or log raw database/provider details.
+          logger.error('Authentication transaction rollback failed; discarding connection');
+        }
+      }
       throw err;
     } finally {
-      client.release();
+      client.release(discardClient);
     }
   }
 
@@ -390,11 +461,16 @@ export class AuthService {
 
     if (revokedSessionId && revokedUserId) {
       const client = await this.pool.connect();
+      let transactionOpen = false;
+      let discardClient = true;
       try {
         await client.query('BEGIN');
+        transactionOpen = true;
+        discardClient = false;
         await this.repo.revokeSession(revokedSessionId, 'logout', client);
         await this.repo.deleteSessionPushDevices(revokedSessionId, client);
         await client.query('COMMIT');
+        transactionOpen = false;
 
         await this.auditLogger.log({
           actorType: 'user',
@@ -407,21 +483,33 @@ export class AuthService {
           userAgent: meta?.userAgent
         });
       } catch (err) {
-        await client.query('ROLLBACK');
+        if (transactionOpen) {
+          try {
+            await client.query('ROLLBACK');
+          } catch {
+            discardClient = true;
+            logger.error('Authentication transaction rollback failed; discarding connection');
+          }
+        }
         throw err;
       } finally {
-        client.release();
+        client.release(discardClient);
       }
     }
   }
 
   public async logoutAll(userId: string, meta?: RequestMeta): Promise<void> {
     const client = await this.pool.connect();
+    let transactionOpen = false;
+    let discardClient = true;
     try {
       await client.query('BEGIN');
+      transactionOpen = true;
+      discardClient = false;
       await this.repo.revokeAllUserSessions(userId, 'logout_all', undefined, client);
       await this.repo.deleteAllUserPushDevices(userId, undefined, client);
       await client.query('COMMIT');
+      transactionOpen = false;
 
       await this.auditLogger.log({
         actorType: 'user',
@@ -433,27 +521,59 @@ export class AuthService {
         userAgent: meta?.userAgent
       });
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          discardClient = true;
+          logger.error('Authentication transaction rollback failed; discarding connection');
+        }
+      }
       throw err;
     } finally {
-      client.release();
+      client.release(discardClient);
     }
   }
 
   public async forgotPassword(email: string, meta?: RequestMeta): Promise<void> {
+    if (!this.resetRequests.admit({ email, meta })) {
+      // Admission is process-wide for this service, before any account-dependent work.
+      throw AppError.serviceUnavailable('Password reset requests temporarily unavailable');
+    }
+  }
+
+  public stopResetRequests(): void {
+    this.resetRequests.stopAccepting();
+  }
+  public waitForResetRequests(): Promise<void> {
+    return this.resetRequests.waitForIdle();
+  }
+  public resetRequestCounts(): ReturnType<ResetRequestDispatcher['snapshot']> {
+    return this.resetRequests.snapshot();
+  }
+
+  private async processPasswordResetRequest(email: string, meta?: RequestMeta): Promise<void> {
     const user = await this.repo.findUserByEmail(email);
 
     if (user && user.status !== 'disabled') {
       const allowed = await this.otpStore.checkCooldown(user.id);
       if (allowed) {
         const code = await this.otpStore.generateAndStoreCode(user.id);
-        await this.emailSender.sendPasswordResetEmail(user.email, code);
+        let deliveryOutcome: 'success' | 'failure' = 'success';
+        try {
+          await this.emailSender.sendPasswordResetEmail(user.email, code);
+        } catch {
+          deliveryOutcome = 'failure';
+          // This endpoint accepts requests without revealing account existence.
+          // SMTP failure is observable, not a claimed successful delivery.
+          logger.error('Password reset delivery failed', { requestId: meta?.requestId });
+        }
 
         await this.auditLogger.log({
           actorType: 'user',
           actorUserId: user.id,
           eventType: 'auth.password.reset.requested',
-          outcome: 'success',
+          outcome: deliveryOutcome,
           requestId: meta?.requestId,
           ip: meta?.ip,
           userAgent: meta?.userAgent
@@ -476,6 +596,9 @@ export class AuthService {
 
     const isValid = await this.otpStore.verifyAndConsumeCode(user.id, input.code);
     if (!isValid) {
+      // Match the unknown/disabled-user invalid-reset path's expensive operation.
+      // This is expensive-operation parity, not a constant-time DB/Redis guarantee.
+      await this.passwordHasher.dummyVerify();
       throw new AppError({
         httpStatus: 400,
         code: 'INVALID_OR_EXPIRED_CODE',
@@ -486,12 +609,17 @@ export class AuthService {
     const passwordHash = await this.passwordHasher.hash(input.newPassword);
 
     const client = await this.pool.connect();
+    let transactionOpen = false;
+    let discardClient = true;
     try {
       await client.query('BEGIN');
+      transactionOpen = true;
+      discardClient = false;
       await this.repo.updateUserPassword(user.id, passwordHash, client);
       await this.repo.revokeAllUserSessions(user.id, 'password_reset', undefined, client);
       await this.repo.deleteAllUserPushDevices(user.id, undefined, client);
       await client.query('COMMIT');
+      transactionOpen = false;
 
       await this.auditLogger.log({
         actorType: 'user',
@@ -503,10 +631,17 @@ export class AuthService {
         userAgent: meta?.userAgent
       });
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          discardClient = true;
+          logger.error('Authentication transaction rollback failed; discarding connection');
+        }
+      }
       throw err;
     } finally {
-      client.release();
+      client.release(discardClient);
     }
   }
 
@@ -529,13 +664,18 @@ export class AuthService {
     const passwordHash = await this.passwordHasher.hash(input.newPassword);
 
     const client = await this.pool.connect();
+    let transactionOpen = false;
+    let discardClient = true;
     try {
       await client.query('BEGIN');
+      transactionOpen = true;
+      discardClient = false;
       await this.repo.updateUserPassword(userId, passwordHash, client);
       // Revoke all OTHER sessions, keeping current session
       await this.repo.revokeAllUserSessions(userId, 'password_change', currentSessionId, client);
       await this.repo.deleteAllUserPushDevices(userId, currentSessionId, client);
       await client.query('COMMIT');
+      transactionOpen = false;
 
       await this.auditLogger.log({
         actorType: 'user',
@@ -548,10 +688,17 @@ export class AuthService {
         userAgent: meta?.userAgent
       });
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          discardClient = true;
+          logger.error('Authentication transaction rollback failed; discarding connection');
+        }
+      }
       throw err;
     } finally {
-      client.release();
+      client.release(discardClient);
     }
   }
 }

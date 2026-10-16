@@ -1,0 +1,60 @@
+$ node --test scripts/native-voice-cleanup.test.mjs
+Exit: 0
+TAP version 13
+# Subtest: dead native Gemini credentials and HTTP/inline-audio branches are removed (source only)
+ok 1 - dead native Gemini credentials and HTTP/inline-audio branches are removed (source only)
+  ---
+  duration_ms: 1.259186
+  type: 'test'
+  ...
+# Subtest: native voice entry points no longer record private temporary audio or encode files
+ok 2 - native voice entry points no longer record private temporary audio or encode files
+  ---
+  duration_ms: 0.26517
+  type: 'test'
+  ...
+# Subtest: existing in-app speech channel and selected language are preserved, without recording fallback
+ok 3 - existing in-app speech channel and selected language are preserved, without recording fallback
+  ---
+  duration_ms: 0.180941
+  type: 'test'
+  ...
+# Subtest: pending speech result has busy/cancel/dispose guards (source contract, not lifecycle execution)
+ok 4 - pending speech result has busy/cancel/dispose guards (source contract, not lifecycle execution)
+  ---
+  duration_ms: 0.153015
+  type: 'test'
+  ...
+# Subtest: notification opens existing app rather than launching nonfunctional microphone service
+ok 5 - notification opens existing app rather than launching nonfunctional microphone service
+  ---
+  duration_ms: 0.140166
+  type: 'test'
+  ...
+# Subtest: private legacy service is a non-recording compatibility entry, not a fake alarm success
+ok 6 - private legacy service is a non-recording compatibility entry, not a fake alarm success
+  ---
+  duration_ms: 0.175405
+  type: 'test'
+  ...
+# Subtest: unneeded app recording capabilities and automatic microphone prompt are removed
+ok 7 - unneeded app recording capabilities and automatic microphone prompt are removed
+  ---
+  duration_ms: 0.25655
+  type: 'test'
+  ...
+# Subtest: existing alarm receiver and other shared channel consumers remain, no user data cleanup
+ok 8 - existing alarm receiver and other shared channel consumers remain, no user data cleanup
+  ---
+  duration_ms: 0.523323
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 70.607594

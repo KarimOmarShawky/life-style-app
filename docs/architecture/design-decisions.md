@@ -66,3 +66,25 @@ This record captures the fundamental architectural decisions governing the LifeS
   4. **Focus Timer sessions without a task** are approved scope (optional task link). TimerSession→Task is optional.
 * **Guardrails (standing):** No raw SMS in logs or third-party payloads; the mobile AI chat assistant and the SMS fallback may not send financial data beyond the sanitized transaction schema; ADR-039's dependency guard remains (no AI/ML SDK packages — the fallback calls the Gemini HTTPS API directly).
 * **Consequences:** `deferred-and-non-goals.md` keeps only what is genuinely excluded (see its "Scope amendments" section). The earlier lock rows are retired rather than contradicted in place.
+
+
+## 2026-10-15 implementation clarification (R-22)
+Voice dictation exists in the current application using platform speech recognition.
+ADR-044 did not explicitly authorize voice, and this note does not invent retroactive
+owner approval. The native Gemini transcription branch was unreachable because its key reader
+returned empty. The 2026-10-16 cleanup removed those dead provider/recording branches,
+kept OS speech input and legacy notification compatibility, and removed unused app
+microphone capabilities. Native compilation/device verification and confirmation of
+remaining voice policy scope are still required; no guaranteed offline speech is claimed. Digital Detox is explicitly authorized by the current task;
+its actual supported scope is documented in `docs/mobile/digital-detox.md`.
+
+
+## 2026-10-15 owner clarification: local audio versus server uploads (ADR-039 / D-08)
+The owner explicitly clarified that the file prohibition concerns uploads to the
+server to avoid leaks, not selecting a local sound for Focus Timer. Preserve the
+existing audio-only selection/playback. No server uploads, new picker consumers or
+general file/image storage are approved. The guard permits only the reviewed mobile
+manifest/lock entries and existing audio-only consumer, not a global package allowlist.
+The earlier guard's ADR-008 file-storage label was inaccurate: ADR-008 above is UUIDs.
+See `../security/local-audio-boundary.md` for enforcement, negative tests, current-flow
+review and remaining native/network verification limits. No blanket no-leak guarantee.

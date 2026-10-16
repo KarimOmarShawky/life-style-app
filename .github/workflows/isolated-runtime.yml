@@ -1,0 +1,97 @@
+name: Isolated backend runtime verification
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-runtime:
+    name: Disposable PostgreSQL and Redis (not policy or mobile approval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lifestyle_test
+          POSTGRES_USER: postgres
+          # Public ephemeral job fixture only; application-role credentials are per-job random.
+          POSTGRES_PASSWORD: postgres_local_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ALLOW_DESTRUCTIVE_TESTS: isolated-resources-only
+      NODE_ENV: test
+      REDIS_URL: redis://localhost:6379/15
+      LOG_LEVEL: silent
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Register random masked application-role credentials
+        run: node scripts/ci-database-env.mjs
+      - name: Preflight negative/source tests (no services contacted)
+        run: node --test scripts/ci-resource-guard.test.mjs
+      - name: Establish job-owned service identity before any database changes
+        env:
+          CI_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+          CI_REDIS_CONTAINER: ${{ job.services.redis.id }}
+          CI_SERVICE_NETWORK: ${{ job.services.postgres.network }}
+        run: node scripts/ci-resource-guard.mjs
+      - name: Install backend dependencies
+        run: npm --prefix backend ci --no-audit --no-fund
+      - name: Strict compilation and non-destructive unit tests
+        run: |
+          npm --prefix backend run typecheck:tests
+          npm --prefix backend run test:unit
+      - name: Initialize only the fresh job database
+        env:
+          LIFESTYLE_FRESH_BOOTSTRAP: fresh-local-or-ci-only
+          PGPASSWORD: postgres_local_pass
+        run: psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d lifestyle_test -f backend/src/infrastructure/database/postgres/init-roles.sql
+      - name: Explicit forward migrations (fresh and repeated)
+        run: |
+          npm --prefix backend run migrate:up
+          npm --prefix backend run migrate:up
+      - name: Existing-role bootstrap must refuse without changing credentials
+        env:
+          LIFESTYLE_FRESH_BOOTSTRAP: fresh-local-or-ci-only
+          PGPASSWORD: postgres_local_pass
+        run: |
+          # Capture raw diagnostics privately; never upload/log resolved secrets.
+          if psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d lifestyle_test -f backend/src/infrastructure/database/postgres/init-roles.sql > "$RUNNER_TEMP/bootstrap-refusal.txt" 2>&1; then
+            echo 'FAIL: bootstrap unexpectedly accepted existing state'
+            exit 1
+          fi
+          grep -q 'Existing application roles found' "$RUNNER_TEMP/bootstrap-refusal.txt"
+          echo 'PASS: repeated bootstrap refused existing roles; runtime connection/grants tested next'
+      - name: Real integration and security suites, including archive SQL/snapshot tests
+        run: |
+          npm --prefix backend run test:integration
+          npm --prefix backend run test:security
+      # Deliberately no continue-on-error, no down migration, no external database,
+      # no environment dump, secret-bearing logs/artifacts, deployment or production approval.
+      # Existing policy/format/unit/mobile workflows remain independent and mandatory.

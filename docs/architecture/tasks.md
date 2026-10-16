@@ -233,7 +233,7 @@ When a recurring template is updated (`PATCH /api/v1/recurring-tasks/:id`):
 CREATE TABLE timer_sessions (
   id UUID NOT NULL DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  task_id UUID NOT NULL,
+  task_id UUID, -- optional per ADR-044
   started_at TIMESTAMPTZ NOT NULL,
   ended_at TIMESTAMPTZ,
   mode TEXT NOT NULL DEFAULT 'stopwatch' CHECK (mode IN ('stopwatch', 'countdown')),

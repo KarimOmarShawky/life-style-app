@@ -35,6 +35,36 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
             }
             try {
                 when (call.method) {
+                    "getDetoxApps" -> result.success(ok() + ("apps" to detoxApps()))
+                    "detoxStatus" -> result.success(detoxStatus(call.argument<String>("sessionId") ?: ""))
+                    "startDetox" -> {
+                        val id = requireNotNull(call.argument<String>("sessionId"))
+                        require(id.startsWith("detox:"))
+                        check(permissionStatus()["accessibility"] == true && FocusShieldAccessibilityService.isConnected())
+                        val before = store.snapshot()
+                        check(before["active"] != true || before["sessionId"] == id) { "Another shield owns the device" }
+                        if (before["active"] != true) {
+                            val apps = detoxApps().mapNotNull { it["packageName"] }.toSet()
+                            val mode = call.argument<String>("mode")
+                            require(mode == "strictFocus" || mode == "selectedApps")
+                            val selected = if (mode == "strictFocus") apps else
+                                (call.argument<List<String>>("packages") ?: emptyList()).toSet().intersect(apps)
+                            require(selected.isNotEmpty()) { "No restrictable applications selected" }
+                            store.start(id, "Digital Detox", requireNotNull(call.argument<Number>("endTimestampMs")).toLong(), selected)
+                        }
+                        result.success(detoxStatus(id))
+                    }
+                    "stopDetox" -> {
+                        val id = call.argument<String>("sessionId") ?: ""
+                        val snapshot = store.snapshot()
+                        if (id.startsWith("detox:") && snapshot["sessionId"] == id) store.stop("cancelled")
+                        result.success(detoxStatus(id))
+                    }
+                    "clearOrphanDetox" -> {
+                        val owner = store.snapshot()["sessionId"] as String
+                        if (owner.startsWith("detox:")) store.stop("cancelled")
+                        result.success(ok())
+                    }
                     "getPermissionStatus" -> {
                         if (call.argument<Boolean>("requestNotifications") == true && Build.VERSION.SDK_INT >= 33 &&
                             activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -92,6 +122,28 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                 result.error("FOCUS_SHIELD_UNAVAILABLE", "Focus Shield action is unavailable. Check Android settings.", null)
             }
         }
+    }
+    private fun detoxApps(): List<Map<String, String>> {
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val safe = store.safePackages()
+        return activity.packageManager.queryIntentActivities(intent, 0)
+            .distinctBy { it.activityInfo.packageName }
+            .filter { it.activityInfo.packageName !in safe }
+            .map { mapOf("packageName" to it.activityInfo.packageName,
+                "label" to it.loadLabel(activity.packageManager).toString()) }
+            .sortedBy { it["label"] }
+    }
+    private fun detoxStatus(id: String): Map<String, Any?> {
+        val snapshot = store.snapshot()
+        val owns = id.isNotEmpty() && snapshot["sessionId"] == id && snapshot["active"] == true
+        val connected = permissionStatus()["accessibility"] == true && FocusShieldAccessibilityService.isConnected()
+        val status = if (!owns) "off" else if (connected) "partial" else "unavailable"
+        return ok() + mapOf("status" to status,
+            "detail" to if (owns && connected)
+                "Accessibility redirect configured for ${store.selectedPackages().size} apps. Settings, emergency apps and system controls stay available. Access can be revoked; this is not OS package suspension."
+                else if (owns) "Accessibility is disconnected. Restrictions are not verified."
+                else "No restriction owned by this Digital Detox session",
+            "packages" to if (owns) store.selectedPackages().toList() else emptyList<String>())
     }
     fun onPermissionResult(requestCode: Int) {
         if (requestCode == REQUEST_NOTIFICATIONS) {

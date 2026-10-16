@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 /**
  * src/features/dashboard/dashboard.service.ts
  *
@@ -39,10 +40,11 @@ export class DashboardService {
         this.tasks.countOverdue(userId, date)
       ]);
 
-    const totalMinorByCurrency: Record<string, number> = {};
+    const totalMinorByCurrency: Record<string, string> = {};
     for (const sub of dueSoon) {
-      totalMinorByCurrency[sub.currency] =
-        (totalMinorByCurrency[sub.currency] ?? 0) + sub.amountMinor;
+      totalMinorByCurrency[sub.currency] = new Decimal(totalMinorByCurrency[sub.currency] ?? '0')
+        .plus(sub.amountMinor)
+        .toFixed(0);
     }
 
     return {

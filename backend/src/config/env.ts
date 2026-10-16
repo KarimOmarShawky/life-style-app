@@ -119,13 +119,60 @@ const envSchema = baseEnvSchema.superRefine((env, context) => {
     });
   }
 
-  const databaseUrl = new URL(env.DATABASE_URL);
-  if (databaseUrl.username !== 'lifestyle_app' && databaseUrl.username !== 'postgres') {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['DATABASE_URL'],
-      message: 'DATABASE_URL must use lifestyle_app or postgres in production'
-    });
+  // These public repository defaults must not be used as production credentials. Check all
+  // configured connections, including optional maintenance/migration URLs.
+  const knownDatabaseExamples = new Set(
+    ['app', 'migrator', 'maintenance', 'postgres'].map((role) => `${role}_local_pass`)
+  );
+  for (const name of [
+    'DATABASE_URL',
+    'DATABASE_MIGRATION_URL',
+    'DATABASE_MAINTENANCE_URL'
+  ] as const) {
+    const value = env[name];
+    if (!value) continue;
+    let url: URL;
+    let password: string;
+    let username: string;
+    try {
+      url = new URL(value);
+      password = decodeURIComponent(url.password);
+      username = decodeURIComponent(url.username);
+    } catch {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [name],
+        message: 'Invalid PostgreSQL connection configuration'
+      });
+      continue;
+    }
+    if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [name],
+        message: 'A PostgreSQL connection URL is required'
+      });
+    }
+    if (
+      [password, ...url.searchParams.getAll('password')].some((candidate) =>
+        knownDatabaseExamples.has(candidate)
+      )
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [name],
+        message: 'Known development database passwords must not be used in production'
+      });
+    }
+    // node-postgres query parameters can override URI userinfo (last value wins).
+    const effectiveUser = url.searchParams.getAll('user').at(-1) || username;
+    if (name === 'DATABASE_URL' && effectiveUser !== 'lifestyle_app') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [name],
+        message: 'DATABASE_URL must use lifestyle_app in production'
+      });
+    }
   }
 });
 

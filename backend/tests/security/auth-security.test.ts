@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/security/auth-security.test.ts
  *

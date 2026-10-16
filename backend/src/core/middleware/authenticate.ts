@@ -32,7 +32,8 @@ const PENDING_DELETION_EXEMPT_ENDPOINTS = [
   { method: 'POST', path: '/api/v1/auth/refresh' },
   { method: 'GET', path: '/api/v1/users/me' },
   { method: 'DELETE', path: '/api/v1/users/me/deletion' },
-  { method: 'POST', path: '/api/v1/users/me/export' }
+  { method: 'POST', path: '/api/v1/users/me/export' },
+  { method: 'POST', path: '/api/v1/users/me/export/archive' }
 ];
 
 export function createAuthenticateMiddleware(

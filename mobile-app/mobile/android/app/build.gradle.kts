@@ -1,16 +1,35 @@
 import java.util.Properties
-import java.io.FileInputStream
+
+plugins {
+    id("com.android.application")
+    // gradle.properties explicitly opts out of AGP 9 built-in Kotlin.
+    id("org.jetbrains.kotlin.android")
+    // Flutter must follow the Android and Kotlin plugins.
+    id("dev.flutter.flutter-gradle-plugin")
+}
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
-plugins {
-    id("com.android.application")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
+// Release variant tasks must fail before packaging if signing is absent/incomplete.
+// Debug validation remains possible without private release credentials.
+val validateReleaseSigning by tasks.registering {
+    doLast {
+        val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        if (required.any { keystoreProperties.getProperty(it).isNullOrBlank() }) {
+            throw GradleException("Release signing requires complete private android/key.properties; unsigned/debug fallback is forbidden.")
+        }
+        val store = file(keystoreProperties.getProperty("storeFile"))
+        if (!store.isFile || !store.canRead()) {
+            throw GradleException("Release keystore is missing or unreadable.")
+        }
+    }
+}
+tasks.configureEach {
+    if (name == "preReleaseBuild") dependsOn(validateReleaseSigning)
 }
 
 android {
@@ -26,6 +45,7 @@ android {
 
     defaultConfig {
         applicationId = "com.lifestyle.app"
+        manifestPlaceholders["appLabel"] = "LifeStyle"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -36,24 +56,23 @@ android {
     signingConfigs {
         create("release") {
             val keyFileName = keystoreProperties.getProperty("storeFile")
-            val keyFile = if (keyFileName != null) file(keyFileName) else null
-            if (keyFile != null && keyFile.exists()) {
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                storeFile = keyFile
-                storePassword = keystoreProperties.getProperty("storePassword")
-            }
+            storeFile = keyFileName?.takeIf { it.isNotBlank() }?.let { file(it) }
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            storePassword = keystoreProperties.getProperty("storePassword")
         }
     }
 
     buildTypes {
+        debug {
+            // Install beside an existing signed app; never require deleting user data.
+            applicationIdSuffix = ".validation"
+            versionNameSuffix = "-validation"
+            manifestPlaceholders["appLabel"] = "LifeStyle Validation"
+        }
         release {
-            val releaseSigning = signingConfigs.findByName("release")
-            if (releaseSigning != null && releaseSigning.storeFile != null) {
-                signingConfig = releaseSigning
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-            }
+            // No debug signing identity and no intentional unsigned release path.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

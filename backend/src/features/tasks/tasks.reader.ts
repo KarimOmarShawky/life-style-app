@@ -1,3 +1,4 @@
+import { literalContainsPattern } from '../../core/pagination/search-pattern.js';
 /**
  * src/features/tasks/tasks.reader.ts
  *
@@ -80,7 +81,7 @@ export class PgTaskReader implements TaskReader {
   }
 
   public async search(userId: string, q: string, limit: number): Promise<TaskReaderItem[]> {
-    const pattern = `%${q}%`;
+    const pattern = literalContainsPattern(q);
     const rows = await this.db
       .selectFrom('tasks')
       .select([...SELECT_TASK])

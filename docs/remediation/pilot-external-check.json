@@ -1,0 +1,14 @@
+{
+  "result": "BLOCKED",
+  "attempt_result": "FAIL",
+  "run_id": 38914942984,
+  "head_sha": "f55b45f",
+  "job_id": 117019887767,
+  "diagnostic": {
+    "stage": "public-HTTPS-readiness",
+    "http_status": 403,
+    "content_kind": "json",
+    "reason": "NETWORK_OR_ASSERTION_REFUSED"
+  },
+  "scope": "Actual external GitHub runner HTTPS request returned 403 before successful application readiness; no public Android API reachability or connected APK accepted. No sandbox access token extracted/embedded, protection bypass, invalid TLS acceptance or production endpoint fallback."
+}

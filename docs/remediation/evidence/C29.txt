@@ -1,0 +1,60 @@
+$ node --test scripts/archive-mobile-contract.test.mjs
+Exit: 0
+TAP version 13
+# Subtest: synthetic server-protocol fixture has exact UTF-8 count/hash and completion counts (not Dart execution)
+ok 1 - synthetic server-protocol fixture has exact UTF-8 count/hash and completion counts (not Dart execution)
+  ---
+  duration_ms: 1.397658
+  type: 'test'
+  ...
+# Subtest: version-1 ordered sections agree across backend projections, Dart verifier and fixture (source contract)
+ok 2 - version-1 ordered sections agree across backend projections, Dart verifier and fixture (source contract)
+  ---
+  duration_ms: 1.101795
+  type: 'test'
+  ...
+# Subtest: fixture exercises non-ASCII bytes, escaped newlines and exact decimal strings without credential fields
+ok 3 - fixture exercises non-ASCII bytes, escaped newlines and exact decimal strings without credential fields
+  ---
+  duration_ms: 0.36759
+  type: 'test'
+  ...
+# Subtest: archive transport has a dedicated connection and bounded error/chunk path, not whole-response decoding (source only)
+ok 4 - archive transport has a dedicated connection and bounded error/chunk path, not whole-response decoding (source only)
+  ---
+  duration_ms: 0.364543
+  type: 'test'
+  ...
+# Subtest: opaque staging channel methods and Activity hooks agree (source only)
+ok 5 - opaque staging channel methods and Activity hooks agree (source only)
+  ---
+  duration_ms: 0.470978
+  type: 'test'
+  ...
+# Subtest: staging is bounded/chunk-authenticated and publishes through explicit SAF consent, not storage permissions (source only)
+ok 6 - staging is bounded/chunk-authenticated and publishes through explicit SAF consent, not storage permissions (source only)
+  ---
+  duration_ms: 0.353736
+  type: 'test'
+  ...
+# Subtest: verification and destination consent remain separate; password clearing and session/dispose cancellation are wired (source only)
+ok 7 - verification and destination consent remain separate; password clearing and session/dispose cancellation are wired (source only)
+  ---
+  duration_ms: 0.372503
+  type: 'test'
+  ...
+# Subtest: crypto is explicitly pinned; local-audio dependency is preserved without a blanket picker exemption
+ok 8 - crypto is explicitly pinned; local-audio dependency is preserved without a blanket picker exemption
+  ---
+  duration_ms: 1.47885
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 81.999833

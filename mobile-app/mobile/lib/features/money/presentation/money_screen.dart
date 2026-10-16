@@ -1,3 +1,4 @@
+import 'package:lifestyle_mobile/core/money/decimal_amount.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -192,28 +193,32 @@ class MoneyScreen extends ConsumerWidget {
   }
 
   Widget _buildOverviewCard(
+      BuildContext context, AppLocalizations l10n, List<Budget> budgets) {
+    final currencies = budgets.map((budget) => budget.currency).toSet();
+    return Column(children: [
+      for (final currency in currencies)
+        _buildCurrencyOverviewCard(context, l10n,
+            budgets.where((budget) => budget.currency == currency).toList())
+    ]);
+  }
+
+  Widget _buildCurrencyOverviewCard(
     BuildContext context,
     AppLocalizations l10n,
     List<Budget> budgets,
   ) {
     if (budgets.isEmpty) return const SizedBox.shrink();
 
-    double totalLimit = 0;
-    double totalSpent = 0;
-    String currency = 'EGP';
-
-    for (final b in budgets) {
-      final lim = double.tryParse(b.amountLimit) ?? 0;
-      final spent = double.tryParse(b.usage.spent) ?? 0;
-      totalLimit += lim;
-      totalSpent += spent;
-      currency = b.currency;
+    var totalLimit = DecimalAmount.zero;
+    var totalSpent = DecimalAmount.zero;
+    final currency = budgets.first.currency;
+    for (final budget in budgets) {
+      totalLimit += DecimalAmount.parse(budget.amountLimit);
+      totalSpent += DecimalAmount.parse(budget.usage.spent);
     }
-
-    final double remaining = totalLimit - totalSpent;
-    final double percent =
-        totalLimit > 0 ? (totalSpent / totalLimit).clamp(0.0, 1.0) : 0;
-    final isOver = totalSpent > totalLimit;
+    final remaining = totalLimit - totalSpent;
+    final percent = totalSpent.progressAgainst(totalLimit);
+    final isOver = totalSpent.compareTo(totalLimit) > 0;
     final isWarning = percent > 0.8 && !isOver;
 
     final colorScheme = Theme.of(context).colorScheme;
@@ -258,7 +263,7 @@ class MoneyScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${totalSpent.toStringAsFixed(2)} $currency',
+                        '${totalSpent.format(currency)} $currency',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -287,7 +292,7 @@ class MoneyScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${remaining.toStringAsFixed(2)} $currency',
+                        '${remaining.format(currency)} $currency',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -338,9 +343,9 @@ class MoneyScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             ...budgets.map((b) {
-              final lim = double.tryParse(b.amountLimit) ?? 1;
-              final sp = double.tryParse(b.usage.spent) ?? 0;
-              final p = lim > 0 ? (sp / lim).clamp(0.0, 1.0) : 0.0;
+              final lim = DecimalAmount.parse(b.amountLimit);
+              final sp = DecimalAmount.parse(b.usage.spent);
+              final p = sp.progressAgainst(lim);
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Column(
@@ -355,7 +360,7 @@ class MoneyScreen extends ConsumerWidget {
                               fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                         Text(
-                          '${sp.toStringAsFixed(0)} / ${lim.toStringAsFixed(0)} ${b.currency}',
+                          '${sp.format(b.currency)} / ${lim.format(b.currency)} ${b.currency}',
                           style: TextStyle(
                               fontSize: 11, color: colorScheme.outline),
                         ),
@@ -367,7 +372,9 @@ class MoneyScreen extends ConsumerWidget {
                       child: LinearProgressIndicator(
                         value: p,
                         minHeight: 5,
-                        color: p > 1.0 ? Colors.red : colorScheme.primary,
+                        color: sp.compareTo(lim) > 0
+                            ? Colors.red
+                            : colorScheme.primary,
                         backgroundColor: colorScheme.surfaceContainerHighest,
                       ),
                     ),
@@ -389,22 +396,30 @@ class MoneyScreen extends ConsumerWidget {
     final budgets = ref.read(budgetsProvider).valueOrNull ?? [];
     final subs = ref.read(subscriptionsProvider).valueOrNull ?? [];
 
-    double totalLimit = 0;
-    double totalSpent = 0;
-    String currency = 'EGP';
-
-    for (final b in budgets) {
-      totalLimit += double.tryParse(b.amountLimit) ?? 0;
-      totalSpent += double.tryParse(b.usage.spent) ?? 0;
-      currency = b.currency;
+    final limits = sumAmountsByCurrency(
+        budgets.map((b) => (currency: b.currency, amount: b.amountLimit)));
+    final spent = sumAmountsByCurrency(
+        budgets.map((b) => (currency: b.currency, amount: b.usage.spent)));
+    final activeSubs =
+        subs.where((subscription) => subscription.status == 'active').toList();
+    final monthlySubs = sumAmountsByCurrency(activeSubs.map((subscription) => (
+          currency: subscription.currency,
+          amount: subscription.monthlyEquivalent
+        )));
+    final budgetLines = <String>[];
+    for (final currency in limits.keys) {
+      final limit = limits[currency]!;
+      final used = spent[currency] ?? DecimalAmount.zero;
+      budgetLines.add(
+          '$currency\n${l10n.reportTotalBudgetLabel} ${limit.format(currency)} $currency\n'
+          '${l10n.reportTotalSpentLabel} ${used.format(currency)} $currency\n'
+          '${l10n.reportRemainingLabel} ${(limit - used).format(currency)} $currency\n'
+          '${l10n.reportUtilizationLabel} ${used.percentAgainst(limit)}%');
     }
-
-    final double remaining = totalLimit - totalSpent;
-
-    double subsTotal = 0;
-    for (final s in subs) {
-      subsTotal += double.tryParse(s.amount) ?? 0;
-    }
+    final subscriptionLines = monthlySubs.entries
+        .map((entry) =>
+            '${l10n.reportTotalSubsLabel} ${entry.value.format(entry.key)} ${entry.key} ${l10n.reportMonthlySuffix}')
+        .join('\n');
 
     final nowStr =
         '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
@@ -415,13 +430,10 @@ class MoneyScreen extends ConsumerWidget {
 ================================
 ${l10n.reportDateLabel} $nowStr
 
-${l10n.reportTotalBudgetLabel} ${totalLimit.toStringAsFixed(2)} $currency
-${l10n.reportTotalSpentLabel} ${totalSpent.toStringAsFixed(2)} $currency
-${l10n.reportRemainingLabel} ${remaining.toStringAsFixed(2)} $currency
-${l10n.reportUtilizationLabel} ${totalLimit > 0 ? ((totalSpent / totalLimit) * 100).toStringAsFixed(1) : 0}%
+${budgetLines.join('\n\n')}
 
-${l10n.reportActiveSubsLabel} ${subs.length}
-${l10n.reportTotalSubsLabel} ${subsTotal.toStringAsFixed(2)} $currency ${l10n.reportMonthlySuffix}
+${l10n.reportActiveSubsLabel} ${activeSubs.length}
+$subscriptionLines
 
 ${l10n.reportFooter}
 ================================
@@ -501,8 +513,8 @@ Future<void> _showAddBudget(BuildContext context, WidgetRef ref) async {
                     if (v == null || v.trim().isEmpty) {
                       return l10n.enterAmount;
                     }
-                    final n = double.tryParse(v.trim());
-                    if (n == null || n <= 0) {
+                    final n = DecimalAmount.tryParse(v.trim());
+                    if (n == null || !n.isPositive) {
                       return l10n.amountMustBePositive;
                     }
                     return null;
@@ -668,8 +680,8 @@ Future<void> _showAddTransaction(BuildContext context, WidgetRef ref) async {
                             if (v == null || v.trim().isEmpty) {
                               return l10n.enterAmount;
                             }
-                            final n = double.tryParse(v.trim());
-                            if (n == null || n <= 0) {
+                            final n = DecimalAmount.tryParse(v.trim());
+                            if (n == null || !n.isPositive) {
                               return l10n.amountMustBePositive;
                             }
                             return null;
@@ -798,10 +810,25 @@ class _SmsSyncCard extends ConsumerWidget {
     await ref.read(settingsProvider.notifier).setSmsSyncEnabled(enabled);
     // The background token lets the SMS receiver save transactions while the app is closed.
     final walletToken = WalletIngestToken(ref.read(apiClientProvider));
-    if (enabled) {
-      await walletToken.ensure(force: true);
-    } else {
-      await walletToken.revoke();
+    try {
+      if (enabled) {
+        await walletToken.ensure(force: true);
+      } else {
+        await walletToken.revoke();
+      }
+    } catch (_) {
+      if (enabled) {
+        await ref.read(settingsProvider.notifier).setSmsSyncEnabled(false);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Background wallet sync could not be configured. Check secure storage and connection.',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -951,7 +978,8 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                       validator: (value) {
                         final text = (value ?? '').trim();
                         if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text) ||
-                            (double.tryParse(text) ?? 0) <= 0) {
+                            !(DecimalAmount.tryParse(text)?.isPositive ??
+                                false)) {
                           return l10n.smsReviewInvalidAmount;
                         }
                         return null;

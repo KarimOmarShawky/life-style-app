@@ -1,72 +1,110 @@
-/**
- * tests/unit/logger-redaction.test.ts
- *
- * Verifies Section 16.5 & ADR-022: Structured logging redaction and AsyncLocalStorage context.
- */
-
 import { describe, it, expect } from 'vitest';
-import pino from 'pino';
 import { Writable } from 'node:stream';
-import { requestContextStore } from '../../src/core/logger/logger.js';
+import { createLogger, requestContextStore } from '../../src/core/logger/logger.js';
 
-describe('Logger Context and Redaction (Spec §16.5, ADR-022)', () => {
-  it('injects requestId and userId from AsyncLocalStorage mixin', () => {
-    requestContextStore.run({ requestId: 'test-req-1234', userId: 'user-uuid-999' }, () => {
-      const context = requestContextStore.getStore();
-      expect(context?.requestId).toBe('test-req-1234');
-      expect(context?.userId).toBe('user-uuid-999');
-    });
-  });
-
-  it('isolates context across independent asynchronous execution scopes', async () => {
-    const scope1 = requestContextStore.run({ requestId: 'scope-1' }, async () => {
-      await new Promise((res) => setTimeout(res, 10));
-      return requestContextStore.getStore()?.requestId;
-    });
-
-    const scope2 = requestContextStore.run({ requestId: 'scope-2' }, async () => {
-      await new Promise((res) => setTimeout(res, 5));
-      return requestContextStore.getStore()?.requestId;
-    });
-
-    const [res1, res2] = await Promise.all([scope1, scope2]);
-    expect(res1).toBe('scope-1');
-    expect(res2).toBe('scope-2');
-  });
-
-  it('redacts sensitive fields (passwords, tokens, secrets) in output logs', async () => {
-    let loggedData = '';
-    const destination = new Writable({
+function capture() {
+  let output = '';
+  const log = createLogger(
+    new Writable({
       write(chunk, _encoding, callback) {
-        loggedData += chunk.toString();
+        output += chunk.toString();
         callback();
       }
-    });
+    })
+  );
+  log.level = 'info';
+  return {
+    log,
+    entries: () =>
+      output
+        .trim()
+        .split('\n')
+        .map((s) => JSON.parse(s))
+  };
+}
 
-    const testLogger = pino(
-      {
-        redact: {
-          paths: ['password', '*.password', 'token', '*.token', 'authorization', 'otp'],
-          censor: '[REDACTED]'
+describe('Production logger policy', () => {
+  it('injects the actual async request context into output', () => {
+    const { log, entries } = capture();
+    requestContextStore.run({ requestId: 'request-1', userId: 'user-1' }, () => log.info('safe'));
+    log.info('outside request');
+    expect(entries()[0]).toMatchObject({ requestId: 'request-1', userId: 'user-1', msg: 'safe' });
+    expect(entries()[1]).not.toHaveProperty('requestId');
+    expect(entries()[1]).not.toHaveProperty('userId');
+  });
+
+  it('isolates real logger output across concurrent async scopes', async () => {
+    const { log, entries } = capture();
+    await Promise.all(
+      ['scope-1', 'scope-2'].map((requestId) =>
+        requestContextStore.run({ requestId }, async () => {
+          await Promise.resolve();
+          log.info({ scope: requestId }, 'scoped');
+        })
+      )
+    );
+    for (const entry of entries()) expect(entry.requestId).toBe(entry.scope);
+    expect(entries()).toHaveLength(2);
+  });
+
+  it('redacts actual credentials at all supported structured depths without mutating input', () => {
+    const { log, entries } = capture();
+    const payload = {
+      password: 'top-secret',
+      proof: { currentPassword: 'current-secret', newPassword: 'new-secret' },
+      response: { tokens: { refreshToken: 'refresh-secret', accessToken: 'access-secret' } },
+      req: {
+        headers: {
+          authorization: 'bearer-secret',
+          cookie: 'cookie-secret',
+          'x-goog-api-key': 'api-secret'
         }
       },
-      destination
-    );
+      headers: { 'set-cookie': 'set-cookie-secret' },
+      credential: { password_hash: 'hash-secret', otp: 'otp-secret', ingestToken: 'ingest-secret' },
+      safeField: 'safe-value'
+    };
+    const original = JSON.stringify(payload);
+    log.info(payload, 'credential check');
+    const output = JSON.stringify(entries());
+    for (const value of [
+      'top',
+      'current',
+      'new',
+      'refresh',
+      'access',
+      'bearer',
+      'cookie',
+      'api',
+      'set-cookie',
+      'hash',
+      'otp',
+      'ingest'
+    ]) {
+      expect(output).not.toContain(`${value}-secret`);
+    }
+    expect(output).toContain('[REDACTED]');
+    expect(output).toContain('safe-value');
+    expect(JSON.stringify(payload)).toBe(original);
+  });
 
-    testLogger.info(
+  it('suppresses complete HTTP bodies, including arbitrary-depth financial/private contents', () => {
+    const { log, entries } = capture();
+    log.info(
       {
-        password: 'super-sensitive-password',
-        token: 'jwt-access-token-12345',
-        otp: '123456',
-        safeField: 'harmless'
+        req: { body: { arbitrary: { deeply: { nested: ['private-content'] } } } },
+        request: { body: 'private-request' },
+        res: { body: { transactions: ['private-finance'] } },
+        response: { body: 'private-response' }
       },
-      'Authentication attempt'
+      'HTTP metadata'
     );
-
-    expect(loggedData).toContain('[REDACTED]');
-    expect(loggedData).not.toContain('super-sensitive-password');
-    expect(loggedData).not.toContain('jwt-access-token-12345');
-    expect(loggedData).not.toContain('123456');
-    expect(loggedData).toContain('harmless');
+    expect(entries()[0]).toMatchObject({
+      req: { body: '[REDACTED]' },
+      request: { body: '[REDACTED]' },
+      res: { body: '[REDACTED]' },
+      response: { body: '[REDACTED]' }
+    });
+    expect(JSON.stringify(entries())).not.toContain('private-');
   });
 });

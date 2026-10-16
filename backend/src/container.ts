@@ -6,7 +6,7 @@
  */
 
 import type pg from 'pg';
-import { Redis as IORedis, type Redis } from 'ioredis';
+import { type Redis } from 'ioredis';
 import type { Kysely } from 'kysely';
 import type { RequestHandler } from 'express';
 import { getEnv } from './config/env.js';
@@ -119,7 +119,6 @@ import { PgRemindersRepository } from './features/reminders/reminders.repository
 import type { RemindersRepository } from './features/reminders/reminders.repository.js';
 import { RemindersService } from './features/reminders/reminders.service.js';
 // Background email queue (Section 11)
-import { QueuedEmailSender, BullEmailQueue } from './jobs/email-queue.js';
 // Query-surface readers (P1-05, feature-architecture rule 2)
 import { PgTaskReader, type TaskReader } from './features/tasks/tasks.reader.js';
 import { PgHabitReader, type HabitReader } from './features/habits/habits.reader.js';
@@ -219,17 +218,9 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const tokenService = overrides?.tokenService ?? new JoseTokenService();
   const sessionValidator = overrides?.sessionValidator ?? new PgSessionValidator(pgPool);
   const otpStore = overrides?.otpStore ?? new RedisOtpStore(redis);
-  // Password-reset emails go through the background queue in normal operation
-  // (Section 11) and fall back to synchronous SMTP when the queue is down. In
-  // tests the synchronous sender keeps behavior deterministic.
-  const emailSender =
-    overrides?.emailSender ??
-    (process.env.NODE_ENV === 'test'
-      ? new SmtpEmailSender()
-      : new QueuedEmailSender(
-          BullEmailQueue.create(new IORedis(getEnv().REDIS_URL, { maxRetriesPerRequest: null })),
-          new SmtpEmailSender()
-        ));
+  // Reset codes stay in worker-local memory, never in a persistent email queue.
+  // Request admission uses AuthService's bounded, volatile in-process dispatcher.
+  const emailSender = overrides?.emailSender ?? new SmtpEmailSender();
   const auditLogger = overrides?.auditLogger ?? new PgAuditLogger(pgPool);
 
   const authenticate =
@@ -250,7 +241,8 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const authController = overrides?.authController ?? new AuthController(authService);
 
   const usersRepository = overrides?.usersRepository ?? new PgUsersRepository(pgPool);
-  const usersService = overrides?.usersService ?? new UsersService(usersRepository, auditLogger);
+  const usersService =
+    overrides?.usersService ?? new UsersService(usersRepository, auditLogger, passwordHasher);
   const usersController = overrides?.usersController ?? new UsersController(usersService);
 
   // Unified Reminders (FR-REM-01..06) — constructed before the feature services

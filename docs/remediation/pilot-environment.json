@@ -1,0 +1,10 @@
+{
+  "result": "PASS",
+  "scope": "Actual owned PostgreSQL16/Redis7/bootstrap/forward migrations and real API readiness only; NOT phone, public HTTPS, SMTP, image or release certification.",
+  "runtime": "Historical startup/readiness execution snapshot only; current availability NOT RUN. Public phone access remains BLOCKED on observed ingress403; not a deployed environment.",
+  "api_port": 8787,
+  "ownership": "Fresh private cluster, exact PG data directory/PID and Redis PID checked before bootstrap. Loopback authenticated DB/cache; API receives runtime identity only.",
+  "mail": "BLOCKED: explicit local SMTP rejection, never fake delivered; no email body accepted/stored",
+  "worker": "NOT RUN: no retention/purge/background worker",
+  "public_api_url": "https://8787-itafbygcp2juf4i455pef.e2b.app/api/v1"
+}

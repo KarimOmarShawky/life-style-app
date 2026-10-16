@@ -1,0 +1,305 @@
+{
+  "run_id": 38914942984,
+  "head_sha": "f55b45f82b86158cf54dce8b4bcbab76ec99f635",
+  "status": "completed",
+  "conclusion": "failure",
+  "scope": "Historical failed connected pilot attempt, not current source pass or delivered APK.",
+  "jobs": [
+    {
+      "name": "Backend Quality, Security & API Contract Gate",
+      "id": 117019887220,
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Initialize containers",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout repository",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Setup Node.js runtime",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Generate ephemeral isolated database credentials",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install dependencies with lockfile",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Forbidden-dependency guard (ADR-039)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Android build-preparation helper and source regressions (not a native build)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Code style & lint",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Strict TypeScript check",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "OpenAPI drift check",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Initialize fresh isolated database roles",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Forward migration idempotency (fresh up -> repeat up)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Unit, integration & security tests",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Production dependency security audit",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Setup Node.js runtime",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout repository",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Stop containers",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Flutter and Android debug validation (not a release)",
+      "id": 117019887767,
+      "status": "completed",
+      "conclusion": "failure",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout repository",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Setup Java 17",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Setup signature-verification runtime",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Cache Android build dependencies",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Approved temporary pilot public HTTPS and real API roundtrip (not device)",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Setup Flutter stable channel",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Resolve Flutter dependencies",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Dart formatting",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Formatting diagnostics 2",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Formatting diagnostics 3",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Formatting diagnostics 4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Formatting diagnostics 5",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Upload formatting fix when needed",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Flutter static analysis",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Flutter tests",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Kotlin JVM unit tests",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Build Android debug validation APK (offline by default, not release)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Verify validation APK signature",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Upload debug validation APK (not a release or connected backend test)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Cache Android build dependencies",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Setup signature-verification runtime",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Setup Java 17",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout repository",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Real SDK verifier fixture (not application or device test)",
+      "id": 117019888081,
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-java@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Real SDK transient fixture probe, no published artifact",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-java@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Explicit signed Android build (no deployment)",
+      "id": 117020950014,
+      "status": "completed",
+      "conclusion": "skipped",
+      "steps": []
+    }
+  ]
+}

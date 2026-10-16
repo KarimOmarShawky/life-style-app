@@ -1,3 +1,10 @@
+> **Historical report — current-scope correction (2026-10-15).** Results/claims
+> below are retained as historical assertions, not tests executed or certified in
+> the current remediation. Use `docs/remediation/checks.json` for actual gates.
+> The legacy account export is metadata-only (profile, sessions, categories and
+> push-device metadata), **not a complete GDPR/data-portability archive**. Database,
+> security, Flutter/native and real-device execution remain blocked in this sandbox.
+
 # Phase P2 Delivery Report: Authentication & Authorization
 
 **Project:** LifeStyle App (Personal Life Operating System)  

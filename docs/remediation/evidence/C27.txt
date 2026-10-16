@@ -1,0 +1,144 @@
+$ node --check scripts/local-setup.mjs && node --check scripts/local-stack.mjs && node --check scripts/ci-database-env.mjs && node --test scripts/local-setup.test.mjs
+Exit: 0
+TAP version 13
+# Subtest: fresh setup requires acknowledgement and leaves no files without it
+ok 1 - fresh setup requires acknowledgement and leaves no files without it
+  ---
+  duration_ms: 2.540533
+  type: 'test'
+  ...
+# Subtest: each installation gets six distinct random secrets and an independent private project
+ok 2 - each installation gets six distinct random secrets and an independent private project
+  ---
+  duration_ms: 6.473131
+  type: 'test'
+  ...
+# Subtest: existing .env is never read/overwritten or migrated
+ok 3 - existing .env is never read/overwritten or migrated
+  ---
+  duration_ms: 3.649325
+  type: 'test'
+  ...
+# Subtest: existing .env.local is never read/overwritten or migrated
+ok 4 - existing .env.local is never read/overwritten or migrated
+  ---
+  duration_ms: 0.76268
+  type: 'test'
+  ...
+# Subtest: existing backend/.env is never read/overwritten or migrated
+ok 5 - existing backend/.env is never read/overwritten or migrated
+  ---
+  duration_ms: 1.008732
+  type: 'test'
+  ...
+# Subtest: existing backend/.env.test.local is never read/overwritten or migrated
+ok 6 - existing backend/.env.test.local is never read/overwritten or migrated
+  ---
+  duration_ms: 0.726824
+  type: 'test'
+  ...
+# Subtest: reruns preserve every byte; there is no force/regenerate mode
+ok 7 - reruns preserve every byte; there is no force/regenerate mode
+  ---
+  duration_ms: 1.260808
+  type: 'test'
+  ...
+# Subtest: an incomplete private directory is preserved for manual review
+ok 8 - an incomplete private directory is preserved for manual review
+  ---
+  duration_ms: 0.871193
+  type: 'test'
+  ...
+# Subtest: symlink targets and noncanonical roots are rejected without touching the target
+ok 9 - symlink targets and noncanonical roots are rejected without touching the target
+  ---
+  duration_ms: 0.893653
+  type: 'test'
+  ...
+# Subtest: two processes racing to initialize yield exactly one setup, not a merge/overwrite
+ok 10 - two processes racing to initialize yield exactly one setup, not a merge/overwrite
+  ---
+  duration_ms: 60.399665
+  type: 'test'
+  ...
+# Subtest: reader rejects public permissions on compose.env
+ok 11 - reader rejects public permissions on compose.env
+  ---
+  duration_ms: 1.122177
+  type: 'test'
+  ...
+# Subtest: reader rejects public permissions on host.env
+ok 12 - reader rejects public permissions on host.env
+  ---
+  duration_ms: 0.891669
+  type: 'test'
+  ...
+# Subtest: reader rejects public permissions on setup.json
+ok 13 - reader rejects public permissions on setup.json
+  ---
+  duration_ms: 0.817534
+  type: 'test'
+  ...
+# Subtest: reader rejects a symlinked secret file and unexpected/duplicate env fields
+ok 14 - reader rejects a symlinked secret file and unexpected/duplicate env fields
+  ---
+  duration_ms: 2.106516
+  type: 'test'
+  ...
+# Subtest: reader rejects changes that disconnect role passwords, URI settings or project metadata
+ok 15 - reader rejects changes that disconnect role passwords, URI settings or project metadata
+  ---
+  duration_ms: 2.131039
+  type: 'test'
+  ...
+# Subtest: wrapper fixes project/file arguments and excludes ambient Compose/secret overrides (Docker spy)
+ok 16 - wrapper fixes project/file arguments and excludes ambient Compose/secret overrides (Docker spy)
+  ---
+  duration_ms: 1.804078
+  type: 'test'
+  ...
+# Subtest: default check never starts services; no raw diagnostic output or volume deletion (Docker spy)
+ok 17 - default check never starts services; no raw diagnostic output or volume deletion (Docker spy)
+  ---
+  duration_ms: 1.063898
+  type: 'test'
+  ...
+# Subtest: remote Docker endpoint/context is blocked before any Compose action (Docker spy)
+ok 18 - remote Docker endpoint/context is blocked before any Compose action (Docker spy)
+  ---
+  duration_ms: 1.158676
+  type: 'test'
+  ...
+# Subtest: failed Compose validation never starts and cannot expose captured secrets (Docker spy)
+ok 19 - failed Compose validation never starts and cannot expose captured secrets (Docker spy)
+  ---
+  duration_ms: 2.254653
+  type: 'test'
+  ...
+# Subtest: CI writer refuses ordinary local use and generates masked per-job role settings only in runner fixture
+ok 20 - CI writer refuses ordinary local use and generates masked per-job role settings only in runner fixture
+  ---
+  duration_ms: 77.578916
+  type: 'test'
+  ...
+# Subtest: fresh SQL/Compose source requires supplied credentials and refuses existing state (not DB execution)
+ok 21 - fresh SQL/Compose source requires supplied credentials and refuses existing state (not DB execution)
+  ---
+  duration_ms: 0.257318
+  type: 'test'
+  ...
+# Subtest: actual local generator CLI prints status only, never generated values
+ok 22 - actual local generator CLI prints status only, never generated values
+  ---
+  duration_ms: 77.58623
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 330.193562

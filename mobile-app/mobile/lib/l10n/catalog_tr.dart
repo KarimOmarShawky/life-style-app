@@ -22,7 +22,8 @@ const Map<String, String> trCatalog = {
   'dueDate': 'Bitiş tarihi',
   'resetPassword': 'Şifreyi sıfırla',
   'sendResetCode': 'Kodu gönder',
-  'resetCodeSent': 'Sıfırlama kodu e-postana gönderildi',
+  'resetCodeSent':
+      'Bu adres uygunsa sıfırlama kodu göndermeyi deneyeceğiz. Lütfen gelen kutunu kontrol et.',
   'enterResetCode': '6 haneli kodu gir',
   'newPassword': 'Yeni şifre',
   'confirmNewPassword': 'Yeni şifreyi onayla',

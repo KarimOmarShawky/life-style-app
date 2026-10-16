@@ -17,13 +17,11 @@ import { closePgPool } from './infrastructure/database/postgres/pool.js';
 import { getKyselyDb } from './infrastructure/database/postgres/kysely.js';
 import { closeRedisClient, getRedisClient } from './infrastructure/redis/redis-client.js';
 import { SmtpEmailSender } from './infrastructure/external/email-sender.js';
-import { EMAIL_QUEUE_NAME, type PasswordResetEmailJob } from './jobs/email-queue.js';
 import {
   processReminderDispatch,
   processRecurringGeneration,
   processTimerAutoClose,
-  processPurge,
-  processPasswordResetEmail
+  processPurge
 } from './jobs/job-processors.js';
 import {
   PgReminderDispatchStore,
@@ -56,21 +54,11 @@ const MAINTENANCE_QUEUE = 'maintenance';
 // Unavailable push delivery: FCM credentials are optional (Phase P1). Without
 // them, push-channel reminders retry and then fail with PUSH_UNAVAILABLE.
 const pushSender = {
-  isAvailable: () => Boolean(getEnv().FCM_CREDENTIALS),
+  isAvailable: () => false,
   send: async (): Promise<void> => {
     throw new Error('PUSH_UNAVAILABLE');
   }
 };
-
-const emailWorker = new Worker<PasswordResetEmailJob>(
-  EMAIL_QUEUE_NAME,
-  async (job) => {
-    if (job.name === 'password-reset') {
-      await processPasswordResetEmail(job.data, emailSender);
-    }
-  },
-  { connection: bullConnection }
-);
 
 const maintenanceWorker = new Worker(
   MAINTENANCE_QUEUE,
@@ -113,6 +101,12 @@ const maintenanceWorker = new Worker(
 
 const maintenanceQueue = new Queue(MAINTENANCE_QUEUE, { connection: bullConnection });
 
+// Never log job data or provider errors: these may contain recipients or message bodies.
+maintenanceWorker.on('failed', (job) => {
+  logger.error('Maintenance job failed', { jobId: job?.id, jobName: job?.name });
+});
+maintenanceWorker.on('error', () => logger.error('Maintenance worker connection error'));
+
 async function registerSchedules(): Promise<void> {
   await maintenanceQueue.upsertJobScheduler(
     'reminder-dispatch',
@@ -139,7 +133,7 @@ async function registerSchedules(): Promise<void> {
 
 let isShuttingDown = false;
 
-async function handleWorkerShutdown(signal: string): Promise<void> {
+async function handleWorkerShutdown(signal: string, exitCode = 0): Promise<void> {
   if (isShuttingDown) {
     return;
   }
@@ -149,7 +143,6 @@ async function handleWorkerShutdown(signal: string): Promise<void> {
 
   try {
     // BullMQ workers stop taking jobs and drain active ones here (spec 4.7).
-    await emailWorker.close();
     await maintenanceWorker.close();
     await maintenanceQueue.close();
     await bullConnection.quit();
@@ -158,7 +151,7 @@ async function handleWorkerShutdown(signal: string): Promise<void> {
     await closePgPool();
 
     logger.info('Worker shutdown complete. Exiting cleanly.');
-    process.exit(0);
+    process.exit(exitCode);
   } catch (err) {
     logger.error('Worker shutdown encountered error', err);
     process.exit(1);
@@ -170,14 +163,15 @@ process.on('SIGINT', () => void handleWorkerShutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
   logger.fatal('Worker uncaught exception', err);
-  void handleWorkerShutdown('uncaughtException');
+  void handleWorkerShutdown('uncaughtException', 1);
 });
 
 process.on('unhandledRejection', (reason) => {
   logger.fatal('Worker unhandled rejection', reason);
-  void handleWorkerShutdown('unhandledRejection');
+  void handleWorkerShutdown('unhandledRejection', 1);
 });
 
-registerSchedules().catch((err) => {
-  logger.error('Failed to register maintenance schedules', err);
+registerSchedules().catch(() => {
+  logger.error('Failed to register maintenance schedules');
+  void handleWorkerShutdown('schedule-registration-failed', 1);
 });

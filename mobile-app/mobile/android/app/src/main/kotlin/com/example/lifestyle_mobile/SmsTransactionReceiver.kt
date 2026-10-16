@@ -49,7 +49,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         private const val PREFS_NAME = "FlutterSharedPreferences"
         private const val KEY_SYNC_ENABLED = "flutter.sms_sync_enabled"
         private const val KEY_API_BASE = "flutter.lifestyle.api_base_url"
-        private const val KEY_INGEST_TOKEN = "flutter.lifestyle.wallet_ingest_token.v1"
         private const val INGEST_PATH = "/ingest/transactions"
         private const val ANALYZE_PATH = "/ingest/sms/analyze"
         const val PENDING_PREFIX = "flutter.pending_wallet_tx."
@@ -278,9 +277,9 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val apiBase = prefs.getString(KEY_API_BASE, null)?.trimEnd('/') ?: DEFAULT_API_BASE
 
-        val ingestToken = prefs.getString(KEY_INGEST_TOKEN, null)
+        val ingestToken = WalletCredentialStore(context).read()
         if (!ingestToken.isNullOrEmpty()) {
-            flushQueue(prefs, "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
+            flushQueue(context, prefs, "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
             flushCandidates(context, prefs, "$apiBase$ANALYZE_PATH", "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
         }
     }
@@ -290,7 +289,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      * On any other failure the rest stays queued. A revoked or expired ingest token is removed, so the app
      * issues a new one on its next start.
      */
-    private fun flushQueue(prefs: SharedPreferences, url: String, token: String, isIngest: Boolean) {
+    private fun flushQueue(context: Context, prefs: SharedPreferences, url: String, token: String, isIngest: Boolean) {
         val pendingKeys = prefs.all.keys.filter { it.startsWith(PENDING_PREFIX) }.sorted()
         for (key in pendingKeys) {
             val raw = prefs.getString(key, null) ?: continue
@@ -300,9 +299,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             } else {
                 if (isIngest && (status == 401 || status == 403)) {
                     // Remove only the token that was rejected, in case the app has just replaced it.
-                    if (prefs.getString(KEY_INGEST_TOKEN, null) == token) {
-                        prefs.edit().remove(KEY_INGEST_TOKEN).commit()
-                    }
+                    WalletCredentialStore(context).clear(expected = token)
                 }
                 // Network, server, or auth problem: keep the rest for a later attempt.
                 return
@@ -402,9 +399,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                     prefs.edit().remove(key).commit()
                 }
                 status == 401 || status == 403 -> {
-                    if (isIngest && prefs.getString(KEY_INGEST_TOKEN, null) == token) {
-                        prefs.edit().remove(KEY_INGEST_TOKEN).commit()
-                    }
+                    if (isIngest) WalletCredentialStore(context).clear(expected = token)
                     return
                 }
                 else -> {

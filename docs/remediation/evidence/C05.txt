@@ -1,0 +1,8 @@
+$ npm --prefix backend run format:check
+Exit: 0
+
+> lifestyle-backend@1.0.1 format:check
+> prettier --check "src/**/*.ts" "tests/**/*.ts"
+
+Checking formatting...
+All matched files use Prettier code style!

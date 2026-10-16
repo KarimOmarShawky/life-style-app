@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/middleware.test.ts
  *
@@ -33,6 +34,7 @@ describe('HTTP Hardening & Security Middleware (Spec §16.2)', () => {
     const requestId = res.headers['x-request-id'];
     expect(requestId).toBeDefined();
     expect(typeof requestId).toBe('string');
+    if (typeof requestId !== 'string') throw new Error('Expected request ID string');
     expect(requestId.length).toBeGreaterThan(10);
   });
 

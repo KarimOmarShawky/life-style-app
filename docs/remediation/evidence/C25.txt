@@ -1,0 +1,12 @@
+$ npm --prefix tools/security ci --ignore-scripts --no-audit --no-fund && npm --prefix tools/security audit --audit-level=high && node scripts/scan-secrets.mjs --self-test && node scripts/scan-secrets.mjs
+Exit: 0
+
+added 90 packages in 1s
+found 0 vulnerabilities
+PASS: real detectors reject ephemeral Ed25519/RSA/JSON private keys and synthetic AWS pattern, accept public key/benign input; values not logged.
+PASS: 608 current files scanned; 0 findings. Worktree only, not Git history or image scanning.
+
+Final temporary-pilot/report source scan:
+$ node scripts/scan-secrets.mjs
+Exit: 0
+PASS: 608 current files scanned; 0 findings. Worktree only, not Git history or image scanning.

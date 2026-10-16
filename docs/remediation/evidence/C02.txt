@@ -1,0 +1,6 @@
+$ npm --prefix backend run typecheck
+Exit: 0
+
+> lifestyle-backend@1.0.1 typecheck
+> tsc --noEmit
+

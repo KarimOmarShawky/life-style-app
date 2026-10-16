@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/auth-flow.test.ts
  *
@@ -11,8 +12,9 @@
  * - AC-AUTH-09: Password reset flow (indistinguishable forgot-password, 6-digit OTP, session revocation)
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
+import { getContainer } from '../../src/container.js';
 import { createApp } from '../../src/app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
@@ -23,14 +25,18 @@ describe('Auth Flow Integration Tests', () => {
   const redis = getRedisClient();
 
   beforeEach(async () => {
+    await getContainer().authService.waitForResetRequests();
     // Clean test data and rate limiter state before each test
     await pool.query('DELETE FROM users');
     await redis.flushdb();
-    const { getContainer } = await import('../../src/container.js');
     const container = getContainer();
     if ('clear' in container.rateLimiter && typeof container.rateLimiter.clear === 'function') {
       container.rateLimiter.clear();
     }
+  });
+
+  afterEach(async () => {
+    await getContainer().authService.waitForResetRequests();
   });
 
   it('AC-AUTH-01 & AC-AUTH-02: Registration creates user, default categories, returns tokens, and prevents duplicates', async () => {
@@ -261,10 +267,22 @@ describe('Auth Flow Integration Tests', () => {
 
     expect(forgotUnknown.status).toBe(202);
 
+    // 202 accepts volatile background work, not delivery. Drain before inspecting Redis.
+    await getContainer().authService.waitForResetRequests();
+
     // 3. Retrieve code from Redis (for test assertion)
     // Note: In production code is delivered via email; here we verify Redis state
     const rawStored = await redis.get(`pwreset:${regRes.body.user.id}`);
-    expect(rawStored).not.toBeNull();
+    expect(rawStored).toMatch(/^[0-9a-f]{64}$/);
+    const resetAudit = await pool.query(
+      `SELECT outcome, metadata FROM audit_logs
+       WHERE request_id = $1 AND event_type = 'auth.password.reset.requested'`,
+      [forgotRes.headers['x-request-id']]
+    );
+    expect(resetAudit.rows).toHaveLength(1);
+    // The fixture/provider result, not HTTP 202, determines the delivery audit outcome.
+    expect(['success', 'failure']).toContain(resetAudit.rows[0].outcome);
+    expect(resetAudit.rows[0].metadata).toEqual({});
 
     // Generate code using otpStore on the same test user or use the OTP store directly:
     // Let's create an OTP for emma to complete reset

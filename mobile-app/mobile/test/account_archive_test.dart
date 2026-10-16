@@ -64,7 +64,7 @@ void main() {
     expect(truncated.finish, throwsA(isA<ArchiveException>()));
     final noFooter = ArchiveVerifier(expectedUserId: userId)
       ..add(utf8
-          .encode(utf8.decode(bytes).split('\n').take(4).join('\n') + '\n'));
+          .encode('${utf8.decode(bytes).split('\n').take(4).join('\n')}\n'));
     expect(noFooter.finish, throwsA(isA<ArchiveException>()));
   });
   test('hash/counters cannot be normalized or mismatched', () {
@@ -92,7 +92,7 @@ void main() {
     for (final suffix in [
       utf8.encode('\n'),
       utf8.encode('x'),
-      utf8.encode(utf8.decode(fixture()).trimRight().split('\n').last + '\n')
+      utf8.encode('${utf8.decode(fixture()).trimRight().split('\n').last}\n')
     ]) {
       final verifier = ArchiveVerifier(expectedUserId: userId)..add(fixture());
       expect(() => verifier.add(suffix), throwsA(isA<ArchiveException>()));

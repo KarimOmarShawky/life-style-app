@@ -10,7 +10,6 @@ import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Credentials implements WalletCredentialStore {
-  _Credentials([this.token]);
   String? token;
   bool failWrite = false;
   @override

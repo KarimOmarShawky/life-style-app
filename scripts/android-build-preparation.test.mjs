@@ -133,3 +133,13 @@ test('all six reset-request catalog entries use conditional best-effort copy, no
     assert.ok(value, locale); assert.match(value, wording, locale);
   }
 });
+
+
+test('debug validation identity is separate from existing app data (source contract, not installation)', () => {
+  const gradle = readFileSync('mobile-app/mobile/android/app/build.gradle.kts', 'utf8');
+  const manifest = readFileSync('mobile-app/mobile/android/app/src/main/AndroidManifest.xml', 'utf8');
+  assert.match(gradle, /applicationId = "com.lifestyle.app"/);
+  assert.match(gradle, /applicationIdSuffix = ".validation"/);
+  assert.match(gradle, /manifestPlaceholders\["appLabel"\] = "LifeStyle Validation"/);
+  assert.match(manifest, /android:label="\$\{appLabel\}"/);
+});

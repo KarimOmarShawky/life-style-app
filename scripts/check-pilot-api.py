@@ -10,6 +10,7 @@ import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
+import ssl
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,6 +25,7 @@ def main():
     if remote and datetime.now(timezone.utc) >= datetime(2026, 10, 16, 18, 0, tzinfo=timezone.utc):
         raise ValueError('Temporary endpoint approval expired; review a fresh environment')
     checks = []
+    facts = {'stage': 'public-HTTPS-readiness' if remote else 'loopback-readiness', 'http_status': None, 'content_kind': 'not-received'}
     output = ROOT / 'docs/remediation/pilot-smoke.json'
     def request(path, method='GET', body=None, token=None, ctype='application/json', health=False):
         headers = {'Content-Type': ctype}
@@ -33,14 +35,19 @@ def main():
         req = urllib.request.Request(target, data=json.dumps(body).encode() if body is not None else None, headers=headers, method=method)
         try:
             with urllib.request.urlopen(req, timeout=20) as response:
+                facts['http_status'] = response.status
+                facts['content_kind'] = 'json' if response.headers.get_content_type() == 'application/json' else 'non-json'
                 raw = response.read()
                 return response.status, json.loads(raw) if raw else None
         except urllib.error.HTTPError as error:
+            facts['http_status'] = error.code
+            facts['content_kind'] = 'json' if error.headers.get_content_type() == 'application/json' else 'non-json'
             return error.code, json.load(error)
     def check(name, condition):
         checks.append(dict(name=name, result='PASS' if condition else 'FAIL'))
         if not condition:
             raise ValueError('Pilot roundtrip assertion failed')
+        facts['stage'] = 'synthetic-HTTP-roundtrip'
         print('PASS: ' + name, flush=True)
     try:
         check('Actual database/cache readiness' + (' over certificate-validated public HTTPS' if remote else ' over loopback HTTP'), request('/health/ready', health=True) == (200, {'status': 'ok'}))
@@ -66,6 +73,12 @@ def main():
         check('No migration endpoint exposed', request('/health/migrate', health=True)[0] == 404)
         check('Delete only our newly created synthetic task', request('/tasks/' + task, 'DELETE', token=token)[0] in (200, 204))
         check('Readiness remains healthy', request('/health/ready', health=True) == (200, {'status': 'ok'}))
+    except Exception as error:
+        reason = error.reason if isinstance(error, urllib.error.URLError) else error
+        kind = 'TLS_CERTIFICATE_REFUSED' if isinstance(reason, ssl.SSLCertVerificationError) else 'TLS_TRANSPORT_CLOSED' if isinstance(reason, ssl.SSLError) else 'NON_JSON_RESPONSE' if isinstance(error, json.JSONDecodeError) else 'NETWORK_OR_ASSERTION_REFUSED'
+        # Fixed labels/status only; never URLs, response bodies, credentials or raw exception text.
+        print('::error title=Temporary pilot diagnostic::' + json.dumps({**facts, 'reason': kind}), flush=True)
+        raise
     finally:
         output.write_text(json.dumps(dict(result='PASS' if len(checks) == 12 and all(c['result'] == 'PASS' for c in checks) else 'FAIL', transport='public HTTPS' if remote else 'loopback HTTP', scope='Actual synthetic HTTP/TLS account/task persistence/authorization tests, NOT Android/device/provider/full E2E evidence. Credentials memory only, never logged. No user accounts/data were adopted or cleaned.', checks=checks), indent=2) + '\n')
 

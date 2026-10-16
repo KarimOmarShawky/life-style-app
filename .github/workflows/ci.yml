@@ -131,6 +131,9 @@ jobs:
   mobile-gate:
     name: Flutter and Android debug validation (not a release)
     runs-on: ubuntu-latest
+    # Explicit owner-approved temporary pilot, session branch ONLY; main stays offline.
+    env:
+      VALIDATION_API_BASE_URL: ${{ inputs.validation_api_base_url || (github.ref == 'refs/heads/arena/3f871eac-life-style-app' && 'https://8787-itafbygcp2juf4i455pef.e2b.app/api/v1') || 'https://validation.invalid/api/v1' }}
     defaults:
       run:
         working-directory: mobile-app/mobile
@@ -156,9 +159,9 @@ jobs:
           cache-read-only: false
 
       - name: Approved temporary pilot public HTTPS and real API roundtrip (not device)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_api_base_url != 'https://validation.invalid/api/v1' }}
+        if: ${{ env.VALIDATION_API_BASE_URL != 'https://validation.invalid/api/v1' }}
         env:
-          PILOT_API_BASE_URL: ${{ inputs.validation_api_base_url }}
+          PILOT_API_BASE_URL: ${{ env.VALIDATION_API_BASE_URL }}
         run: python3 ../../scripts/check-pilot-api.py
 
       - name: Setup Flutter stable channel
@@ -262,8 +265,6 @@ jobs:
           }
 
       - name: Build Android debug validation APK (offline by default, not release)
-        env:
-          VALIDATION_API_BASE_URL: ${{ inputs.validation_api_base_url || 'https://validation.invalid/api/v1' }}
         run: |
           node --input-type=module <<'JS'
           try {

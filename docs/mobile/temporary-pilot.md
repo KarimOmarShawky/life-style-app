@@ -59,3 +59,13 @@ The connected APK is compiled only after this probe succeeds. It remains a separ
 LifeStyle Validation debug app, not a signed/obfuscated production release. Future
 CI debug keys may differ: do not uninstall an existing app to work around a signing
 mismatch or assume an upgrade/migration was verified. No phone install is claimed.
+
+
+Manual workflow dispatch returned HTTP403 (integration permission). No reconnection,
+credential, privilege change, cancellation attempt or alternate authentication was
+used. Ordinary owner-authorized git push/automatic CI remains available. The pilot
+URL is therefore explicitly selected ONLY for this fixed session branch's push
+build; main and manual default remain offline. The exact-host real HTTPS/API probe
+is mandatory before compilation. Its approval refuses remote use from 18:00 UTC on
+2026-10-16 onward; that cutoff is NOT a promise that the sandbox will stay alive until
+then. A subsequent pilot needs explicit endpoint review, not a silent fallback.

@@ -3,6 +3,7 @@
 No passwords/tokens/response bodies are printed or saved. No mocks or email calls.
 """
 import json
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import secrets
@@ -20,6 +21,8 @@ def main():
     remote = url.scheme == 'https' and url.netloc == '8787-itafbygcp2juf4i455pef.e2b.app'
     if not (local or remote) or url.path != '/api/v1' or url.query or url.fragment or url.username or url.password:
         raise ValueError('Only the exact owner-approved isolated pilot is permitted')
+    if remote and datetime.now(timezone.utc) >= datetime(2026, 10, 16, 18, 0, tzinfo=timezone.utc):
+        raise ValueError('Temporary endpoint approval expired; review a fresh environment')
     checks = []
     output = ROOT / 'docs/remediation/pilot-smoke.json'
     def request(path, method='GET', body=None, token=None, ctype='application/json', health=False):

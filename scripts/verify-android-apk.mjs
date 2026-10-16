@@ -18,6 +18,12 @@ export function verifyCertificate(output, mode, expected = '') {
   }
 }
 
+export function verifyPackage(output, mode) {
+  const expected = mode === 'debug' ? 'com.lifestyle.app.validation' : mode === 'release' ? 'com.lifestyle.app' : '';
+  const actual = output.match(/^package: name='([^']+)'/m)?.[1];
+  if (!expected || actual !== expected) throw new Error('APK application identity is not the expected isolated validation or release package');
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
     const [mode, path] = process.argv.slice(2);
@@ -32,6 +38,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     const output = execFileSync(java, ['-jar', join(tools, version, 'lib', 'apksigner.jar'), 'verify', '--verbose', '--print-certs', resolve(path)],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     verifyCertificate(output, mode, process.env.ANDROID_RELEASE_CERT_SHA256);
+    const aapt = join(tools, version, process.platform === 'win32' ? 'aapt2.exe' : 'aapt2');
+    const manifest = execFileSync(aapt, ['dump', 'badging', resolve(path)],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    verifyPackage(manifest, mode);
     console.log(`PASS: ${mode} APK signature verified; not device, backend-connectivity or feature certification`);
   } catch {
     console.error('FAIL: APK signature verification failed or prerequisites missing; no release artifact accepted');

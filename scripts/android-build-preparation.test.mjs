@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { prepareSigning, propertyValue } from './prepare-android-signing.mjs';
-import { verifyCertificate } from './verify-android-apk.mjs';
+import { verifyCertificate, verifyPackage } from './verify-android-apk.mjs';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'android-signing-test-'));
@@ -142,4 +142,15 @@ test('debug validation identity is separate from existing app data (source contr
   assert.match(gradle, /applicationIdSuffix = ".validation"/);
   assert.match(gradle, /manifestPlaceholders\["appLabel"\] = "LifeStyle Validation"/);
   assert.match(manifest, /android:label="\$\{appLabel\}"/);
+});
+
+
+test('actual APK manifest parser requires isolated validation ID and refuses swapped/unknown identity', () => {
+  const debug = "package: name='com.lifestyle.app.validation' versionCode='1' versionName='1-validation'";
+  const release = "package: name='com.lifestyle.app' versionCode='1' versionName='1'";
+  verifyPackage(debug, 'debug'); verifyPackage(release, 'release');
+  assert.throws(() => verifyPackage(release, 'debug'));
+  assert.throws(() => verifyPackage(debug, 'release'));
+  assert.throws(() => verifyPackage('missing', 'debug'));
+  assert.throws(() => verifyPackage(debug, 'unknown'));
 });

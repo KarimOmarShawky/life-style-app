@@ -133,19 +133,18 @@ void main() {
     expect(prefs.getString(WalletIngestToken.storageKey), isNull);
   });
 
-  test(
-    'revoke removes the local copy and calls DELETE on the backend',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      late http.Request captured;
-      final api = _apiWith(
-        MockClient((request) async {
-          captured = request;
-          return http.Response('', 204);
-        }),
-      );
+  test('revoke removes the local copy and calls DELETE on the backend',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    late http.Request captured;
+    final api = _apiWith(
+      MockClient((request) async {
+        captured = request;
+        return http.Response('', 204);
+      }),
+    );
 
-      credentials.token = 'lsi_to_revoke';
+    credentials.token = 'lsi_to_revoke';
     await WalletIngestToken(api, credentials: credentials).revoke();
     expect(credentials.token, isNull);
 
@@ -164,12 +163,18 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString(WalletIngestToken.storageKey), isNull);
-  });  test('secure-store failure never falls back to plaintext preferences', () async {
+  });
+  test('secure-store failure never falls back to plaintext preferences',
+      () async {
     SharedPreferences.setMockInitialValues({'sms_sync_enabled': true});
     credentials.failWrite = true;
-    final api = _apiWith(MockClient((_) async => _json(201, {'token': 'lsi_secret'})));
-    await expectLater(WalletIngestToken(api, credentials: credentials).ensure(), throwsStateError);
-    expect((await SharedPreferences.getInstance()).getString(WalletIngestToken.storageKey), isNull);
+    final api =
+        _apiWith(MockClient((_) async => _json(201, {'token': 'lsi_secret'})));
+    await expectLater(WalletIngestToken(api, credentials: credentials).ensure(),
+        throwsStateError);
+    expect(
+        (await SharedPreferences.getInstance())
+            .getString(WalletIngestToken.storageKey),
+        isNull);
   });
-
 }

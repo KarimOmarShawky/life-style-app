@@ -155,11 +155,12 @@ class ApiClient {
       for (var attempt = 0; attempt < 2; attempt++) {
         cancel.check();
         final currentTokens = tokens;
-        if (currentTokens == null)
+        if (currentTokens == null) {
           throw const ApiException(
               statusCode: 401,
               code: 'UNAUTHENTICATED',
               message: 'Sign in again before exporting.');
+        }
         final request =
             http.Request('POST', _uri('users/me/export/archive', null))
               ..followRedirects = false
@@ -178,8 +179,9 @@ class ApiClient {
           await for (final chunk
               in response.stream.timeout(const Duration(seconds: 15))) {
             cancel.check();
-            if (body.length + chunk.length > 64 * 1024)
+            if (body.length + chunk.length > 64 * 1024) {
               throw const ArchiveException();
+            }
             body.add(chunk);
           }
           var code = 'ARCHIVE_UNAVAILABLE';
@@ -210,7 +212,9 @@ class ApiClient {
                 .first
                 .trim()
                 .toLowerCase() !=
-            'application/x-ndjson') throw const ArchiveException();
+            'application/x-ndjson') {
+          throw const ArchiveException();
+        }
         await for (final chunk
             in response.stream.timeout(const Duration(seconds: 15))) {
           cancel.check();

@@ -350,8 +350,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isAr = localization.isArabic;
     final settings = ref.watch(settingsProvider);
     ref.listen(authProvider, (_, next) {
-      if (_archiveUserId != null && next.valueOrNull?.id != _archiveUserId)
+      if (_archiveUserId != null && next.valueOrNull?.id != _archiveUserId) {
         _archiveCancel?.cancel();
+      }
     });
     final activeUser = ref.watch(authProvider).valueOrNull ?? widget.user;
 

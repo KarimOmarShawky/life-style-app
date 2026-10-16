@@ -125,12 +125,13 @@ class AuthRepository {
     }
   }
 
-  Stream<List<int>> streamAccountArchive(String currentPassword, ArchiveCancellation cancel) =>
+  Stream<List<int>> streamAccountArchive(
+          String currentPassword, ArchiveCancellation cancel) =>
       _api.streamAccountArchive(currentPassword, cancel);
 
   Future<Map<String, dynamic>> exportUserData(String currentPassword) async {
-    final response =
-        await _api.post('users/me/export', body: {'currentPassword': currentPassword});
+    final response = await _api
+        .post('users/me/export', body: {'currentPassword': currentPassword});
     if (response is! Map<String, dynamic>) {
       throw const ApiException(
         statusCode: 502,

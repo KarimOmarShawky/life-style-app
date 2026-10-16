@@ -152,7 +152,9 @@ class ArchiveVerifier {
         final id = data['id'];
         if (id is! String ||
             !RegExp(r'^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$')
-                .hasMatch(id)) throw const ArchiveException();
+                .hasMatch(id)) {
+          throw const ArchiveException();
+        }
         if (index == _sectionIndex &&
             _lastId != null &&
             id.compareTo(_lastId!) <= 0) {

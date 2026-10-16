@@ -58,11 +58,12 @@ class AndroidDetoxEnforcer implements DetoxEnforcer {
 
   @override
   Future<RestrictionResult> release(String id) async {
-    if (!supported)
+    if (!supported) {
       return const RestrictionResult(
         RestrictionStatus.off,
         'No native restriction was applied',
       );
+    }
     return _result(await platform.invoke('stopDetox', {'sessionId': id}));
   }
 
@@ -72,8 +73,9 @@ class AndroidDetoxEnforcer implements DetoxEnforcer {
   }
 
   Future<List<Map<String, String>>> apps() async {
-    if (!supported)
+    if (!supported) {
       throw UnsupportedError('No system application selection is available.');
+    }
     final result = await platform.invoke('getDetoxApps');
     return (result['apps'] as List)
         .map((app) => Map<String, String>.from(app as Map))

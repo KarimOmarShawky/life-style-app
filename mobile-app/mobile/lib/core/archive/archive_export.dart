@@ -27,8 +27,9 @@ class AndroidArchiveStaging implements ArchiveStaging {
       throw const ArchiveException();
     }
     final id = await _channel.invokeMethod<String>('begin');
-    if (id == null || !RegExp(r'^[0-9a-f-]{36}$').hasMatch(id))
+    if (id == null || !RegExp(r'^[0-9a-f-]{36}$').hasMatch(id)) {
       throw const ArchiveException();
+    }
     return id;
   }
 
@@ -123,8 +124,9 @@ Future<PreparedArchive> prepareAccountArchive({
     }
     cancel.check();
     final info = verifier.finish();
-    if (pending.isNotEmpty)
+    if (pending.isNotEmpty) {
       await cancel.bind(staging.append(id, pending.takeBytes()));
+    }
     await cancel.bind(staging.seal(id, info));
     cancel.check();
     transferred = true;

@@ -137,7 +137,8 @@ void main() {
         httpClient: MockClient((request) async {
           seenPaths.add('${request.method} ${request.url.path}');
           if (request.url.path.endsWith('/users/me/export')) {
-            expect(jsonDecode(request.body), {'currentPassword': 'CurrentPassword123!'});
+            expect(jsonDecode(request.body),
+                {'currentPassword': 'CurrentPassword123!'});
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'exportedAt': '2026-10-12T10:00:00.000Z',
@@ -152,7 +153,8 @@ void main() {
           }
           if (request.method == 'POST' &&
               request.url.path.endsWith('/users/me/deletion')) {
-            expect(jsonDecode(request.body), {'currentPassword': 'CurrentPassword123!'});
+            expect(jsonDecode(request.body),
+                {'currentPassword': 'CurrentPassword123!'});
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'status': 'pending_deletion',
@@ -179,7 +181,8 @@ void main() {
       final exported = await repo.exportUserData('CurrentPassword123!');
       expect(exported['exportedAt'], '2026-10-12T10:00:00.000Z');
 
-      final scheduledFor = await repo.scheduleAccountDeletion('CurrentPassword123!');
+      final scheduledFor =
+          await repo.scheduleAccountDeletion('CurrentPassword123!');
       expect(scheduledFor, isNotNull);
 
       await repo.cancelAccountDeletion();

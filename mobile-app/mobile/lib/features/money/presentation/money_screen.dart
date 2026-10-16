@@ -192,10 +192,14 @@ class MoneyScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildOverviewCard(BuildContext context, AppLocalizations l10n, List<Budget> budgets) {
+  Widget _buildOverviewCard(
+      BuildContext context, AppLocalizations l10n, List<Budget> budgets) {
     final currencies = budgets.map((budget) => budget.currency).toSet();
-    return Column(children: [for (final currency in currencies)
-      _buildCurrencyOverviewCard(context, l10n, budgets.where((budget) => budget.currency == currency).toList())]);
+    return Column(children: [
+      for (final currency in currencies)
+        _buildCurrencyOverviewCard(context, l10n,
+            budgets.where((budget) => budget.currency == currency).toList())
+    ]);
   }
 
   Widget _buildCurrencyOverviewCard(
@@ -368,7 +372,9 @@ class MoneyScreen extends ConsumerWidget {
                       child: LinearProgressIndicator(
                         value: p,
                         minHeight: 5,
-                        color: sp.compareTo(lim) > 0 ? Colors.red : colorScheme.primary,
+                        color: sp.compareTo(lim) > 0
+                            ? Colors.red
+                            : colorScheme.primary,
                         backgroundColor: colorScheme.surfaceContainerHighest,
                       ),
                     ),
@@ -390,22 +396,30 @@ class MoneyScreen extends ConsumerWidget {
     final budgets = ref.read(budgetsProvider).valueOrNull ?? [];
     final subs = ref.read(subscriptionsProvider).valueOrNull ?? [];
 
-    final limits = sumAmountsByCurrency(budgets.map((b) => (currency: b.currency, amount: b.amountLimit)));
-    final spent = sumAmountsByCurrency(budgets.map((b) => (currency: b.currency, amount: b.usage.spent)));
-    final activeSubs = subs.where((subscription) => subscription.status == 'active').toList();
-    final monthlySubs = sumAmountsByCurrency(activeSubs.map((subscription) =>
-      (currency: subscription.currency, amount: subscription.monthlyEquivalent)));
+    final limits = sumAmountsByCurrency(
+        budgets.map((b) => (currency: b.currency, amount: b.amountLimit)));
+    final spent = sumAmountsByCurrency(
+        budgets.map((b) => (currency: b.currency, amount: b.usage.spent)));
+    final activeSubs =
+        subs.where((subscription) => subscription.status == 'active').toList();
+    final monthlySubs = sumAmountsByCurrency(activeSubs.map((subscription) => (
+          currency: subscription.currency,
+          amount: subscription.monthlyEquivalent
+        )));
     final budgetLines = <String>[];
     for (final currency in limits.keys) {
       final limit = limits[currency]!;
       final used = spent[currency] ?? DecimalAmount.zero;
-      budgetLines.add('$currency\n${l10n.reportTotalBudgetLabel} ${limit.format(currency)} $currency\n'
-        '${l10n.reportTotalSpentLabel} ${used.format(currency)} $currency\n'
-        '${l10n.reportRemainingLabel} ${(limit - used).format(currency)} $currency\n'
-        '${l10n.reportUtilizationLabel} ${used.percentAgainst(limit)}%');
+      budgetLines.add(
+          '$currency\n${l10n.reportTotalBudgetLabel} ${limit.format(currency)} $currency\n'
+          '${l10n.reportTotalSpentLabel} ${used.format(currency)} $currency\n'
+          '${l10n.reportRemainingLabel} ${(limit - used).format(currency)} $currency\n'
+          '${l10n.reportUtilizationLabel} ${used.percentAgainst(limit)}%');
     }
-    final subscriptionLines = monthlySubs.entries.map((entry) =>
-      '${l10n.reportTotalSubsLabel} ${entry.value.format(entry.key)} ${entry.key} ${l10n.reportMonthlySuffix}').join('\n');
+    final subscriptionLines = monthlySubs.entries
+        .map((entry) =>
+            '${l10n.reportTotalSubsLabel} ${entry.value.format(entry.key)} ${entry.key} ${l10n.reportMonthlySuffix}')
+        .join('\n');
 
     final nowStr =
         '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
@@ -962,7 +976,8 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                       validator: (value) {
                         final text = (value ?? '').trim();
                         if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text) ||
-                            !(DecimalAmount.tryParse(text)?.isPositive ?? false)) {
+                            !(DecimalAmount.tryParse(text)?.isPositive ??
+                                false)) {
                           return l10n.smsReviewInvalidAmount;
                         }
                         return null;

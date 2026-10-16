@@ -8,8 +8,9 @@ class DecimalAmount implements Comparable<DecimalAmount> {
   factory DecimalAmount.parse(String text) {
     final match =
         RegExp(r'^(-?)(\d+)(?:\.(\d{1,4}))?$').firstMatch(text.trim());
-    if (match == null)
+    if (match == null) {
       throw const FormatException('Invalid decimal monetary amount');
+    }
     final absolute =
         BigInt.parse('${match[2]}${(match[3] ?? '').padRight(4, '0')}');
     return DecimalAmount._(match[1] == '-' ? -absolute : absolute);

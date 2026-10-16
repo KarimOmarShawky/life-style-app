@@ -5,21 +5,23 @@ import 'package:lifestyle_mobile/features/auth/presentation/current_password_dia
 void main() {
   Future<void> open(WidgetTester tester, ValueChanged<String?> onResult) async {
     await tester.pumpWidget(MaterialApp(
-      home: Builder(builder: (context) => Scaffold(
-        body: TextButton(
-          onPressed: () async => onResult(await showDialog<String>(
-            context: context,
-            builder: (_) => const CurrentPasswordDialog(),
-          )),
-          child: const Text('Open'),
-        ),
-      )),
+      home: Builder(
+          builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () async => onResult(await showDialog<String>(
+                    context: context,
+                    builder: (_) => const CurrentPasswordDialog(),
+                  )),
+                  child: const Text('Open'),
+                ),
+              )),
     ));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('empty proof stays open; valid proof preserves whitespace', (tester) async {
+  testWidgets('empty proof stays open; valid proof preserves whitespace',
+      (tester) async {
     String? proof;
     await open(tester, (value) => proof = value);
     final field = tester.widget<TextField>(find.byType(TextField));
@@ -37,7 +39,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('cancel discards proof and reopening starts empty', (tester) async {
+  testWidgets('cancel discards proof and reopening starts empty',
+      (tester) async {
     String? proof = 'not submitted';
     await open(tester, (value) => proof = value);
     await tester.enterText(find.byType(TextField), 'discard me');
@@ -47,6 +50,7 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, isEmpty);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty);
   });
 }

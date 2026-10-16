@@ -155,6 +155,12 @@ jobs:
         with:
           cache-read-only: false
 
+      - name: Approved temporary pilot public HTTPS and real API roundtrip (not device)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_api_base_url != 'https://validation.invalid/api/v1' }}
+        env:
+          PILOT_API_BASE_URL: ${{ inputs.validation_api_base_url }}
+        run: python3 ../../scripts/check-pilot-api.py
+
       - name: Setup Flutter stable channel
         uses: subosito/flutter-action@v2
         with:

@@ -384,3 +384,75 @@ No synthetic infrastructure result is represented as a live-service PASS.
   No Flutter, Gradle Android, actual APK/signature, hosted workflow, device or real
   provider success inferred. Final C12 is rerun for all 39 changed Dart files after
   the six conditional-copy catalog edits/formatting; this is syntax-only, not Flutter.
+
+
+## Owner-authorized commits and actual hosted runs
+
+After explicit approval, committed/pushed only the fixed session branch and ran CI.
+No main merge or deployment. Details and actual run IDs/failures are in hosted-build.md.
+Repeated hosted backend gates pass; Flutter test steps execute, but format/analysis
+failures and diagnostic-workspace mutations are not relabeled clean source-pin PASS.
+Official formatter and Dart fixer patches are applied only after check/review, then
+committed and rerun without changing fatal analysis flags. Added two actual shutdown
+socket/subprocess/SIGTERM tests and awaited all auxiliary listeners before resources
+close; latest full local C06 is 342/31 files, C32 154 integration and six security PASS.
+Fresh hosted metadata rejects source/workflow drift and stale API results. Release
+identity, physical device, connected backend and live SMTP remain separate gates.
+
+
+### Final authorized real-CI/SDK result
+
+Run 38909865820 at e2d6577 PASS for backend, clean Flutter format/analysis/test,
+actual Kotlin JVM tests, Android debug APK compilation, actual SDK cryptographic
+certificate/compiled package verification and actual artifact upload. Old failed
+runs remain historical; no gate was skipped or fatal rule relaxed. The SDK37 human
+SHA256 label mismatch was fixed by requiring SDK-verified public X509 PEM and
+computing its fingerprint. A separate 17-second real SDK transient fixture probe
+PASS is not app/device evidence and uploads nothing. Final source scan and history
+remain distinct: 104 reachable commits / 1,326 UTF8 blobs / 37 matches / eight skips
+for C36 at e2d6577, FAIL; exact baseline-local-default provenance C38 PASS does not
+prove absent deployed reuse. Current source scan is C25, not history clearance.
+Direct local retrieval of the uploaded APK was BLOCKED; use its actual GitHub
+artifact page, not a fabricated local file. Offline API/auth boundary means only
+installation/startup trial until a separate approved disposable HTTPS backend exists.
+
+Packaging prerequisite regression: default Python lacks reportlab and the first
+packaging attempt failed; outputs from that attempt were not accepted. Added early
+document-tool preflight and failure invalidation so any caught late packaging error
+sets C14 FAIL, rather than leaving successful partial ZIP evidence. Repeated the
+actual missing-tooling command and asserted C14 FAIL. The isolated tooling venv then
+completed the full ZIP/PDF/manifest command successfully; final C14 requires its exit
+zero and independent integrity checks. This is document tooling, not app/CI failure.
+B-33 now has targeted verified arithmetic evidence from its five non-skipped pure
+money tests included by clean unfiltered hosted Flutter tests. This upgrades only
+that disposition, not physical UI, financial reconciliation or general app readiness.
+
+
+### Explicit temporary-backend authorization and public ingress failure
+
+Later owner instruction: prepare a NEW isolated temporary test backend, not their
+existing server. Actual PostgreSQL16.14, Redis7.4.6 and API readiness/bootstrap/up
+PASS; real local registration/login/task create/read/tenancy/non-JSON refusal and
+created-task-only DELETE: 12 checks PASS. Earlier smoke harness assumed a data
+wrapper and tried JSON-decoding HTTP204; these harness failures were fixed against
+actual controller contracts, not by returning fake success or modifying the API.
+Only generated synthetic fixtures were used; no real provider or existing data.
+A fresh pilot was then started, with prior fixture directory preserved privately.
+
+Public HTTPS from actual GitHub runner failed: run38914942984 @f55b45f,
+job117019887767, readiness403 JSON before a successful API call. C41 BLOCKED.
+No sandbox access token/credential bypass, invalidTLS acceptance or production
+fallback. Previous e2d6577 offline APK is not a connected trial. Manual dispatch403
+was not retried; normal authorized gitpush/CI was used, with no privilege changes.
+Restored offline default and scoped SDK/formatter diagnostic prerequisite handling;
+current recovery run38915340992 @4d69890 is separate from failed connected attempts.
+
+The restored workspace's Git history was initially shallow; preserved all266 source
+files in a local backup/stash, fast-forwarded only the fixed session branch to its
+actual earlier pushed e2d6577 and restored working files byte-for-byte. No reset,
+clean, force checkout or branch switch. Fetched unshallow origin main read-only;
+final reachable snapshot112 commits/1377 UTF8 blobs/37 historical matches/8 skips,
+FAIL, at4d69890. This includes preserved stash refs; not all commits are new source
+changes or remote main commits. Exact baseline provenance37 PASS does not clear
+history or deployed reuse. Full local regressions re-executed on scratch-owned
+services independently of the active pilot; no destructive hook targeted the pilot.

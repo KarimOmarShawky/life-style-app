@@ -2,9 +2,9 @@
 
 ## Actual state, not a build claim
 
-C37 executes 13 private-filesystem, negative-input, certificate-output parsing, source-contract/YAML/bash-syntax and actual missing-SDK CLI-refusal checks. Its synthetic bytes are NOT a real keystore/APK, and its synthetic certificate output is NOT an apksigner execution. No Flutter/Android SDK is available in this sandbox. Flutter analysis/tests, Gradle Android compilation, real APK signature verification, hosted CI and device installation remain C19–C24 BLOCKED/NOT RUN as individually recorded. There is no verified APK from this work yet.
+C37 executes 17 private-filesystem, negative-input, certificate-output parsing, source-contract/YAML/bash-syntax and actual missing-SDK CLI-refusal checks. Its synthetic bytes are NOT a real keystore/APK, and its synthetic certificate output is NOT an apksigner execution. Flutter/Android SDK remains unavailable locally, but the owner has now authorized real hosted CI. Actual source-pinned Flutter analysis/tests and Android debug JVM/build/signature/manifest/upload outcomes are C19/C20/C39/C40 in hosted-build.json. Do not reuse the earlier preparation-only BLOCKED/NOT RUN statement as a current result, or infer a successful APK before the actual debug gate passes. Owner-key release/device/provider results remain separate.
 
-The user has Windows and an ordinary Android phone. They do not need to install anything to complete this source preparation. Do not request signing passwords, key files or provider keys in chat. No workflow was pushed, dispatched or deployed.
+The user has Windows and an ordinary Android phone. They do not need to install anything to complete this source preparation. Do not request signing passwords, key files or provider keys in chat. The owner later authorized pushes/CI on the fixed session branch. No main merge, signed release dispatch or deployment is performed.
 
 ## Demonstrable source/configuration gaps corrected
 
@@ -37,3 +37,63 @@ All six locale catalog messages now say conditionally that the app will **try** 
 ## Next verification boundary
 
 Run the authored pipeline on reviewed source, resolve actual Flutter/Gradle failures without relaxing gates, and inspect a successfully built/signature-verified APK. For connected device tests, select an explicitly approved disposable HTTPS backend, never the offline default or unapproved production service. Only then perform the Windows/Android install, permissions, speech lifecycle, archive/save-provider, wallet, alarms and both Digital Detox modes checklist. Ordinary consumer Android restrictions do not lock the whole phone or guarantee enforcement; no accessibility/device-admin capability is added here. Backend/SMTP connectivity, live provider delivery, Android lifecycle/upgrade/signature continuity and device enforcement are not certified by source preparation.
+
+
+## Separate installation identity and actual package verification
+
+Debug now uses `com.lifestyle.app.validation`, version suffix `-validation`, and label
+`LifeStyle Validation`; release keeps `com.lifestyle.app`/`LifeStyle`. This permits a
+side-by-side test without deleting/replacing an existing signed app or its data.
+The APK verifier also executes the SDK `aapt2 dump badging` and checks the COMPILED
+package identity, not just a Gradle source string or filename. Identity-parser/source
+checks bring C37 to 17 cases; only C40 can certify actual SDK execution on the APK.
+
+Do not uninstall an existing app to bypass a signing mismatch. Validation has its own
+empty app sandbox; this does not migrate/read the existing app's private data. Future
+debug builds may use a different ephemeral debug certificate and are not an approved
+same-identity upgrade/data-migration test. Real release-key continuity/Keystore migration
+and device restore still require controlled device/owner-key verification.
+
+
+## SDK37 public-certificate handling
+
+Actual SDK verification exposed a mismatch with the old human-readable SHA-256
+label matcher. The application CLI now requires one SDK-verified certificate PEM,
+computes its SHA-256 using Node X509Certificate and applies the same identity rules;
+it does not ignore a failing signature or accept arbitrary certificate text. C37 has
+17 real local boundary/parser/source tests, including a PUBLIC certificate parser
+fixture. The real SDK transient fixture job is additional tool evidence, not a
+LifeStyle app or device test; it uploads nothing and creates no release identity.
+Actual application verification/upload must still succeed under C40 independently.
+
+
+## Actual successful debug APK, and what can be tried
+
+Run 38909865820 / built source e2d6577 passed the actual app debug build, Kotlin JVM
+tests, SDK cryptographic certificate verification, compiled package identity and
+artifact upload. The download is the actual GitHub artifact, not in the source ZIP:
+https://github.com/KarimOmarShawky/life-style-app/actions/runs/38909865820/artifacts/12050352682
+
+Download/unzip it on Windows and transfer the APK to Android. If choosing to install,
+allow installation only for the source you deliberately use, then revoke that source
+permission afterward. It installs as LifeStyle Validation beside an existing app;
+do not uninstall any existing app or grant accessibility/overlay access merely to
+confirm startup. Device installation has NOT RUN in this session.
+
+This build's API is intentionally offline. With an empty isolated app sandbox,
+AuthScreen is expected and login/backend-dependent features cannot work. This is
+an installation/startup validation build, NOT a connected full-feature pilot. A
+separately approved disposable HTTPS backend is required before building a connected
+pilot; production is not an implicit fallback. Do not introduce fake auth/guest data
+or claim SMTP, archive providers, wallet or Detox device enforcement is verified.
+
+
+## Later temporary-backend request
+
+The owner subsequently approved a NEW isolated temporary backend. This was actually
+started and tested locally, but external GitHub runner readiness got HTTPS403 before
+API readiness, so the connected phone pilot remains C41 BLOCKED. No sandbox token,
+invalid TLS, fake auth or production fallback is substituted. The current branch
+again defaults offline. See temporary-pilot.md and the actual pilot-external-check
+metadata for the local/external distinction; do not mistake the earlier successful
+offline APK or a recovery build for a connected pilot.

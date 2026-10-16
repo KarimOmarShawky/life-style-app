@@ -4,127 +4,127 @@ TAP version 13
 # Subtest: only the current direct manifest and hosted lock entries are permitted
 ok 1 - only the current direct manifest and hosted lock entries are permitted
   ---
-  duration_ms: 10.666419
+  duration_ms: 7.494677
   type: 'test'
   ...
 # Subtest: backend production dependency multer still fails, even if globally allowlisted
 ok 2 - backend production dependency multer still fails, even if globally allowlisted
   ---
-  duration_ms: 0.73559
+  duration_ms: 0.385307
   type: 'test'
   ...
 # Subtest: backend production dependency busboy still fails, even if globally allowlisted
 ok 3 - backend production dependency busboy still fails, even if globally allowlisted
   ---
-  duration_ms: 0.143048
+  duration_ms: 0.136298
   type: 'test'
   ...
 # Subtest: backend production dependency formidable still fails, even if globally allowlisted
 ok 4 - backend production dependency formidable still fails, even if globally allowlisted
   ---
-  duration_ms: 0.156417
+  duration_ms: 0.107339
   type: 'test'
   ...
 # Subtest: backend production dependency @aws-sdk/client-s3 still fails, even if globally allowlisted
 ok 5 - backend production dependency @aws-sdk/client-s3 still fails, even if globally allowlisted
   ---
-  duration_ms: 0.651113
+  duration_ms: 0.174067
   type: 'test'
   ...
 # Subtest: backend production dependency file_picker still fails, even if globally allowlisted
 ok 6 - backend production dependency file_picker still fails, even if globally allowlisted
   ---
-  duration_ms: 0.223758
+  duration_ms: 0.162715
   type: 'test'
   ...
 # Subtest: file_picker is not permitted in backend dev or root manifests
 ok 7 - file_picker is not permitted in backend dev or root manifests
   ---
-  duration_ms: 0.228832
+  duration_ms: 0.226605
   type: 'test'
   ...
 # Subtest: existing formidable test-tool exception does not authorize a production dependency
 ok 8 - existing formidable test-tool exception does not authorize a production dependency
   ---
-  duration_ms: 0.276929
+  duration_ms: 0.246133
   type: 'test'
   ...
 # Subtest: other forbidden mobile packages are not excused by local audio approval
 ok 9 - other forbidden mobile packages are not excused by local audio approval
   ---
-  duration_ms: 0.467915
+  duration_ms: 0.400218
   type: 'test'
   ...
 # Subtest: picker mention outside the approved manifest dependency line fails
 ok 10 - picker mention outside the approved manifest dependency line fails
   ---
-  duration_ms: 0.712903
+  duration_ms: 0.450949
   type: 'test'
   ...
 # Subtest: lock allowance is tied to its own reviewed hosted direct package block
 ok 11 - lock allowance is tied to its own reviewed hosted direct package block
   ---
-  duration_ms: 7.362344
+  duration_ms: 6.373694
   type: 'test'
   ...
 # Subtest: current audio-only consumer is permitted, without new picker consumers
 ok 12 - current audio-only consumer is permitted, without new picker consumers
   ---
-  duration_ms: 0.585566
+  duration_ms: 0.544071
   type: 'test'
   ...
 # Subtest: federated picker imports and aliased imports are not blanket-approved
 ok 13 - federated picker imports and aliased imports are not blanket-approved
   ---
-  duration_ms: 0.591319
+  duration_ms: 0.24867
   type: 'test'
   ...
 # Subtest: broad file selection and additional picker invocations fail
 ok 14 - broad file selection and additional picker invocations fail
   ---
-  duration_ms: 0.300894
+  duration_ms: 0.15098
   type: 'test'
   ...
 # Subtest: violations expose metadata only, not source/configuration values
 ok 15 - violations expose metadata only, not source/configuration values
   ---
-  duration_ms: 0.426033
+  duration_ms: 0.301323
   type: 'test'
   ...
 # Subtest: current picker and playback path remain local (source contract, not device/network evidence)
 ok 16 - current picker and playback path remain local (source contract, not device/network evidence)
   ---
-  duration_ms: 0.50512
+  duration_ms: 0.374262
   type: 'test'
   ...
 # Subtest: real app keeps JSON-only middleware ahead of API routers (source order only)
 ok 17 - real app keeps JSON-only middleware ahead of API routers (source order only)
   ---
-  duration_ms: 0.387587
+  duration_ms: 0.290336
   type: 'test'
   ...
 # Subtest: actual CLI accepts the reviewed local-only fixture
 ok 18 - actual CLI accepts the reviewed local-only fixture
   ---
-  duration_ms: 61.664875
+  duration_ms: 46.826213
   type: 'test'
   ...
 # Subtest: actual CLI rejects server upload dependency without echoing config values
 ok 19 - actual CLI rejects server upload dependency without echoing config values
   ---
-  duration_ms: 55.293391
+  duration_ms: 45.914801
   type: 'test'
   ...
 # Subtest: actual CLI discovers and rejects a new nested picker consumer
 ok 20 - actual CLI discovers and rejects a new nested picker consumer
   ---
-  duration_ms: 53.976247
+  duration_ms: 43.642273
   type: 'test'
   ...
 # Subtest: actual CLI fails closed on malformed policy configuration
 ok 21 - actual CLI fails closed on malformed policy configuration
   ---
-  duration_ms: 42.488854
+  duration_ms: 46.60964
   type: 'test'
   ...
 1..21
@@ -135,4 +135,4 @@ ok 21 - actual CLI fails closed on malformed policy configuration
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 339.462486
+# duration_ms 275.893592

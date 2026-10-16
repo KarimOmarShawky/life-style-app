@@ -140,21 +140,23 @@
   },
   {
     "id": "C19",
-    "command": "cd mobile-app/mobile && flutter analyze --fatal-infos",
-    "result": "BLOCKED",
-    "reason": "Flutter/Dart SDK unavailable; WASM parse is not analysis."
+    "command": "Hosted Flutter static analysis (C39 source-pinned run)",
+    "result": "PASS",
+    "reason": "Actual hosted execution; PASS also requires clean preceding format/analysis gates, since diagnostic repair may modify a failed workspace. No device or connected-backend certification.",
+    "evidence": "docs/remediation/hosted-build.json"
   },
   {
     "id": "C20",
-    "command": "cd mobile-app/mobile && flutter test",
-    "result": "BLOCKED",
-    "reason": "Flutter SDK unavailable, including Digital Detox, wallet and 25 new archive protocol/transport/widget cases."
+    "command": "Hosted Flutter tests (C39 source-pinned run)",
+    "result": "PASS",
+    "reason": "Actual hosted execution; PASS also requires clean preceding format/analysis gates, since diagnostic repair may modify a failed workspace. No device or connected-backend certification.",
+    "evidence": "docs/remediation/hosted-build.json"
   },
   {
     "id": "C21",
     "command": "cd mobile-app/mobile && flutter build apk --release; Android JVM tests and signature verification",
     "result": "BLOCKED",
-    "reason": "Flutter/Android SDK and signing credentials unavailable. Scratch Java/Kotlin execute the Android-free stage only in C30; bridge/app compilation remains BLOCKED."
+    "reason": "Owner-key signed/obfuscated release remains unavailable, not inferred from debug. Actual Android debug compilation/JVM/signature status is C40. No device certification."
   },
   {
     "id": "C22",
@@ -170,13 +172,13 @@
   },
   {
     "id": "C24",
-    "command": "Container-image security scanners / hosted CI execution",
+    "command": "Container-image security scanners",
     "result": "NOT RUN",
-    "reason": "No Docker images/hosted execution. Current source is C25 and local reachable Git text history C36; B-31 stays partial."
+    "reason": "Image security scanning NOT RUN. Actual hosted CI is recorded separately in C39/C40; it does not certify images."
   },
   {
     "id": "C25",
-    "command": "npm --prefix tools/security audit --audit-level=high && node scripts/scan-secrets.mjs --self-test && node scripts/scan-secrets.mjs",
+    "command": "npm --prefix tools/security ci --ignore-scripts --no-audit --no-fund && npm --prefix tools/security audit --audit-level=high && node scripts/scan-secrets.mjs --self-test && node scripts/scan-secrets.mjs",
     "result": "PASS",
     "exit_code": 0,
     "reason": "Current-source only; real detector probes, no allowlist, metadata-only output. Original 18 provenance records and historical 18/16 findings remain in secret-triage.json; current-source result does not assess deployed reuse, Git history, images or generated private configuration.",
@@ -203,7 +205,7 @@
     "command": "node --check scripts/ci-resource-guard.mjs && node --test scripts/ci-resource-guard.test.mjs",
     "result": "PASS",
     "exit_code": 0,
-    "reason": "16 hosted-resource guard/negative/source tests with Docker command spies only. Hosted workflow itself NOT RUN; these are command spies only. Actual archive/infrastructure execution is separately C15/C32, not inferred from C28.",
+    "reason": "16 hosted-resource guard/negative/source tests with Docker command spies only. The separate qa-gate.yml Docker harness is NOT RUN; authorized ci.yml execution is C39, not inferred from these command spies. Actual archive/infrastructure execution is separately C15/C32, not inferred from C28.",
     "evidence": "docs/remediation/evidence/C28.txt"
   },
   {
@@ -273,7 +275,7 @@
     "command": "node --check scripts/prepare-android-signing.mjs && node --check scripts/verify-android-apk.mjs && node --test scripts/android-build-preparation.test.mjs",
     "result": "PASS",
     "exit_code": 0,
-    "reason": "13 real private-filesystem/negative/parser/source/YAML/bash/conditional-copy and missing-SDK CLI-refusal checks. Synthetic byte/certificate fixtures are not a key, real APK, Gradle execution, hosted runner or Android signature verification PASS; these remain C21/C24.",
+    "reason": "17 real private-filesystem/negative/parser/source/YAML/bash/copy/identity and missing-SDK CLI-refusal checks. Public/synthetic certificate fixtures and source checks do not themselves prove real application signatures or native behavior. Real SDK fixture and application execution are separately C39/C40; release/device/image gates remain distinct.",
     "evidence": "docs/remediation/evidence/C37.txt"
   },
   {
@@ -283,5 +285,27 @@
     "exit_code": 0,
     "reason": "Strict negative provenance self-test and actual in-memory comparison of every C36 match with baseline development-role definitions/local service hosts. Metadata only; C36 stays FAIL. Deployed reuse/rotation remains BLOCKED, original 18 source records preserved separately.",
     "evidence": "docs/remediation/evidence/C38.txt"
+  },
+  {
+    "id": "C39",
+    "command": "python scripts/record-hosted-build.py",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Fresh GitHub run/job/step/artifact metadata and exact application/workflow source comparison to built commit; not deployment, connected backend, release key, device or inbox delivery certification.",
+    "evidence": "docs/remediation/evidence/C39.txt"
+  },
+  {
+    "id": "C40",
+    "command": "Hosted Android debug JVM tests, APK compilation, SDK apksigner verification and upload",
+    "result": "PASS",
+    "reason": "Actual source-pinned hosted steps and nonexpired artifact required. Debug identity/default offline endpoint only; not release signing, production API, device behavior or app E2E.",
+    "evidence": "docs/remediation/hosted-build.json"
+  },
+  {
+    "id": "C41",
+    "command": "Actual owned temporary pilot plus external certificate-validated HTTPS/API roundtrip",
+    "result": "BLOCKED",
+    "reason": "Local fresh owned database/cache/API and 12 HTTP smoke assertions executed. External run38914942984 returned HTTP403; connected phone pilot remains BLOCKED unless a fresh source-pinned external step actually succeeds. No access-token bypass, production fallback, native-device or provider delivery inference.",
+    "evidence": "docs/remediation/pilot-external-check.json"
   }
 ]

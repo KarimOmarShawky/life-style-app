@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 if (!process.argv[2]) throw new Error('Pass the absolute path to a scratch-installed @wasm-fmt/dart_fmt module');
 const { format } = await import(pathToFileURL(process.argv[2]).href);
 const paths = new Set([
-  ...execFileSync('git', ['diff', '--name-only'], { encoding: 'utf8' }).trim().split('\n'),
+  ...execFileSync('git', ['diff', '--name-only', '47cf1fd09540e7bcc8b291d6d9a1559cf0c5f855'], { encoding: 'utf8' }).trim().split('\n'),
   ...execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { encoding: 'utf8' }).trim().split('\n')
 ]);
 let count = 0;

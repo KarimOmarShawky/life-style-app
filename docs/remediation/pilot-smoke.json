@@ -1,0 +1,55 @@
+{
+  "result": "PASS",
+  "transport": "loopback HTTP",
+  "scope": "Actual synthetic HTTP/TLS account/task persistence/authorization tests, NOT Android/device/provider/full E2E evidence. Credentials memory only, never logged. No user accounts/data were adopted or cleaned.",
+  "checks": [
+    {
+      "name": "Actual database/cache readiness over loopback HTTP",
+      "result": "PASS"
+    },
+    {
+      "name": "Unauthenticated tasks refused",
+      "result": "PASS"
+    },
+    {
+      "name": "Actual registration and session",
+      "result": "PASS"
+    },
+    {
+      "name": "Actual password login",
+      "result": "PASS"
+    },
+    {
+      "name": "Actual authenticated task creation",
+      "result": "PASS"
+    },
+    {
+      "name": "Created task persisted and read back",
+      "result": "PASS"
+    },
+    {
+      "name": "Second real isolated account",
+      "result": "PASS"
+    },
+    {
+      "name": "Cross-account task access refused",
+      "result": "PASS"
+    },
+    {
+      "name": "Non-JSON upload refused",
+      "result": "PASS"
+    },
+    {
+      "name": "No migration endpoint exposed",
+      "result": "PASS"
+    },
+    {
+      "name": "Delete only our newly created synthetic task",
+      "result": "PASS"
+    },
+    {
+      "name": "Readiness remains healthy",
+      "result": "PASS"
+    }
+  ]
+}

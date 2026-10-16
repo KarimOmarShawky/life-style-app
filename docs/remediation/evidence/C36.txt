@@ -1,4 +1,4 @@
 $ python scripts/scan-git-history.py
 Exit: 1
-FAIL: 1033 reachable unique UTF-8 blobs across 93 local commits; 37 historical matches; 8 binary/large/non-UTF8 blobs skipped.
+FAIL: 1377 reachable unique UTF-8 blobs across 112 local commits; 37 historical matches; 8 binary/large/non-UTF8 blobs skipped.
 Metadata only in docs/remediation/history-scan.json. No source/matched values printed, history rewritten or provider reuse tested.

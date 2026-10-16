@@ -3,7 +3,7 @@
   "scope": "Exact in-memory comparison to baseline repository development-role defaults and local service hosts. This does NOT clear detector findings or prove absent live reuse.",
   "detector_result": "FAIL",
   "review_date": "2026-10-16",
-  "local_reachable_commits": 93,
+  "local_reachable_commits": 112,
   "records": [
     {
       "blob": "bbe414f1a0714a534d618337f022009e37f4b560",

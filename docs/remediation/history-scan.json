@@ -1,9 +1,10 @@
 {
   "result": "FAIL",
-  "local_reachable_commits": 93,
+  "scan_head": "4d698901164d5306055d3f33a32a864b74e49209",
+  "local_reachable_commits": 112,
   "is_shallow_repository": false,
   "provenance_report": "docs/remediation/history-provenance.json",
-  "unique_utf8_blobs_scanned": 1033,
+  "unique_utf8_blobs_scanned": 1377,
   "metadata_only_findings": [
     {
       "blob": "bbe414f1a0714a534d618337f022009e37f4b560",

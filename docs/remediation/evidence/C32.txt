@@ -1,7 +1,7 @@
 $ python scripts/run-disposable-verification.py
 Exit: 0
 $ Scratch PostgreSQL version
-postgres (PostgreSQL) 16.10
+postgres (PostgreSQL) 16.14
 
 PASS: Scratch PostgreSQL version (exit 0)
 $ psql client version
@@ -9,7 +9,7 @@ psql (PostgreSQL) 16.2
 
 PASS: psql client version (exit 0)
 $ Scratch Redis version
-Redis server v=7.4.6 sha=00000000:1 malloc=libc bits=64 build=919195ee96310180
+Redis server v=7.4.6 sha=00000000:1 malloc=libc bits=64 build=508f39836766257e
 
 PASS: Scratch Redis version (exit 0)
 $ initdb NEW private owned directory (SCRAM host authentication)
@@ -21,7 +21,7 @@ The default text search configuration will be set to "english".
 
 Data page checksums are disabled.
 
-creating directory /tmp/lifestyle-owned-runtime-dughl3gf/pgdata ... ok
+creating directory /tmp/lifestyle-owned-runtime-bwu30lpr/pgdata ... ok
 creating subdirectories ... ok
 selecting dynamic shared memory implementation ... posix
 selecting default max_connections ... 100
@@ -34,13 +34,13 @@ syncing data to disk ... ok
 
 Success. You can now start the database server using:
 
-    '/home/user/runtime-tools/node_modules/@embedded-postgres/linux-x64/native/bin/pg_ctl' -D /tmp/lifestyle-owned-runtime-dughl3gf/pgdata -l logfile start
+    '/home/user/runtime-tools/node_modules/@embedded-postgres/linux-x64/native/bin/pg_ctl' -D /tmp/lifestyle-owned-runtime-bwu30lpr/pgdata -l logfile start
 
 
 PASS: initdb NEW private owned directory (SCRAM host authentication) (exit 0)
 Owned loopback SMTP rejection fixture; no provider success/delivery claimed.
 $ OWNERSHIP proof: PostgreSQL data directory and loopback binding
-/tmp/lifestyle-owned-runtime-dughl3gf/pgdata
+/tmp/lifestyle-owned-runtime-bwu30lpr/pgdata
 127.0.0.1
 postgres
 
@@ -50,7 +50,7 @@ $ OWNERSHIP proof: Redis child PID, dedicated authenticated instance
 redis_version:7.4.6
 redis_git_sha1:00000000
 redis_git_dirty:1
-redis_build_id:919195ee96310180
+redis_build_id:508f39836766257e
 redis_mode:standalone
 os:Linux 6.1.158+ x86_64
 arch_bits:64
@@ -58,20 +58,20 @@ monotonic_clock:POSIX clock_gettime
 multiplexing_api:epoll
 atomicvar_api:c11-builtin
 gcc_version:12.2.0
-process_id:13794
+process_id:21161
 process_supervised:no
-run_id:0c95541b154e170e0caf78b320ed6724aa5b4c4c
-tcp_port:50845
-server_time_usec:1792153146910785
-uptime_in_seconds:0
+run_id:57263596a567e0fa5815d244eda1b23a062e1858
+tcp_port:54767
+server_time_usec:1792161299073433
+uptime_in_seconds:1
 uptime_in_days:0
 hz:10
 configured_hz:10
-lru_clock:13768250
+lru_clock:13776403
 executable:/home/user/runtime-tools/redis-7.4.6/src/redis-server
-config_file:/tmp/lifestyle-owned-runtime-dughl3gf/redis.conf
+config_file:/tmp/lifestyle-owned-runtime-bwu30lpr/redis.conf
 io_threads_active:0
-listener0:name=tcp,bind=127.0.0.1,port=50845
+listener0:name=tcp,bind=127.0.0.1,port=54767
 
 PASS: OWNERSHIP proof: Redis child PID, dedicated authenticated instance (exit 0)
 PASS: services are this harness's own fresh process/data directory; external URLs ignored. Destructive suite hooks reviewed separately.
@@ -1027,146 +1027,97 @@ $ Actual integration suite on OWNED PostgreSQL/Redis
 
  RUN  v3.2.7 /home/user/life-style-app/backend
 
- ✓ tests/integration/tasks-flow.test.ts (14 tests) 5143ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-01: Marking task done sets completed_at; reopening clears it  424ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-02: Marking task as focus unpins any existing focus task on same date in same transaction  359ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-03: Overdue filter includes tasks where due_date < user_today AND status NOT IN (done, cancelled)  344ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-04: Soft-delete task with 30-day restore window and reminder cancellation  330ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-05: Invalid sort parameters return 400  333ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > Enforces optimistic concurrency control (ADR-029) on task update  324ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > Validates dueTime requires dueDate, and isFocus requires plannedDate  340ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > AC-PROJ-01: Default delete detaches tasks (tasks.project_id = NULL); cascade=true soft-deletes them  369ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > Derives open/done task counts on project list and detail  342ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > Project lifecycle: update, soft-delete, and restore within 30 days  335ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Recurring Tasks Feature > AC-REC-01: Creating recurring task idempotently generates first 7 days of instances in same transaction  317ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Recurring Tasks Feature > AC-REC-02: Updating recurring template updates only future, non-customized, open instances; soft-delete preserves instances  352ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Recurring Tasks Feature > Recurring task lifecycle: list and get by ID  323ms
-   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Cross-Tenant Security > User B cannot access or modify User A resources (tasks, projects, recurring tasks) - returns 404  643ms
- ✓ tests/integration/notes-flow.test.ts (14 tests) 5102ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Creates note with title, body, normalized tags, and default isPinned = false  407ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Allows note with only title or only non-empty body  328ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Rejects note when both title and body are empty  307ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Orders notes by is_pinned DESC, updated_at DESC and omits full body in list  330ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Filters notes by tag and searches via q across title, body, and tags  348ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Stores and returns opaque script content verbatim without execution or stripping  316ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Links note to task and goal, lists links, filters by entity, and deletes link  357ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Replaces all links atomically via PATCH /notes/:id  347ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Rejects linking to a non-existent entity with 404  318ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-04: Soft-Deletion & 30-Day Restoration Window > Soft-deletes note, preserves links, and restores note within 30 days  342ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-04: Soft-Deletion & 30-Day Restoration Window > Rejects restoration with 410 Gone if deleted_at is older than 30 days  323ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-05: Concurrency & Multi-Tenant Isolation > Rejects update with 409 VERSION_CONFLICT on stale version  320ms
-   ✓ Notes & Linking Integration Tests > AC-NOTE-05: Concurrency & Multi-Tenant Isolation > Enforces cross-tenant isolation: User B cannot view, edit, link, or restore User A note (404)  685ms
-   ✓ Notes & Linking Integration Tests > Tags Aggregation: GET /api/v1/notes/tags > Returns tag counts grouped and ordered by count descending  360ms
- ✓ tests/integration/money-flow.test.ts (11 tests) 4048ms
-   ✓ Money Integration Tests > AC-MON-01: Exact Monetary Arithmetic & Scale Invariants > Sums 0.10 + 0.20 to exactly 0.30 without IEEE 754 floating point inaccuracies  448ms
-   ✓ Money Integration Tests > AC-MON-01: Exact Monetary Arithmetic & Scale Invariants > Rejects JSON numbers and scale exceeding currency exponent  322ms
-   ✓ Money Integration Tests > AC-MON-02: Transaction Idempotency > Returns 200 OK on replay of same Idempotency-Key and payload, creating only one database row  328ms
-   ✓ Money Integration Tests > AC-MON-02: Transaction Idempotency > Rejects same Idempotency-Key with different payload with 409 IDEMPOTENCY_KEY_REUSED  323ms
-   ✓ Money Integration Tests > AC-MON-03: Category Kind & Tenant Validation > Rejects linking an income category to an expense transaction  315ms
-   ✓ Money Integration Tests > AC-MON-03: Category Kind & Tenant Validation > Rejects category name collision for same user and kind with 409 CATEGORY_NAME_TAKEN  318ms
-   ✓ Money Integration Tests > AC-MON-04: Transaction Audit Logging > Writes an audit_logs entry for create, update, and delete in the same database transaction  330ms
-   ✓ Money Integration Tests > AC-MON-05: Subscriptions & "Mark as Paid" Cycle Advancing > Atomically creates linked expense transaction, advances next_billing_date from anchor, and prevents double-pay  345ms
-   ✓ Money Integration Tests > AC-MON-06: Budget Usage & Constraints > Calculates usage from current calendar month in user timezone and enforces one budget per target/currency  365ms
-   ✓ Money Integration Tests > AC-MON-07: Reports Summary > Aggregates totals, groups by category, handles uncategorized, and rejects spans > 366 days  330ms
-   ✓ Money Integration Tests > Cross-Tenant Security > User B cannot view or modify User A categories, transactions, subscriptions, budgets (404)  618ms
- ✓ tests/integration/calendar-flow.test.ts (8 tests) 2971ms
-   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-01: Event CRUD & Date Range Queries > Creates an event, retrieves it by ID, and lists within date range  413ms
-   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-01: Event CRUD & Date Range Queries > Rejects event creation when endAt is earlier than startAt  316ms
-   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-02: Conflict Detection > Detects overlapping time blocks and respects excludeEventId  325ms
-   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-03: Soft-Deletion, Reminder Cancellation & 30-Day Restore > Soft-deletes event, cancels pending reminders, and restores within 30 days  324ms
-   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-03: Soft-Deletion, Reminder Cancellation & 30-Day Restore > Rejects restoration when soft-deleted more than 30 days ago (410 Gone)  320ms
-   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-04: Optimistic Concurrency Control > Increments version on update and rejects stale version with 409 VERSION_CONFLICT  318ms
-   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-05: Multi-Tenant Isolation > User B cannot view, modify, or delete User A event (returns 404)  621ms
-   ✓ Calendar & Time Blocking Integration Tests > Reminders Management & Agenda View > Manages reminders on an event and returns agenda view for calendar date  330ms
- ✓ tests/integration/goals-flow.test.ts (9 tests) 3332ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-01: Goal Creation & Type Invariants > Creates numeric goal and milestones goal with valid parameters  414ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-01: Goal Creation & Type Invariants > Rejects invalid goal inputs (numeric target <= 0, milestone with targetValue, startDate > targetDate)  317ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-02: Status & Completion Lifecycle > Manages achieved status and sets/clears achievedAt timestamp  329ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-03: Milestones Management & Progress Aggregation > Manages milestones, updates goal progress, and auto-achieves when all complete  364ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-03: Milestones Management & Progress Aggregation > Rejects adding milestones to a numeric goal  306ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-04: Soft-Deletion & 30-Day Restoration > Soft-deletes goal and restores within 30 days  332ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-04: Soft-Deletion & 30-Day Restoration > Rejects restoration when soft-deleted more than 30 days ago (410 Gone)  311ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-05: Concurrency & Multi-Tenant Isolation > Rejects stale version update with 409 VERSION_CONFLICT  324ms
-   ✓ Goals & Milestones Integration Tests > AC-GOAL-05: Concurrency & Multi-Tenant Isolation > Enforces multi-tenant isolation: User B cannot access User A goal or milestones (404)  630ms
- ✓ tests/integration/habits-flow.test.ts (8 tests) 3053ms
-   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Creates habit with daily recurrence and retrieves it with 0 streaks  421ms
-   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Updates habit fields and recurrence  347ms
-   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Soft deletes habit, cancels pending reminders, and restores within 30 days  354ms
-   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-01 & AC-HAB-03: Rejects future dates, unscheduled dates, and dates before startDate  327ms
-   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-01 & AC-HAB-05: Upsert on repeated check-in and toggle/delete updates streak  329ms
-   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-04: Daily progress computation returns correct percentage: done / (scheduled - skipped)  342ms
-   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > Queries checkins within a date range (GET /habits/:id/checkins?from&to)  312ms
-   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > Cross-tenant isolation: User B cannot access, check in, or delete User A habit (404)  619ms
- ✓ tests/integration/auth-flow.test.ts (6 tests) 4970ms
-   ✓ Auth Flow Integration Tests > AC-AUTH-01 & AC-AUTH-02: Registration creates user, default categories, returns tokens, and prevents duplicates  670ms
-   ✓ Auth Flow Integration Tests > AC-AUTH-03: Login succeeds with correct credentials, fails with 401 INVALID_CREDENTIALS on bad password or missing user  1212ms
-   ✓ Auth Flow Integration Tests > AC-AUTH-06 & AC-AUTH-07: Refresh rotates token, and reuse detection revokes session and push devices  339ms
-   ✓ Auth Flow Integration Tests > AC-AUTH-08: Logout revokes session; Logout-all revokes all user sessions and deletes push devices  641ms
-   ✓ Auth Flow Integration Tests > AC-AUTH-09: Password reset flow generates OTP, resets password, and revokes all active sessions  919ms
-   ✓ Auth Flow Integration Tests > Change password updates password, keeps current session, and revokes other sessions  1187ms
- ✓ tests/integration/schema-constraints.test.ts (8 tests) 203ms
- ✓ tests/integration/users-flow.test.ts (8 tests) 4958ms
-   ✓ Users Flow Integration Tests > AC-AUTH-11: GET /users/me returns authenticated user profile omitting password_hash  381ms
-   ✓ Users Flow Integration Tests > AC-AUTH-11: PATCH /users/me updates profile settings  325ms
-   ✓ Users Flow Integration Tests > AC-AUTH-11: PUT and DELETE /users/me/devices manages push device tokens  335ms
-   ✓ Users Flow Integration Tests > AC-AUTH-11: POST /users/me/export returns comprehensive GDPR export payload  616ms
-   ✓ Users Flow Integration Tests > AC-AUTH-10 & AC-AUTH-11: Deletion schedule, cancellation, and pending_deletion endpoint restrictions  1035ms
-   ✓ Users Flow Integration Tests > AC-AUTH-10: Disabled account is blocked with 403 ACCOUNT_DISABLED  328ms
-   ✓ Users Flow Integration Tests > domain archive endpoint remains available with current-password proof during the deletion grace period  933ms
-   ✓ Users Flow Integration Tests > B-07: Purges expired pending_deletion account with categories/transactions without touching other users  1003ms
- ✓ tests/integration/timer-sessions-flow.test.ts (7 tests) 2688ms
-   ✓ Timer Sessions Flow Integration Tests > AC-TMR-01: Starting a timer session when one is already running returns 409 TIMER_ALREADY_RUNNING  419ms
-   ✓ Timer Sessions Flow Integration Tests > AC-TMR-02: Session duration is derived from timestamps; client-supplied elapsed seconds are rejected  310ms
-   ✓ Timer Sessions Flow Integration Tests > Stops running timer with countdown completion logic, and rejects stopping ended timer with 409  331ms
-   ✓ Timer Sessions Flow Integration Tests > Auto-closes running timer exceeding 12 hours (FR-TMR-05) and allows starting new timer  341ms
-   ✓ Timer Sessions Flow Integration Tests > Aggregates tracked time on task detail endpoint (FR-TMR-06)  322ms
-   ✓ Timer Sessions Flow Integration Tests > Cross-tenant isolation: User B cannot access or stop User A timer session (404)  627ms
-   ✓ Timer Sessions Flow Integration Tests > Lists timer sessions with pagination and filters, and deletes a timer session  335ms
- ✓ tests/integration/reminders-flow.test.ts (7 tests) 2674ms
-   ✓ Unified Reminders Integration Tests > FR-REM-01..03: reminders on tasks, habits, and subscriptions > creates, lists, and deletes a task reminder  427ms
-   ✓ Unified Reminders Integration Tests > FR-REM-01..03: reminders on tasks, habits, and subscriptions > creates habit and subscription reminders with the same API  347ms
-   ✓ Unified Reminders Integration Tests > FR-REM-04: unified listing across parent types > lists reminders for all entity types with filters  336ms
-   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > rejects a reminder on another user's task with 404  605ms
-   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > scopes deletion to the parent in the path  318ms
-   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > validates remindAt and rejects duplicate dedupeKeys  318ms
-   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > cancels pending reminders when the parent is soft-deleted (FR-REM lifecycle)  320ms
- ✓ tests/integration/worker-jobs.test.ts (7 tests) 118ms
- ✓ tests/integration/ingest-analyze-flow.test.ts (8 tests) 2041ms
-   ✓ SMS fallback analyze route > accepts an ingest token and returns the strict recognized shape  361ms
-   ✓ SMS fallback analyze route > accepts a normal access token as well (app-open fallback)  319ms
-   ✓ SMS fallback analyze route > hands the analyzer only sanitized text and sender  327ms
-   ✓ SMS fallback analyze route > passes unrecognized results through so the phone drops the candidate  308ms
-   ✓ SMS fallback analyze route > maps upstream failure to a retryable 503 with a stable code  312ms
-   ✓ SMS fallback analyze route > rejects malformed bodies with a validation error  331ms
- ✓ tests/integration/ingest-flow.test.ts (9 tests) 2679ms
-   ✓ Ingest token flow (background SMS capture) > issues an lsi_ token that is stored only as a digest  346ms
-   ✓ Ingest token flow (background SMS capture) > creates a transaction with the ingest token and replays the same Idempotency-Key  345ms
-   ✓ Ingest token flow (background SMS capture) > rejects a missing Idempotency-Key on the ingest route  330ms
-   ✓ Ingest token flow (background SMS capture) > does not let the ingest token call other routes  313ms
-   ✓ Ingest token flow (background SMS capture) > does not accept an access token on the ingest route  314ms
-   ✓ Ingest token flow (background SMS capture) > keeps only the newest token for a session  342ms
-   ✓ Ingest token flow (background SMS capture) > stops working as soon as the token is revoked  316ms
-   ✓ Ingest token flow (background SMS capture) > stops working when its session is logged out, without an explicit revoke  321ms
- ✓ tests/integration/query-surface.test.ts (5 tests) 1639ms
-   ✓ Query Surface Integration Tests (P1-05) > GET /days/today composes tasks, habits, and active timer from readers  476ms
-   ✓ Query Surface Integration Tests (P1-05) > GET /days/{date} returns the plan for that date and rejects bad dates  361ms
-   ✓ Query Surface Integration Tests (P1-05) > GET /dashboard/overview aggregates the day  435ms
-   ✓ Query Surface Integration Tests (P1-05) > GET /search finds items across features and enforces q  353ms
- ✓ tests/integration/error-handler.test.ts (6 tests) 51ms
- ✓ tests/integration/account-archive.test.ts (2 tests) 105ms
- ✓ tests/integration/middleware.test.ts (6 tests) 40ms
- ✓ tests/integration/health.test.ts (5 tests) 77ms
- ✓ tests/integration/timer-without-task.test.ts (4 tests) 1430ms
+ ✓ tests/integration/tasks-flow.test.ts (14 tests) 4680ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-01: Marking task done sets completed_at; reopening clears it  388ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > AC-PROJ-01: Default delete detaches tasks (tasks.project_id = NULL); cascade=true soft-deletes them  311ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > Derives open/done task counts on project list and detail  335ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Recurring Tasks Feature > AC-REC-02: Updating recurring template updates only future, non-customized, open instances; soft-delete preserves instances  348ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Cross-Tenant Security > User B cannot access or modify User A resources (tasks, projects, recurring tasks) - returns 404  738ms
+ ✓ tests/integration/notes-flow.test.ts (14 tests) 4731ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Creates note with title, body, normalized tags, and default isPinned = false  455ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Allows note with only title or only non-empty body  310ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Orders notes by is_pinned DESC, updated_at DESC and omits full body in list  304ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Filters notes by tag and searches via q across title, body, and tags  358ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Links note to task and goal, lists links, filters by entity, and deletes link  328ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Replaces all links atomically via PATCH /notes/:id  328ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-04: Soft-Deletion & 30-Day Restoration Window > Soft-deletes note, preserves links, and restores note within 30 days  379ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-05: Concurrency & Multi-Tenant Isolation > Enforces cross-tenant isolation: User B cannot view, edit, link, or restore User A note (404)  571ms
+ ✓ tests/integration/money-flow.test.ts (11 tests) 3979ms
+   ✓ Money Integration Tests > AC-MON-01: Exact Monetary Arithmetic & Scale Invariants > Sums 0.10 + 0.20 to exactly 0.30 without IEEE 754 floating point inaccuracies  508ms
+   ✓ Money Integration Tests > AC-MON-02: Transaction Idempotency > Returns 200 OK on replay of same Idempotency-Key and payload, creating only one database row  361ms
+   ✓ Money Integration Tests > AC-MON-02: Transaction Idempotency > Rejects same Idempotency-Key with different payload with 409 IDEMPOTENCY_KEY_REUSED  318ms
+   ✓ Money Integration Tests > AC-MON-03: Category Kind & Tenant Validation > Rejects linking an income category to an expense transaction  311ms
+   ✓ Money Integration Tests > AC-MON-05: Subscriptions & "Mark as Paid" Cycle Advancing > Atomically creates linked expense transaction, advances next_billing_date from anchor, and prevents double-pay  353ms
+   ✓ Money Integration Tests > AC-MON-06: Budget Usage & Constraints > Calculates usage from current calendar month in user timezone and enforces one budget per target/currency  372ms
+   ✓ Money Integration Tests > Cross-Tenant Security > User B cannot view or modify User A categories, transactions, subscriptions, budgets (404)  588ms
+ ✓ tests/integration/calendar-flow.test.ts (8 tests) 2870ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-01: Event CRUD & Date Range Queries > Creates an event, retrieves it by ID, and lists within date range  431ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-02: Conflict Detection > Detects overlapping time blocks and respects excludeEventId  335ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-03: Soft-Deletion, Reminder Cancellation & 30-Day Restore > Soft-deletes event, cancels pending reminders, and restores within 30 days  326ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-03: Soft-Deletion, Reminder Cancellation & 30-Day Restore > Rejects restoration when soft-deleted more than 30 days ago (410 Gone)  313ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-04: Optimistic Concurrency Control > Increments version on update and rejects stale version with 409 VERSION_CONFLICT  352ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-05: Multi-Tenant Isolation > User B cannot view, modify, or delete User A event (returns 404)  542ms
+ ✓ tests/integration/goals-flow.test.ts (9 tests) 3067ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-01: Goal Creation & Type Invariants > Creates numeric goal and milestones goal with valid parameters  359ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-01: Goal Creation & Type Invariants > Rejects invalid goal inputs (numeric target <= 0, milestone with targetValue, startDate > targetDate)  328ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-02: Status & Completion Lifecycle > Manages achieved status and sets/clears achievedAt timestamp  305ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-03: Milestones Management & Progress Aggregation > Manages milestones, updates goal progress, and auto-achieves when all complete  330ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-05: Concurrency & Multi-Tenant Isolation > Enforces multi-tenant isolation: User B cannot access User A goal or milestones (404)  609ms
+ ✓ tests/integration/habits-flow.test.ts (8 tests) 2751ms
+   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Creates habit with daily recurrence and retrieves it with 0 streaks  404ms
+   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Updates habit fields and recurrence  325ms
+   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Soft deletes habit, cancels pending reminders, and restores within 30 days  308ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-01 & AC-HAB-05: Upsert on repeated check-in and toggle/delete updates streak  302ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-04: Daily progress computation returns correct percentage: done / (scheduled - skipped)  305ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > Cross-tenant isolation: User B cannot access, check in, or delete User A habit (404)  547ms
+ ✓ tests/integration/auth-flow.test.ts (6 tests) 4597ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-01 & AC-AUTH-02: Registration creates user, default categories, returns tokens, and prevents duplicates  667ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-03: Login succeeds with correct credentials, fails with 401 INVALID_CREDENTIALS on bad password or missing user  1070ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-06 & AC-AUTH-07: Refresh rotates token, and reuse detection revokes session and push devices  306ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-08: Logout revokes session; Logout-all revokes all user sessions and deletes push devices  568ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-09: Password reset flow generates OTP, resets password, and revokes all active sessions  827ms
+   ✓ Auth Flow Integration Tests > Change password updates password, keeps current session, and revokes other sessions  1158ms
+ ✓ tests/integration/schema-constraints.test.ts (8 tests) 280ms
+ ✓ tests/integration/users-flow.test.ts (8 tests) 4443ms
+   ✓ Users Flow Integration Tests > AC-AUTH-11: GET /users/me returns authenticated user profile omitting password_hash  399ms
+   ✓ Users Flow Integration Tests > AC-AUTH-11: POST /users/me/export returns comprehensive GDPR export payload  526ms
+   ✓ Users Flow Integration Tests > AC-AUTH-10 & AC-AUTH-11: Deletion schedule, cancellation, and pending_deletion endpoint restrictions  856ms
+   ✓ Users Flow Integration Tests > domain archive endpoint remains available with current-password proof during the deletion grace period  832ms
+   ✓ Users Flow Integration Tests > B-07: Purges expired pending_deletion account with categories/transactions without touching other users  991ms
+ ✓ tests/integration/timer-sessions-flow.test.ts (7 tests) 2456ms
+   ✓ Timer Sessions Flow Integration Tests > AC-TMR-01: Starting a timer session when one is already running returns 409 TIMER_ALREADY_RUNNING  388ms
+   ✓ Timer Sessions Flow Integration Tests > Cross-tenant isolation: User B cannot access or stop User A timer session (404)  611ms
+ ✓ tests/integration/reminders-flow.test.ts (7 tests) 2430ms
+   ✓ Unified Reminders Integration Tests > FR-REM-01..03: reminders on tasks, habits, and subscriptions > creates, lists, and deletes a task reminder  392ms
+   ✓ Unified Reminders Integration Tests > FR-REM-01..03: reminders on tasks, habits, and subscriptions > creates habit and subscription reminders with the same API  325ms
+   ✓ Unified Reminders Integration Tests > FR-REM-04: unified listing across parent types > lists reminders for all entity types with filters  324ms
+   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > rejects a reminder on another user's task with 404  531ms
+ ✓ tests/integration/worker-jobs.test.ts (7 tests) 101ms
+ ✓ tests/integration/ingest-analyze-flow.test.ts (8 tests) 1874ms
+   ✓ SMS fallback analyze route > accepts an ingest token and returns the strict recognized shape  360ms
+   ✓ SMS fallback analyze route > accepts a normal access token as well (app-open fallback)  313ms
+   ✓ SMS fallback analyze route > hands the analyzer only sanitized text and sender  308ms
+ ✓ tests/integration/ingest-flow.test.ts (9 tests) 2399ms
+   ✓ Ingest token flow (background SMS capture) > issues an lsi_ token that is stored only as a digest  313ms
+   ✓ Ingest token flow (background SMS capture) > creates a transaction with the ingest token and replays the same Idempotency-Key  315ms
+   ✓ Ingest token flow (background SMS capture) > keeps only the newest token for a session  320ms
+ ✓ tests/integration/query-surface.test.ts (5 tests) 1435ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /days/today composes tasks, habits, and active timer from readers  462ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /days/{date} returns the plan for that date and rejects bad dates  317ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /dashboard/overview aggregates the day  302ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /search finds items across features and enforces q  326ms
+ ✓ tests/integration/error-handler.test.ts (6 tests) 48ms
+ ✓ tests/integration/account-archive.test.ts (2 tests) 118ms
+ ✓ tests/integration/middleware.test.ts (6 tests) 52ms
+ ✓ tests/integration/health.test.ts (5 tests) 65ms
+ ✓ tests/integration/timer-without-task.test.ts (4 tests) 1247ms
    ✓ Timer sessions without a task > starts and stops a session with no taskId, returning taskId as null  390ms
-   ✓ Timer sessions without a task > accepts an explicit null taskId  321ms
-   ✓ Timer sessions without a task > still rejects a taskId that does not exist for this user  336ms
-   ✓ Timer sessions without a task > still rejects a malformed taskId  381ms
- ✓ tests/integration/transaction-runner.test.ts (2 tests) 5ms
+ ✓ tests/integration/transaction-runner.test.ts (2 tests) 7ms
 
  Test Files  21 passed (21)
       Tests  154 passed (154)
-   Start at  12:19:09
-   Duration  62.47s (transform 1.08s, setup 165ms, collect 10.36s, tests 47.33s, environment 3ms, prepare 1.53s)
+   Start at  14:35:01
+   Duration  61.14s (transform 1.10s, setup 178ms, collect 12.10s, tests 43.63s, environment 4ms, prepare 1.75s)
 
 
 PASS: Actual integration suite on OWNED PostgreSQL/Redis (exit 0)
@@ -1178,15 +1129,15 @@ $ Actual security suite on OWNED PostgreSQL/Redis
 
  RUN  v3.2.7 /home/user/life-style-app/backend
 
- ✓ tests/security/auth-security.test.ts (3 tests) 2873ms
-   ✓ Auth Security Tests > AC-AUTH-04: Timing similarity: Login for non-existent user executes dummy bcrypt compare  1293ms
-   ✓ Auth Security Tests > Enforces rate limits on consecutive login attempts  1553ms
- ✓ tests/security/security-headers.test.ts (3 tests) 44ms
+ ✓ tests/security/auth-security.test.ts (3 tests) 2437ms
+   ✓ Auth Security Tests > AC-AUTH-04: Timing similarity: Login for non-existent user executes dummy bcrypt compare  1129ms
+   ✓ Auth Security Tests > Enforces rate limits on consecutive login attempts  1282ms
+ ✓ tests/security/security-headers.test.ts (3 tests) 31ms
 
  Test Files  2 passed (2)
       Tests  6 passed (6)
-   Start at  12:20:12
-   Duration  5.78s (transform 881ms, setup 50ms, collect 2.26s, tests 2.92s, environment 0ms, prepare 215ms)
+   Start at  14:36:02
+   Duration  5.06s (transform 821ms, setup 38ms, collect 2.12s, tests 2.47s, environment 0ms, prepare 154ms)
 
 
 PASS: Actual security suite on OWNED PostgreSQL/Redis (exit 0)

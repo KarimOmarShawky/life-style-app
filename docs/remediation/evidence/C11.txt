@@ -22,6 +22,6 @@ Error: Destructive tests require ALLOW_DESTRUCTIVE_TESTS=isolated-resources-only
 
  Test Files  1 failed (1)
       Tests  no tests
-   Start at  12:19:05
-   Duration  254ms (transform 47ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 75ms)
+   Start at  14:34:56
+   Duration  407ms (transform 86ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 132ms)
 

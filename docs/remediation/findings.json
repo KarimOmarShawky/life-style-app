@@ -42,7 +42,7 @@
       "mobile-app/mobile/lib/config/app_config.dart",
       "mobile-app/mobile/lib/features/ai/data/ai_service.dart"
     ],
-    "regression_tests": "Release extraction and Flutter tests BLOCKED.",
+    "regression_tests": "Release extraction remains BLOCKED. Actual source-pinned Flutter suite execution is C20; it does not prove release key extraction is absent.",
     "final_status": "code_unverified",
     "group": "B-02"
   },
@@ -88,7 +88,7 @@
       "docs/mobile/flutter-integration.md",
       "mobile-app/mobile/lib/l10n/app_localizations.dart"
     ],
-    "regression_tests": "Static locale inventory; Flutter/RTL device checks BLOCKED.",
+    "regression_tests": "Static locale inventory preserved. Actual Flutter suite is C20; physical RTL/localization verification remains BLOCKED.",
     "final_status": "code_unverified",
     "group": "B-05"
   },
@@ -104,7 +104,7 @@
       "backend/src/features/money/money.reader.ts",
       "mobile-app/mobile/lib/features/more/data/daily_plan_models.dart"
     ],
-    "regression_tests": "Real-router success/401/failure and exact arithmetic PASS; Flutter widget/API+DB tests BLOCKED.",
+    "regression_tests": "Real-router success/401/failure and exact arithmetic PASS. Actual Flutter suite is C20; full dashboard widget/API+DB end-to-end verification remains NOT RUN.",
     "final_status": "code_unverified",
     "group": "B-06"
   },
@@ -297,7 +297,7 @@
       "backend/tests/unit/production-db-defaults.test.ts",
       "scripts/check-environment.test.mjs"
     ],
-    "regression_tests": "Historical batch: 280 backend tests / 27 files PASS; final C06/report govern current totals; source+test strict compilation PASS. An initial 18-test transaction probe failed 10 cases before the fix; final 39 transaction/last-login tests and 2 metadata-export tests PASS. Owned PostgreSQL/Redis integration/security now executes under C15/C16/C32; this does not certify every concurrency scenario. Flutter/native execution remains BLOCKED. Added 26 production URI-default regressions; 17 separate Node helper/provenance/source tests PASS in C26 (not included in backend count).",
+    "regression_tests": "Historical batch: 280 backend tests / 27 files PASS; final C06/report govern current totals; source+test strict compilation PASS. An initial 18-test transaction probe failed 10 cases before the fix; final 39 transaction/last-login tests and 2 metadata-export tests PASS. Owned PostgreSQL/Redis integration/security now executes under C15/C16/C32; this does not certify every concurrency scenario. Actual Flutter suite and Android debug evidence are C19/C20/C40; owner-key release and physical-device verification remain BLOCKED. Added 26 production URI-default regressions; 17 separate Node helper/provenance/source tests PASS in C26 (not included in backend count).",
     "final_status": "partial",
     "group": "B-16"
   },
@@ -307,7 +307,7 @@
     "source_description": "Destructive tests target development DB and Redis",
     "current_code_status": "confirmed",
     "root_cause": "Setup overwrote endpoints with lifestyle_dev/Redis0. OTP unit test also opportunistically contacted Redis.",
-    "planned_and_actual_action": "Require explicit acknowledgement + lifestyle_test DB + nonzero Redis DB before importing integration/security files; inert unit endpoints and in-memory OTP. CI ephemeral services. Every integration/security suite has a first-import guard, protecting direct runner invocations too. Replaced unsafe legacy helper setup/down-up defaults: configuration-only ensure-env, unit-only verify-ci default, explicit isolated guards for matching application/migration targets and nonzero Redis, forward-up/repeat only, propagated errors. CI services are declared disposable, not verified live here. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.",
+    "planned_and_actual_action": "Require explicit acknowledgement + lifestyle_test DB + nonzero Redis DB before importing integration/security files; inert unit endpoints and in-memory OTP. CI ephemeral services. Every integration/security suite has a first-import guard, protecting direct runner invocations too. Replaced unsafe legacy helper setup/down-up defaults: configuration-only ensure-env, unit-only verify-ci default, explicit isolated guards for matching application/migration targets and nonzero Redis, forward-up/repeat only, propagated errors. Authorized hosted CI services are exercised under C39 with ephemeral credentials; this is not deployed legacy-data or production verification. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.",
     "files": [
       "backend/tests/setup.ts",
       "backend/tests/test-safety.ts",
@@ -332,7 +332,7 @@
     "source_description": "Export/deletion lack reauthentication",
     "current_code_status": "partially remediated",
     "root_cause": "Sensitive authenticated actions lacked proof. The reused general Redis limiter failed open on outage; export UI automatically copied private data. Legacy export was unbounded/materialized and metadata-only despite complete/GDPR wording, and fetched unused password hashes. New bounded archive/mobile source does not prove end-to-end delivery.",
-    "planned_and_actual_action": "Required current-password proof with shared 5 attempts/15-minute budget and opt-in fail-closed 503 on limiter outage; Cache-Control no-store on user responses. Updated client prompts and contracts. Removed automatic clipboard copy; explicit warning/acknowledgement/action UI added (Flutter unverified). Disclosed metadata-only scope in UI/OpenAPI; selected only required profile columns; controlled 404 if the account disappears. Added a separate streamed version-1 domain archive across 21 explicit sections with excluded security/infrastructure fields, repeatable-read read-only cursor snapshot, decimal-string amounts, byte/row/time/concurrency limits, cancellation/backpressure and validated completion footer. Legacy metadata responses remain compatible below an explicit 1000-row-per-list limit; overflow fails 413, never silent truncation. Added Android source for incremental exact-byte validation, encrypted private staging and explicit SAF plaintext-destination save/readback with cancellation/owned cleanup and no new permissions. Large-account/other-platform adapters, Flutter/Android bridge compilation and deployed PostgreSQL/proxy/provider/device verification remain incomplete; retention unchanged; local-only audio policy clarified separately under B-15, without authorizing server uploads.",
+    "planned_and_actual_action": "Required current-password proof with shared 5 attempts/15-minute budget and opt-in fail-closed 503 on limiter outage; Cache-Control no-store on user responses. Updated client prompts and contracts. Removed automatic clipboard copy; explicit warning/acknowledgement/action UI added (Flutter suite C20; physical UI unverified). Disclosed metadata-only scope in UI/OpenAPI; selected only required profile columns; controlled 404 if the account disappears. Added a separate streamed version-1 domain archive across 21 explicit sections with excluded security/infrastructure fields, repeatable-read read-only cursor snapshot, decimal-string amounts, byte/row/time/concurrency limits, cancellation/backpressure and validated completion footer. Legacy metadata responses remain compatible below an explicit 1000-row-per-list limit; overflow fails 413, never silent truncation. Added Android source for incremental exact-byte validation, encrypted private staging and explicit SAF plaintext-destination save/readback with cancellation/owned cleanup and no new permissions. Large-account/other-platform adapters, Flutter/Android bridge compilation and deployed PostgreSQL/proxy/provider/device verification remain incomplete; retention unchanged; local-only audio policy clarified separately under B-15, without authorizing server uploads.",
     "files": [
       "backend/src/features/users/users.controller.ts",
       "backend/src/features/users/users.service.ts",
@@ -381,7 +381,7 @@
       "scripts/kotlin/AccountArchiveStageHarness.kt",
       "docs/mobile/account-archive.md"
     ],
-    "regression_tests": "Six real-router proof/no-store units, logger-redaction and nine limiter units execute within C06. Prior 280-test/27-file batch is historical; final C06/evidence and generated report govern the current backend count (323/29 at this update). Password and legacy clipboard widget tests remain authored NOT RUN. Metadata projection/owner/missing-account/overflow and archive SQL/HTTP/control-flow units execute without a live DB; live snapshot/grants/tenancy/grace-period HTTP cases now execute in owned PostgreSQL/Redis C15/C32; deployment/native gates remain BLOCKED. C29: 8 synthetic fixture/source checks, NOT Dart runtime. C30: 10 actual Android-free JVM staging/crypto checks, including EOF-time revocation, NOT Android bridge/provider execution. 25 new archive Flutter protocol/coordinator/transport/widget cases authored NOT RUN. C12 parsed 34 changed Dart files, syntax only. No end-to-end portability/release claim.",
+    "regression_tests": "Six real-router proof/no-store units, logger-redaction and nine limiter units execute within C06. Prior 280-test/27-file batch is historical; final C06/evidence and generated report govern the current backend count (earlier 323/29 snapshot, not current totals). Authored Flutter tests are included by the actual C20 suite; no physical clipboard/password-flow certification is inferred. Metadata projection/owner/missing-account/overflow and archive SQL/HTTP/control-flow units execute without a live DB; live snapshot/grants/tenancy/grace-period HTTP cases now execute in owned PostgreSQL/Redis C15/C32; deployment/native gates remain BLOCKED. C29: 8 synthetic fixture/source checks, NOT Dart runtime. C30: 10 actual Android-free JVM staging/crypto checks, including EOF-time revocation, NOT Android bridge/provider execution. 25 new archive Flutter protocol/coordinator/transport/widget cases authored NOT RUN. C12 parsed 34 changed Dart files, syntax only. No end-to-end portability/release claim.",
     "final_status": "partial",
     "group": "B-18"
   },
@@ -596,7 +596,7 @@
       "scripts/android-build-preparation.test.mjs",
       "docs/mobile/build-preparation.md"
     ],
-    "regression_tests": "C37 runs 13 real filesystem/negative/certificate-parser/CLI-refusal/source/YAML/bash-syntax checks. Synthetic bytes/certificate output are not real keys/signatures. C19-C22 remain BLOCKED and hosted CI C24 NOT RUN; actual release compilation/identity/obfuscation extraction and physical-device checks still required.",
+    "regression_tests": "C37 executes 17 real filesystem/negative/public-certificate parser/CLI-refusal/source/YAML/bash checks, not actual application signatures. Actual source-pinned hosted Flutter analysis/tests and debug Android JVM/build/SDK signature/compiled-package/upload are separately C19/C20/C39/C40. A real SDK transient packaging probe publishes no fixture artifact. Owner-key release/obfuscation extraction and physical-device checks remain C21/C22 BLOCKED.",
     "final_status": "partial",
     "group": "B-30"
   },
@@ -604,7 +604,7 @@
     "id": "B-31",
     "source_severity": "Low (P3)",
     "source_description": "CI scanning and DB timeout gaps",
-    "current_code_status": "partial implementation; actual current-source scan PASS; historical detector FAIL with reviewed local-default provenance; hosted/image execution NOT RUN",
+    "current_code_status": "partial implementation; actual current-source scan PASS; historical detector FAIL with reviewed local-default provenance; actual hosted CI separately C39; image scanning NOT RUN",
     "root_cause": "No image/secret scanners; pool lacked statement timeout.",
     "planned_and_actual_action": "Retained 15s statement_timeout; pinned isolated Secretlint and metadata-only Git worktree scanning, independent CI workflow, parseable short-Ed25519 coverage and real positive/negative probes. No detector exceptions. Retained all 18 historical match records and the earlier 18/16 FAIL history. Removed two unsafe helper defaults, then replaced remaining tracked application defaults with independent per-installation local/per-job CI credentials and matching bootstrap/Compose wiring. Fresh-only private files, exclusive creation, namespace/socket pinning and existing-config/role refusal; no overwrite, deletion or automatic rotation. CI public ephemeral administrator fixture remains. Current-source scan reports zero findings; deployed reuse is unknown; Owned PostgreSQL runtime executes under C32; Docker/hosted/container verification remains unexecuted. Historical detection/provenance now executes separately in C36/C38. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.",
     "files": [
@@ -644,7 +644,7 @@
       "scripts/review-history-provenance.py",
       "docs/remediation/history-provenance.json"
     ],
-    "regression_tests": "C25 actual current-source detector/probes, C26 17 helper/provenance tests, C27 22 fresh-config tests and C28 16 hosted-resource command-spy tests are separate scoped gates; see final checks.json for fresh outcomes. C32 actually runs owned PostgreSQL/Redis migrations/integration/security, not Docker or deployed resources. Previous shallow C36 result (459 blobs/one commit/11 URI matches) is preserved in history. After actual unshallow fetch, C36 scans 1,033 UTF-8 blobs/93 reachable commits: 37 URI matches/eight skips, FAIL. C38 exact in-memory comparison identifies all 37 as baseline repository development-role defaults at local service hosts, with negative controls and metadata-only output: provenance PASS, deployed reuse BLOCKED. No rewrite/suppression/live rotation. Original 18 source records retained; CI edits append reasoned fingerprint chains. Images/hosted CI NOT RUN.",
+    "regression_tests": "C25 actual current-source detector/probes, C26 17 helper/provenance tests, C27 22 fresh-config tests and C28 16 hosted-resource command-spy tests are separate scoped gates; see final checks.json for fresh outcomes. C32 actually runs owned PostgreSQL/Redis migrations/integration/security, not Docker or deployed resources. Previous shallow C36 result (459 blobs/one commit/11 URI matches) is preserved in history. After actual unshallow fetch, C36 at 4d69890 scans 1,377 UTF-8 blobs/112 reachable commits (including the preserved local recovery stash refs): 37 URI matches/eight skips, FAIL. C38 exact in-memory comparison identifies all 37 as baseline repository development-role defaults at local service hosts, with negative controls and metadata-only output: provenance PASS, deployed reuse BLOCKED. No rewrite/suppression/live rotation. Original 18 source records retained; CI edits append reasoned fingerprint chains. Images/hosted CI NOT RUN.",
     "final_status": "partial",
     "group": "B-31"
   },
@@ -663,7 +663,7 @@
       "mobile-app/mobile/.gitignore",
       "CHANGELOG.md"
     ],
-    "regression_tests": "Reference search found no consumers of deleted Dockerfile text copies; diff/package deletion inventory checked. Flutter regeneration/native build BLOCKED. C34 strict unused-local/parameter TypeScript check PASS, no backend candidates invented. Removed proven dead native provider/recording scaffolding; C33 eight source checks only, not native execution.",
+    "regression_tests": "Reference search found no consumers of deleted Dockerfile text copies; diff/package deletion inventory checked. Actual Android debug compilation is C40; iOS regeneration and physical-device behavior remain NOT RUN. C34 strict unused-local/parameter TypeScript check PASS, no backend candidates invented. Removed proven dead native provider/recording scaffolding; C33 eight source checks only, not native execution.",
     "final_status": "partial",
     "group": "B-32"
   },
@@ -671,7 +671,7 @@
     "id": "B-33",
     "source_severity": "Low (P3)",
     "source_description": "Client budget monetary arithmetic uses double",
-    "current_code_status": "code changed; runtime unverified",
+    "current_code_status": "targeted pure-money runtime verified in actual hosted Flutter suite; physical UI not certified",
     "root_cause": "Mobile overview used double and aggregated unrelated currencies and subscription periods.",
     "planned_and_actual_action": "Introduced four-place BigInt DecimalAmount, integer HALF_UP currency formatting, exact +/- totals, per-currency budget/subscription cards and exports. Active subscriptions use server monthlyEquivalent. Only bounded dimensionless progress uses double. No ledger records rewritten.",
     "files": [
@@ -679,8 +679,8 @@
       "mobile-app/mobile/lib/core/money/decimal_amount.dart",
       "mobile-app/mobile/test/decimal_amount_test.dart"
     ],
-    "regression_tests": "Five pure money regressions authored for 0.1+0.2, large values, JPY/KWD/CLF/negative ties, currency separation and input/progress; NOT RUN because Flutter/Dart SDK absent. WASM syntax parse PASS only.",
-    "final_status": "code_unverified",
+    "regression_tests": "Five non-skipped pure-money regressions in decimal_amount_test.dart are included by the actual unfiltered flutter test --coverage suite, C20 PASS with clean source-pinned formatter/analysis prerequisites: 0.1+0.2, large values, JPY/KWD/CLF/negative ties, currency separation and input/progress. Targeted arithmetic verification only; no physical UI, ledger reconciliation or full financial application E2E certification.",
+    "final_status": "fixed_verified",
     "group": "B-33"
   },
   {
@@ -787,13 +787,13 @@
     "source_description": "Floating point and fixed two-decimal dashboard/day money",
     "current_code_status": "confirmed",
     "root_cause": "Backend readers exist; client calls nonexistent dashboard root; minor-unit summaries used Number*100.",
-    "planned_and_actual_action": "Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Flutter/DB contract runtime BLOCKED.",
+    "planned_and_actual_action": "Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Actual Flutter suite is C20; full Flutter/API/database end-to-end contract execution remains NOT RUN.",
     "files": [
       "backend/src/features/dashboard/dashboard.service.ts",
       "backend/src/features/money/money.reader.ts",
       "mobile-app/mobile/lib/features/more/data/daily_plan_models.dart"
     ],
-    "regression_tests": "Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Flutter/DB contract runtime BLOCKED.",
+    "regression_tests": "Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Actual Flutter suite is C20; full Flutter/API/database end-to-end contract execution remains NOT RUN.",
     "final_status": "code_unverified",
     "group": "B-06"
   },
@@ -1021,11 +1021,11 @@
     "source_description": "AI sends name/counts/typed text to third party",
     "current_code_status": "confirmed",
     "root_cause": "AI sends name/counts/typed text to third party",
-    "planned_and_actual_action": "Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Flutter consent UI tests BLOCKED.",
+    "planned_and_actual_action": "Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Actual Flutter suite is C20; no specific consent UI/provider/device execution is inferred from a general suite PASS.",
     "files": [
       "mobile-app/mobile/lib/features/ai/presentation/ai_assistant_screen.dart"
     ],
-    "regression_tests": "Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Flutter consent UI tests BLOCKED.",
+    "regression_tests": "Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Actual Flutter suite is C20; no specific consent UI/provider/device execution is inferred from a general suite PASS.",
     "final_status": "code_unverified",
     "group": "R-21"
   },
@@ -1043,7 +1043,7 @@
       "scripts/native-voice-cleanup.test.mjs",
       "docs/remediation/runtime-and-cleanup.md"
     ],
-    "regression_tests": "Clarify actual platform recognition and unverified scope; do not invent authorization. Unreachable Gemini branch remains; device verification BLOCKED. C33 eight source-contract checks PASS; no Android compile/device PASS inferred.",
+    "regression_tests": "Clarify actual platform recognition and unverified scope; do not invent authorization. Unreachable Gemini branch remains; device verification BLOCKED. C33 eight source-contract checks PASS; Actual Android debug compilation is separately C40; no speech/provider/device PASS inferred.",
     "final_status": "unclear",
     "group": "B-04"
   },
@@ -1053,13 +1053,13 @@
     "source_description": "Offline dependency/build observations",
     "current_code_status": "confirmed",
     "root_cause": "Offline dependency/build observations",
-    "planned_and_actual_action": "npm lock install/build/audit execute; audit zero production vulnerabilities. Flutter override/plugin/build provenance still BLOCKED.",
+    "planned_and_actual_action": "npm lock install/build/audit execute; audit zero production vulnerabilities. Actual source-pinned debug Flutter/Android build evidence is C39/C40; owner-key release and physical plugin behavior remain BLOCKED.",
     "files": [
       "backend/package.json",
       "backend/package-lock.json",
       "mobile-app/mobile/pubspec.yaml"
     ],
-    "regression_tests": "npm lock install/build/audit execute; audit zero production vulnerabilities. Flutter override/plugin/build provenance still BLOCKED.",
+    "regression_tests": "npm lock install/build/audit execute; audit zero production vulnerabilities. Actual source-pinned debug Flutter/Android build evidence is C39/C40; owner-key release and physical plugin behavior remain BLOCKED.",
     "final_status": "partial",
     "group": "R-23"
   }

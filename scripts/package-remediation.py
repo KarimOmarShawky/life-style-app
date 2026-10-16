@@ -73,6 +73,9 @@ def main():
     if output == ROOT or ROOT in output.parents:
         raise SystemExit('Choose an artifact output directory outside the repository')
     output.mkdir(parents=True, exist_ok=True)
+    # Preflight document dependencies before writing any successful evidence.
+    import reportlab  # noqa: F401
+    import pypdf  # noqa: F401
     assert git('branch', '--show-current') == BRANCH, 'Unexpected branch'
     assert subprocess.run(['git', 'merge-base', '--is-ancestor', BASE, 'HEAD'], cwd=ROOT).returncode == 0, 'Review patch baseline ancestry before packaging'
     findings = json.loads((DOC / 'findings.json').read_text())
@@ -174,21 +177,21 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
 
     def purpose(path):
         if path in deleted:
-            return 'Remove specifically audited duplicate/generated artifact; regeneration/build remains unverified.'
+            return 'Remove specifically audited duplicate/generated artifact; Android debug compilation is separately C40; no iOS/device regeneration proof.'
         if path.startswith('docs/remediation/evidence/'):
             return 'Capture actual command output; scopes and exit codes are in checks.json.'
         if 'AccountArchiveStage.kt' in path or 'AccountArchiveStageHarness.kt' in path or 'check-archive-stage.py' in path:
             return 'Actual Android-free AES-GCM staging class/harness: C30 JVM checks; no Android bridge/provider/app/device build proof.'
         if 'AccountArchiveBridge.kt' in path:
-            return 'Android private staging/SAF chooser, verified plaintext copy/readback and cleanup source; Android compile/provider/device gates BLOCKED.'
+            return 'Android private staging/SAF chooser, verified plaintext copy/readback and cleanup source; debug compilation/JVM evidence C40, provider/device verification C22 BLOCKED.'
         if path.endswith('account_archive_v1.ndjson') or path.endswith('archive-mobile-contract.test.mjs'):
             return 'Synthetic exact-byte archive fixture/source-contract checks C29; no Dart or Android runtime execution.'
         if '/lib/core/archive/' in path or 'account_archive_dialog.dart' in path:
-            return 'Bounded archive validation/coordinator/explicit consent source; C12 syntax only, Flutter/widget/provider execution BLOCKED.'
+            return 'Bounded archive validation/coordinator/explicit consent source; C12 syntax and actual Flutter suite C20; physical provider/UI execution C22 BLOCKED.'
         if path.startswith('backend/tests/integration/') or path.startswith('backend/tests/security/'):
             return 'First-import destructive-target guard and focused regressions; actual owned current-schema integration/security C15/C16 via C32, not deployed resources or mobile E2E.'
         if '/tests/' in path or '/test/' in path:
-            return 'Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.'
+            return 'Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.'
         if path.endswith(('.md', '.json', '.yaml', '.yml')) or path.startswith('docs/'):
             return 'Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.'
         if 'digital_detox' in path or 'FocusShield' in path:
@@ -242,6 +245,7 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
     report = [f'# LifeStyle App remediation report — {DATE}', '',
               '## Executive decision and delivery scope',
               'The safe subset is delivered as source changes, not a production-ready release. '
+              f"Temporary connected pilot C41: {by_check.get('C41', {}).get('result', 'NOT RUN')}; local API smoke does not prove phone connectivity. "
               'All 57 source records were inspected and tracked, including low severity items and R-02/R-09/R-10. '
               'There are 37 administrative overlap groups, not 33+23 independent defects. '
               'Digital Detox is additional scope and is not counted as an independent audit finding.',
@@ -249,7 +253,7 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
               'The earlier audit is absent; original D-policy references are not invented. '
               'Source descriptions and severity are transcribed in findings.json; ambiguity remains explicit.',
               f'Base revision: {BASE}. Working branch: {BRANCH}. '
-              'No branch switch, reset, clean, deployment or user database cleanup was performed. The owner later authorized commits/push and CI on the fixed session branch; see hosted-build.md for exact execution scope.',
+              'No branch switch, reset, clean, main/production deployment or existing user database cleanup was performed. The owner separately authorized a NEW isolated temporary backend; its local tests passed but public HTTPS ingress returned403 and the connected phone pilot stays BLOCKED. The owner later authorized commits/push and CI on the fixed session branch; see hosted-build.md for exact execution scope.',
               'This ZIP is an explicit patch set: changed/new repository-relative paths, no unchanged files or dependencies. '
               'Use apply-patch.md and deletions.json; do not treat it as a standalone repository.',
               f'File dispositions: {dict(Counter(row[1] for row in manifest_rows))}. '
@@ -262,25 +266,24 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
               '## Actual verification and regressions',
               f'Final gate totals: {dict(outcomes)}. ' + unit_summary +
               'Compilation, lint, format, build, production audit and OpenAPI gates: ' + quality_summary + '. ' +
-              syntax_summary + 'that is syntax only, not Dart compilation, Flutter analysis, Flutter tests or Android/device evidence.',
+              syntax_summary + 'that helper is syntax-only. Actual hosted Flutter/Android evidence, where executed, is separately source-pinned in C19/C20/C39/C40; device and owner-key release verification are distinct.',
               secret_summary + ' Detector probes and tooling audit execute; no exclusions were added. '
               'Original 18 findings and the earlier 16 retained patterns remain as historical provenance. The remaining tracked application-role defaults are now replaced coherently by per-installation local and per-job CI credentials, without detector exclusions. CI still has its public ephemeral administrator fixture; this is not proof that all possible secrets or live reuse are absent. '
               'Source provenance is not proof of absent deployed reuse; external credential assessment/rotation is BLOCKED. '
-              'Local reachable Git text history executes separately in C36; historical matches remain FAIL. Container scanning and hosted CI remain NOT RUN. ',
+              'Local reachable Git text history executes separately in C36; historical matches remain FAIL. Container-image scanning remains NOT RUN; hosted execution has separate fresh C39/C40 metadata. ',
               f"C10 clarified policy guard: {by_check['C10']['result']}. The owner explicitly permits existing local Focus Timer audio, "
               'not server uploads. Only the reviewed mobile entries/consumer are permitted; no global picker allowlist or feature removal. '
               'C31 runs 21 negative/source/actual-CLI fixture checks; C06 includes 13 actual JSON-only middleware HTTP regressions. '
               'Neither certifies native picker traffic or absence of every possible leak. C11 PASS means the unsafe integration invocation was refused before '
               'suite execution; its expected exit code is 1. It is NOT a successful integration test.',
-              'Actual owned PostgreSQL/Redis integration/security and fixture migrations now execute under C32, with process/data-directory proof before destructive hooks. No user database, Docker build, full Flutter/Android app build, '
-              'live SMTP delivery, signed release, whole-application E2E or physical-device enforcement was verified. '
+              'Actual owned PostgreSQL/Redis integration/security and fixture migrations execute under C32, with process/data-directory proof before destructive hooks. No user database or deployment is contacted. Source-pinned hosted Flutter and debug Android execution is separately recorded; no '
+              'live SMTP delivery, signed release, whole-application E2E or physical-device enforcement is inferred from debug CI. Hosted job-level outcomes are in C39/C40. '
               'The report distinguishes authored tests, source changes and actual executions. Earlier failed iterations '
-              'and recovery are in verification-history.md; final raw logs are evidence/C01-C14 and C25-C38. C26 has 17 helper/source tests; C27 has 22 fresh-setup/source/command-spy tests, separate from backend units and not live infrastructure evidence. C28 has 16 hosted-resource command-spy/negative/source tests; the new hosted workflow itself is NOT RUN.',
+              'and recovery are in verification-history.md; final raw logs are evidence/C01-C14 and C25-C39 plus source-pinned C40 metadata. C26 has 17 helper/source tests; C27 has 22 fresh-setup/source/command-spy tests, separate from backend units and not live infrastructure evidence. C28 has 16 hosted-resource command-spy/negative/source tests; the separate qa-gate.yml Docker harness is NOT RUN, while authorized ci.yml execution is separately C39.',
               'C29 runs eight synthetic-wire/source-contract Node checks, not Dart code. C30 compiles and runs '
-              'ten real JVM checks against the actual Android-free AES-GCM staging implementation, not the '
-              'Activity/MethodChannel bridge or document providers. Twenty-five new Flutter cases are authored, '
-              'NOT RUN; full Flutter/Android/provider/lifecycle/device verification remains BLOCKED. '
-              'Scratch Java/Kotlin availability does not remove C19-C22 blockers.',
+              'ten real scratch-JVM checks against the actual Android-free AES-GCM staging implementation, not the '
+              'Activity/MethodChannel bridge or document providers. Flutter suite execution is now recorded separately in C20, and debug Android build/JVM/signature in C40; neither is provider/lifecycle/physical-device proof. '
+              'Scratch Java/Kotlin alone does not prove Android behavior; actual hosted C19/C20/C40 evidence is separate from signed release and device gates.',
               '## Owner clarification: local audio is permitted, server uploads remain forbidden',
               (ROOT / 'docs/security/local-audio-boundary.md').read_text(),
               '## Actual owned runtime verification, cleanup, residual timing and Git-history findings',
@@ -288,6 +291,8 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
               '## Mobile build preparation and truthful artifact/signing boundaries',
               (ROOT / 'docs/mobile/build-preparation.md').read_text(),
               (DOC / 'hosted-build.md').read_text(),
+              '## Owner-approved temporary pilot and actual external boundary',
+              (ROOT / 'docs/mobile/temporary-pilot.md').read_text(),
               '## Database deployment and data preservation',
               (ROOT / 'docs/database/migrations.md').read_text(),
               '## Fresh-local generation and existing-install credential safeguards',
@@ -309,7 +314,7 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
               'decimal.js HALF_UP and string amounts; inputs validate before storage and idempotent posting. '
               'Mobile four-place BigInt arithmetic removes double monetary sums; totals are grouped by currency, '
               'active subscriptions use server monthlyEquivalent and only bounded progress becomes double. '
-              'Five new mobile money tests are authored but BLOCKED from execution. '
+              'Mobile money cases are within the actual hosted suite only when C20 PASS; no live financial-data reconciliation is inferred. '
               'There is no bulk historical ledger conversion, FX assumption or migration of financial values. '
               'Existing records may reflect earlier rounding; actual deployed-data reconciliation remains necessary.',
               '## Digital Detox — capability gate, safety and incomplete work',
@@ -338,7 +343,7 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
         report += [f'### {action}: {path}', f'Related scope: {ids}. {why}']
     report += ['## Remaining release gates and next actions',
                '1. Owned current-schema runtime/migration fixtures now execute under C15-C17/C32. Rehearse the actual legacy deployment/restore separately (C35 BLOCKED); never point destructive cleanup at live data.',
-               '2. Install Flutter/Dart and Android toolchains; run analysis, all unit/widget tests and native builds. '
+               '2. Check the actual source-pinned hosted C19/C20/C40 outcomes and artifacts. Debug compilation/signature is not owner-key release or device proof. '
                'Use an actual signing key out of band and verify signatures; test Keystore migration, backup exclusions '
                'and Detox enforcement/release/recovery on devices. Verify archive transport/identity/cancellation, private staging, chooser, plaintext/cloud consent, readback and provider failures, expiry/disposal/orphan cleanup on devices. Resolve any compile/lifecycle failures before release.',
                '3. Verify real SMTP delivery/failure, shutdown and statistical load/timing behavior. B-27 now admits bounded volatile requests before lookup/cooldown/SMTP; targeted tests do not prove constant-time behavior or durable delivery. '
@@ -349,7 +354,7 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
                'Do not mark source-only fixes or the partially enforced Android Detox as fully implemented.',
                '5. Rehearse deployment/restore using the real legacy schema/history, review all partial/unverified '
                'records and obtain release approval. Safe delivery of this subset is not proof of full completion.']
-    report_md.write_text('\n\n'.join(report) + '\n')
+    report_md.write_text('\n\n'.join(part.rstrip() for part in report) + '\n')
     # This script/manifest/report are now final before source hashes are captured.
     for path, action, ids, why in manifest_rows:
         data = (ROOT / path).read_bytes() if action != 'D' else subprocess.check_output(
@@ -404,5 +409,26 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
     print(f'{len(final_paths)} source files + {len(deleted)} deletions; {len(reader.pages)} PDF pages; checks {dict(outcomes)}')
 
 
+def record_failure():
+    # A later PDF/hash/ZIP failure must never leave the generated C14 gate PASS.
+    checks_path = DOC / 'checks.json'
+    checks = json.loads(checks_path.read_text()) if checks_path.is_file() else []
+    checks = [check for check in checks if check['id'] != 'C14']
+    checks.append(dict(id='C14', command=' '.join([sys.executable, *sys.argv]),
+                       result='FAIL', exit_code=1,
+                       reason='Packaging did not complete. Do not distribute partial or previously generated outputs; rerun and require exit zero plus independent checks.',
+                       evidence='docs/remediation/evidence/C14.txt'))
+    save(checks_path, sorted(checks, key=lambda check: check['id']))
+    (DOC / 'evidence/C14.txt').write_text('FAIL: packaging command did not complete; generated outputs are not a verified delivery.\n')
+
+
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except SystemExit as error:
+        if error.code not in (None, 0):
+            record_failure()
+        raise
+    except BaseException:
+        record_failure()
+        raise

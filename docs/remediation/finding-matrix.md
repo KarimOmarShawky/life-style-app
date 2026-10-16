@@ -44,9 +44,9 @@ NOT RUN and NOT APPLICABLE, with scope in checks.json. No production certificati
 | B-28 | Low (P3) | Configured refresh/session TTLs ignored | confirmed | B-28 | fixed_verified |
 | B-29 | Low (P3) | Non-strict schemas / extra transaction fields | confirmed | B-29 | partial |
 | B-30 | Low (P3) | Debug signing fallback / no obfuscation / lock-screen display | confirmed | B-30 | partial |
-| B-31 | Low (P3) | CI scanning and DB timeout gaps | partial implementation; actual current-source scan PASS; historical detector FAIL with reviewed local-default provenance; hosted/image execution NOT RUN | B-31 | partial |
+| B-31 | Low (P3) | CI scanning and DB timeout gaps | partial implementation; actual current-source scan PASS; historical detector FAIL with reviewed local-default provenance; actual hosted CI separately C39; image scanning NOT RUN | B-31 | partial |
 | B-32 | Low (P3) | Repository hygiene | partial cleanup | B-32 | partial |
-| B-33 | Low (P3) | Client budget monetary arithmetic uses double | code changed; runtime unverified | B-33 | code_unverified |
+| B-33 | Low (P3) | Client budget monetary arithmetic uses double | targeted pure-money runtime verified in actual hosted Flutter suite; physical UI not certified | B-33 | fixed_verified |
 | R-01 | High | Mobile Daily Plan requests unregistered dashboard root | confirmed | B-06 | fixed_verified |
 | R-02 | Medium | Reusable plaintext reset code in BullMQ payload | confirmed | B-13 | fixed_verified |
 | R-03 | Medium | SMTP failures resolve, defeating retries | confirmed | B-13 | code_unverified |

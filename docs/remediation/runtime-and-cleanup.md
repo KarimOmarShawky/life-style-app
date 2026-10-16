@@ -125,7 +125,7 @@ pushing. HEAD and fetched main both remain the review baseline; the checkout is 
 longer shallow. No historical source is checked out/executed or written to disk by
 the detector. Its batches use the pinned detectors with no suppression change.
 
-C36 now covers **1,033 unique UTF-8 blobs across 93 reachable commits**, with **37
+The last pre-push C36 covered **1,033 unique UTF-8 blobs across 93 reachable commits**, with **37
 connection-string matches in 18 distinct blobs** and eight binary/non-UTF8 exclusions.
 Unique-blob matches are not the same inventory as the original 18 source-location
 provenance records; duplicated paths/versions are not invented as new independent
@@ -147,3 +147,21 @@ rotation or live connection is performed. Original 18 records/hashes remain inta
 SR-07/SR-08 append a documented follow-up fingerprint chain for the authorized CI edit,
 rather than overwriting their earlier fingerprints. Deployment inventory/coordinated
 rotation remains an owner task if these defaults were reused.
+
+
+## Subsequent authorized hosted execution
+
+The owner later approved commits/push/CI on the fixed session branch only; no main
+merge/deployment or existing-data cleanup. Latest C36 records `scan_head` and its
+actual reachable inventory after those commits; earlier 93-commit metrics above are
+the pre-push snapshot, not silently reused as current coverage. Fresh C39/C40 pin
+actual hosted source and step/artifact results. See hosted-build.md for failed
+iterations, diagnostic-source changes, signature/package verification, separate
+validation identity and current limits.
+
+Shutdown now awaits ALL HTTP listeners before draining reset work and closing
+resources. Two new real socket/subprocess/SIGTERM/component tests prove that an
+auxiliary HTTP response and a pending reset worker both finish before exit, with late
+admission refused. Full production entrypoint/live SMTP/PG process-shutdown and
+statistical deployment timing remain separate; no mock delivery is called a provider
+success. The conditional request messages and volatile queue limits stay unchanged.

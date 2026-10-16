@@ -4,29 +4,29 @@
 
 ## Executive decision and delivery scope
 
-The safe subset is delivered as source changes, not a production-ready release. All 57 source records were inspected and tracked, including low severity items and R-02/R-09/R-10. There are 37 administrative overlap groups, not 33+23 independent defects. Digital Detox is additional scope and is not counted as an independent audit finding.
+The safe subset is delivered as source changes, not a production-ready release. Temporary connected pilot C41: BLOCKED; local API smoke does not prove phone connectivity. All 57 source records were inspected and tracked, including low severity items and R-02/R-09/R-10. There are 37 administrative overlap groups, not 33+23 independent defects. Digital Detox is additional scope and is not counted as an independent audit finding.
 
 Primary source: LifeStyle_App_Independent_Post_Remediation_Review_2026-10-13.pdf. The earlier audit is absent; original D-policy references are not invented. Source descriptions and severity are transcribed in findings.json; ambiguity remains explicit.
 
-Base revision: 47cf1fd09540e7bcc8b291d6d9a1559cf0c5f855. Working branch: arena/3f871eac-life-style-app. No branch switch, reset, clean, commit, push, deployment or user database cleanup was performed.
+Base revision: 47cf1fd09540e7bcc8b291d6d9a1559cf0c5f855. Working branch: arena/3f871eac-life-style-app. No branch switch, reset, clean, main/production deployment or existing user database cleanup was performed. The owner separately authorized a NEW isolated temporary backend; its local tests passed but public HTTPS ingress returned403 and the connected phone pilot stays BLOCKED. The owner later authorized commits/push and CI on the fixed session branch; see hosted-build.md for exact execution scope.
 
 This ZIP is an explicit patch set: changed/new repository-relative paths, no unchanged files or dependencies. Use apply-patch.md and deletions.json; do not treat it as a standalone repository.
 
-File dispositions: {'M': 131, 'A': 125, 'D': 4}. Source record dispositions: {'fixed_verified': 11, 'partial': 24, 'code_unverified': 20, 'unclear': 2}. Conservative overlap-group dispositions: {'fixed_verified': 6, 'partial': 18, 'code_unverified': 12, 'unclear': 1}.
+File dispositions: {'M': 131, 'A': 142, 'D': 4}. Source record dispositions: {'fixed_verified': 12, 'partial': 24, 'code_unverified': 19, 'unclear': 2}. Conservative overlap-group dispositions: {'fixed_verified': 7, 'partial': 18, 'code_unverified': 11, 'unclear': 1}.
 
 fixed_verified denotes only targeted executed regression evidence, not full feature or deployment assurance. code_unverified denotes changed/preserved code without relevant runtime proof; partial retains scope; open retains a correction gap; unclear retains product/provenance ambiguity. Only checks.json uses verification labels PASS, FAIL, BLOCKED, NOT RUN or NOT APPLICABLE.
 
 ## Actual verification and regressions
 
-Final gate totals: {'PASS': 29, 'BLOCKED': 6, 'NOT RUN': 2, 'FAIL': 1}. 340 backend unit tests / 30 files PASS. Compilation, lint, format, build, production audit and OpenAPI gates: C02: PASS, C03: PASS, C04: PASS, C05: PASS, C07: PASS, C08: PASS, C09: PASS. WASM parsed 39 changed Dart files (PASS); that is syntax only, not Dart compilation, Flutter analysis, Flutter tests or Android/device evidence.
+Final gate totals: {'PASS': 33, 'BLOCKED': 5, 'NOT RUN': 2, 'FAIL': 1}. 342 backend unit tests / 31 files PASS. Compilation, lint, format, build, production audit and OpenAPI gates: C02: PASS, C03: PASS, C04: PASS, C05: PASS, C07: PASS, C08: PASS, C09: PASS. WASM parsed 39 changed Dart files (PASS); that helper is syntax-only. Actual hosted Flutter/Android evidence, where executed, is separately source-pinned in C19/C20/C39/C40; device and owner-key release verification are distinct.
 
-Current-source C25: PASS; 0 detector findings across 591 files at scan time. Detector probes and tooling audit execute; no exclusions were added. Original 18 findings and the earlier 16 retained patterns remain as historical provenance. The remaining tracked application-role defaults are now replaced coherently by per-installation local and per-job CI credentials, without detector exclusions. CI still has its public ephemeral administrator fixture; this is not proof that all possible secrets or live reuse are absent. Source provenance is not proof of absent deployed reuse; external credential assessment/rotation is BLOCKED. Local reachable Git text history executes separately in C36; historical matches remain FAIL. Container scanning and hosted CI remain NOT RUN. 
+Current-source C25: PASS; 0 detector findings across 608 files at scan time. Detector probes and tooling audit execute; no exclusions were added. Original 18 findings and the earlier 16 retained patterns remain as historical provenance. The remaining tracked application-role defaults are now replaced coherently by per-installation local and per-job CI credentials, without detector exclusions. CI still has its public ephemeral administrator fixture; this is not proof that all possible secrets or live reuse are absent. Source provenance is not proof of absent deployed reuse; external credential assessment/rotation is BLOCKED. Local reachable Git text history executes separately in C36; historical matches remain FAIL. Container-image scanning remains NOT RUN; hosted execution has separate fresh C39/C40 metadata.
 
 C10 clarified policy guard: PASS. The owner explicitly permits existing local Focus Timer audio, not server uploads. Only the reviewed mobile entries/consumer are permitted; no global picker allowlist or feature removal. C31 runs 21 negative/source/actual-CLI fixture checks; C06 includes 13 actual JSON-only middleware HTTP regressions. Neither certifies native picker traffic or absence of every possible leak. C11 PASS means the unsafe integration invocation was refused before suite execution; its expected exit code is 1. It is NOT a successful integration test.
 
-Actual owned PostgreSQL/Redis integration/security and fixture migrations now execute under C32, with process/data-directory proof before destructive hooks. No user database, Docker build, full Flutter/Android app build, live SMTP delivery, signed release, whole-application E2E or physical-device enforcement was verified. The report distinguishes authored tests, source changes and actual executions. Earlier failed iterations and recovery are in verification-history.md; final raw logs are evidence/C01-C14 and C25-C38. C26 has 17 helper/source tests; C27 has 22 fresh-setup/source/command-spy tests, separate from backend units and not live infrastructure evidence. C28 has 16 hosted-resource command-spy/negative/source tests; the new hosted workflow itself is NOT RUN.
+Actual owned PostgreSQL/Redis integration/security and fixture migrations execute under C32, with process/data-directory proof before destructive hooks. No user database or deployment is contacted. Source-pinned hosted Flutter and debug Android execution is separately recorded; no live SMTP delivery, signed release, whole-application E2E or physical-device enforcement is inferred from debug CI. Hosted job-level outcomes are in C39/C40. The report distinguishes authored tests, source changes and actual executions. Earlier failed iterations and recovery are in verification-history.md; final raw logs are evidence/C01-C14 and C25-C39 plus source-pinned C40 metadata. C26 has 17 helper/source tests; C27 has 22 fresh-setup/source/command-spy tests, separate from backend units and not live infrastructure evidence. C28 has 16 hosted-resource command-spy/negative/source tests; the separate qa-gate.yml Docker harness is NOT RUN, while authorized ci.yml execution is separately C39.
 
-C29 runs eight synthetic-wire/source-contract Node checks, not Dart code. C30 compiles and runs ten real JVM checks against the actual Android-free AES-GCM staging implementation, not the Activity/MethodChannel bridge or document providers. Twenty-five new Flutter cases are authored, NOT RUN; full Flutter/Android/provider/lifecycle/device verification remains BLOCKED. Scratch Java/Kotlin availability does not remove C19-C22 blockers.
+C29 runs eight synthetic-wire/source-contract Node checks, not Dart code. C30 compiles and runs ten real scratch-JVM checks against the actual Android-free AES-GCM staging implementation, not the Activity/MethodChannel bridge or document providers. Flutter suite execution is now recorded separately in C20, and debug Android build/JVM/signature in C40; neither is provider/lifecycle/physical-device proof. Scratch Java/Kotlin alone does not prove Android behavior; actual hosted C19/C20/C40 evidence is separate from signed release and device gates.
 
 ## Owner clarification: local audio is permitted, server uploads remain forbidden
 
@@ -104,7 +104,6 @@ server-upload proposal requires a separate explicit privacy/security decision.
 Historical C10 FAIL evidence remains described in verification-history.md. Current
 checks.json/evidence/C10.txt and C31.txt govern the new result; passing the clarified
 policy guard does not convert any Flutter/Android/live-infrastructure gate to PASS.
-
 
 ## Actual owned runtime verification, cleanup, residual timing and Git-history findings
 
@@ -235,7 +234,7 @@ pushing. HEAD and fetched main both remain the review baseline; the checkout is 
 longer shallow. No historical source is checked out/executed or written to disk by
 the detector. Its batches use the pinned detectors with no suppression change.
 
-C36 now covers **1,033 unique UTF-8 blobs across 93 reachable commits**, with **37
+The last pre-push C36 covered **1,033 unique UTF-8 blobs across 93 reachable commits**, with **37
 connection-string matches in 18 distinct blobs** and eight binary/non-UTF8 exclusions.
 Unique-blob matches are not the same inventory as the original 18 source-location
 provenance records; duplicated paths/versions are not invented as new independent
@@ -259,15 +258,32 @@ rather than overwriting their earlier fingerprints. Deployment inventory/coordin
 rotation remains an owner task if these defaults were reused.
 
 
+## Subsequent authorized hosted execution
+
+The owner later approved commits/push/CI on the fixed session branch only; no main
+merge/deployment or existing-data cleanup. Latest C36 records `scan_head` and its
+actual reachable inventory after those commits; earlier 93-commit metrics above are
+the pre-push snapshot, not silently reused as current coverage. Fresh C39/C40 pin
+actual hosted source and step/artifact results. See hosted-build.md for failed
+iterations, diagnostic-source changes, signature/package verification, separate
+validation identity and current limits.
+
+Shutdown now awaits ALL HTTP listeners before draining reset work and closing
+resources. Two new real socket/subprocess/SIGTERM/component tests prove that an
+auxiliary HTTP response and a pending reset worker both finish before exit, with late
+admission refused. Full production entrypoint/live SMTP/PG process-shutdown and
+statistical deployment timing remain separate; no mock delivery is called a provider
+success. The conditional request messages and volatile queue limits stay unchanged.
+
 ## Mobile build preparation and truthful artifact/signing boundaries
 
 # Android build preparation before Windows/Android device testing — 2026-10-16
 
 ## Actual state, not a build claim
 
-C37 executes 13 private-filesystem, negative-input, certificate-output parsing, source-contract/YAML/bash-syntax and actual missing-SDK CLI-refusal checks. Its synthetic bytes are NOT a real keystore/APK, and its synthetic certificate output is NOT an apksigner execution. No Flutter/Android SDK is available in this sandbox. Flutter analysis/tests, Gradle Android compilation, real APK signature verification, hosted CI and device installation remain C19–C24 BLOCKED/NOT RUN as individually recorded. There is no verified APK from this work yet.
+C37 executes 17 private-filesystem, negative-input, certificate-output parsing, source-contract/YAML/bash-syntax and actual missing-SDK CLI-refusal checks. Its synthetic bytes are NOT a real keystore/APK, and its synthetic certificate output is NOT an apksigner execution. Flutter/Android SDK remains unavailable locally, but the owner has now authorized real hosted CI. Actual source-pinned Flutter analysis/tests and Android debug JVM/build/signature/manifest/upload outcomes are C19/C20/C39/C40 in hosted-build.json. Do not reuse the earlier preparation-only BLOCKED/NOT RUN statement as a current result, or infer a successful APK before the actual debug gate passes. Owner-key release/device/provider results remain separate.
 
-The user has Windows and an ordinary Android phone. They do not need to install anything to complete this source preparation. Do not request signing passwords, key files or provider keys in chat. No workflow was pushed, dispatched or deployed.
+The user has Windows and an ordinary Android phone. They do not need to install anything to complete this source preparation. Do not request signing passwords, key files or provider keys in chat. The owner later authorized pushes/CI on the fixed session branch. No main merge, signed release dispatch or deployment is performed.
 
 ## Demonstrable source/configuration gaps corrected
 
@@ -301,6 +317,361 @@ All six locale catalog messages now say conditionally that the app will **try** 
 
 Run the authored pipeline on reviewed source, resolve actual Flutter/Gradle failures without relaxing gates, and inspect a successfully built/signature-verified APK. For connected device tests, select an explicitly approved disposable HTTPS backend, never the offline default or unapproved production service. Only then perform the Windows/Android install, permissions, speech lifecycle, archive/save-provider, wallet, alarms and both Digital Detox modes checklist. Ordinary consumer Android restrictions do not lock the whole phone or guarantee enforcement; no accessibility/device-admin capability is added here. Backend/SMTP connectivity, live provider delivery, Android lifecycle/upgrade/signature continuity and device enforcement are not certified by source preparation.
 
+
+## Separate installation identity and actual package verification
+
+Debug now uses `com.lifestyle.app.validation`, version suffix `-validation`, and label
+`LifeStyle Validation`; release keeps `com.lifestyle.app`/`LifeStyle`. This permits a
+side-by-side test without deleting/replacing an existing signed app or its data.
+The APK verifier also executes the SDK `aapt2 dump badging` and checks the COMPILED
+package identity, not just a Gradle source string or filename. Identity-parser/source
+checks bring C37 to 17 cases; only C40 can certify actual SDK execution on the APK.
+
+Do not uninstall an existing app to bypass a signing mismatch. Validation has its own
+empty app sandbox; this does not migrate/read the existing app's private data. Future
+debug builds may use a different ephemeral debug certificate and are not an approved
+same-identity upgrade/data-migration test. Real release-key continuity/Keystore migration
+and device restore still require controlled device/owner-key verification.
+
+
+## SDK37 public-certificate handling
+
+Actual SDK verification exposed a mismatch with the old human-readable SHA-256
+label matcher. The application CLI now requires one SDK-verified certificate PEM,
+computes its SHA-256 using Node X509Certificate and applies the same identity rules;
+it does not ignore a failing signature or accept arbitrary certificate text. C37 has
+17 real local boundary/parser/source tests, including a PUBLIC certificate parser
+fixture. The real SDK transient fixture job is additional tool evidence, not a
+LifeStyle app or device test; it uploads nothing and creates no release identity.
+Actual application verification/upload must still succeed under C40 independently.
+
+
+## Actual successful debug APK, and what can be tried
+
+Run 38909865820 / built source e2d6577 passed the actual app debug build, Kotlin JVM
+tests, SDK cryptographic certificate verification, compiled package identity and
+artifact upload. The download is the actual GitHub artifact, not in the source ZIP:
+https://github.com/KarimOmarShawky/life-style-app/actions/runs/38909865820/artifacts/12050352682
+
+Download/unzip it on Windows and transfer the APK to Android. If choosing to install,
+allow installation only for the source you deliberately use, then revoke that source
+permission afterward. It installs as LifeStyle Validation beside an existing app;
+do not uninstall any existing app or grant accessibility/overlay access merely to
+confirm startup. Device installation has NOT RUN in this session.
+
+This build's API is intentionally offline. With an empty isolated app sandbox,
+AuthScreen is expected and login/backend-dependent features cannot work. This is
+an installation/startup validation build, NOT a connected full-feature pilot. A
+separately approved disposable HTTPS backend is required before building a connected
+pilot; production is not an implicit fallback. Do not introduce fake auth/guest data
+or claim SMTP, archive providers, wallet or Detox device enforcement is verified.
+
+
+## Later temporary-backend request
+
+The owner subsequently approved a NEW isolated temporary backend. This was actually
+started and tested locally, but external GitHub runner readiness got HTTPS403 before
+API readiness, so the connected phone pilot remains C41 BLOCKED. No sandbox token,
+invalid TLS, fake auth or production fallback is substituted. The current branch
+again defaults offline. See temporary-pilot.md and the actual pilot-external-check
+metadata for the local/external distinction; do not mistake the earlier successful
+offline APK or a recovery build for a connected pilot.
+
+# Owner-authorized hosted verification — 2026-10-16
+
+The owner explicitly authorized commit/push and CI on `arena/3f871eac-life-style-app`.
+Only that branch is used. No merge into main, deploy, release-key generation or user
+service/data cleanup is authorized/performed. Repository administration settings could
+not be read with the integration token, but actual branch push and CI execution work;
+no passwords/tokens were requested or stored.
+
+The exact branch was added to the existing push trigger. Original source-provenance
+fingerprints remain, with reasoned follow-up chains for CI edits. The patch packager
+now verifies baseline ancestry instead of requiring HEAD to equal the pre-commit
+baseline; it still packages the entire delta from that baseline, not just uncommitted
+changes. The syntax helper also compares against the baseline after commits, not an
+empty HEAD diff.
+
+Actual initial hosted runs:
+
+- 38903126842 (`c0dc175`): backend PASS; mobile FAIL on formatting/analyzer diagnostics,
+  Flutter tests step success, Android build not reached. Retrieved the official
+  formatter's diagnostic patch, checked/apply patch and corrected the reported rules.
+- 38903766199 (`5492929`): backend PASS; remaining mobile analysis diagnostics FAIL;
+  Flutter tests step success. GitHub reports only a limited number of annotations
+  per step, so the first ten messages are not an exhaustive diagnostic inventory.
+- 38904359227 (`862af92`): backend PASS with the new shutdown tests; analysis still
+  FAIL on additional reported brace diagnostics. No APK/native result inferred.
+- 38904866557 (`1b85bea`): full official `dart fix` candidate requested on the FAILED
+  analysis path. That step still exits nonzero and cannot build/upload an APK. The
+  candidate is a source correction to review/commit, never a replacement for rerunning
+  analysis against the actual committed source or a reason to relax fatal analysis.
+
+Raw GitHub log download redirects are unreachable from this sandbox. Metadata and
+source-only diagnostic annotations are retrieved through the GitHub API; no temporary
+signed URLs or raw credentials are retained in repository evidence. Historical failed
+runs remain available on GitHub, not relabeled PASS. A test step succeeding in a failed
+format/fix-candidate workspace is not final source-pinned application certification.
+
+`hosted-build.json` and C39/C40 will record fresh run/job/step/artifact metadata for
+the selected actual run. Recording refuses application/workflow drift from that SHA
+or untracked application source and never accepts stale metadata if API validation
+fails. C19/C20 may become actual hosted PASS only from those verified step outcomes.
+C21 remains owner-key signed-release scope, C24 remains image-security scope and
+physical-device/provider/connected-backend/E2E outcomes remain separate.
+
+A debug validation build intentionally uses an offline `.invalid` API unless an
+explicit approved disposable HTTPS test backend is selected. It is not usable for
+server-dependent feature verification merely because it installs. No existing live
+API is contacted or substituted without an explicit test configuration. Signed
+release remains manually gated on main with owner-provided existing keys out of band;
+the session branch does not merge or trigger that job.
+
+## Shutdown correction and actual process test
+
+Inspection found shutdown closed auxiliary listeners without waiting for their
+active HTTP requests. Added a small production `drainApiWork` helper: stop reset
+admission, await every HTTP listener's close, then await accepted volatile reset
+work, before Redis/PG close. The bounded forced-exit timer remains and logs only
+sanitized counts/fixed failure descriptions. A never-bound auxiliary listener is
+handled explicitly; other close failures are not silently ignored.
+
+Two tests execute: an unbound-listener case and an actual Node subprocess with two
+loopback HTTP listeners, an active auxiliary response, the production reset dispatcher
+and OS SIGTERM. Late admission is refused, the process stays alive until BOTH the
+HTTP response and pending worker finish, and exits zero only after drain. This is
+real process/socket/component evidence, not an actual production server entrypoint
+with live SMTP/PG shutdown/inbox delivery certification. The worker gate is explicitly
+a controlled fixture, not a fake successful mail integration. Backend unit count is
+342/31 files; final C06 evidence governs subsequent reruns.
+
+
+Further actual diagnostic iterations (never marked successful):
+
+- 38905354494 (`ac9d64c`): official curly-brace fixes applied, remaining analysis
+  warning/infos caused FAIL. Optional fixer found no remaining curly diagnostic,
+  exposing a diagnostic-path issue: original output needed emission before repair.
+  The source-pinned failed API metadata is retained in evidence/iterations.
+- 38905852693 (`376360f`): original analyzer output retrieved, exactly three remaining
+  diagnostics: two archive-test string interpolation infos and an unused optional
+  token parameter on a test-only credential fixture. Corrected those exact items;
+  no analyzer rule, test assertion, permission or feature behavior was relaxed.
+- 38906344242 (`1c764b8`): next actual run selected for source-pinned verification;
+  its current outcome is recorded in hosted-build.json, not inferred in advance.
+
+An optional fixer is diagnostic-only and its own refusal is explicitly annotated.
+C19/C20 never inherit source-pinned PASS from a failed formatter/analyzer workspace;
+clean prerequisite steps are required. CI has no publish/deploy command and no
+release credentials in its automatic debug job.
+
+
+Additional validation isolation:
+
+- After the first clean analysis/test run reached actual Android JVM compilation,
+  made the debug app a separate `.validation` application ID/label to avoid asking a
+  tester to replace/uninstall any existing signed application or lose user data.
+- 38906759617 (`4d10515`) is that intermediate build. A request to cancel the now-
+  superseded run was refused with integration HTTP403; no permissions were changed,
+  alternative authorization attempted or cancellation success claimed.
+- 38907331058 (`9d84d44`) also verifies the actual compiled APK manifest package via
+  SDK aapt2 as well as its debug signature, before artifact upload. Current outcome
+  is recorded only by fresh source-matched metadata, never anticipated here.
+
+
+SDK verification failure and correction:
+
+- 38906344242 reached clean Flutter analysis/tests, actual Android JVM tests and APK
+  compilation. Its signature-policy gate failed and prevented upload; native build
+  success was not incorrectly presented as a distributable APK.
+- 38908093008 (`dbf51e6`) emitted bounded public diagnostic facts: actual SDK37
+  cryptographic command succeeded, signer count one and debug subject present, but
+  the old human SHA256-text matcher did not match. No raw SDK stderr/key/DN was logged.
+- Replaced dependence on SDK human digest labels in the actual CLI with one actual
+  SDK-verified public certificate PEM, parsed by Node X509Certificate to compute
+  fingerprint256 and check subject. Single signer, expected public fingerprint,
+  non-debug release identity and exact APK package checks remain fail-closed.
+- 38909865820 (`e2d6577`) adds a real SDK fixture job: generate a transient test-only
+  key and minimal packaging probe under a private owned runner directory, sign and
+  verify with the SDK, delete its directory, and publish NO fixture artifact. That
+  job PASS is a verifier-tool probe, not LifeStyle functionality or device evidence.
+  The actual application build/signature/manifest/upload is separately C40. No owner
+  release key was generated or requested, and no unsigned artifact is offered.
+
+
+## Final actual successful application run — 38909865820
+
+Built source: `e2d6577c04d329695b402965a65f4ccdbd2c23e8`, fixed session branch.
+Backend quality/security/API-contract gate PASS; clean Dart format, Flutter static
+analysis and Flutter suite PASS; actual Android Kotlin JVM tests and application
+APK compilation PASS. Actual SDK apksigner cryptographic/public-certificate policy
+and aapt2 COMPILED package identity (`com.lifestyle.app.validation`) PASS. Only then
+was the actual application APK artifact uploaded. Real SDK fixture probe separately
+PASS; no fixture APK is published. Owner-key release job NOT RUN (not dispatched).
+
+Actual artifact, GitHub-reported metadata:
+- Name: `lifestyle-android-debug-validation-NOT-RELEASE`
+- ID: `12050352682`; archive size: 86,214,128 bytes.
+- GitHub-reported archive SHA256: `73eaaab259c064480243543a4532e87ce2ebbd2838a1fe558d1e0f0d0a5f4f58`.
+- Download: https://github.com/KarimOmarShawky/life-style-app/actions/runs/38909865820/artifacts/12050352682
+- Direct sandbox download through gh API: BLOCKED by artifact retrieval/network
+  failure; no local APK or independent downloaded-archive/inner-APK SHA256 is
+  claimed. Download through the authenticated GitHub page instead. C40 is actual
+  hosted verification/upload plus fresh API artifact evidence, not local retrieval.
+- CI emits action-version/runner-image deprecation and nonfatal cache-save warnings.
+  These are disclosed, not represented as clean warning-free logs; application fatal
+  analysis rules remain enabled and all application gates above PASS.
+
+The API endpoint is intentionally `https://validation.invalid/api/v1`. Auth routing
+shows AuthScreen until a real authenticated account exists; therefore this APK can
+verify installation/startup but cannot log in or exercise backend-dependent app
+features offline. There is NO guest/authentication bypass, fake account, mock server
+or manufactured successful response. Full trial requires explicit approval of a
+separate disposable HTTPS test API and rebuilding with that URL. Do not silently
+use the app's original production default or treat .invalid as a working server.
+No merge, deployment, user-server/database changes, release identity or phone install
+occurred. Signed release, device/provider/SMTP, full E2E, Docker Compose/legacy restore
+and history credential-reuse assessment remain separate incomplete scopes.
+
+
+## Later owner-approved temporary pilot — not a successful connected APK
+
+The owner explicitly requested a new temporary backend. Built and started a NEW
+owned PostgreSQL16.14/Redis7.4.6 cluster with runtime-only API credentials. Fresh
+bootstrap/forward migrations and real local 12-check API smoke PASS. The fixture
+accounts use synthetic data and random in-memory credentials, never logs. SMTP
+is an explicit421 rejection, not a fake successful delivery. Existing user servers,
+records/configuration and main remain untouched. Pilot files/secrets are outside Git.
+
+Manual workflow dispatch was denied403 by integration; ordinary authorized branch
+push/CI continued without alternate credentials or privilege changes. Run38914530509
+also preserved a failing source-contract assertion; the explicit manual/offline
+fallback contract was retained and a stronger mandatory-probe regression added.
+Runs38914632434/38914942984 attempted real external HTTPS. The latter's bounded
+annotation proves readiness HTTP403 before a successful API probe (job117019887767,
+source f55b45f). No connected APK was compiled/accepted. The subsequent SDK commands
+had no installed Flutter because early setup was skipped, not an app-source regression.
+Those prerequisite conditions and formatter-diagnostic triggers were corrected.
+
+Restored offline default on all refs; run38915340992 at4d69890 is an OFFLINE recovery
+validation, never connected-pilot proof. Check its fresh C39/C40 outcome rather than
+assuming it succeeded before completion. C41 remains BLOCKED on the actual public403.
+No sandbox credential is extracted, shared or embedded in the APK to bypass ingress;
+no production endpoint, fake auth or successful stub is substituted. Source/body
+and artifact evidence from successful earlier builds remain historical and scoped.
+
+
+### Actual offline recovery completed
+
+Run38915340992 / 4d698901164d5306055d3f33a32a864b74e49209 PASS: backend gate,
+clean Dart format/Flutter analysis/test, actual Kotlin JVM/application debug build,
+SDK certificate/compiled-package verification and actual upload. The pilot HTTPS
+step is explicitly NOT RUN in this offline recovery, not silently PASS. Actual
+artifact12052199765 is 86,214,126-byte GitHub-reported archive with reported SHA256
+6f66be23d962a08d0ef046fa88566a7fbdf6be301a15b292a22c21684fb5dd27:
+https://github.com/KarimOmarShawky/life-style-app/actions/runs/38915340992/artifacts/12052199765
+It is offline and NOT a connected phone trial, not downloaded/installed locally or
+independently hashed as an APK in this session. C41 remains BLOCKED on real ingress403.
+C37 now has17 source/negative/parser guards including mandatory connected-probe scope.
+Final local full regression re-executed separately on newly owned fixtures; source
+scan/current Git-history coverage and exact counts are the final C25/C36/C38 evidence.
+
+## Owner-approved temporary pilot and actual external boundary
+
+# Owner-approved temporary Android pilot — 2026-10-16
+
+The owner explicitly approved starting a NEW temporary isolated backend. This is
+not approval to touch an existing server/database, deploy production or merge main.
+
+## Actual environment and constraints
+
+- Real existing application builder, no mocked auth or synthetic success responses.
+  A single pilot listener avoids opening the production entrypoint's auxiliary ports.
+- NEW owned PostgreSQL16.14 and Redis7.4.6, authenticated and loopback-only. Exact
+  PostgreSQL data directory/PID and Redis PID are checked before bootstrap. Fresh
+  least-privilege role bootstrap and versioned forward migrations execute separately;
+  API process receives only runtime credentials, never admin/migrator credentials.
+- Generated secrets/private PG/Redis data are OUTSIDE Git in an owned 0700 directory
+  under /home/user/.local/lifestyle-pilot; private files are 0600. No .env adoption,
+  provider credential, user data, purge worker, FLUSHDB or destructive suite is used.
+- SMTP explicitly rejects at greeting with 421: no mail bodies accepted/queued/logged.
+  Registration/password login do not require SMTP. Password reset mail, real provider
+  delivery, AI and Push are NOT available; HTTP 202 is never delivery evidence.
+- Only synthetic names, notes and emails, and a unique test-only password. Do not use
+  a real password, personal finance records, wallet credentials or personal recordings.
+  API is internet-reachable when public HTTPS succeeds; standard application JWT,
+  account tenancy, JSON-only boundaries and rate limits are unchanged. Public signup
+  is not an invitation-only system. The URL is not an authentication secret.
+- TEMPORARY: sandbox/session may stop or be replaced. No duration, durability,
+  production SLA or future availability is promised. Do not rely on this storage.
+  Old owned fixture directories are retained privately, not bulk deleted or reused.
+
+## Execution and evidence
+
+scripts/run-pilot-environment.py uses externally installed scratch PostgreSQL/psql
+and Redis binaries (not new application dependencies), creates its own resources,
+checks ownership and readiness, runs the actual application on 0.0.0.0:8787 and
+stops only its own child processes on termination. It refuses existing dotenv files.
+It is a sandbox pilot launcher, not a supported Windows/production deployment tool.
+
+First preparation attempts safely refused an unsupported pilot database name, a
+scratch PostgreSQL build without pgcrypto, and missing bundled runtime-library
+aliases. All corresponding owned children stopped. No migration was skipped or
+changed to accommodate those prerequisites. The complete PostgreSQL16 scratch build
+then executed the unchanged application migrations. Real local HTTP smoke initially
+used the wrong response envelope and then tried JSON decoding HTTP204; those harness
+errors were corrected against actual controller contracts, not by changing the API.
+The final 12-check loopback smoke PASS is separately pilot-smoke.json. Its synthetic
+fixtures were confined to the first owned cluster; it was stopped and a NEW fresh
+pilot cluster started before the external CI probe. No user data existed there and
+no limiter policy/TTL was weakened or cache cleared to make tests pass.
+
+Sandbox outbound policy did not allow verification of its own public HTTPS URL.
+Therefore local readiness alone is NOT public/mobile reachability evidence.
+The manually dispatched CI pipeline must independently verify public HTTPS with
+normal certificate validation and execute real register/login/create/read/cross-user
+refusal/non-JSON refusal/delete-only-created-task checks against the EXACT reviewed
+sandbox host. It fails closed for other hosts, invalid TLS, unexpected bodies or
+any assertion failure. No credentials/tokens/response bodies are logged or saved.
+This is external API smoke, NOT Android-device or full-app E2E proof.
+
+The connected APK is compiled only after this probe succeeds. It remains a separate
+LifeStyle Validation debug app, not a signed/obfuscated production release. Future
+CI debug keys may differ: do not uninstall an existing app to work around a signing
+mismatch or assume an upgrade/migration was verified. No phone install is claimed.
+
+
+Manual workflow dispatch returned HTTP403 (integration permission). No reconnection,
+credential, privilege change, cancellation attempt or alternate authentication was
+used. Ordinary owner-authorized git push/automatic CI remains available. The pilot
+URL is therefore explicitly selected ONLY for this fixed session branch's push
+build; main and manual default remain offline. The exact-host real HTTPS/API probe
+is mandatory before compilation. Its approval refuses remote use from 18:00 UTC on
+2026-10-16 onward; that cutoff is NOT a promise that the sandbox will stay alive until
+then. A subsequent pilot needs explicit endpoint review, not a silent fallback.
+
+
+## Actual external boundary: BLOCKED
+
+Run38914942984 / f55b45f, mobile job117019887767 emitted the bounded actual HTTPS
+probe annotation: readiness HTTP403, JSON body class, before a successful API check.
+The local application health handler only returns200/503; no public phone readiness
+is inferred. No sandbox token is read, shared, embedded or used to bypass protection.
+This ingress refusal blocks a connected APK; the build was not uploaded. Restored
+all-branch offline default and retained mandatory TLS/API probe for any explicitly
+selected connected build. An existing offline APK is NOT relabeled connected.
+
+Because the early probe failed, Flutter setup was skipped in those attempts and
+always-run analysis/test commands then reported command-not-found; these are SDK
+prerequisite failures, not evidence the Flutter application regressed. Conditions
+now require actual successful SDK setup before analysis/tests, and formatter patch
+steps require an actual format failure. A failed HTTPS gate still fails the job and
+prevents APK compilation/upload. No fatal analysis flags/test assertions relaxed.
+
+A connected phone trial requires a separately approved hosting surface with real
+public HTTPS API ingress; the Arena preview is not assumed to supply that. Do not
+make the current production service the fallback. The active sandbox service may
+be viewed within the authenticated preview where supported, but is not a durable
+or externally verified phone backend.
 
 ## Database deployment and data preservation
 
@@ -380,7 +751,6 @@ for any approved role/client/JWT/OTP change. No live rotation has been performed
 `ensure-env.sh` is configuration-only and never applies migrations. Both Compose
 sources retain loopback infrastructure host bindings; runtime networking remains
 unverified. Keep existing volumes and data through reviewed forward deployment.
-
 
 ## Fresh-local generation and existing-install credential safeguards
 
@@ -502,7 +872,6 @@ consume. The `GITHUB_ACTIONS` flag is a context check, not an authentication bou
 The public ephemeral CI administrator fixture remains; not all CI fixtures have been
 eliminated. Local runner-file tests are not hosted-runner, isolation or masking proof.
 
-
 ## Sensitive actions and deployment compatibility
 
 # B-18 reauthentication contract
@@ -550,7 +919,6 @@ strict streaming verification, encrypted staging and a separate explicit save ac
 see `../mobile/account-archive.md` for scoped executed JVM checks and remaining gates. See
 `../api/account-archive.md` for its contract and remaining work, and
 session-and-scanner-hardening.md for the historical SQL-harness/transaction scope.
-
 
 ## Additional user-requested hardening after first delivery
 
@@ -643,7 +1011,6 @@ clipboard integration evidence.
 
 No new destructive cleanup, migrations, deployment, credentials, permissions,
 platform enforcement capability or product-policy thresholds were introduced.
-
 
 ## Continued work: authentication transactions, source scanning and truthful export scope
 
@@ -768,7 +1135,6 @@ these extensions are not counted as additional independent findings or full clos
 Final per-command results are in checks.json. No real database, Redis, SMTP, Flutter,
 native build or physical-device verification is claimed.
 
-
 ## Per-match credential provenance review and safe follow-up
 
 # Review and replacement of the 18 source-secret matches — 2026-10-15
@@ -833,7 +1199,6 @@ fingerprints, with an appended dated `source_followups` chain and reason. C26 ch
 each prior-to-next fingerprint and current bytes; no original record is renumbered,
 removed or blindly replaced. The current-source detector remains authoritative for
 current tracked source, separately from historical or deployed configurations.
-
 
 ## Streamed account-domain archive: implementation and remaining verification
 
@@ -949,7 +1314,6 @@ an error envelope. Never reinterpret a partial stream as a successful smaller ex
 Real SQL/projection/snapshot/tenancy and runtime grants now have owned-fixture C15/C32
 evidence. Deployed schema/grants, proxy behavior, outages/server cleanup under network
 failures and native/device behavior still require their separate runtime/release gates.
-
 
 ## Android stream verification, encrypted staging and explicit save: scoped evidence
 
@@ -1095,10 +1459,9 @@ patch level. The harness owns/removes only its temporary encrypted fixture files
 it never contacts an app service or device. The backend protocol remains documented
 in `../api/account-archive.md`.
 
-
 ## Money semantics
 
-Backend DTOs use currency exponents (JPY=0, KWD=3, CLF/UYW=4, others normally 2), decimal.js HALF_UP and string amounts; inputs validate before storage and idempotent posting. Mobile four-place BigInt arithmetic removes double monetary sums; totals are grouped by currency, active subscriptions use server monthlyEquivalent and only bounded progress becomes double. Five new mobile money tests are authored but BLOCKED from execution. There is no bulk historical ledger conversion, FX assumption or migration of financial values. Existing records may reflect earlier rounding; actual deployed-data reconciliation remains necessary.
+Backend DTOs use currency exponents (JPY=0, KWD=3, CLF/UYW=4, others normally 2), decimal.js HALF_UP and string amounts; inputs validate before storage and idempotent posting. Mobile four-place BigInt arithmetic removes double monetary sums; totals are grouped by currency, active subscriptions use server monthlyEquivalent and only bounded progress becomes double. Mobile money cases are within the actual hosted suite only when C20 PASS; no live financial-data reconciliation is inferred. There is no bulk historical ledger conversion, FX assumption or migration of financial values. Existing records may reflect earlier rounding; actual deployed-data reconciliation remains necessary.
 
 ## Digital Detox — capability gate, safety and incomplete work
 
@@ -1170,7 +1533,6 @@ review and pending-transaction queues remain plaintext in private app preference
 root/compromised-device access and indefinite local retention remain residual B-01/R-08
 risks. Do not describe all local SMS storage as encrypted.
 
-
 ## Per-command final evidence
 
 ### C01 — PASS
@@ -1201,7 +1563,7 @@ Evidence: docs/remediation/evidence/C03.txt
 
 Command: npm --prefix backend run lint
 
-Exit code: 0. Scope: 
+Exit code: 0. Scope:
 
 Evidence: docs/remediation/evidence/C04.txt
 
@@ -1209,7 +1571,7 @@ Evidence: docs/remediation/evidence/C04.txt
 
 Command: npm --prefix backend run format:check
 
-Exit code: 0. Scope: 
+Exit code: 0. Scope:
 
 Evidence: docs/remediation/evidence/C05.txt
 
@@ -1225,7 +1587,7 @@ Evidence: docs/remediation/evidence/C06.txt
 
 Command: npm --prefix backend run build
 
-Exit code: 0. Scope: 
+Exit code: 0. Scope:
 
 Evidence: docs/remediation/evidence/C07.txt
 
@@ -1317,27 +1679,27 @@ Exit code: not executed. Scope: Docker executable/daemon unavailable.
 
 Evidence: No execution log; blocked/not attempted.
 
-### C19 — BLOCKED
+### C19 — PASS
 
-Command: cd mobile-app/mobile && flutter analyze --fatal-infos
+Command: Hosted Flutter static analysis (C39 source-pinned run)
 
-Exit code: not executed. Scope: Flutter/Dart SDK unavailable; WASM parse is not analysis.
+Exit code: not executed. Scope: Actual hosted execution; PASS also requires clean preceding format/analysis gates, since diagnostic repair may modify a failed workspace. No device or connected-backend certification.
 
-Evidence: No execution log; blocked/not attempted.
+Evidence: docs/remediation/hosted-build.json
 
-### C20 — BLOCKED
+### C20 — PASS
 
-Command: cd mobile-app/mobile && flutter test
+Command: Hosted Flutter tests (C39 source-pinned run)
 
-Exit code: not executed. Scope: Flutter SDK unavailable, including Digital Detox, wallet and 25 new archive protocol/transport/widget cases.
+Exit code: not executed. Scope: Actual hosted execution; PASS also requires clean preceding format/analysis gates, since diagnostic repair may modify a failed workspace. No device or connected-backend certification.
 
-Evidence: No execution log; blocked/not attempted.
+Evidence: docs/remediation/hosted-build.json
 
 ### C21 — BLOCKED
 
 Command: cd mobile-app/mobile && flutter build apk --release; Android JVM tests and signature verification
 
-Exit code: not executed. Scope: Flutter/Android SDK and signing credentials unavailable. Scratch Java/Kotlin execute the Android-free stage only in C30; bridge/app compilation remains BLOCKED.
+Exit code: not executed. Scope: Owner-key signed/obfuscated release remains unavailable, not inferred from debug. Actual Android debug compilation/JVM/signature status is C40. No device certification.
 
 Evidence: No execution log; blocked/not attempted.
 
@@ -1359,15 +1721,15 @@ Evidence: No execution log; blocked/not attempted.
 
 ### C24 — NOT RUN
 
-Command: Container-image security scanners / hosted CI execution
+Command: Container-image security scanners
 
-Exit code: not executed. Scope: No Docker images/hosted execution. Current source is C25 and local reachable Git text history C36; B-31 stays partial.
+Exit code: not executed. Scope: Image security scanning NOT RUN. Actual hosted CI is recorded separately in C39/C40; it does not certify images.
 
 Evidence: No execution log; blocked/not attempted.
 
 ### C25 — PASS
 
-Command: npm --prefix tools/security audit --audit-level=high && node scripts/scan-secrets.mjs --self-test && node scripts/scan-secrets.mjs
+Command: npm --prefix tools/security ci --ignore-scripts --no-audit --no-fund && npm --prefix tools/security audit --audit-level=high && node scripts/scan-secrets.mjs --self-test && node scripts/scan-secrets.mjs
 
 Exit code: 0. Scope: Current-source only; real detector probes, no allowlist, metadata-only output. Original 18 provenance records and historical 18/16 findings remain in secret-triage.json; current-source result does not assess deployed reuse, Git history, images or generated private configuration.
 
@@ -1393,7 +1755,7 @@ Evidence: docs/remediation/evidence/C27.txt
 
 Command: node --check scripts/ci-resource-guard.mjs && node --test scripts/ci-resource-guard.test.mjs
 
-Exit code: 0. Scope: 16 hosted-resource guard/negative/source tests with Docker command spies only. Hosted workflow itself NOT RUN; these are command spies only. Actual archive/infrastructure execution is separately C15/C32, not inferred from C28.
+Exit code: 0. Scope: 16 hosted-resource guard/negative/source tests with Docker command spies only. The separate qa-gate.yml Docker harness is NOT RUN; authorized ci.yml execution is C39, not inferred from these command spies. Actual archive/infrastructure execution is separately C15/C32, not inferred from C28.
 
 Evidence: docs/remediation/evidence/C28.txt
 
@@ -1465,7 +1827,7 @@ Evidence: docs/remediation/evidence/C36.txt
 
 Command: node --check scripts/prepare-android-signing.mjs && node --check scripts/verify-android-apk.mjs && node --test scripts/android-build-preparation.test.mjs
 
-Exit code: 0. Scope: 13 real private-filesystem/negative/parser/source/YAML/bash/conditional-copy and missing-SDK CLI-refusal checks. Synthetic byte/certificate fixtures are not a key, real APK, Gradle execution, hosted runner or Android signature verification PASS; these remain C21/C24.
+Exit code: 0. Scope: 17 real private-filesystem/negative/parser/source/YAML/bash/copy/identity and missing-SDK CLI-refusal checks. Public/synthetic certificate fixtures and source checks do not themselves prove real application signatures or native behavior. Real SDK fixture and application execution are separately C39/C40; release/device/image gates remain distinct.
 
 Evidence: docs/remediation/evidence/C37.txt
 
@@ -1476,6 +1838,30 @@ Command: python scripts/review-history-provenance.py --self-test && python scrip
 Exit code: 0. Scope: Strict negative provenance self-test and actual in-memory comparison of every C36 match with baseline development-role definitions/local service hosts. Metadata only; C36 stays FAIL. Deployed reuse/rotation remains BLOCKED, original 18 source records preserved separately.
 
 Evidence: docs/remediation/evidence/C38.txt
+
+### C39 — PASS
+
+Command: python scripts/record-hosted-build.py
+
+Exit code: 0. Scope: Fresh GitHub run/job/step/artifact metadata and exact application/workflow source comparison to built commit; not deployment, connected backend, release key, device or inbox delivery certification.
+
+Evidence: docs/remediation/evidence/C39.txt
+
+### C40 — PASS
+
+Command: Hosted Android debug JVM tests, APK compilation, SDK apksigner verification and upload
+
+Exit code: not executed. Scope: Actual source-pinned hosted steps and nonexpired artifact required. Debug identity/default offline endpoint only; not release signing, production API, device behavior or app E2E.
+
+Evidence: docs/remediation/hosted-build.json
+
+### C41 — BLOCKED
+
+Command: Actual owned temporary pilot plus external certificate-validated HTTPS/API roundtrip
+
+Exit code: not executed. Scope: Local fresh owned database/cache/API and 12 HTTP smoke assertions executed. External run38914942984 returned HTTP403; connected phone pilot remains BLOCKED unless a fresh source-pinned external step actually succeeds. No access-token bypass, production fallback, native-device or provider delivery inference.
+
+Evidence: docs/remediation/pilot-external-check.json
 
 ## Complete source-finding traceability
 
@@ -1529,7 +1915,7 @@ Root cause: app_config.dart disables compile-time key in release; secure BYOK st
 
 Action and residual scope: Preserved release key guard; no reimplementation.
 
-Regression evidence: Release extraction and Flutter tests BLOCKED.
+Regression evidence: Release extraction remains BLOCKED. Actual source-pinned Flutter suite execution is C20; it does not prove release key extraction is absent.
 
 Disposition: code_unverified
 
@@ -1583,7 +1969,7 @@ Root cause: ADR-044 records multi-language approval. Registered locales are six,
 
 Action and residual scope: Preserve architecture, correct six-locale implementation documentation.
 
-Regression evidence: Static locale inventory; Flutter/RTL device checks BLOCKED.
+Regression evidence: Static locale inventory preserved. Actual Flutter suite is C20; physical RTL/localization verification remains BLOCKED.
 
 Disposition: code_unverified
 
@@ -1601,7 +1987,7 @@ Root cause: Backend readers exist; client calls nonexistent dashboard root; mino
 
 Action and residual scope: Use registered /dashboard/overview and string/currency-exponent money contract; preserve authenticated routes.
 
-Regression evidence: Real-router success/401/failure and exact arithmetic PASS; Flutter widget/API+DB tests BLOCKED.
+Regression evidence: Real-router success/401/failure and exact arithmetic PASS. Actual Flutter suite is C20; full dashboard widget/API+DB end-to-end verification remains NOT RUN.
 
 Disposition: code_unverified
 
@@ -1781,7 +2167,7 @@ Root cause: Many domains and concurrency/limiters lack meaningful integration co
 
 Action and residual scope: Add targeted remediation tests and strict test-source compilation. Existing project/recurring/concurrent refresh/limiters coverage still incomplete. Replaced the disconnected logger test with actual production output capture; added limiter expiry/outage/atomic-call contracts and sensitive-route outage regressions. Added 39 authentication transaction/refresh/last-login units and two account-metadata export SQL-harness units; corrected transaction ownership in seven auth flows without changing reuse policy.
 
-Regression evidence: Historical batch: 280 backend tests / 27 files PASS; final C06/report govern current totals; source+test strict compilation PASS. An initial 18-test transaction probe failed 10 cases before the fix; final 39 transaction/last-login tests and 2 metadata-export tests PASS. Owned PostgreSQL/Redis integration/security now executes under C15/C16/C32; this does not certify every concurrency scenario. Flutter/native execution remains BLOCKED. Added 26 production URI-default regressions; 17 separate Node helper/provenance/source tests PASS in C26 (not included in backend count).
+Regression evidence: Historical batch: 280 backend tests / 27 files PASS; final C06/report govern current totals; source+test strict compilation PASS. An initial 18-test transaction probe failed 10 cases before the fix; final 39 transaction/last-login tests and 2 metadata-export tests PASS. Owned PostgreSQL/Redis integration/security now executes under C15/C16/C32; this does not certify every concurrency scenario. Actual Flutter suite and Android debug evidence are C19/C20/C40; owner-key release and physical-device verification remain BLOCKED. Added 26 production URI-default regressions; 17 separate Node helper/provenance/source tests PASS in C26 (not included in backend count).
 
 Disposition: partial
 
@@ -1797,7 +2183,7 @@ Current code: confirmed
 
 Root cause: Setup overwrote endpoints with lifestyle_dev/Redis0. OTP unit test also opportunistically contacted Redis.
 
-Action and residual scope: Require explicit acknowledgement + lifestyle_test DB + nonzero Redis DB before importing integration/security files; inert unit endpoints and in-memory OTP. CI ephemeral services. Every integration/security suite has a first-import guard, protecting direct runner invocations too. Replaced unsafe legacy helper setup/down-up defaults: configuration-only ensure-env, unit-only verify-ci default, explicit isolated guards for matching application/migration targets and nonzero Redis, forward-up/repeat only, propagated errors. CI services are declared disposable, not verified live here. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.
+Action and residual scope: Require explicit acknowledgement + lifestyle_test DB + nonzero Redis DB before importing integration/security files; inert unit endpoints and in-memory OTP. CI ephemeral services. Every integration/security suite has a first-import guard, protecting direct runner invocations too. Replaced unsafe legacy helper setup/down-up defaults: configuration-only ensure-env, unit-only verify-ci default, explicit isolated guards for matching application/migration targets and nonzero Redis, forward-up/repeat only, propagated errors. Authorized hosted CI services are exercised under C39 with ephemeral credentials; this is not deployed legacy-data or production verification. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.
 
 Regression evidence: Guard accept/refuse unit tests PASS; actual unsafe integration invocation rejected before test import. Actual destructive hooks execute only after C32 proves fresh owned process/data-directory/DB identity; no existing user service is used or cleaned. C26: 17 standalone configuration/command-spy/provenance/Compose source tests PASS; simulated commands are not actual migration or isolation proof.
 
@@ -1815,9 +2201,9 @@ Current code: partially remediated
 
 Root cause: Sensitive authenticated actions lacked proof. The reused general Redis limiter failed open on outage; export UI automatically copied private data. Legacy export was unbounded/materialized and metadata-only despite complete/GDPR wording, and fetched unused password hashes. New bounded archive/mobile source does not prove end-to-end delivery.
 
-Action and residual scope: Required current-password proof with shared 5 attempts/15-minute budget and opt-in fail-closed 503 on limiter outage; Cache-Control no-store on user responses. Updated client prompts and contracts. Removed automatic clipboard copy; explicit warning/acknowledgement/action UI added (Flutter unverified). Disclosed metadata-only scope in UI/OpenAPI; selected only required profile columns; controlled 404 if the account disappears. Added a separate streamed version-1 domain archive across 21 explicit sections with excluded security/infrastructure fields, repeatable-read read-only cursor snapshot, decimal-string amounts, byte/row/time/concurrency limits, cancellation/backpressure and validated completion footer. Legacy metadata responses remain compatible below an explicit 1000-row-per-list limit; overflow fails 413, never silent truncation. Added Android source for incremental exact-byte validation, encrypted private staging and explicit SAF plaintext-destination save/readback with cancellation/owned cleanup and no new permissions. Large-account/other-platform adapters, Flutter/Android bridge compilation and deployed PostgreSQL/proxy/provider/device verification remain incomplete; retention unchanged; local-only audio policy clarified separately under B-15, without authorizing server uploads.
+Action and residual scope: Required current-password proof with shared 5 attempts/15-minute budget and opt-in fail-closed 503 on limiter outage; Cache-Control no-store on user responses. Updated client prompts and contracts. Removed automatic clipboard copy; explicit warning/acknowledgement/action UI added (Flutter suite C20; physical UI unverified). Disclosed metadata-only scope in UI/OpenAPI; selected only required profile columns; controlled 404 if the account disappears. Added a separate streamed version-1 domain archive across 21 explicit sections with excluded security/infrastructure fields, repeatable-read read-only cursor snapshot, decimal-string amounts, byte/row/time/concurrency limits, cancellation/backpressure and validated completion footer. Legacy metadata responses remain compatible below an explicit 1000-row-per-list limit; overflow fails 413, never silent truncation. Added Android source for incremental exact-byte validation, encrypted private staging and explicit SAF plaintext-destination save/readback with cancellation/owned cleanup and no new permissions. Large-account/other-platform adapters, Flutter/Android bridge compilation and deployed PostgreSQL/proxy/provider/device verification remain incomplete; retention unchanged; local-only audio policy clarified separately under B-15, without authorizing server uploads.
 
-Regression evidence: Six real-router proof/no-store units, logger-redaction and nine limiter units execute within C06. Prior 280-test/27-file batch is historical; final C06/evidence and generated report govern the current backend count (323/29 at this update). Password and legacy clipboard widget tests remain authored NOT RUN. Metadata projection/owner/missing-account/overflow and archive SQL/HTTP/control-flow units execute without a live DB; live snapshot/grants/tenancy/grace-period HTTP cases now execute in owned PostgreSQL/Redis C15/C32; deployment/native gates remain BLOCKED. C29: 8 synthetic fixture/source checks, NOT Dart runtime. C30: 10 actual Android-free JVM staging/crypto checks, including EOF-time revocation, NOT Android bridge/provider execution. 25 new archive Flutter protocol/coordinator/transport/widget cases authored NOT RUN. C12 parsed 34 changed Dart files, syntax only. No end-to-end portability/release claim.
+Regression evidence: Six real-router proof/no-store units, logger-redaction and nine limiter units execute within C06. Prior 280-test/27-file batch is historical; final C06/evidence and generated report govern the current backend count (earlier 323/29 snapshot, not current totals). Authored Flutter tests are included by the actual C20 suite; no physical clipboard/password-flow certification is inferred. Metadata projection/owner/missing-account/overflow and archive SQL/HTTP/control-flow units execute without a live DB; live snapshot/grants/tenancy/grace-period HTTP cases now execute in owned PostgreSQL/Redis C15/C32; deployment/native gates remain BLOCKED. C29: 8 synthetic fixture/source checks, NOT Dart runtime. C30: 10 actual Android-free JVM staging/crypto checks, including EOF-time revocation, NOT Android bridge/provider execution. 25 new archive Flutter protocol/coordinator/transport/widget cases authored NOT RUN. C12 parsed 34 changed Dart files, syntax only. No end-to-end portability/release claim.
 
 Disposition: partial
 
@@ -2033,7 +2419,7 @@ Root cause: Release fell back to debug signing; main activity exposed showWhenLo
 
 Action and residual scope: Removed debug release fallback and main-activity lock-screen overrides. Release preReleaseBuild now depends on complete signing properties/readable keystore; release selects only release identity. Corrected plugins-block ordering, explicitly applied Kotlin to match existing AGP9 opt-out and selected Java17 in CI. Automatic CI explicitly builds/signature-checks a debug validation APK with offline-by-default endpoint and honest name; approved HTTPS test backend can be explicitly supplied manually. Separate manual-main signed build requires both quality gates, private environment keys and expected public certificate, uses obfuscation/separate symbols, disables cache export and cleans only owned signing files. APK verifier requires actual SDK signature success, one expected non-debug signer before release upload. Workflow authored only; actual Gradle/obfuscation/APK/signature/device execution remains BLOCKED/NOT RUN, so no verified release is asserted.
 
-Regression evidence: C37 runs 13 real filesystem/negative/certificate-parser/CLI-refusal/source/YAML/bash-syntax checks. Synthetic bytes/certificate output are not real keys/signatures. C19-C22 remain BLOCKED and hosted CI C24 NOT RUN; actual release compilation/identity/obfuscation extraction and physical-device checks still required.
+Regression evidence: C37 executes 17 real filesystem/negative/public-certificate parser/CLI-refusal/source/YAML/bash checks, not actual application signatures. Actual source-pinned hosted Flutter analysis/tests and debug Android JVM/build/SDK signature/compiled-package/upload are separately C19/C20/C39/C40. A real SDK transient packaging probe publishes no fixture artifact. Owner-key release/obfuscation extraction and physical-device checks remain C21/C22 BLOCKED.
 
 Disposition: partial
 
@@ -2045,13 +2431,13 @@ Source severity: Low (P3)
 
 Overlap group: B-31
 
-Current code: partial implementation; actual current-source scan PASS; historical detector FAIL with reviewed local-default provenance; hosted/image execution NOT RUN
+Current code: partial implementation; actual current-source scan PASS; historical detector FAIL with reviewed local-default provenance; actual hosted CI separately C39; image scanning NOT RUN
 
 Root cause: No image/secret scanners; pool lacked statement timeout.
 
 Action and residual scope: Retained 15s statement_timeout; pinned isolated Secretlint and metadata-only Git worktree scanning, independent CI workflow, parseable short-Ed25519 coverage and real positive/negative probes. No detector exceptions. Retained all 18 historical match records and the earlier 18/16 FAIL history. Removed two unsafe helper defaults, then replaced remaining tracked application defaults with independent per-installation local/per-job CI credentials and matching bootstrap/Compose wiring. Fresh-only private files, exclusive creation, namespace/socket pinning and existing-config/role refusal; no overwrite, deletion or automatic rotation. CI public ephemeral administrator fixture remains. Current-source scan reports zero findings; deployed reuse is unknown; Owned PostgreSQL runtime executes under C32; Docker/hosted/container verification remains unexecuted. Historical detection/provenance now executes separately in C36/C38. Added a separate GitHub-hosted disposable runtime workflow, local-socket service identity/network/port preflight before bootstrap, repeat-bootstrap refusal check and independent forward/integration/security gates. The existing policy gate is unchanged; actual hosted execution NOT RUN.
 
-Regression evidence: C25 actual current-source detector/probes, C26 17 helper/provenance tests, C27 22 fresh-config tests and C28 16 hosted-resource command-spy tests are separate scoped gates; see final checks.json for fresh outcomes. C32 actually runs owned PostgreSQL/Redis migrations/integration/security, not Docker or deployed resources. Previous shallow C36 result (459 blobs/one commit/11 URI matches) is preserved in history. After actual unshallow fetch, C36 scans 1,033 UTF-8 blobs/93 reachable commits: 37 URI matches/eight skips, FAIL. C38 exact in-memory comparison identifies all 37 as baseline repository development-role defaults at local service hosts, with negative controls and metadata-only output: provenance PASS, deployed reuse BLOCKED. No rewrite/suppression/live rotation. Original 18 source records retained; CI edits append reasoned fingerprint chains. Images/hosted CI NOT RUN.
+Regression evidence: C25 actual current-source detector/probes, C26 17 helper/provenance tests, C27 22 fresh-config tests and C28 16 hosted-resource command-spy tests are separate scoped gates; see final checks.json for fresh outcomes. C32 actually runs owned PostgreSQL/Redis migrations/integration/security, not Docker or deployed resources. Previous shallow C36 result (459 blobs/one commit/11 URI matches) is preserved in history. After actual unshallow fetch, C36 at 4d69890 scans 1,377 UTF-8 blobs/112 reachable commits (including the preserved local recovery stash refs): 37 URI matches/eight skips, FAIL. C38 exact in-memory comparison identifies all 37 as baseline repository development-role defaults at local service hosts, with negative controls and metadata-only output: provenance PASS, deployed reuse BLOCKED. No rewrite/suppression/live rotation. Original 18 source records retained; CI edits append reasoned fingerprint chains. Images/hosted CI NOT RUN.
 
 Disposition: partial
 
@@ -2069,7 +2455,7 @@ Root cause: Duplicate Dockerfile text copies, duplicate compose and generated re
 
 Action and residual scope: Deleted audited root Dockerfile.txt and Dockerfile (1).txt duplicates, removed generated plugin registrant and added its Flutter ignore rule; added unreleased CHANGELOG. Canonical backend/docker Dockerfiles and compose compatibility paths retained deliberately. Broader dead/duplicate voice code and release-policy cleanup remain.
 
-Regression evidence: Reference search found no consumers of deleted Dockerfile text copies; diff/package deletion inventory checked. Flutter regeneration/native build BLOCKED. C34 strict unused-local/parameter TypeScript check PASS, no backend candidates invented. Removed proven dead native provider/recording scaffolding; C33 eight source checks only, not native execution.
+Regression evidence: Reference search found no consumers of deleted Dockerfile text copies; diff/package deletion inventory checked. Actual Android debug compilation is C40; iOS regeneration and physical-device behavior remain NOT RUN. C34 strict unused-local/parameter TypeScript check PASS, no backend candidates invented. Removed proven dead native provider/recording scaffolding; C33 eight source checks only, not native execution.
 
 Disposition: partial
 
@@ -2081,15 +2467,15 @@ Source severity: Low (P3)
 
 Overlap group: B-33
 
-Current code: code changed; runtime unverified
+Current code: targeted pure-money runtime verified in actual hosted Flutter suite; physical UI not certified
 
 Root cause: Mobile overview used double and aggregated unrelated currencies and subscription periods.
 
 Action and residual scope: Introduced four-place BigInt DecimalAmount, integer HALF_UP currency formatting, exact +/- totals, per-currency budget/subscription cards and exports. Active subscriptions use server monthlyEquivalent. Only bounded dimensionless progress uses double. No ledger records rewritten.
 
-Regression evidence: Five pure money regressions authored for 0.1+0.2, large values, JPY/KWD/CLF/negative ties, currency separation and input/progress; NOT RUN because Flutter/Dart SDK absent. WASM syntax parse PASS only.
+Regression evidence: Five non-skipped pure-money regressions in decimal_amount_test.dart are included by the actual unfiltered flutter test --coverage suite, C20 PASS with clean source-pinned formatter/analysis prerequisites: 0.1+0.2, large values, JPY/KWD/CLF/negative ties, currency separation and input/progress. Targeted arithmetic verification only; no physical UI, ledger reconciliation or full financial application E2E certification.
 
-Disposition: code_unverified
+Disposition: fixed_verified
 
 Affected / inspected files: mobile-app/mobile/lib/features/money/presentation/money_screen.dart; mobile-app/mobile/lib/core/money/decimal_amount.dart; mobile-app/mobile/test/decimal_amount_test.dart
 
@@ -2211,9 +2597,9 @@ Current code: confirmed
 
 Root cause: Backend readers exist; client calls nonexistent dashboard root; minor-unit summaries used Number*100.
 
-Action and residual scope: Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Flutter/DB contract runtime BLOCKED.
+Action and residual scope: Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Actual Flutter suite is C20; full Flutter/API/database end-to-end contract execution remains NOT RUN.
 
-Regression evidence: Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Flutter/DB contract runtime BLOCKED.
+Regression evidence: Exact Decimal HALF_UP integer strings; exponents in client BigInt formatter. USD/JPY/KWD/boundary unit tests PASS; Actual Flutter suite is C20; full Flutter/API/database end-to-end contract execution remains NOT RUN.
 
 Disposition: code_unverified
 
@@ -2463,9 +2849,9 @@ Current code: confirmed
 
 Root cause: AI sends name/counts/typed text to third party
 
-Action and residual scope: Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Flutter consent UI tests BLOCKED.
+Action and residual scope: Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Actual Flutter suite is C20; no specific consent UI/provider/device execution is inferred from a general suite PASS.
 
-Regression evidence: Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Flutter consent UI tests BLOCKED.
+Regression evidence: Consent explanation before first outbound chat per screen instance. No promise of financial-text filtering. Actual Flutter suite is C20; no specific consent UI/provider/device execution is inferred from a general suite PASS.
 
 Disposition: code_unverified
 
@@ -2483,7 +2869,7 @@ Root cause: ADR-044 records exceptions; server SMS key and BYOK guard remain. Vo
 
 Action and residual scope: Clarify actual platform recognition and unverified scope; do not invent authorization. Unreachable Gemini branch remains; device verification BLOCKED. 2026-10-16 cleanup removes both native dead Gemini upload/recording branches and misleading instant-alarm promises; retains existing OS speech channel/locale and compatibility notification entries. App-owned microphone/foreground-microphone capabilities removed; OS provider may use network. Original voice-scope approval remains unproven and native/device behavior BLOCKED.
 
-Regression evidence: Clarify actual platform recognition and unverified scope; do not invent authorization. Unreachable Gemini branch remains; device verification BLOCKED. C33 eight source-contract checks PASS; no Android compile/device PASS inferred.
+Regression evidence: Clarify actual platform recognition and unverified scope; do not invent authorization. Unreachable Gemini branch remains; device verification BLOCKED. C33 eight source-contract checks PASS; Actual Android debug compilation is separately C40; no speech/provider/device PASS inferred.
 
 Disposition: unclear
 
@@ -2499,9 +2885,9 @@ Current code: confirmed
 
 Root cause: Offline dependency/build observations
 
-Action and residual scope: npm lock install/build/audit execute; audit zero production vulnerabilities. Flutter override/plugin/build provenance still BLOCKED.
+Action and residual scope: npm lock install/build/audit execute; audit zero production vulnerabilities. Actual source-pinned debug Flutter/Android build evidence is C39/C40; owner-key release and physical plugin behavior remain BLOCKED.
 
-Regression evidence: npm lock install/build/audit execute; audit zero production vulnerabilities. Flutter override/plugin/build provenance still BLOCKED.
+Regression evidence: npm lock install/build/audit execute; audit zero production vulnerabilities. Actual source-pinned debug Flutter/Android build evidence is C39/C40; owner-key release and physical plugin behavior remain BLOCKED.
 
 Disposition: partial
 
@@ -2537,11 +2923,11 @@ Related scope: B-32. Contract/configuration/runbook/traceability update; precise
 
 ### D: Dockerfile (1).txt
 
-Related scope: B-32. Remove specifically audited duplicate/generated artifact; regeneration/build remains unverified.
+Related scope: B-32. Remove specifically audited duplicate/generated artifact; Android debug compilation is separately C40; no iOS/device regeneration proof.
 
 ### D: Dockerfile.txt
 
-Related scope: B-32. Remove specifically audited duplicate/generated artifact; regeneration/build remains unverified.
+Related scope: B-32. Remove specifically audited duplicate/generated artifact; Android debug compilation is separately C40; no iOS/device regeneration proof.
 
 ### M: backend/.env.example
 
@@ -2574,6 +2960,10 @@ Related scope: B-11, B-13, B-27, R-02, R-03, R-09, R-15, R-19. Focused source/bu
 ### M: backend/src/core/errors/app-error.ts
 
 Related scope: B-18. Focused source/build/security remediation; root cause and residual scope in linked finding records.
+
+### A: backend/src/core/lifecycle/drain-api.ts
+
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Focused source/build/security remediation; root cause and residual scope in linked finding records.
 
 ### M: backend/src/core/logger/logger.ts
 
@@ -2725,7 +3115,7 @@ Related scope: B-13, R-02, R-03, R-09. Focused source/build/security remediation
 
 ### D: backend/src/jobs/email-queue.ts
 
-Related scope: Cross-cutting remediation support; see findings.json and exact diff. Remove specifically audited duplicate/generated artifact; regeneration/build remains unverified.
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Remove specifically audited duplicate/generated artifact; Android debug compilation is separately C40; no iOS/device regeneration proof.
 
 ### M: backend/src/jobs/job-processors.ts
 
@@ -2745,7 +3135,7 @@ Related scope: B-08, B-11, B-12, R-04, R-06, R-15, R-16, R-19, R-20. Focused sou
 
 ### A: backend/tests/infrastructure-safety.ts
 
-Related scope: B-17. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-17. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/integration/account-archive.test.ts
 
@@ -2841,75 +3231,79 @@ Related scope: B-17 / B-16. First-import destructive-target guard and focused re
 
 ### M: backend/tests/setup.ts
 
-Related scope: B-17. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-17. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/test-safety.ts
 
-Related scope: B-17. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-17. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/account-archive.test.ts
 
-Related scope: B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/account-deletion.test.ts
 
-Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/account-export.test.ts
 
-Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/auth-transactions.test.ts
 
-Related scope: B-16, B-27. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16, B-27. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/env.test.ts
 
-Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/ingest-analyze.test.ts
 
-Related scope: B-24. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-24. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/job-processors.test.ts
 
-Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/logger-redaction.test.ts
 
-Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/otp-service.test.ts
 
-Related scope: B-10, B-17. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-10, B-17. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/production-db-defaults.test.ts
 
-Related scope: B-09, B-16, B-31. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-09, B-16, B-31. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/rate-limiter.test.ts
 
-Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/remediation-regressions.test.ts
 
-Related scope: B-16, B-27, B-28. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16, B-27, B-28. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/reset-request-dispatcher.test.ts
 
-Related scope: B-13, B-27. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-13, B-27. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/sensitive-actions.test.ts
 
-Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
+
+### A: backend/tests/unit/shutdown-drain.test.ts
+
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: backend/tests/unit/startup-ddl-guard.test.ts
 
-Related scope: P0-01. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: P0-01. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tests/unit/upload-boundary.test.ts
 
-Related scope: B-15. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-15. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: backend/tsconfig.verification.json
 
@@ -2986,6 +3380,10 @@ Related scope: Cross-cutting remediation support; see findings.json and exact di
 ### M: docs/mobile/flutter-integration.md
 
 Related scope: B-05, B-20. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
+
+### A: docs/mobile/temporary-pilot.md
+
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
 
 ### A: docs/remediation/apply-patch.md
 
@@ -3115,6 +3513,22 @@ Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Capture actual comman
 
 Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Capture actual command output; scopes and exit codes are in checks.json.
 
+### A: docs/remediation/evidence/C39.txt
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Capture actual command output; scopes and exit codes are in checks.json.
+
+### A: docs/remediation/evidence/iterations/hosted-run-38905354494.json
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Capture actual command output; scopes and exit codes are in checks.json.
+
+### A: docs/remediation/evidence/iterations/hosted-run-38905354494.txt
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Capture actual command output; scopes and exit codes are in checks.json.
+
+### A: docs/remediation/evidence/iterations/pilot-run-38914942984.json
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Capture actual command output; scopes and exit codes are in checks.json.
+
 ### A: docs/remediation/evidence/iterations/predevice-first-C04.txt
 
 Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Capture actual command output; scopes and exit codes are in checks.json.
@@ -3142,6 +3556,30 @@ Related scope: B-31. Contract/configuration/runbook/traceability update; precise
 ### A: docs/remediation/history-scan.json
 
 Related scope: B-31. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
+
+### A: docs/remediation/hosted-build-request.json
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
+
+### A: docs/remediation/hosted-build.json
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
+
+### A: docs/remediation/hosted-build.md
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
+
+### A: docs/remediation/pilot-environment.json
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
+
+### A: docs/remediation/pilot-external-check.json
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
+
+### A: docs/remediation/pilot-smoke.json
+
+Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Contract/configuration/runbook/traceability update; precise intent in linked findings and diff.
 
 ### A: docs/remediation/report.md
 
@@ -3205,11 +3643,11 @@ Related scope: B-01, B-30, R-08. Focused source/build/security remediation; root
 
 ### D: mobile-app/mobile/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 
-Related scope: B-32. Remove specifically audited duplicate/generated artifact; regeneration/build remains unverified.
+Related scope: B-32. Remove specifically audited duplicate/generated artifact; Android debug compilation is separately C40; no iOS/device regeneration proof.
 
 ### A: mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/AccountArchiveBridge.kt
 
-Related scope: B-18. Android private staging/SAF chooser, verified plaintext copy/readback and cleanup source; Android compile/provider/device gates BLOCKED.
+Related scope: B-18. Android private staging/SAF chooser, verified plaintext copy/readback and cleanup source; debug compilation/JVM evidence C40, provider/device verification C22 BLOCKED.
 
 ### A: mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/AccountArchiveStage.kt
 
@@ -3261,15 +3699,15 @@ Related scope: Digital Detox. Focused source/build/security remediation; root ca
 
 ### A: mobile-app/mobile/lib/core/archive/archive_cancellation.dart
 
-Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax only, Flutter/widget/provider execution BLOCKED.
+Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax and actual Flutter suite C20; physical provider/UI execution C22 BLOCKED.
 
 ### A: mobile-app/mobile/lib/core/archive/archive_export.dart
 
-Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax only, Flutter/widget/provider execution BLOCKED.
+Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax and actual Flutter suite C20; physical provider/UI execution C22 BLOCKED.
 
 ### A: mobile-app/mobile/lib/core/archive/archive_verifier.dart
 
-Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax only, Flutter/widget/provider execution BLOCKED.
+Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax and actual Flutter suite C20; physical provider/UI execution C22 BLOCKED.
 
 ### A: mobile-app/mobile/lib/core/money/decimal_amount.dart
 
@@ -3289,7 +3727,7 @@ Related scope: B-18. Focused source/build/security remediation; root cause and r
 
 ### A: mobile-app/mobile/lib/features/auth/presentation/account_archive_dialog.dart
 
-Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax only, Flutter/widget/provider execution BLOCKED.
+Related scope: B-18. Bounded archive validation/coordinator/explicit consent source; C12 syntax and actual Flutter suite C20; physical provider/UI execution C22 BLOCKED.
 
 ### A: mobile-app/mobile/lib/features/auth/presentation/account_export_dialog.dart
 
@@ -3385,35 +3823,35 @@ Related scope: B-15, B-18, R-23. Contract/configuration/runbook/traceability upd
 
 ### A: mobile-app/mobile/test/account_archive_dialog_test.dart
 
-Related scope: B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: mobile-app/mobile/test/account_archive_test.dart
 
-Related scope: B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: mobile-app/mobile/test/account_archive_transport_test.dart
 
-Related scope: B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: mobile-app/mobile/test/account_export_dialog_test.dart
 
-Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16, B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: mobile-app/mobile/test/current_password_dialog_test.dart
 
-Related scope: B-18. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-18. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: mobile-app/mobile/test/daily_plan_and_lifecycle_test.dart
 
-Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: mobile-app/mobile/test/decimal_amount_test.dart
 
-Related scope: B-33. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-33. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: mobile-app/mobile/test/digital_detox_test.dart
 
-Related scope: B-16. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-16. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### A: mobile-app/mobile/test/fixtures/account_archive_v1.ndjson
 
@@ -3421,7 +3859,7 @@ Related scope: B-18. Synthetic exact-byte archive fixture/source-contract checks
 
 ### M: mobile-app/mobile/test/wallet_ingest_token_test.dart
 
-Related scope: B-01 / R-08. Regression test/fake/contract updates; backend C03/C06, Flutter C20 BLOCKED as applicable.
+Related scope: B-01 / R-08. Regression test/fake/contract updates; backend C03/C06 and actual Flutter C20 as scoped; no individual device test inferred.
 
 ### M: schema.sql
 
@@ -3458,6 +3896,10 @@ Related scope: B-15. Focused source/build/security remediation; root cause and r
 ### A: scripts/check-forbidden.test.mjs
 
 Related scope: B-15. Focused source/build/security remediation; root cause and residual scope in linked finding records.
+
+### A: scripts/check-pilot-api.py
+
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Focused source/build/security remediation; root cause and residual scope in linked finding records.
 
 ### A: scripts/ci-database-env.mjs
 
@@ -3503,6 +3945,10 @@ Related scope: B-16 / B-20 / B-32; cross-cutting evidence. Focused source/build/
 
 Related scope: B-30. Focused source/build/security remediation; root cause and residual scope in linked finding records.
 
+### A: scripts/record-hosted-build.py
+
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Focused source/build/security remediation; root cause and residual scope in linked finding records.
+
 ### A: scripts/review-history-provenance.py
 
 Related scope: B-31. Focused source/build/security remediation; root cause and residual scope in linked finding records.
@@ -3511,6 +3957,10 @@ Related scope: B-31. Focused source/build/security remediation; root cause and r
 
 Related scope: B-07. Focused source/build/security remediation; root cause and residual scope in linked finding records.
 
+### A: scripts/run-pilot-environment.py
+
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Focused source/build/security remediation; root cause and residual scope in linked finding records.
+
 ### A: scripts/scan-git-history.py
 
 Related scope: B-31. Focused source/build/security remediation; root cause and residual scope in linked finding records.
@@ -3518,6 +3968,10 @@ Related scope: B-31. Focused source/build/security remediation; root cause and r
 ### A: scripts/scan-secrets.mjs
 
 Related scope: B-31. Focused source/build/security remediation; root cause and residual scope in linked finding records.
+
+### A: scripts/smoke-android-verifier.sh
+
+Related scope: Cross-cutting remediation support; see findings.json and exact diff. Focused source/build/security remediation; root cause and residual scope in linked finding records.
 
 ### A: scripts/verify-android-apk.mjs
 
@@ -3555,7 +4009,7 @@ Related scope: B-31. Focused source/build/security remediation; root cause and r
 
 1. Owned current-schema runtime/migration fixtures now execute under C15-C17/C32. Rehearse the actual legacy deployment/restore separately (C35 BLOCKED); never point destructive cleanup at live data.
 
-2. Install Flutter/Dart and Android toolchains; run analysis, all unit/widget tests and native builds. Use an actual signing key out of band and verify signatures; test Keystore migration, backup exclusions and Detox enforcement/release/recovery on devices. Verify archive transport/identity/cancellation, private staging, chooser, plaintext/cloud consent, readback and provider failures, expiry/disposal/orphan cleanup on devices. Resolve any compile/lifecycle failures before release.
+2. Check the actual source-pinned hosted C19/C20/C40 outcomes and artifacts. Debug compilation/signature is not owner-key release or device proof. Use an actual signing key out of band and verify signatures; test Keystore migration, backup exclusions and Detox enforcement/release/recovery on devices. Verify archive transport/identity/cancellation, private staging, chooser, plaintext/cloud consent, readback and provider failures, expiry/disposal/orphan cleanup on devices. Resolve any compile/lifecycle failures before release.
 
 3. Verify real SMTP delivery/failure, shutdown and statistical load/timing behavior. B-27 now admits bounded volatile requests before lookup/cooldown/SMTP; targeted tests do not prove constant-time behavior or durable delivery. B-07 audit/session retention and large-account/other-platform export/clipboard scope remain partial; measure and implement approved policies without deleting live data or exposing credentials.
 

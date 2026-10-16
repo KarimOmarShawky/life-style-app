@@ -90,7 +90,7 @@ def main():
     flush()
     commits = int(git('rev-list', '--count', '--all'))
     result = 'FAIL' if findings else 'PASS'
-    REPORT.write_text(json.dumps(dict(result=result, local_reachable_commits=commits,
+    REPORT.write_text(json.dumps(dict(result=result, scan_head=git('rev-parse', 'HEAD').decode().strip(), local_reachable_commits=commits,
         is_shallow_repository=git('rev-parse', '--is-shallow-repository').decode().strip() == 'true',
         provenance_report='docs/remediation/history-provenance.json',
         unique_utf8_blobs_scanned=scanned, metadata_only_findings=findings, skipped=skipped,

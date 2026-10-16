@@ -95,7 +95,7 @@ run('C26', 'bash -n scripts/ensure-env.sh scripts/verify-ci.sh && node --test sc
 run('C27', 'node --check scripts/local-setup.mjs && node --check scripts/local-stack.mjs && node --check scripts/ci-database-env.mjs && node --test scripts/local-setup.test.mjs',
     '22 fresh-setup/private-file/CI-fixture/command-spy/source tests in owned temporary directories only. No real Docker, PostgreSQL, migrations or hosted runner verification.')
 run('C28', 'node --check scripts/ci-resource-guard.mjs && node --test scripts/ci-resource-guard.test.mjs',
-    '16 hosted-resource guard/negative/source tests with Docker command spies only. Hosted workflow itself NOT RUN; these are command spies only. Actual archive/infrastructure execution is separately C15/C32, not inferred from C28.')
+    '16 hosted-resource guard/negative/source tests with Docker command spies only. The separate qa-gate.yml Docker harness is NOT RUN; authorized ci.yml execution is C39, not inferred from these command spies. Actual archive/infrastructure execution is separately C15/C32, not inferred from C28.')
 run('C29', 'node --test scripts/archive-mobile-contract.test.mjs',
     '8 synthetic archive-wire-fixture/source-contract checks. Not Dart execution, Android bridge compilation or document-provider/UI integration.')
 java_home = Path(os.environ.get('ARCHIVE_JAVA_HOME', '/home/user/.venv/lib/python3.11/site-packages/jdk4py/java-runtime'))
@@ -117,7 +117,39 @@ checks.append(dict(id='C35', command='Actual legacy deployment migration/restore
 run('C36', 'python scripts/scan-git-history.py',
     'Actual unique UTF-8 Git blobs in locally reachable refs only; binary/large/non-UTF8/unfetched/unreachable/image/runtime contents excluded explicitly. Historical matches FAIL pending operational assessment, not proof of live reuse.')
 run('C37', 'node --check scripts/prepare-android-signing.mjs && node --check scripts/verify-android-apk.mjs && node --test scripts/android-build-preparation.test.mjs',
-    '13 real private-filesystem/negative/parser/source/YAML/bash/copy and missing-SDK CLI-refusal checks. Synthetic byte/certificate fixtures are not a key, real APK, Gradle execution, hosted runner or Android signature verification PASS; these remain C21/C24.')
+    '17 real private-filesystem/negative/parser/source/YAML/bash/copy/identity and missing-SDK CLI-refusal checks. Public/synthetic certificate fixtures and source checks do not themselves prove real application signatures or native behavior. Real SDK fixture and application execution are separately C39/C40; release/device/image gates remain distinct.')
 run('C38', 'python scripts/review-history-provenance.py --self-test && python scripts/review-history-provenance.py',
     'Strict negative provenance self-test and actual in-memory comparison of every C36 match with baseline development-role definitions/local service hosts. Metadata only; C36 stays FAIL. Deployed reuse/rotation remains BLOCKED, original 18 source records preserved separately.')
+run('C39', 'python scripts/record-hosted-build.py',
+    'Fresh GitHub run/job/step/artifact metadata and exact application/workflow source comparison to built commit; not deployment, connected backend, release key, device or inbox delivery certification.')
+hosted = json.loads((ROOT / 'docs/remediation/hosted-build.json').read_text())
+if hosted['result'] == 'BLOCKED':
+    checks[-1]['result'] = 'BLOCKED'
+mobile = next((j for j in hosted.get('jobs', []) if j['name'].startswith('Flutter and Android debug validation')), {})
+steps = {s['name']: s['conclusion'] for s in mobile.get('steps', [])}
+for id, step in [('C19', 'Flutter static analysis'), ('C20', 'Flutter tests')]:
+    if step in steps and steps[step] in ['success', 'failure']:
+        check = next(c for c in checks if c['id'] == id)
+        prerequisites = ['Dart formatting'] + (['Flutter static analysis'] if id == 'C20' else [])
+        clean_workspace = all(steps.get(name) == 'success' for name in prerequisites)
+        sdk_ready = steps.get('Setup Flutter stable channel') == 'success'
+        result = 'BLOCKED' if not sdk_ready else 'FAIL' if steps[step] == 'failure' else 'PASS' if clean_workspace else 'BLOCKED'
+        check.update(result=result, command='Hosted ' + step + ' (C39 source-pinned run)',
+                     reason='Actual hosted execution; PASS also requires clean preceding format/analysis gates, since diagnostic repair may modify a failed workspace. No device or connected-backend certification.',
+                     evidence='docs/remediation/hosted-build.json')
+next(c for c in checks if c['id'] == 'C24').update(command='Container-image security scanners',
+    reason='Image security scanning NOT RUN. Actual hosted CI is recorded separately in C39/C40; it does not certify images.')
+next(c for c in checks if c['id'] == 'C21')['reason'] = 'Owner-key signed/obfuscated release remains unavailable, not inferred from debug. Actual Android debug compilation/JVM/signature status is C40. No device certification.'
+required = ['Kotlin JVM unit tests', 'Build Android debug validation APK (offline by default, not release)',
+            'Verify validation APK signature', 'Upload debug validation APK (not a release or connected backend test)']
+artifact = any(a['name'] == 'lifestyle-android-debug-validation-NOT-RELEASE' and not a['expired'] and a['size_in_bytes'] > 0 for a in hosted.get('artifacts', []))
+debug_result = 'PASS' if all(steps.get(s) == 'success' for s in required) and artifact else 'FAIL' if any(steps.get(s) == 'failure' for s in required) else 'BLOCKED' if hosted['result'] == 'BLOCKED' else 'NOT RUN'
+checks.append(dict(id='C40', command='Hosted Android debug JVM tests, APK compilation, SDK apksigner verification and upload',
+    result=debug_result, reason='Actual source-pinned hosted steps and nonexpired artifact required. Debug identity/default offline endpoint only; not release signing, production API, device behavior or app E2E.',
+    evidence='docs/remediation/hosted-build.json'))
+pilot_step = steps.get('Approved temporary pilot public HTTPS and real API roundtrip (not device)')
+checks.append(dict(id='C41', command='Actual owned temporary pilot plus external certificate-validated HTTPS/API roundtrip',
+    result='PASS' if pilot_step == 'success' else 'BLOCKED',
+    reason='Local fresh owned database/cache/API and 12 HTTP smoke assertions executed. External run38914942984 returned HTTP403; connected phone pilot remains BLOCKED unless a fresh source-pinned external step actually succeeds. No access-token bypass, production fallback, native-device or provider delivery inference.',
+    evidence='docs/remediation/pilot-external-check.json'))
 (ROOT / 'docs/remediation/checks.json').write_text(json.dumps(checks, indent=2) + '\n')

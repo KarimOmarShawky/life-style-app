@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { rootCertificates } from 'node:tls';
+import { X509Certificate } from 'node:crypto';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, statSync, existsSync, rmSync } from 'node:fs';
@@ -153,4 +155,15 @@ test('actual APK manifest parser requires isolated validation ID and refuses swa
   assert.throws(() => verifyPackage(debug, 'release'));
   assert.throws(() => verifyPackage('missing', 'debug'));
   assert.throws(() => verifyPackage(debug, 'unknown'));
+});
+
+
+test('public X509 certificate parser computes SHA256 independently of SDK human digest labels', () => {
+  const pem = rootCertificates[0]; // Public CA certificate fixture, not a private key or APK verification.
+  const expected = new X509Certificate(pem).fingerprint256;
+  const output = 'Number of signers: 1\n' + pem;
+  verifyCertificate(output, 'release', expected);
+  assert.throws(() => verifyCertificate(output, 'release', '1'.repeat(64)));
+  assert.throws(() => verifyCertificate(output, 'debug'));
+  assert.throws(() => verifyCertificate(output + '\n' + pem, 'release', expected));
 });

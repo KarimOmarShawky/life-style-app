@@ -375,3 +375,20 @@ jobs:
             rm -f -- mobile-app/mobile/android/key.properties
             rm -rf -- "$ANDROID_SIGNING_DIRECTORY"
           fi
+
+
+  android-verifier-probe:
+    name: Real SDK verifier fixture (not application or device test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Real SDK transient fixture probe, no published artifact
+        run: bash scripts/smoke-android-verifier.sh

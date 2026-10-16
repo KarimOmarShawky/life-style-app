@@ -23,7 +23,8 @@ const Map<String, String> arCatalog = {
   'dueDate': 'تاريخ الاستحقاق',
   'resetPassword': 'إعادة تعيين كلمة المرور',
   'sendResetCode': 'إرسال رمز التحقق',
-  'resetCodeSent': 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+  'resetCodeSent':
+      'إذا كان هذا البريد لحساب مؤهل، فسنحاول إرسال رمز لإعادة التعيين. يرجى التحقق من صندوق الوارد.',
   'enterResetCode': 'أدخل الرمز المكون من 6 أرقام',
   'newPassword': 'كلمة المرور الجديدة',
   'confirmNewPassword': 'تأكيد كلمة المرور الجديدة',

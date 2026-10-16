@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/security/security-headers.test.ts
  *

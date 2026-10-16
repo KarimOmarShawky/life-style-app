@@ -1,3 +1,9 @@
+> **Historical report, not current verification (2026-10-15).** Claims below are
+> retained as historical assertions. Current command outcomes are recorded in
+> `docs/remediation/checks.json`. `verify-ci.sh` no longer defaults to infrastructure
+> tests or down/up migrations; it is unit-only by default with explicit isolated
+> opt-in. Live migration/security/mobile verification remains BLOCKED here.
+
 # Phase P5 Delivery Report — Habits & Daily Progress
 
 **Phase:** P5 — Habits & Daily Progress  

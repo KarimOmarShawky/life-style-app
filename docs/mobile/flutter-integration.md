@@ -4,17 +4,17 @@ The MVP client is a native Flutter app that talks directly to the REST API. It i
 
 ## Included client foundation
 
-- Flutter source package at `mobile/`, using Riverpod for authentication/task state.
+- Flutter source package at `mobile-app/mobile/`, using Riverpod for authentication/task state.
 - REST transport compatible with the API's raw success DTOs, `{ data, meta }` collection responses, and `{ success: false, error }` errors.
 - Registration, login, password-reset request/confirmation, profile display, task listing/creation/completion, and logout.
-- Access and opaque refresh tokens stored together in one secure-storage value; no tokens are written to preferences, logs, or navigation state.
+- Access and opaque refresh tokens stored together in one secure-storage value; access/refresh tokens are not written to preferences, logs, or navigation state. The ingest token uses native Android Keystore ciphertext / secure storage; SMS candidate queues still use private preferences (residual risk).
 - One in-flight refresh operation is shared across concurrent expired-token responses. A request is replayed once only after `TOKEN_EXPIRED`; unrelated `401` errors are not retried. If rotation outcome is uncertain, the stored pair is cleared because replaying an old token would trigger the server's strict reuse detection.
-- English localization scaffolding in `mobile/lib/l10n/` and English ARB source catalog. `en` is the only supported locale for the MVP.
-- Native route handling accepts only `/tasks` and `/profile` destinations. URI query strings and fragments are discarded.
+- English localization scaffolding in `mobile/lib/l10n/` and English ARB source catalog. Six locales are currently registered: en, ar, de, es, fr, tr.
+- Native route handling accepts the paths in `navigation/deep_link_parser.dart`. URI query strings and fragments are discarded.
 
 ## Requirements to run
 
-Install the Flutter stable SDK and the platform tooling for the target device. From `mobile/`:
+Install the Flutter stable SDK and the platform tooling for the target device. From `mobile-app/mobile/`:
 
 ```bash
 flutter pub get
@@ -57,15 +57,14 @@ For iOS, add `lifestyle` to `CFBundleURLTypes` in the generated Runner `Info.pli
 
 The client sends bearer access tokens in the `Authorization` header. It never uses cookies. The API remains authoritative for validation, ownership, money, date, and concurrency rules.
 
-## Optional AI build define
+## AI credentials and privacy
 
-The AI assistant and native voice transcription use Gemini. They are disabled unless the app is built with the key:
+Release builds ignore compile-time Gemini keys. The assistant uses a user-supplied
+key in secure storage, cleared on logout. No key is mirrored to preferences.
+Native voice uses platform recognition; its Gemini key reader returns empty.
+The assistant asks before sending typed text, conversation history, display name
+and task/habit counts to Google. Do not enter secrets; provider policies apply.
 
-```bash
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1 --dart-define=GEMINI_API_KEY=<key>
-```
-
-The key has no source default. `build_apk.bat` at the repo root passes it through only when `GEMINI_API_KEY` is set in the environment (`set GEMINI_API_KEY=<key>` in the same terminal, then run the file). On startup the app mirrors it into the app's private SharedPreferences (`flutter.gemini_api_key`) so native voice code can read it. A build-time define is still compiled into the APK, so anyone who extracts the app can read the key. For production, move the Gemini call behind a backend endpoint that reads the key from server configuration.
 
 ## Wallet SMS capture
 

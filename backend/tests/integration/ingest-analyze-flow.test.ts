@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/ingest-analyze-flow.test.ts
  *
@@ -159,6 +160,7 @@ describe('SMS fallback analyze route', () => {
       });
 
     expect(capture).toHaveLength(1);
+    if (!capture[0]) throw new Error('Expected sanitized analyzer input');
     expect(capture[0].text).not.toContain('918273');
     expect(capture[0].text).not.toContain('01000000000');
     expect(capture[0].text).not.toContain('9,900.00');

@@ -1,0 +1,16 @@
+{
+  "source_records": 57,
+  "record_statuses": {
+    "fixed_verified": 11,
+    "partial": 24,
+    "code_unverified": 20,
+    "unclear": 2
+  },
+  "risk_groups": 37,
+  "group_statuses": {
+    "fixed_verified": 6,
+    "partial": 18,
+    "code_unverified": 12,
+    "unclear": 1
+  }
+}

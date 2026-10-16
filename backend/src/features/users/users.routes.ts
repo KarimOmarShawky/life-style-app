@@ -30,15 +30,30 @@ export function createUsersRouter(options: {
     keyGenerator: (req) => `user:${req.user?.id || 'anon'}`
   });
 
+  // Expensive password checks share a bounded per-user budget across sensitive actions.
+  const reauthenticationLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    failClosed: true,
+    limit: 5,
+    windowSeconds: 900,
+    keyGenerator: (req) => `reauth:user:${req.user?.id || 'anon'}`
+  });
+
+  // Profile/export data must not be retained by shared or browser caches.
+  router.use((_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   router.use(authenticate, userRateLimiter);
 
   router.get('/me', controller.getProfile);
   router.patch('/me', controller.updateProfile);
   router.put('/me/devices', controller.registerPushDevice);
   router.delete('/me/devices/:deviceId', controller.deletePushDevice);
-  router.post('/me/deletion', controller.scheduleDeletion);
+  router.post('/me/deletion', reauthenticationLimiter, controller.scheduleDeletion);
   router.delete('/me/deletion', controller.cancelDeletion);
-  router.post('/me/export', controller.exportUserData);
+  router.post('/me/export/archive', reauthenticationLimiter, controller.exportUserArchive);
+  router.post('/me/export', reauthenticationLimiter, controller.exportUserData);
 
   return router;
 }

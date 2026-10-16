@@ -1,3 +1,5 @@
+import { ACCOUNT_ARCHIVE_LIMITS } from './account-archive.js';
+import type { PasswordHasher } from '../../core/security/password-hasher.js';
 /**
  * src/features/users/users.service.ts
  *
@@ -24,8 +26,19 @@ export interface RequestMeta {
 export class UsersService {
   constructor(
     private readonly repo: UsersRepository,
-    private readonly auditLogger: AuditLogger
+    private readonly auditLogger: AuditLogger,
+    private readonly passwordHasher: PasswordHasher
   ) {}
+
+  public async reauthenticate(userId: string, currentPassword: string): Promise<void> {
+    const user = await this.repo.getUserProfile(userId);
+    const valid = user
+      ? await this.passwordHasher.verify(currentPassword, user.password_hash)
+      : await this.passwordHasher.dummyVerify();
+    if (!user || !valid) {
+      throw AppError.forbidden('Current password verification failed', 'REAUTHENTICATION_FAILED');
+    }
+  }
 
   public async getProfile(userId: string): Promise<UserDto> {
     const user = await this.repo.getUserProfile(userId);
@@ -141,6 +154,60 @@ export class UsersService {
 
   public async purgeExpiredAccounts(cutoff = new Date()): Promise<number> {
     return this.repo.purgeExpiredAccounts(cutoff);
+  }
+
+  public async *streamUserArchive(
+    userId: string,
+    requestedSignal: AbortSignal,
+    meta?: RequestMeta
+  ): AsyncGenerator<string> {
+    const signal = AbortSignal.any([
+      requestedSignal,
+      AbortSignal.timeout(ACCOUNT_ARCHIVE_LIMITS.durationMs)
+    ]);
+    const archive = this.repo.streamUserArchive(userId, signal);
+    try {
+      while (true) {
+        const frame = await archive.next();
+        if (!frame.done) {
+          yield frame.value;
+          continue;
+        }
+        if (!frame.value || signal.aborted)
+          throw AppError.serviceUnavailable('Account archive interrupted; retry later');
+        let onAbort: (() => void) | undefined;
+        try {
+          await Promise.race([
+            this.auditLogger.log({
+              actorType: 'user',
+              actorUserId: userId,
+              eventType: 'user.domain_archive.generated',
+              outcome: 'success',
+              requestId: meta?.requestId,
+              ip: meta?.ip,
+              userAgent: meta?.userAgent
+            }),
+            new Promise<never>((_resolve, reject) => {
+              onAbort = () =>
+                reject(AppError.serviceUnavailable('Account archive interrupted; retry later'));
+              signal.addEventListener('abort', onAbort, { once: true });
+            })
+          ]);
+        } finally {
+          if (onAbort) signal.removeEventListener('abort', onAbort);
+        }
+        if (signal.aborted)
+          throw AppError.serviceUnavailable('Account archive interrupted; retry later');
+        const footer = JSON.stringify({ type: 'complete', ...frame.value }) + '\n';
+        if (Buffer.byteLength(footer) > ACCOUNT_ARCHIVE_LIMITS.footerReserveBytes) {
+          throw AppError.payloadTooLarge('Account archive summary exceeds the export limit');
+        }
+        yield footer;
+        return;
+      }
+    } finally {
+      await archive.return(undefined);
+    }
   }
 
   public async exportUserData(userId: string, meta?: RequestMeta): Promise<UserExportData> {

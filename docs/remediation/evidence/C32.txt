@@ -1,0 +1,1193 @@
+$ python scripts/run-disposable-verification.py
+Exit: 0
+$ Scratch PostgreSQL version
+postgres (PostgreSQL) 16.10
+
+PASS: Scratch PostgreSQL version (exit 0)
+$ psql client version
+psql (PostgreSQL) 16.2
+
+PASS: psql client version (exit 0)
+$ Scratch Redis version
+Redis server v=7.4.6 sha=00000000:1 malloc=libc bits=64 build=919195ee96310180
+
+PASS: Scratch Redis version (exit 0)
+$ initdb NEW private owned directory (SCRAM host authentication)
+The files belonging to this database system will be owned by user "user".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "C".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+creating directory /tmp/lifestyle-owned-runtime-dughl3gf/pgdata ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... Etc/UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+Success. You can now start the database server using:
+
+    '/home/user/runtime-tools/node_modules/@embedded-postgres/linux-x64/native/bin/pg_ctl' -D /tmp/lifestyle-owned-runtime-dughl3gf/pgdata -l logfile start
+
+
+PASS: initdb NEW private owned directory (SCRAM host authentication) (exit 0)
+Owned loopback SMTP rejection fixture; no provider success/delivery claimed.
+$ OWNERSHIP proof: PostgreSQL data directory and loopback binding
+/tmp/lifestyle-owned-runtime-dughl3gf/pgdata
+127.0.0.1
+postgres
+
+PASS: OWNERSHIP proof: PostgreSQL data directory and loopback binding (exit 0)
+$ OWNERSHIP proof: Redis child PID, dedicated authenticated instance
+# Server
+redis_version:7.4.6
+redis_git_sha1:00000000
+redis_git_dirty:1
+redis_build_id:919195ee96310180
+redis_mode:standalone
+os:Linux 6.1.158+ x86_64
+arch_bits:64
+monotonic_clock:POSIX clock_gettime
+multiplexing_api:epoll
+atomicvar_api:c11-builtin
+gcc_version:12.2.0
+process_id:13794
+process_supervised:no
+run_id:0c95541b154e170e0caf78b320ed6724aa5b4c4c
+tcp_port:50845
+server_time_usec:1792153146910785
+uptime_in_seconds:0
+uptime_in_days:0
+hz:10
+configured_hz:10
+lru_clock:13768250
+executable:/home/user/runtime-tools/redis-7.4.6/src/redis-server
+config_file:/tmp/lifestyle-owned-runtime-dughl3gf/redis.conf
+io_threads_active:0
+listener0:name=tcp,bind=127.0.0.1,port=50845
+
+PASS: OWNERSHIP proof: Redis child PID, dedicated authenticated instance (exit 0)
+PASS: services are this harness's own fresh process/data directory; external URLs ignored. Destructive suite hooks reviewed separately.
+$ Create uniquely named owned disposable database
+
+PASS: Create uniquely named owned disposable database (exit 0)
+$ Actual psql fresh-role bootstrap script
+
+PASS: Actual psql fresh-role bootstrap script (exit 0)
+$ Actual psql repeat bootstrap MUST refuse existing roles
+psql:/home/user/life-style-app/backend/src/infrastructure/database/postgres/init-roles.sql:57: ERROR:  Existing application roles found; bootstrap refuses changes or rotation
+CONTEXT:  PL/pgSQL function inline_code_block line 12 at RAISE
+
+PASS: Actual psql repeat bootstrap MUST refuse existing roles (exit 3)
+$ Actual fresh forward migrations (migration identity)
+
+> lifestyle-backend@1.0.1 migrate:up
+> node-pg-migrate -m src/infrastructure/database/postgres/migrations -d DATABASE_MIGRATION_URL up
+
+> Migrating files:
+> - 1727300000000_initial-extensions
+> - 1727300001000_identity_and_sessions
+> - 1727300002000_core_entities
+> - 1727300003000_ingest_tokens
+> - 1727300004000_timer_sessions_optional_task
+> - 1792022400000_ingest_delete_grant
+### MIGRATION 1727300000000_initial-extensions (UP) ###
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1727300000000_initial-extensions', NOW());
+
+
+### MIGRATION 1727300001000_identity_and_sessions (UP) ###
+CREATE EXTENSION IF NOT EXISTS "citext";
+
+    CREATE TABLE users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email CITEXT NOT NULL UNIQUE CHECK (char_length(email) <= 254),
+      password_hash TEXT NOT NULL,
+      display_name VARCHAR(100) NOT NULL CHECK (char_length(trim(display_name)) > 0),
+      timezone VARCHAR(64) NOT NULL DEFAULT 'UTC',
+      locale VARCHAR(16) NOT NULL DEFAULT 'en',
+      week_start SMALLINT NOT NULL DEFAULT 1 CHECK (week_start BETWEEN 1 AND 7),
+      default_currency CHAR(3) NOT NULL CHECK (default_currency ~ '^[A-Z]{3}$'),
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled', 'pending_deletion')),
+      email_verified_at TIMESTAMPTZ,
+      password_changed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_login_at TIMESTAMPTZ,
+      deletion_scheduled_for TIMESTAMPTZ,
+      push_show_titles BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CHECK ((status = 'pending_deletion') = (deletion_scheduled_for IS NOT NULL))
+    );
+
+    CREATE INDEX idx_users_pending_deletion 
+      ON users (status, deletion_scheduled_for) 
+      WHERE status = 'pending_deletion';
+  ;
+
+    CREATE TABLE auth_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_used_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      absolute_expires_at TIMESTAMPTZ NOT NULL,
+      revoked_at TIMESTAMPTZ,
+      revoked_reason TEXT CHECK (revoked_reason IN (
+        'logout', 'logout_all', 'password_change', 'password_reset', 
+        'reuse_detected', 'account_disabled', 'account_deletion'
+      )),
+      device_platform TEXT NOT NULL CHECK (device_platform IN ('ios', 'android', 'unknown')),
+      device_name VARCHAR(100),
+      app_version VARCHAR(32),
+      created_ip INET,
+      CHECK ((revoked_at IS NULL) = (revoked_reason IS NULL))
+    );
+
+    CREATE INDEX idx_auth_sessions_user_active 
+      ON auth_sessions (user_id) 
+      WHERE revoked_at IS NULL;
+
+    CREATE INDEX idx_auth_sessions_expires 
+      ON auth_sessions (absolute_expires_at);
+  ;
+
+    CREATE TABLE refresh_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id UUID NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
+      issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      rotated_at TIMESTAMPTZ,
+      replaced_by UUID REFERENCES refresh_tokens(id),
+      revoked_at TIMESTAMPTZ
+    );
+
+    CREATE UNIQUE INDEX idx_refresh_tokens_active_session 
+      ON refresh_tokens (session_id) 
+      WHERE rotated_at IS NULL AND revoked_at IS NULL;
+
+    CREATE INDEX idx_refresh_tokens_expires 
+      ON refresh_tokens (expires_at);
+  ;
+
+    CREATE TABLE push_devices (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id UUID NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+      platform TEXT NOT NULL CHECK (platform IN ('ios', 'android')),
+      push_token TEXT NOT NULL UNIQUE CHECK (char_length(push_token) <= 512),
+      app_version VARCHAR(32),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      disabled_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX idx_push_devices_user_active 
+      ON push_devices (user_id) 
+      WHERE disabled_at IS NULL;
+
+    CREATE INDEX idx_push_devices_session 
+      ON push_devices (session_id);
+  ;
+
+    CREATE TABLE categories (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('expense', 'income')),
+      name VARCHAR(60) NOT NULL CHECK (char_length(trim(name)) > 0),
+      icon VARCHAR(40),
+      color VARCHAR(7) CHECK (color IS NULL OR color ~ '^#[0-9A-Fa-f]{6}$'),
+      archived_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      version INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id, kind)
+    );
+
+    CREATE UNIQUE INDEX idx_categories_user_kind_name 
+      ON categories (user_id, kind, lower(name)) 
+      WHERE archived_at IS NULL;
+  ;
+
+    CREATE TABLE audit_logs (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      actor_type TEXT NOT NULL CHECK (actor_type IN ('user', 'system')),
+      actor_user_id UUID,
+      session_id UUID,
+      event_type TEXT NOT NULL,
+      outcome TEXT NOT NULL CHECK (outcome IN ('success', 'failure')),
+      entity_type TEXT,
+      entity_id UUID,
+      request_id UUID,
+      ip INET,
+      user_agent VARCHAR(300),
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb CHECK (
+        jsonb_typeof(metadata) = 'object' AND pg_column_size(metadata) <= 4096
+      )
+    );
+
+    CREATE INDEX idx_audit_logs_actor_time 
+      ON audit_logs (actor_user_id, occurred_at DESC);
+
+    CREATE INDEX idx_audit_logs_event_time 
+      ON audit_logs (event_type, occurred_at DESC);
+
+    CREATE INDEX idx_audit_logs_time 
+      ON audit_logs (occurred_at);
+  ;
+
+    GRANT SELECT, INSERT, UPDATE, DELETE ON users, auth_sessions, refresh_tokens, push_devices, categories TO lifestyle_app;
+    GRANT SELECT, INSERT ON audit_logs TO lifestyle_app;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO lifestyle_app;
+
+    GRANT DELETE ON audit_logs TO lifestyle_maintenance;
+  ;
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1727300001000_identity_and_sessions', NOW());
+
+
+### MIGRATION 1727300002000_core_entities (UP) ###
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = now();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE OR REPLACE FUNCTION immutable_array_to_string(arr text[], sep text)
+    RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+      SELECT array_to_string(arr, sep, '');
+    $$;
+  ;
+
+    DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
+    CREATE TRIGGER trg_users_updated_at
+      BEFORE UPDATE ON users
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    DROP TRIGGER IF EXISTS trg_categories_updated_at ON categories;
+    CREATE TRIGGER trg_categories_updated_at
+      BEFORE UPDATE ON categories
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  ;
+
+    CREATE TABLE goals (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(200) NOT NULL CHECK (char_length(btrim(title)) >= 1),
+      description TEXT CHECK (description IS NULL OR char_length(description) <= 5000),
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'achieved', 'abandoned')),
+      progress_type TEXT NOT NULL CHECK (progress_type IN ('milestones', 'numeric')),
+      target_value NUMERIC(18,4),
+      current_value NUMERIC(18,4),
+      unit VARCHAR(30),
+      start_date DATE,
+      target_date DATE,
+      achieved_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      CHECK (start_date IS NULL OR target_date IS NULL OR start_date <= target_date),
+      CHECK ((status = 'achieved') = (achieved_at IS NOT NULL)),
+      CHECK (
+        (progress_type = 'numeric' AND target_value > 0 AND current_value >= 0)
+        OR
+        (progress_type = 'milestones' AND target_value IS NULL AND current_value IS NULL AND unit IS NULL)
+      )
+    );
+
+    CREATE TRIGGER trg_goals_updated_at
+      BEFORE UPDATE ON goals
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_goals_user_status ON goals (user_id, status) WHERE deleted_at IS NULL;
+    CREATE INDEX idx_goals_search ON goals USING gin (to_tsvector('simple', title || ' ' || coalesce(description, '')));
+    CREATE INDEX idx_goals_trgm ON goals USING gin (title gin_trgm_ops);
+  ;
+
+    CREATE TABLE milestones (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      goal_id UUID NOT NULL,
+      title VARCHAR(200) NOT NULL CHECK (char_length(btrim(title)) >= 1),
+      due_date DATE,
+      completed_at TIMESTAMPTZ,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (goal_id, user_id) REFERENCES goals (id, user_id) ON DELETE CASCADE
+    );
+
+    CREATE TRIGGER trg_milestones_updated_at
+      BEFORE UPDATE ON milestones
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_milestones_goal_sort ON milestones (goal_id, sort_order);
+  ;
+
+    CREATE TABLE projects (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(120) NOT NULL CHECK (char_length(btrim(name)) >= 1),
+      description TEXT CHECK (description IS NULL OR char_length(description) <= 5000),
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'on_hold', 'completed', 'archived')),
+      color VARCHAR(7) CHECK (color IS NULL OR color ~ '^#[0-9A-Fa-f]{6}$'),
+      goal_id UUID,
+      due_date DATE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (goal_id, user_id) REFERENCES goals (id, user_id) ON DELETE SET NULL (goal_id)
+    );
+
+    CREATE TRIGGER trg_projects_updated_at
+      BEFORE UPDATE ON projects
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_projects_user_status ON projects (user_id, status) WHERE deleted_at IS NULL;
+    CREATE INDEX idx_projects_search ON projects USING gin (to_tsvector('simple', name || ' ' || coalesce(description, '')));
+    CREATE INDEX idx_projects_trgm ON projects USING gin (name gin_trgm_ops);
+  ;
+
+    CREATE TABLE recurring_tasks (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(300) NOT NULL CHECK (char_length(btrim(title)) >= 1),
+      description TEXT CHECK (description IS NULL OR char_length(description) <= 10000),
+      project_id UUID,
+      priority SMALLINT NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 3),
+      estimate_minutes INTEGER CHECK (estimate_minutes IS NULL OR (estimate_minutes BETWEEN 1 AND 1440)),
+      due_time TIME,
+      reminder_offset_minutes INTEGER CHECK (reminder_offset_minutes IS NULL OR (reminder_offset_minutes BETWEEN 0 AND 43200)),
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'ended')),
+      generated_through DATE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (project_id, user_id) REFERENCES projects (id, user_id) ON DELETE SET NULL (project_id)
+    );
+
+    CREATE TRIGGER trg_recurring_tasks_updated_at
+      BEFORE UPDATE ON recurring_tasks
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_recurring_tasks_generation ON recurring_tasks (status, generated_through) WHERE deleted_at IS NULL;
+    CREATE INDEX idx_recurring_tasks_user ON recurring_tasks (user_id);
+  ;
+
+    CREATE TABLE habits (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(120) NOT NULL CHECK (char_length(btrim(name)) >= 1),
+      description TEXT CHECK (description IS NULL OR char_length(description) <= 2000),
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'archived')),
+      start_date DATE NOT NULL,
+      reminder_time TIME,
+      color VARCHAR(7) CHECK (color IS NULL OR color ~ '^#[0-9A-Fa-f]{6}$'),
+      goal_id UUID,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (goal_id, user_id) REFERENCES goals (id, user_id) ON DELETE SET NULL (goal_id)
+    );
+
+    CREATE TRIGGER trg_habits_updated_at
+      BEFORE UPDATE ON habits
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_habits_user_status ON habits (user_id, status) WHERE deleted_at IS NULL;
+    CREATE INDEX idx_habits_trgm ON habits USING gin (name gin_trgm_ops);
+  ;
+
+    CREATE TABLE recurrences (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      recurring_task_id UUID UNIQUE,
+      habit_id UUID UNIQUE,
+      freq TEXT NOT NULL CHECK (freq IN ('daily', 'weekly', 'monthly', 'yearly')),
+      interval SMALLINT NOT NULL DEFAULT 1 CHECK (interval BETWEEN 1 AND 365),
+      by_weekday SMALLINT[],
+      by_month_day SMALLINT CHECK (by_month_day IS NULL OR (by_month_day BETWEEN 1 AND 31 OR by_month_day = -1)),
+      by_month SMALLINT CHECK (by_month IS NULL OR (by_month BETWEEN 1 AND 12)),
+      start_date DATE NOT NULL,
+      end_date DATE,
+      occurrence_limit INTEGER CHECK (occurrence_limit IS NULL OR occurrence_limit > 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (recurring_task_id, user_id) REFERENCES recurring_tasks (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (habit_id, user_id) REFERENCES habits (id, user_id) ON DELETE CASCADE,
+      CHECK (num_nonnulls(recurring_task_id, habit_id) = 1),
+      CHECK (end_date IS NULL OR occurrence_limit IS NULL),
+      CHECK (end_date IS NULL OR end_date >= start_date),
+      CHECK (
+        (freq = 'daily' AND by_weekday IS NULL AND by_month_day IS NULL AND by_month IS NULL) OR
+        (freq = 'weekly' AND by_weekday IS NOT NULL AND by_month_day IS NULL AND by_month IS NULL) OR
+        (freq = 'monthly' AND by_month_day IS NOT NULL AND by_weekday IS NULL AND by_month IS NULL) OR
+        (freq = 'yearly' AND by_month IS NOT NULL AND by_month_day IS NOT NULL AND by_weekday IS NULL)
+      )
+    );
+
+    CREATE TRIGGER trg_recurrences_updated_at
+      BEFORE UPDATE ON recurrences
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  ;
+
+    CREATE TABLE tasks (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(300) NOT NULL CHECK (char_length(btrim(title)) >= 1),
+      description TEXT CHECK (description IS NULL OR char_length(description) <= 10000),
+      status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'done', 'cancelled')),
+      priority SMALLINT NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 3),
+      due_date DATE,
+      due_time TIME,
+      planned_date DATE,
+      is_focus BOOLEAN NOT NULL DEFAULT false,
+      estimate_minutes INTEGER CHECK (estimate_minutes IS NULL OR (estimate_minutes BETWEEN 1 AND 1440)),
+      project_id UUID,
+      recurring_task_id UUID,
+      occurrence_date DATE,
+      is_customized BOOLEAN NOT NULL DEFAULT false,
+      completed_at TIMESTAMPTZ,
+      search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('simple', title || ' ' || coalesce(description, ''))) STORED,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (project_id, user_id) REFERENCES projects (id, user_id) ON DELETE SET NULL (project_id),
+      FOREIGN KEY (recurring_task_id, user_id) REFERENCES recurring_tasks (id, user_id) ON DELETE SET NULL (recurring_task_id),
+      CHECK (due_time IS NULL OR due_date IS NOT NULL),
+      CHECK (NOT is_focus OR planned_date IS NOT NULL),
+      CHECK (recurring_task_id IS NULL OR occurrence_date IS NOT NULL),
+      CHECK ((status = 'done') = (completed_at IS NOT NULL))
+    );
+
+    CREATE TRIGGER trg_tasks_updated_at
+      BEFORE UPDATE ON tasks
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE UNIQUE INDEX idx_tasks_recurring_occurrence 
+      ON tasks (recurring_task_id, occurrence_date) 
+      WHERE recurring_task_id IS NOT NULL;
+
+    CREATE UNIQUE INDEX idx_tasks_one_focus_per_day 
+      ON tasks (user_id, planned_date) 
+      WHERE is_focus AND deleted_at IS NULL;
+
+    CREATE INDEX idx_tasks_user_status_due 
+      ON tasks (user_id, status, due_date) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_tasks_user_project 
+      ON tasks (user_id, project_id) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_tasks_user_planned 
+      ON tasks (user_id, planned_date) 
+      WHERE deleted_at IS NULL AND planned_date IS NOT NULL;
+
+    CREATE INDEX idx_tasks_user_completed 
+      ON tasks (user_id, completed_at) 
+      WHERE status = 'done' AND deleted_at IS NULL;
+
+    CREATE INDEX idx_tasks_search 
+      ON tasks USING gin (search_vector);
+
+    CREATE INDEX idx_tasks_trgm 
+      ON tasks USING gin (title gin_trgm_ops);
+
+    CREATE INDEX idx_tasks_deleted 
+      ON tasks (deleted_at) 
+      WHERE deleted_at IS NOT NULL;
+  ;
+
+    CREATE TABLE timer_sessions (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      task_id UUID NOT NULL,
+      started_at TIMESTAMPTZ NOT NULL,
+      ended_at TIMESTAMPTZ,
+      mode TEXT NOT NULL DEFAULT 'stopwatch' CHECK (mode IN ('stopwatch', 'countdown')),
+      planned_seconds INTEGER CHECK (planned_seconds IS NULL OR (planned_seconds BETWEEN 60 AND 43200)),
+      end_reason TEXT CHECK (end_reason IS NULL OR end_reason IN ('stopped', 'completed', 'auto_closed')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (task_id, user_id) REFERENCES tasks (id, user_id) ON DELETE CASCADE,
+      CHECK (ended_at IS NULL OR ended_at > started_at),
+      CHECK ((mode = 'countdown') = (planned_seconds IS NOT NULL)),
+      CHECK ((ended_at IS NULL) = (end_reason IS NULL))
+    );
+
+    CREATE TRIGGER trg_timer_sessions_updated_at
+      BEFORE UPDATE ON timer_sessions
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE UNIQUE INDEX idx_timer_sessions_one_running 
+      ON timer_sessions (user_id) 
+      WHERE ended_at IS NULL;
+
+    CREATE INDEX idx_timer_sessions_user_started 
+      ON timer_sessions (user_id, started_at);
+
+    CREATE INDEX idx_timer_sessions_task_started 
+      ON timer_sessions (task_id, started_at);
+  ;
+
+    CREATE TABLE habit_checkins (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      habit_id UUID NOT NULL,
+      checkin_date DATE NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('done', 'skipped')),
+      note VARCHAR(500),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      UNIQUE (habit_id, checkin_date),
+      FOREIGN KEY (habit_id, user_id) REFERENCES habits (id, user_id) ON DELETE CASCADE
+    );
+
+    CREATE TRIGGER trg_habit_checkins_updated_at
+      BEFORE UPDATE ON habit_checkins
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_habit_checkins_user_date 
+      ON habit_checkins (user_id, checkin_date);
+  ;
+
+    CREATE TABLE notes (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(200),
+      body TEXT NOT NULL DEFAULT '' CHECK (char_length(body) <= 100000),
+      tags TEXT[] NOT NULL DEFAULT '{}' CHECK (cardinality(tags) <= 20),
+      is_pinned BOOLEAN NOT NULL DEFAULT false,
+      search_vector TSVECTOR GENERATED ALWAYS AS (
+        to_tsvector('simple', coalesce(title, '') || ' ' || body || ' ' || immutable_array_to_string(tags, ' '))
+      ) STORED,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      CHECK (title IS NOT NULL OR char_length(body) > 0)
+    );
+
+    CREATE TRIGGER trg_notes_updated_at
+      BEFORE UPDATE ON notes
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_notes_user_pinned 
+      ON notes (user_id, is_pinned DESC, updated_at DESC) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_notes_tags 
+      ON notes USING gin (tags);
+
+    CREATE INDEX idx_notes_search 
+      ON notes USING gin (search_vector);
+
+    CREATE INDEX idx_notes_trgm 
+      ON notes USING gin (title gin_trgm_ops);
+  ;
+
+    CREATE TABLE events (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(200) NOT NULL CHECK (char_length(btrim(title)) >= 1),
+      description TEXT CHECK (description IS NULL OR char_length(description) <= 5000),
+      location VARCHAR(300),
+      start_at TIMESTAMPTZ NOT NULL,
+      end_at TIMESTAMPTZ NOT NULL,
+      all_day BOOLEAN NOT NULL DEFAULT false,
+      timezone VARCHAR(64) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      CHECK (end_at >= start_at)
+    );
+
+    CREATE TRIGGER trg_events_updated_at
+      BEFORE UPDATE ON events
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_events_user_start 
+      ON events (user_id, start_at) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_events_trgm 
+      ON events USING gin (title gin_trgm_ops);
+  ;
+
+    CREATE TABLE note_links (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      note_id UUID NOT NULL,
+      task_id UUID,
+      project_id UUID,
+      goal_id UUID,
+      habit_id UUID,
+      event_id UUID,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (note_id, user_id) REFERENCES notes (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (task_id, user_id) REFERENCES tasks (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (project_id, user_id) REFERENCES projects (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (goal_id, user_id) REFERENCES goals (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (habit_id, user_id) REFERENCES habits (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (event_id, user_id) REFERENCES events (id, user_id) ON DELETE CASCADE,
+      CHECK (num_nonnulls(task_id, project_id, goal_id, habit_id, event_id) = 1)
+    );
+
+    CREATE UNIQUE INDEX idx_note_links_task ON note_links (note_id, task_id) WHERE task_id IS NOT NULL;
+    CREATE UNIQUE INDEX idx_note_links_project ON note_links (note_id, project_id) WHERE project_id IS NOT NULL;
+    CREATE UNIQUE INDEX idx_note_links_goal ON note_links (note_id, goal_id) WHERE goal_id IS NOT NULL;
+    CREATE UNIQUE INDEX idx_note_links_habit ON note_links (note_id, habit_id) WHERE habit_id IS NOT NULL;
+    CREATE UNIQUE INDEX idx_note_links_event ON note_links (note_id, event_id) WHERE event_id IS NOT NULL;
+  ;
+
+    CREATE TABLE subscriptions (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(120) NOT NULL CHECK (char_length(btrim(name)) >= 1),
+      amount NUMERIC(19,4) NOT NULL CHECK (amount > 0),
+      currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+      billing_unit TEXT NOT NULL CHECK (billing_unit IN ('week', 'month', 'year')),
+      billing_interval SMALLINT NOT NULL DEFAULT 1 CHECK (billing_interval BETWEEN 1 AND 12),
+      anchor_date DATE NOT NULL,
+      next_billing_date DATE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'cancelled')),
+      cancelled_on DATE,
+      category_kind TEXT GENERATED ALWAYS AS ('expense') STORED,
+      category_id UUID,
+      reminder_days_before SMALLINT CHECK (reminder_days_before IS NULL OR (reminder_days_before BETWEEN 0 AND 30)),
+      notes VARCHAR(1000),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (category_id, user_id, category_kind) REFERENCES categories (id, user_id, kind) ON DELETE RESTRICT,
+      CHECK ((status = 'cancelled') = (cancelled_on IS NOT NULL))
+    );
+
+    CREATE TRIGGER trg_subscriptions_updated_at
+      BEFORE UPDATE ON subscriptions
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_subscriptions_user_status_next 
+      ON subscriptions (user_id, status, next_billing_date) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_subscriptions_trgm 
+      ON subscriptions USING gin (name gin_trgm_ops);
+  ;
+
+    CREATE TABLE transactions (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('expense', 'income')),
+      amount NUMERIC(19,4) NOT NULL CHECK (amount > 0),
+      currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+      occurred_on DATE NOT NULL,
+      category_id UUID,
+      description VARCHAR(500),
+      merchant VARCHAR(150),
+      subscription_id UUID,
+      billing_date DATE,
+      source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual')),
+      idempotency_key UUID,
+      idempotency_fingerprint BYTEA,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (category_id, user_id, kind) REFERENCES categories (id, user_id, kind) ON DELETE RESTRICT,
+      FOREIGN KEY (subscription_id, user_id) REFERENCES subscriptions (id, user_id) ON DELETE SET NULL (subscription_id),
+      CHECK (subscription_id IS NULL OR billing_date IS NOT NULL),
+      CHECK (subscription_id IS NULL OR kind = 'expense')
+    );
+
+    CREATE TRIGGER trg_transactions_updated_at
+      BEFORE UPDATE ON transactions
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE UNIQUE INDEX idx_transactions_user_idempotency 
+      ON transactions (user_id, idempotency_key) 
+      WHERE idempotency_key IS NOT NULL;
+
+    CREATE UNIQUE INDEX idx_transactions_sub_billing 
+      ON transactions (subscription_id, billing_date) 
+      WHERE subscription_id IS NOT NULL AND deleted_at IS NULL;
+
+    CREATE INDEX idx_transactions_user_occurred 
+      ON transactions (user_id, occurred_on DESC, id DESC) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_transactions_reports 
+      ON transactions (user_id, currency, occurred_on) 
+      INCLUDE (kind, amount, category_id) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_transactions_user_category 
+      ON transactions (user_id, category_id, occurred_on) 
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX idx_transactions_trgm_merchant 
+      ON transactions USING gin (merchant gin_trgm_ops);
+
+    CREATE INDEX idx_transactions_trgm_description 
+      ON transactions USING gin (description gin_trgm_ops);
+  ;
+
+    CREATE TABLE budgets (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      category_kind TEXT GENERATED ALWAYS AS ('expense') STORED,
+      category_id UUID,
+      amount_limit NUMERIC(19,4) NOT NULL CHECK (amount_limit > 0),
+      currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+      period TEXT NOT NULL DEFAULT 'monthly' CHECK (period IN ('monthly')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ,
+      version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (category_id, user_id, category_kind) REFERENCES categories (id, user_id, kind) ON DELETE RESTRICT
+    );
+
+    CREATE TRIGGER trg_budgets_updated_at
+      BEFORE UPDATE ON budgets
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE UNIQUE INDEX idx_budgets_unique_period 
+      ON budgets (user_id, category_id, currency, period) NULLS NOT DISTINCT 
+      WHERE deleted_at IS NULL;
+  ;
+
+    CREATE TABLE reminders (
+      id UUID NOT NULL DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      task_id UUID,
+      habit_id UUID,
+      event_id UUID,
+      subscription_id UUID,
+      entity_type TEXT GENERATED ALWAYS AS (
+        CASE 
+          WHEN task_id IS NOT NULL THEN 'task'
+          WHEN habit_id IS NOT NULL THEN 'habit'
+          WHEN event_id IS NOT NULL THEN 'event'
+          ELSE 'subscription'
+        END
+      ) STORED,
+      entity_id UUID GENERATED ALWAYS AS (
+        COALESCE(task_id, habit_id, event_id, subscription_id)
+      ) STORED,
+      source TEXT NOT NULL CHECK (source IN ('user', 'system')),
+      remind_at TIMESTAMPTZ NOT NULL,
+      offset_minutes INTEGER CHECK (offset_minutes IS NULL OR (offset_minutes BETWEEN 0 AND 43200)),
+      channel TEXT NOT NULL CHECK (channel IN ('push', 'in_app', 'email')),
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'sent', 'failed', 'cancelled')),
+      next_attempt_at TIMESTAMPTZ,
+      attempt_count SMALLINT NOT NULL DEFAULT 0,
+      processing_started_at TIMESTAMPTZ,
+      sent_at TIMESTAMPTZ,
+      failed_at TIMESTAMPTZ,
+      last_error_code VARCHAR(50),
+      last_error_message VARCHAR(500),
+      dedupe_key VARCHAR(200),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (id, user_id),
+      UNIQUE (id, user_id),
+      FOREIGN KEY (task_id, user_id) REFERENCES tasks (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (habit_id, user_id) REFERENCES habits (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (event_id, user_id) REFERENCES events (id, user_id) ON DELETE CASCADE,
+      FOREIGN KEY (subscription_id, user_id) REFERENCES subscriptions (id, user_id) ON DELETE CASCADE,
+      CHECK (num_nonnulls(task_id, habit_id, event_id, subscription_id) = 1),
+      CHECK (status <> 'pending' OR next_attempt_at IS NOT NULL),
+      CHECK (status <> 'sent' OR sent_at IS NOT NULL)
+    );
+
+    CREATE TRIGGER trg_reminders_updated_at
+      BEFORE UPDATE ON reminders
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE INDEX idx_reminders_dispatcher 
+      ON reminders (next_attempt_at) 
+      WHERE status = 'pending';
+
+    CREATE INDEX idx_reminders_user_remind 
+      ON reminders (user_id, remind_at DESC);
+
+    CREATE INDEX idx_reminders_task ON reminders (task_id);
+    CREATE INDEX idx_reminders_habit ON reminders (habit_id);
+    CREATE INDEX idx_reminders_event ON reminders (event_id);
+    CREATE INDEX idx_reminders_subscription ON reminders (subscription_id);
+
+    CREATE UNIQUE INDEX idx_reminders_dedupe 
+      ON reminders (user_id, dedupe_key) 
+      WHERE dedupe_key IS NOT NULL;
+  ;
+
+    GRANT SELECT, INSERT, UPDATE, DELETE ON 
+      goals, milestones, projects, recurring_tasks, habits, recurrences,
+      tasks, timer_sessions, habit_checkins, notes, note_links, events,
+      subscriptions, transactions, budgets, reminders
+    TO lifestyle_app;
+
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO lifestyle_app;
+  ;
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1727300002000_core_entities', NOW());
+
+
+### MIGRATION 1727300003000_ingest_tokens (UP) ###
+
+    CREATE TABLE ingest_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id UUID NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+      token_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_used_at TIMESTAMPTZ,
+      revoked_at TIMESTAMPTZ
+    );
+
+    CREATE UNIQUE INDEX idx_ingest_tokens_active_session
+      ON ingest_tokens (session_id)
+      WHERE revoked_at IS NULL;
+
+    DO $body$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT, UPDATE ON ingest_tokens TO lifestyle_app;
+      END IF;
+    END $body$;
+  ;
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1727300003000_ingest_tokens', NOW());
+
+
+### MIGRATION 1727300004000_timer_sessions_optional_task (UP) ###
+ALTER TABLE timer_sessions ALTER COLUMN task_id DROP NOT NULL;
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1727300004000_timer_sessions_optional_task', NOW());
+
+
+### MIGRATION 1792022400000_ingest_delete_grant (UP) ###
+
+  DO $body$ BEGIN
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+      GRANT DELETE ON ingest_tokens TO lifestyle_app;
+    END IF;
+  END $body$;
+;
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1792022400000_ingest_delete_grant', NOW());
+
+
+Migrations complete!
+
+PASS: Actual fresh forward migrations (migration identity) (exit 0)
+$ Migration history before repeat
+6
+
+PASS: Migration history before repeat (exit 0)
+$ Actual repeat forward migrations
+
+> lifestyle-backend@1.0.1 migrate:up
+> node-pg-migrate -m src/infrastructure/database/postgres/migrations -d DATABASE_MIGRATION_URL up
+
+No migrations to run!
+Migrations complete!
+
+PASS: Actual repeat forward migrations (exit 0)
+$ Migration history stable after repeat
+6
+
+PASS: Migration history stable after repeat (exit 0)
+$ Runtime role least privilege
+lifestyle_app|f|f|f
+
+PASS: Runtime role least privilege (exit 0)
+$ Runtime role DDL MUST fail
+ERROR:  permission denied for schema public
+LINE 1: CREATE TABLE public.unapproved_runtime_ddl (id int)
+                     ^
+
+PASS: Runtime role DDL MUST fail (exit 1)
+$ Owned populated fixture before repeat
+
+PASS: Owned populated fixture before repeat (exit 0)
+$ Actual populated forward repeat (no rollback)
+
+> lifestyle-backend@1.0.1 migrate:up
+> node-pg-migrate -m src/infrastructure/database/postgres/migrations -d DATABASE_MIGRATION_URL up
+
+No migrations to run!
+Migrations complete!
+
+PASS: Actual populated forward repeat (no rollback) (exit 0)
+$ Populated fixture preserved
+1
+
+PASS: Populated fixture preserved (exit 0)
+$ Intentional failed migration MUST rollback (owned temporary migration copy)
+> Migrating files:
+> - 1999999999999_owned_failure
+### MIGRATION 1999999999999_owned_failure (UP) ###
+CREATE TABLE owned_failure_probe(id int); SELECT owned_intentional_missing_function();
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1999999999999_owned_failure', NOW());
+
+
+Error executing:
+CREATE TABLE owned_failure_probe(id int); SELECT owned_intentional_missing_function();
+                                                 ^^^^
+
+function owned_intentional_missing_function() does not exist
+
+> Rolling back attempted migration ...
+error: function owned_intentional_missing_function() does not exist
+    at /home/user/life-style-app/backend/node_modules/pg/lib/client.js:694:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.query (file:///home/user/life-style-app/backend/node_modules/node-pg-migrate/dist/bundle/index.js:3392:11)
+    at async runner (file:///home/user/life-style-app/backend/node_modules/node-pg-migrate/dist/bundle/index.js:3590:5) {
+  length: 229,
+  severity: 'ERROR',
+  code: '42883',
+  detail: undefined,
+  hint: 'No function matches the given name and argument types. You might need to add explicit type casts.',
+  position: '50',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_func.c',
+  line: '636',
+  routine: 'ParseFuncOrColumn'
+}
+
+PASS: Intentional failed migration MUST rollback (owned temporary migration copy) (exit 1)
+$ Failed migration leaves no partial table/history
+t
+6
+
+PASS: Failed migration leaves no partial table/history (exit 0)
+$ Failed migration preserves populated fixture
+1
+
+PASS: Failed migration preserves populated fixture (exit 0)
+$ Actual integration suite on OWNED PostgreSQL/Redis
+
+> lifestyle-backend@1.0.1 test:integration
+> vitest run tests/integration
+
+
+ RUN  v3.2.7 /home/user/life-style-app/backend
+
+ ✓ tests/integration/tasks-flow.test.ts (14 tests) 5143ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-01: Marking task done sets completed_at; reopening clears it  424ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-02: Marking task as focus unpins any existing focus task on same date in same transaction  359ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-03: Overdue filter includes tasks where due_date < user_today AND status NOT IN (done, cancelled)  344ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-04: Soft-delete task with 30-day restore window and reminder cancellation  330ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > AC-TASK-05: Invalid sort parameters return 400  333ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > Enforces optimistic concurrency control (ADR-029) on task update  324ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Tasks Feature > Validates dueTime requires dueDate, and isFocus requires plannedDate  340ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > AC-PROJ-01: Default delete detaches tasks (tasks.project_id = NULL); cascade=true soft-deletes them  369ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > Derives open/done task counts on project list and detail  342ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Projects Feature > Project lifecycle: update, soft-delete, and restore within 30 days  335ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Recurring Tasks Feature > AC-REC-01: Creating recurring task idempotently generates first 7 days of instances in same transaction  317ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Recurring Tasks Feature > AC-REC-02: Updating recurring template updates only future, non-customized, open instances; soft-delete preserves instances  352ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Recurring Tasks Feature > Recurring task lifecycle: list and get by ID  323ms
+   ✓ Tasks, Projects & Recurring Tasks Integration Tests > Cross-Tenant Security > User B cannot access or modify User A resources (tasks, projects, recurring tasks) - returns 404  643ms
+ ✓ tests/integration/notes-flow.test.ts (14 tests) 5102ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Creates note with title, body, normalized tags, and default isPinned = false  407ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Allows note with only title or only non-empty body  328ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-01: Note Creation & Validation > Rejects note when both title and body are empty  307ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Orders notes by is_pinned DESC, updated_at DESC and omits full body in list  330ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Filters notes by tag and searches via q across title, body, and tags  348ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-02: Note Listing, Sorting, Filtering & Search > Stores and returns opaque script content verbatim without execution or stripping  316ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Links note to task and goal, lists links, filters by entity, and deletes link  357ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Replaces all links atomically via PATCH /notes/:id  347ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-03: Polymorphic Note Links > Rejects linking to a non-existent entity with 404  318ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-04: Soft-Deletion & 30-Day Restoration Window > Soft-deletes note, preserves links, and restores note within 30 days  342ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-04: Soft-Deletion & 30-Day Restoration Window > Rejects restoration with 410 Gone if deleted_at is older than 30 days  323ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-05: Concurrency & Multi-Tenant Isolation > Rejects update with 409 VERSION_CONFLICT on stale version  320ms
+   ✓ Notes & Linking Integration Tests > AC-NOTE-05: Concurrency & Multi-Tenant Isolation > Enforces cross-tenant isolation: User B cannot view, edit, link, or restore User A note (404)  685ms
+   ✓ Notes & Linking Integration Tests > Tags Aggregation: GET /api/v1/notes/tags > Returns tag counts grouped and ordered by count descending  360ms
+ ✓ tests/integration/money-flow.test.ts (11 tests) 4048ms
+   ✓ Money Integration Tests > AC-MON-01: Exact Monetary Arithmetic & Scale Invariants > Sums 0.10 + 0.20 to exactly 0.30 without IEEE 754 floating point inaccuracies  448ms
+   ✓ Money Integration Tests > AC-MON-01: Exact Monetary Arithmetic & Scale Invariants > Rejects JSON numbers and scale exceeding currency exponent  322ms
+   ✓ Money Integration Tests > AC-MON-02: Transaction Idempotency > Returns 200 OK on replay of same Idempotency-Key and payload, creating only one database row  328ms
+   ✓ Money Integration Tests > AC-MON-02: Transaction Idempotency > Rejects same Idempotency-Key with different payload with 409 IDEMPOTENCY_KEY_REUSED  323ms
+   ✓ Money Integration Tests > AC-MON-03: Category Kind & Tenant Validation > Rejects linking an income category to an expense transaction  315ms
+   ✓ Money Integration Tests > AC-MON-03: Category Kind & Tenant Validation > Rejects category name collision for same user and kind with 409 CATEGORY_NAME_TAKEN  318ms
+   ✓ Money Integration Tests > AC-MON-04: Transaction Audit Logging > Writes an audit_logs entry for create, update, and delete in the same database transaction  330ms
+   ✓ Money Integration Tests > AC-MON-05: Subscriptions & "Mark as Paid" Cycle Advancing > Atomically creates linked expense transaction, advances next_billing_date from anchor, and prevents double-pay  345ms
+   ✓ Money Integration Tests > AC-MON-06: Budget Usage & Constraints > Calculates usage from current calendar month in user timezone and enforces one budget per target/currency  365ms
+   ✓ Money Integration Tests > AC-MON-07: Reports Summary > Aggregates totals, groups by category, handles uncategorized, and rejects spans > 366 days  330ms
+   ✓ Money Integration Tests > Cross-Tenant Security > User B cannot view or modify User A categories, transactions, subscriptions, budgets (404)  618ms
+ ✓ tests/integration/calendar-flow.test.ts (8 tests) 2971ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-01: Event CRUD & Date Range Queries > Creates an event, retrieves it by ID, and lists within date range  413ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-01: Event CRUD & Date Range Queries > Rejects event creation when endAt is earlier than startAt  316ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-02: Conflict Detection > Detects overlapping time blocks and respects excludeEventId  325ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-03: Soft-Deletion, Reminder Cancellation & 30-Day Restore > Soft-deletes event, cancels pending reminders, and restores within 30 days  324ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-03: Soft-Deletion, Reminder Cancellation & 30-Day Restore > Rejects restoration when soft-deleted more than 30 days ago (410 Gone)  320ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-04: Optimistic Concurrency Control > Increments version on update and rejects stale version with 409 VERSION_CONFLICT  318ms
+   ✓ Calendar & Time Blocking Integration Tests > AC-CAL-05: Multi-Tenant Isolation > User B cannot view, modify, or delete User A event (returns 404)  621ms
+   ✓ Calendar & Time Blocking Integration Tests > Reminders Management & Agenda View > Manages reminders on an event and returns agenda view for calendar date  330ms
+ ✓ tests/integration/goals-flow.test.ts (9 tests) 3332ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-01: Goal Creation & Type Invariants > Creates numeric goal and milestones goal with valid parameters  414ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-01: Goal Creation & Type Invariants > Rejects invalid goal inputs (numeric target <= 0, milestone with targetValue, startDate > targetDate)  317ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-02: Status & Completion Lifecycle > Manages achieved status and sets/clears achievedAt timestamp  329ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-03: Milestones Management & Progress Aggregation > Manages milestones, updates goal progress, and auto-achieves when all complete  364ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-03: Milestones Management & Progress Aggregation > Rejects adding milestones to a numeric goal  306ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-04: Soft-Deletion & 30-Day Restoration > Soft-deletes goal and restores within 30 days  332ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-04: Soft-Deletion & 30-Day Restoration > Rejects restoration when soft-deleted more than 30 days ago (410 Gone)  311ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-05: Concurrency & Multi-Tenant Isolation > Rejects stale version update with 409 VERSION_CONFLICT  324ms
+   ✓ Goals & Milestones Integration Tests > AC-GOAL-05: Concurrency & Multi-Tenant Isolation > Enforces multi-tenant isolation: User B cannot access User A goal or milestones (404)  630ms
+ ✓ tests/integration/habits-flow.test.ts (8 tests) 3053ms
+   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Creates habit with daily recurrence and retrieves it with 0 streaks  421ms
+   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Updates habit fields and recurrence  347ms
+   ✓ Habits & Daily Progress Integration Tests > Habits CRUD & Lifecycle > Soft deletes habit, cancels pending reminders, and restores within 30 days  354ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-01 & AC-HAB-03: Rejects future dates, unscheduled dates, and dates before startDate  327ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-01 & AC-HAB-05: Upsert on repeated check-in and toggle/delete updates streak  329ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > AC-HAB-04: Daily progress computation returns correct percentage: done / (scheduled - skipped)  342ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > Queries checkins within a date range (GET /habits/:id/checkins?from&to)  312ms
+   ✓ Habits & Daily Progress Integration Tests > Check-ins & Streaks > Cross-tenant isolation: User B cannot access, check in, or delete User A habit (404)  619ms
+ ✓ tests/integration/auth-flow.test.ts (6 tests) 4970ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-01 & AC-AUTH-02: Registration creates user, default categories, returns tokens, and prevents duplicates  670ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-03: Login succeeds with correct credentials, fails with 401 INVALID_CREDENTIALS on bad password or missing user  1212ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-06 & AC-AUTH-07: Refresh rotates token, and reuse detection revokes session and push devices  339ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-08: Logout revokes session; Logout-all revokes all user sessions and deletes push devices  641ms
+   ✓ Auth Flow Integration Tests > AC-AUTH-09: Password reset flow generates OTP, resets password, and revokes all active sessions  919ms
+   ✓ Auth Flow Integration Tests > Change password updates password, keeps current session, and revokes other sessions  1187ms
+ ✓ tests/integration/schema-constraints.test.ts (8 tests) 203ms
+ ✓ tests/integration/users-flow.test.ts (8 tests) 4958ms
+   ✓ Users Flow Integration Tests > AC-AUTH-11: GET /users/me returns authenticated user profile omitting password_hash  381ms
+   ✓ Users Flow Integration Tests > AC-AUTH-11: PATCH /users/me updates profile settings  325ms
+   ✓ Users Flow Integration Tests > AC-AUTH-11: PUT and DELETE /users/me/devices manages push device tokens  335ms
+   ✓ Users Flow Integration Tests > AC-AUTH-11: POST /users/me/export returns comprehensive GDPR export payload  616ms
+   ✓ Users Flow Integration Tests > AC-AUTH-10 & AC-AUTH-11: Deletion schedule, cancellation, and pending_deletion endpoint restrictions  1035ms
+   ✓ Users Flow Integration Tests > AC-AUTH-10: Disabled account is blocked with 403 ACCOUNT_DISABLED  328ms
+   ✓ Users Flow Integration Tests > domain archive endpoint remains available with current-password proof during the deletion grace period  933ms
+   ✓ Users Flow Integration Tests > B-07: Purges expired pending_deletion account with categories/transactions without touching other users  1003ms
+ ✓ tests/integration/timer-sessions-flow.test.ts (7 tests) 2688ms
+   ✓ Timer Sessions Flow Integration Tests > AC-TMR-01: Starting a timer session when one is already running returns 409 TIMER_ALREADY_RUNNING  419ms
+   ✓ Timer Sessions Flow Integration Tests > AC-TMR-02: Session duration is derived from timestamps; client-supplied elapsed seconds are rejected  310ms
+   ✓ Timer Sessions Flow Integration Tests > Stops running timer with countdown completion logic, and rejects stopping ended timer with 409  331ms
+   ✓ Timer Sessions Flow Integration Tests > Auto-closes running timer exceeding 12 hours (FR-TMR-05) and allows starting new timer  341ms
+   ✓ Timer Sessions Flow Integration Tests > Aggregates tracked time on task detail endpoint (FR-TMR-06)  322ms
+   ✓ Timer Sessions Flow Integration Tests > Cross-tenant isolation: User B cannot access or stop User A timer session (404)  627ms
+   ✓ Timer Sessions Flow Integration Tests > Lists timer sessions with pagination and filters, and deletes a timer session  335ms
+ ✓ tests/integration/reminders-flow.test.ts (7 tests) 2674ms
+   ✓ Unified Reminders Integration Tests > FR-REM-01..03: reminders on tasks, habits, and subscriptions > creates, lists, and deletes a task reminder  427ms
+   ✓ Unified Reminders Integration Tests > FR-REM-01..03: reminders on tasks, habits, and subscriptions > creates habit and subscription reminders with the same API  347ms
+   ✓ Unified Reminders Integration Tests > FR-REM-04: unified listing across parent types > lists reminders for all entity types with filters  336ms
+   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > rejects a reminder on another user's task with 404  605ms
+   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > scopes deletion to the parent in the path  318ms
+   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > validates remindAt and rejects duplicate dedupeKeys  318ms
+   ✓ Unified Reminders Integration Tests > Multi-tenant isolation & validation > cancels pending reminders when the parent is soft-deleted (FR-REM lifecycle)  320ms
+ ✓ tests/integration/worker-jobs.test.ts (7 tests) 118ms
+ ✓ tests/integration/ingest-analyze-flow.test.ts (8 tests) 2041ms
+   ✓ SMS fallback analyze route > accepts an ingest token and returns the strict recognized shape  361ms
+   ✓ SMS fallback analyze route > accepts a normal access token as well (app-open fallback)  319ms
+   ✓ SMS fallback analyze route > hands the analyzer only sanitized text and sender  327ms
+   ✓ SMS fallback analyze route > passes unrecognized results through so the phone drops the candidate  308ms
+   ✓ SMS fallback analyze route > maps upstream failure to a retryable 503 with a stable code  312ms
+   ✓ SMS fallback analyze route > rejects malformed bodies with a validation error  331ms
+ ✓ tests/integration/ingest-flow.test.ts (9 tests) 2679ms
+   ✓ Ingest token flow (background SMS capture) > issues an lsi_ token that is stored only as a digest  346ms
+   ✓ Ingest token flow (background SMS capture) > creates a transaction with the ingest token and replays the same Idempotency-Key  345ms
+   ✓ Ingest token flow (background SMS capture) > rejects a missing Idempotency-Key on the ingest route  330ms
+   ✓ Ingest token flow (background SMS capture) > does not let the ingest token call other routes  313ms
+   ✓ Ingest token flow (background SMS capture) > does not accept an access token on the ingest route  314ms
+   ✓ Ingest token flow (background SMS capture) > keeps only the newest token for a session  342ms
+   ✓ Ingest token flow (background SMS capture) > stops working as soon as the token is revoked  316ms
+   ✓ Ingest token flow (background SMS capture) > stops working when its session is logged out, without an explicit revoke  321ms
+ ✓ tests/integration/query-surface.test.ts (5 tests) 1639ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /days/today composes tasks, habits, and active timer from readers  476ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /days/{date} returns the plan for that date and rejects bad dates  361ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /dashboard/overview aggregates the day  435ms
+   ✓ Query Surface Integration Tests (P1-05) > GET /search finds items across features and enforces q  353ms
+ ✓ tests/integration/error-handler.test.ts (6 tests) 51ms
+ ✓ tests/integration/account-archive.test.ts (2 tests) 105ms
+ ✓ tests/integration/middleware.test.ts (6 tests) 40ms
+ ✓ tests/integration/health.test.ts (5 tests) 77ms
+ ✓ tests/integration/timer-without-task.test.ts (4 tests) 1430ms
+   ✓ Timer sessions without a task > starts and stops a session with no taskId, returning taskId as null  390ms
+   ✓ Timer sessions without a task > accepts an explicit null taskId  321ms
+   ✓ Timer sessions without a task > still rejects a taskId that does not exist for this user  336ms
+   ✓ Timer sessions without a task > still rejects a malformed taskId  381ms
+ ✓ tests/integration/transaction-runner.test.ts (2 tests) 5ms
+
+ Test Files  21 passed (21)
+      Tests  154 passed (154)
+   Start at  12:19:09
+   Duration  62.47s (transform 1.08s, setup 165ms, collect 10.36s, tests 47.33s, environment 3ms, prepare 1.53s)
+
+
+PASS: Actual integration suite on OWNED PostgreSQL/Redis (exit 0)
+$ Actual security suite on OWNED PostgreSQL/Redis
+
+> lifestyle-backend@1.0.1 test:security
+> vitest run tests/security
+
+
+ RUN  v3.2.7 /home/user/life-style-app/backend
+
+ ✓ tests/security/auth-security.test.ts (3 tests) 2873ms
+   ✓ Auth Security Tests > AC-AUTH-04: Timing similarity: Login for non-existent user executes dummy bcrypt compare  1293ms
+   ✓ Auth Security Tests > Enforces rate limits on consecutive login attempts  1553ms
+ ✓ tests/security/security-headers.test.ts (3 tests) 44ms
+
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  12:20:12
+   Duration  5.78s (transform 881ms, setup 50ms, collect 2.26s, tests 2.92s, environment 0ms, prepare 215ms)
+
+
+PASS: Actual security suite on OWNED PostgreSQL/Redis (exit 0)
+Owned PostgreSQL/Redis child processes stopped; only this harness temporary directory is removed.

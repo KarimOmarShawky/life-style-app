@@ -1,13 +1,6 @@
-/**
- * src/infrastructure/external/email-sender.ts
- *
- * Implements Section 4.4 & 8.5: Abstracted Email Sender.
- * Formats plain password reset emails with 6-digit code and no links.
- */
-
-import net from 'node:net';
+/** SMTP delivery acknowledges only an accepted recipient; secrets stay in memory. */
+import nodemailer, { type Transporter } from 'nodemailer';
 import { getEnv } from '../../config/env.js';
-import { logger } from '../../core/logger/logger.js';
 
 export interface EmailSender {
   sendPasswordResetEmail(to: string, code: string): Promise<void>;
@@ -15,61 +8,48 @@ export interface EmailSender {
 }
 
 export class SmtpEmailSender implements EmailSender {
-  private readonly host: string;
-  private readonly port: number;
+  private readonly transport: Transporter;
   private readonly from: string;
 
-  constructor() {
+  constructor(transport?: Transporter) {
     const env = getEnv();
-    this.host = env.EMAIL_HOST;
-    this.port = env.EMAIL_PORT;
     this.from = env.EMAIL_FROM;
+    this.transport =
+      transport ??
+      nodemailer.createTransport({
+        host: env.EMAIL_HOST,
+        port: env.EMAIL_PORT,
+        secure: env.EMAIL_PORT === 465,
+        requireTLS: env.NODE_ENV === 'production',
+        auth: env.EMAIL_USER ? { user: env.EMAIL_USER, pass: env.EMAIL_PASSWORD } : undefined,
+        tls: { rejectUnauthorized: true, minVersion: 'TLSv1.2' },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 10000,
+        logger: false,
+        debug: false
+      });
   }
 
   public async sendPasswordResetEmail(to: string, code: string): Promise<void> {
-    const subject = 'Your LifeStyle App Password Reset Code';
-    const body = `Your 6-digit password reset code is: ${code}\n\nThis code is valid for 15 minutes.\nIf you did not request this reset, please ignore this email.`;
-
-    logger.info(`Sending password reset email to [REDACTED] via ${this.host}:${this.port}`);
-    await this.sendRaw(to, subject, body);
+    await this.sendRaw(
+      to,
+      'Your LifeStyle App Password Reset Code',
+      `Your 6-digit password reset code is: ${code}\n\nThis code is valid for 15 minutes.\nIf you did not request this reset, please ignore this email.`
+    );
   }
 
   public async sendReminderEmail(to: string, subject: string, body: string): Promise<void> {
-    logger.info(`Sending reminder email to [REDACTED] via ${this.host}:${this.port}`);
     await this.sendRaw(to, subject, body);
   }
 
-  private async sendRaw(to: string, subject: string, body: string): Promise<void> {
-    // In local dev/test with Mailpit or mock, attempt simple SMTP socket write
-    return new Promise((resolve) => {
-      const socket = net.createConnection(this.port, this.host, () => {
-        socket.write(`HELO localhost\r\n`);
-        socket.write(`MAIL FROM:<${this.from}>\r\n`);
-        socket.write(`RCPT TO:<${to}>\r\n`);
-        socket.write(`DATA\r\n`);
-        socket.write(
-          `From: ${this.from}\r\nTo: ${to}\r\nSubject: ${subject}\r\n\r\n${body}\r\n.\r\n`
-        );
-        socket.write(`QUIT\r\n`);
-      });
-
-      socket.on('error', (err) => {
-        logger.warn('SMTP connection failed, logged email locally', { err: String(err) });
-        resolve(); // Do not fail the API if Mailpit is unreachable
-      });
-
-      socket.on('data', (data) => {
-        if (data.toString().includes('221') || data.toString().includes('250')) {
-          socket.end();
-          resolve();
-        }
-      });
-
-      // Timeout safety
-      setTimeout(() => {
-        socket.destroy();
-        resolve();
-      }, 2000);
-    });
+  private async sendRaw(to: string, subject: string, text: string): Promise<void> {
+    try {
+      const result = await this.transport.sendMail({ from: this.from, to, subject, text });
+      if (!result.accepted?.length || result.rejected?.length) throw new Error('Rejected');
+    } catch {
+      // Provider exceptions can contain SMTP commands/addresses. Never propagate them.
+      throw new Error('EMAIL_DELIVERY_FAILED');
+    }
   }
 }

@@ -9,6 +9,24 @@ import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class _Credentials implements WalletCredentialStore {
+  _Credentials([this.token]);
+  String? token;
+  bool failWrite = false;
+  @override
+  Future<bool> hasToken() async => token != null;
+  @override
+  Future<void> write(String token) async {
+    if (failWrite) throw StateError('secure storage failed');
+    this.token = token;
+  }
+
+  @override
+  Future<void> clear() async {
+    token = null;
+  }
+}
+
 class _SignedInStore implements TokenStore {
   @override
   Future<SessionTokens?> read() async => SessionTokens(
@@ -38,6 +56,10 @@ http.Response _json(int status, Map<String, Object?> body) => http.Response(
     );
 
 void main() {
+  late _Credentials credentials;
+  setUp(() {
+    credentials = _Credentials();
+  });
   test('does nothing while SMS capture is off', () async {
     SharedPreferences.setMockInitialValues({});
     var requests = 0;
@@ -48,7 +70,7 @@ void main() {
       }),
     );
 
-    await WalletIngestToken(api).ensure();
+    await WalletIngestToken(api, credentials: credentials).ensure();
 
     expect(requests, 0);
   });
@@ -63,19 +85,17 @@ void main() {
       }),
     );
 
-    await WalletIngestToken(api).ensure();
+    await WalletIngestToken(api, credentials: credentials).ensure();
 
     expect(captured.method, 'POST');
     expect(captured.url.path, '/api/v1/ingest/token');
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString(WalletIngestToken.storageKey), 'lsi_issued');
+    expect(prefs.getString(WalletIngestToken.storageKey), isNull);
+    expect(credentials.token, 'lsi_issued');
   });
 
   test('keeps the stored token unless it is forced to be replaced', () async {
-    SharedPreferences.setMockInitialValues({
-      'sms_sync_enabled': true,
-      WalletIngestToken.storageKey: 'lsi_existing',
-    });
+    SharedPreferences.setMockInitialValues({'sms_sync_enabled': true});
     var requests = 0;
     final api = _apiWith(
       MockClient((request) async {
@@ -83,7 +103,8 @@ void main() {
         return _json(201, {'token': 'lsi_replacement'});
       }),
     );
-    final walletToken = WalletIngestToken(api);
+    credentials.token = 'lsi_existing';
+    final walletToken = WalletIngestToken(api, credentials: credentials);
 
     await walletToken.ensure();
     expect(requests, 0);
@@ -91,7 +112,8 @@ void main() {
     await walletToken.ensure(force: true);
     expect(requests, 1);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString(WalletIngestToken.storageKey), 'lsi_replacement');
+    expect(prefs.getString(WalletIngestToken.storageKey), isNull);
+    expect(credentials.token, 'lsi_replacement');
   });
 
   test('stores nothing when the backend refuses to issue a token', () async {
@@ -102,26 +124,30 @@ void main() {
           })),
     );
 
-    await WalletIngestToken(api).ensure();
+    await expectLater(
+      WalletIngestToken(api, credentials: credentials).ensure(),
+      throwsA(isA<ApiException>()),
+    );
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString(WalletIngestToken.storageKey), isNull);
   });
 
-  test('revoke removes the local copy and calls DELETE on the backend',
-      () async {
-    SharedPreferences.setMockInitialValues({
-      WalletIngestToken.storageKey: 'lsi_to_revoke',
-    });
-    late http.Request captured;
-    final api = _apiWith(
-      MockClient((request) async {
-        captured = request;
-        return http.Response('', 204);
-      }),
-    );
+  test(
+    'revoke removes the local copy and calls DELETE on the backend',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      late http.Request captured;
+      final api = _apiWith(
+        MockClient((request) async {
+          captured = request;
+          return http.Response('', 204);
+        }),
+      );
 
-    await WalletIngestToken(api).revoke();
+      credentials.token = 'lsi_to_revoke';
+    await WalletIngestToken(api, credentials: credentials).revoke();
+    expect(credentials.token, isNull);
 
     expect(captured.method, 'DELETE');
     expect(captured.url.path, '/api/v1/ingest/token');
@@ -130,13 +156,20 @@ void main() {
   });
 
   test('clearLocal removes the token without any request', () async {
-    SharedPreferences.setMockInitialValues({
-      WalletIngestToken.storageKey: 'lsi_signed_out',
-    });
+    SharedPreferences.setMockInitialValues({});
 
-    await WalletIngestToken.clearLocal();
+    credentials.token = 'lsi_signed_out';
+    await WalletIngestToken.clearLocal(credentials: credentials);
+    expect(credentials.token, isNull);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString(WalletIngestToken.storageKey), isNull);
+  });  test('secure-store failure never falls back to plaintext preferences', () async {
+    SharedPreferences.setMockInitialValues({'sms_sync_enabled': true});
+    credentials.failWrite = true;
+    final api = _apiWith(MockClient((_) async => _json(201, {'token': 'lsi_secret'})));
+    await expectLater(WalletIngestToken(api, credentials: credentials).ensure(), throwsStateError);
+    expect((await SharedPreferences.getInstance()).getString(WalletIngestToken.storageKey), isNull);
   });
+
 }

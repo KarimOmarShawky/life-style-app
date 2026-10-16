@@ -1,3 +1,5 @@
+import { Decimal } from 'decimal.js';
+import { getCurrencyExponent } from './money.dto.js';
 /**
  * src/features/money/money.reader.ts
  *
@@ -14,7 +16,8 @@ import { formatDateOnly } from '../../core/time/date-utils.js';
 export interface SubscriptionReaderItem {
   id: string;
   name: string;
-  amountMinor: number;
+  amountMinor: string;
+  currencyExponent: number;
   currency: string;
   billingUnit: string;
   nextBillingDate: string;
@@ -29,8 +32,10 @@ export interface MoneyReader {
   countActiveSubscriptions(userId: string): Promise<number>;
 }
 
-function toMinor(amount: string | number): number {
-  return Math.round(Number(amount) * 100);
+export function toMinor(amount: string, currency: string): string {
+  return new Decimal(amount)
+    .times(new Decimal(10).pow(getCurrencyExponent(currency)))
+    .toFixed(0, Decimal.ROUND_HALF_UP);
 }
 
 export class PgMoneyReader implements MoneyReader {
@@ -54,7 +59,8 @@ export class PgMoneyReader implements MoneyReader {
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
-      amountMinor: toMinor(row.amount as unknown as string),
+      amountMinor: toMinor(String(row.amount), row.currency),
+      currencyExponent: getCurrencyExponent(row.currency),
       currency: row.currency,
       billingUnit: row.billing_unit,
       nextBillingDate: formatDateOnly(row.next_billing_date)!

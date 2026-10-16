@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/schema-constraints.test.ts
  *

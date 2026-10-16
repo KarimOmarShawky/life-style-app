@@ -1,3 +1,4 @@
+import { literalContainsPattern } from '../../core/pagination/search-pattern.js';
 /**
  * src/features/projects/projects.reader.ts
  *
@@ -23,7 +24,7 @@ export class PgProjectsReader implements ProjectsReader {
   constructor(private readonly db: Kysely<DatabaseSchema>) {}
 
   public async search(userId: string, q: string, limit: number): Promise<ProjectSearchItem[]> {
-    const pattern = `%${q}%`;
+    const pattern = literalContainsPattern(q);
     const rows = await this.db
       .selectFrom('projects')
       .select(['id', 'name', 'description', 'color'])

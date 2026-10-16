@@ -1,0 +1,6 @@
+$ npm --prefix backend run typecheck:tests
+Exit: 0
+
+> lifestyle-backend@1.0.1 typecheck:tests
+> tsc -p tsconfig.verification.json
+

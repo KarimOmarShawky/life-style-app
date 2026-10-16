@@ -1,3 +1,4 @@
+import { currencySchema, timezoneSchema } from '../../core/security/profile-validation.js';
 /**
  * src/features/auth/auth.validation.ts
  *
@@ -22,7 +23,8 @@ const COMMON_PASSWORDS = new Set([
 // Minimum 10 characters, maximum 72 bytes (UTF-8), non-blank, common password check.
 export const passwordSchema = z
   .string()
-  .min(10, { message: 'Password must be at least 10 characters long' })
+  .refine((value) => value.trim().length > 0, 'Password must not be blank')
+  .pipe(z.string().min(10, { message: 'Password must be at least 10 characters long' }))
   .refine((val) => Buffer.byteLength(val, 'utf8') <= 72, {
     message: 'Password must not exceed 72 bytes'
   })
@@ -56,11 +58,8 @@ export const registerSchema = z
       .trim()
       .min(1, { message: 'Display name cannot be blank' })
       .max(100, { message: 'Display name must not exceed 100 characters' }),
-    timezone: z.string().default('UTC'),
-    defaultCurrency: z
-      .string()
-      .regex(/^[A-Z]{3}$/, { message: 'Currency must be a 3-letter ISO 4217 uppercase code' })
-      .default('USD'),
+    timezone: timezoneSchema.default('UTC'),
+    defaultCurrency: currencySchema.default('USD'),
     locale: z.string().max(16).default('en'),
     device: deviceSchema.optional()
   })

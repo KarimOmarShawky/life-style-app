@@ -1,0 +1,13 @@
+$ python scripts/check-archive-stage.py
+Exit: 0
+PASS: encrypted bytes are not a plaintext staging file; verified copy/readback and cleanup (JVM staging only)
+PASS: cannot publish before seal (JVM staging only)
+PASS: mismatched whole-file hash cannot seal (JVM staging only)
+PASS: mismatched byte length cannot seal (JVM staging only)
+PASS: oversized and empty codec chunks fail (JVM staging only)
+PASS: ciphertext corruption fails authenticated decryption (JVM staging only)
+PASS: truncated stage is not a successful copy (JVM staging only)
+PASS: provider readback mismatch/truncation cannot confirm save (JVM staging only)
+PASS: revoked stage cannot continue copy or append (JVM staging only)
+PASS: multi-chunk stream preserves exact bytes and ordering (JVM staging only)
+PASS: 10 JVM encryption/staging checks; Android document provider, lifecycle, permissions and Flutter NOT RUN

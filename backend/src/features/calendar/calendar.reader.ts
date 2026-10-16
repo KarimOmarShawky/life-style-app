@@ -1,3 +1,4 @@
+import { literalContainsPattern } from '../../core/pagination/search-pattern.js';
 /**
  * src/features/calendar/calendar.reader.ts
  *
@@ -57,7 +58,7 @@ export class PgCalendarReader implements CalendarReader {
   }
 
   public async search(userId: string, q: string, limit: number): Promise<EventReaderItem[]> {
-    const pattern = `%${q}%`;
+    const pattern = literalContainsPattern(q);
     const rows = await this.db
       .selectFrom('events')
       .select([...EVENT_FIELDS])

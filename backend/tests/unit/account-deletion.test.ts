@@ -104,7 +104,7 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
     const { pool, queries, released } = createTransactionalPoolMock();
     const { logger, events } = createNoopAuditLogger();
     const repo = new PgUsersRepository(pool);
-    const service = new UsersService(repo, logger);
+    const service = new UsersService(repo, logger, {} as never);
 
     const res = await service.scheduleDeletion(userA, { ip: '127.0.0.1' }, sessionA1);
 
@@ -142,6 +142,15 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
     expect(events).toHaveLength(1);
   });
 
+  it('push-device revocation is owner-scoped DELETE, never a paginated export query', async () => {
+    const { pool, queries } = createTransactionalPoolMock();
+    await new PgUsersRepository(pool).scheduleDeletion(userA, new Date(), sessionA1);
+    const deletes = queries.filter((q) => q.sql.startsWith('DELETE FROM push_devices'));
+    expect(deletes).toEqual([
+      { sql: 'DELETE FROM push_devices WHERE user_id = $1', params: [userA] }
+    ]);
+  });
+
   it('is idempotent on repeated deletion requests and preserves original deletionScheduledFor', async () => {
     const originalDate = new Date('2026-10-20T00:00:00.000Z');
     const { pool, queries } = createTransactionalPoolMock({
@@ -152,7 +161,7 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
       }
     });
     const { logger } = createNoopAuditLogger();
-    const service = new UsersService(new PgUsersRepository(pool), logger);
+    const service = new UsersService(new PgUsersRepository(pool), logger, {} as never);
 
     const first = await service.scheduleDeletion(userA, undefined, sessionA1);
     const second = await service.scheduleDeletion(userA, undefined, sessionA1);
@@ -166,7 +175,9 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
   it('rejects unauthenticated deletion requests at controller boundary (authorization/ownership)', async () => {
     const { pool } = createTransactionalPoolMock();
     const { logger } = createNoopAuditLogger();
-    const controller = new UsersController(new UsersService(new PgUsersRepository(pool), logger));
+    const controller = new UsersController(
+      new UsersService(new PgUsersRepository(pool), logger, {} as never)
+    );
 
     const req = { headers: {}, socket: {} } as unknown as Request;
     const res = {} as unknown as Response;
@@ -191,7 +202,7 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
     });
     const { logger, events } = createNoopAuditLogger();
     const repo = new PgUsersRepository(pool);
-    const service = new UsersService(repo, logger);
+    const service = new UsersService(repo, logger, {} as never);
 
     const purged = await service.purgeAccount(userA, {
       requirePendingDeletion: true,

@@ -56,3 +56,9 @@ temp/
 *.jks
 mobile-app/mobile/android/key.properties
 mobile-app/mobile/android/app/key.properties
+
+# Per-installation local credentials; never package or commit.
+/.local-setup/
+
+# JVM heap dumps can contain signing credentials; never source artifacts.
+*.hprof

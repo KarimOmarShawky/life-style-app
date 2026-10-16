@@ -1,3 +1,4 @@
+import { currencySchema, timezoneSchema } from '../../core/security/profile-validation.js';
 /**
  * src/features/users/users.validation.ts
  *
@@ -14,13 +15,10 @@ export const updateProfileSchema = z
       .min(1, { message: 'Display name cannot be blank' })
       .max(100, { message: 'Display name must not exceed 100 characters' })
       .optional(),
-    timezone: z.string().optional(),
+    timezone: timezoneSchema.optional(),
     locale: z.string().max(16).optional(),
     weekStart: z.number().int().min(1).max(7).optional(),
-    defaultCurrency: z
-      .string()
-      .regex(/^[A-Z]{3}$/, { message: 'Currency must be a 3-letter ISO 4217 uppercase code' })
-      .optional(),
+    defaultCurrency: currencySchema.optional(),
     pushShowTitles: z.boolean().optional()
   })
   .strict();
@@ -40,5 +38,12 @@ export type RegisterDeviceInput = z.infer<typeof registerDeviceSchema>;
 export const deviceIdParamSchema = z
   .object({
     deviceId: z.string().uuid({ message: 'Device ID must be a valid UUID' })
+  })
+  .strict();
+
+/** Current password proof; never trim or persist the submitted secret. */
+export const reauthenticationSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(1024)
   })
   .strict();

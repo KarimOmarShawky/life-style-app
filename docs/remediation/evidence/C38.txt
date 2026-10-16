@@ -1,0 +1,8 @@
+$ python scripts/review-history-provenance.py --self-test && python scripts/review-history-provenance.py
+Exit: 0
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+PASS: provenance reviewed for 37 historical metadata records; detector remains FAIL; deployed reuse BLOCKED. No matched values emitted.

@@ -53,6 +53,7 @@ class FocusShieldAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
     companion object {
+        fun isConnected(): Boolean = instance?.get() != null
         private var instance: WeakReference<FocusShieldAccessibilityService>? = null
         private val handler = Handler(Looper.getMainLooper())
         fun scheduleBypassRecheck(packageName: String, untilMs: Long) {

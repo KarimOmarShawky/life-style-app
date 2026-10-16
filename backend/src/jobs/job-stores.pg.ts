@@ -1,3 +1,5 @@
+import { PgUsersRepository } from '../features/users/users.repository.pg.js';
+import { getPgPool } from '../infrastructure/database/postgres/pool.js';
 /**
  * src/jobs/job-stores.pg.ts
  *
@@ -28,7 +30,15 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
   constructor(private readonly db: Kysely<DatabaseSchema>) {}
 
   public async claimDue(now: Date, limit: number): Promise<DispatchableReminder[]> {
-    // Atomic claim: skip locked rows so concurrent workers never double-send.
+    // A dead worker cannot strand a reminder forever. Five crashed attempts are terminal.
+    await sql`
+      UPDATE reminders SET status = 'failed', failed_at = ${now}, next_attempt_at = NULL,
+        last_error_code = 'LEASE_EXPIRED', last_error_message = 'Delivery outcome unknown after worker interruption',
+        updated_at = ${now}
+      WHERE status = 'processing' AND attempt_count >= 5
+        AND processing_started_at < ${now}::timestamptz - interval '10 minutes'
+    `.execute(this.db);
+    // Atomic lease: skip locked claims. External delivery remains at-least-once after a crash.
     const rows = await sql<{
       id: string;
       user_id: string;
@@ -45,7 +55,10 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
           updated_at = ${now}
       WHERE r.id IN (
         SELECT id FROM reminders
-        WHERE status = 'pending' AND next_attempt_at IS NOT NULL AND next_attempt_at <= ${now}
+        WHERE attempt_count < 5 AND (
+          (status = 'pending' AND next_attempt_at IS NOT NULL AND next_attempt_at <= ${now}) OR
+          (status = 'processing' AND processing_started_at < ${now}::timestamptz - interval '10 minutes')
+        )
         ORDER BY next_attempt_at
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -64,11 +77,13 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
     }));
   }
 
-  public async markSent(id: string, sentAt: Date): Promise<void> {
+  public async markSent(id: string, sentAt: Date, attemptCount: number): Promise<void> {
     await this.db
       .updateTable('reminders')
       .set({ status: 'sent', sent_at: sentAt, next_attempt_at: null, updated_at: sentAt })
       .where('id', '=', id)
+      .where('status', '=', 'processing')
+      .where('attempt_count', '=', attemptCount)
       .execute();
   }
 
@@ -76,7 +91,8 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
     id: string,
     nextAttemptAt: Date,
     errorCode: string,
-    errorMessage: string
+    errorMessage: string,
+    attemptCount: number
   ): Promise<void> {
     await this.db
       .updateTable('reminders')
@@ -87,6 +103,8 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
         last_error_message: errorMessage
       })
       .where('id', '=', id)
+      .where('status', '=', 'processing')
+      .where('attempt_count', '=', attemptCount)
       .execute();
   }
 
@@ -94,7 +112,8 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
     id: string,
     failedAt: Date,
     errorCode: string,
-    errorMessage: string
+    errorMessage: string,
+    attemptCount: number
   ): Promise<void> {
     await this.db
       .updateTable('reminders')
@@ -106,6 +125,8 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
         last_error_message: errorMessage
       })
       .where('id', '=', id)
+      .where('status', '=', 'processing')
+      .where('attempt_count', '=', attemptCount)
       .execute();
   }
 
@@ -254,7 +275,7 @@ export class PgTimerMaintenanceStore implements TimerMaintenanceStore {
   public async autoCloseStale(cutoff: Date): Promise<number> {
     const result = await sql<{ id: string }>`
       UPDATE timer_sessions
-      SET ended_at = now(), end_reason = 'auto_closed', updated_at = now()
+      SET ended_at = started_at + interval '12 hours', end_reason = 'auto_closed', updated_at = now()
       WHERE ended_at IS NULL AND started_at < ${cutoff}
       RETURNING id
     `.execute(this.db);
@@ -281,99 +302,16 @@ export class PgPurgeStore implements PurgeStore {
     ];
     let purged = 0;
     for (const table of tables) {
-      try {
-        const result = await sql<{ id: string }>`
-          DELETE FROM ${sql.table(table)} WHERE deleted_at IS NOT NULL AND deleted_at < ${cutoff} RETURNING id
-        `.execute(this.db);
-        purged += result.rows.length;
-      } catch {
-        // A table without a deleted_at column is simply skipped.
-      }
+      const result = await sql<{ id: string }>`
+        DELETE FROM ${sql.table(table)} WHERE deleted_at IS NOT NULL AND deleted_at < ${cutoff} RETURNING id
+      `.execute(this.db);
+      purged += result.rows.length;
     }
     return purged;
   }
 
   public async purgeExpiredAccounts(now: Date): Promise<number> {
-    const dueUsers = await sql<{ id: string }>`
-      SELECT id
-      FROM users
-      WHERE status = 'pending_deletion'
-        AND deletion_scheduled_for IS NOT NULL
-        AND deletion_scheduled_for <= ${now}
-      ORDER BY deletion_scheduled_for ASC
-    `.execute(this.db);
-
-    const userOwnedTables = [
-      'ingest_tokens',
-      'push_devices',
-      'reminders',
-      'note_links',
-      'timer_sessions',
-      'habit_checkins',
-      'recurrences',
-      'tasks',
-      'recurring_tasks',
-      'habits',
-      'milestones',
-      'projects',
-      'goals',
-      'notes',
-      'events',
-      'transactions',
-      'subscriptions',
-      'budgets',
-      'categories'
-    ];
-
-    let purgedAccounts = 0;
-    for (const row of dueUsers.rows) {
-      const purged = await this.db.transaction().execute(async (trx) => {
-        const locked = await sql<{
-          id: string;
-          status: string;
-          deletion_scheduled_for: Date | null;
-        }>`
-          SELECT id, status, deletion_scheduled_for
-          FROM users
-          WHERE id = ${row.id}
-          FOR UPDATE
-        `.execute(trx);
-
-        const user = locked.rows[0];
-        if (
-          !user ||
-          user.status !== 'pending_deletion' ||
-          user.deletion_scheduled_for === null ||
-          new Date(user.deletion_scheduled_for).getTime() > now.getTime()
-        ) {
-          return false;
-        }
-
-        await sql`
-          UPDATE ingest_tokens SET revoked_at = now()
-          WHERE user_id = ${row.id} AND revoked_at IS NULL
-        `.execute(trx);
-        await sql`
-          UPDATE refresh_tokens SET replaced_by = NULL
-          WHERE user_id = ${row.id} AND replaced_by IS NOT NULL
-        `.execute(trx);
-        await sql`DELETE FROM refresh_tokens WHERE user_id = ${row.id}`.execute(trx);
-        await sql`DELETE FROM auth_sessions WHERE user_id = ${row.id}`.execute(trx);
-
-        for (const table of userOwnedTables) {
-          await sql`DELETE FROM ${sql.table(table)} WHERE user_id = ${row.id}`.execute(trx);
-        }
-
-        await sql`DELETE FROM users WHERE id = ${row.id}`.execute(trx);
-        return true;
-      });
-
-      if (purged) {
-        purgedAccounts += 1;
-      }
-    }
-
-    return purgedAccounts;
+    return new PgUsersRepository(getPgPool()).purgeExpiredAccounts(now);
   }
 }
 

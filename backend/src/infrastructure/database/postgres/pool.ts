@@ -25,7 +25,8 @@ export function getPgPool(): pg.Pool {
     max: env.DATABASE_POOL_MAX,
     ssl: env.DATABASE_SSL ? { rejectUnauthorized: true } : false,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 15000
   });
 
   pool.on('error', (err) => {

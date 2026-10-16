@@ -8,6 +8,7 @@
  */
 
 import http from 'node:http';
+import { getContainer } from './container.js';
 import { createApp } from './app.js';
 import { getEnv, validateEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
@@ -48,6 +49,8 @@ async function handleShutdown(signal: string): Promise<void> {
 
   // 1. Immediately flip readiness health probe to failing (503 degraded) so LB drains traffic
   setDrainingStatus(true);
+  const auth = getContainer().authService;
+  auth.stopResetRequests();
 
   // 2. Stop accepting new HTTP connections (primary and auxiliary listeners)
   for (const aux of auxiliaryServers) {
@@ -62,6 +65,9 @@ async function handleShutdown(signal: string): Promise<void> {
     logger.info('HTTP server closed. Draining database and cache connections...');
 
     try {
+      // Accepted volatile reset requests need Redis/PG until their workers finish.
+      await auth.waitForResetRequests();
+
       // 3. Close Redis connection
       await closeRedisClient();
 
@@ -78,7 +84,10 @@ async function handleShutdown(signal: string): Promise<void> {
 
   // 5. Force termination if in-flight requests exceed 30 seconds cap (Section 4.7)
   const shutdownTimer = setTimeout(() => {
-    logger.error('Graceful shutdown timed out after 30s. Forcing exit.');
+    logger.error(
+      'Graceful shutdown timed out after 30s. Forcing exit; accepted volatile work may be lost.',
+      { resetRequests: auth.resetRequestCounts() }
+    );
     process.exit(1);
   }, 30000);
 

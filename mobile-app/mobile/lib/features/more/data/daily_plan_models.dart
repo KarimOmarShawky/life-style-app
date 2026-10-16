@@ -138,6 +138,7 @@ class DayPlanSubscriptionItem {
     required this.id,
     required this.name,
     required this.amountMinor,
+    required this.currencyExponent,
     required this.currency,
     required this.billingUnit,
     required this.nextBillingDate,
@@ -145,18 +146,27 @@ class DayPlanSubscriptionItem {
 
   final String id;
   final String name;
-  final int amountMinor;
+  final String amountMinor;
+  final int currencyExponent;
   final String currency;
   final String billingUnit;
   final String nextBillingDate;
 
-  String get formattedAmount => (amountMinor / 100).toStringAsFixed(2);
+  String get formattedAmount {
+    final value = BigInt.parse(amountMinor);
+    final sign = value.isNegative ? '-' : '';
+    final digits = value.abs().toString().padLeft(currencyExponent + 1, '0');
+    if (currencyExponent == 0) return '$sign$digits';
+    final split = digits.length - currencyExponent;
+    return '$sign${digits.substring(0, split)}.${digits.substring(split)}';
+  }
 
   factory DayPlanSubscriptionItem.fromJson(Map<String, dynamic> json) =>
       DayPlanSubscriptionItem(
         id: jsonString(json, 'id'),
         name: jsonString(json, 'name'),
-        amountMinor: jsonOptionalInt(json, 'amountMinor') ?? 0,
+        amountMinor: jsonString(json, 'amountMinor'),
+        currencyExponent: jsonOptionalInt(json, 'currencyExponent') ?? 2,
         currency: jsonString(json, 'currency'),
         billingUnit: jsonString(json, 'billingUnit'),
         nextBillingDate: jsonString(json, 'nextBillingDate'),
@@ -283,7 +293,10 @@ class DailyPlanRepository {
   final ApiClient _api;
 
   Future<DashboardOverview> getDashboardOverview() async {
-    final response = jsonObject(await _api.get('dashboard'), 'dashboard');
+    final response = jsonObject(
+      await _api.get('dashboard/overview'),
+      'dashboard',
+    );
     return DashboardOverview.fromJson(
       jsonObject(response['overview'], 'overview'),
     );

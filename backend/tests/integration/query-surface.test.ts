@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/query-surface.test.ts
  *
@@ -135,7 +136,7 @@ describe('Query Surface Integration Tests (P1-05)', () => {
       habits: { dueToday: 1, completedToday: 0 },
       activeSubscriptions: 1
     });
-    expect(res.body.overview.subscriptionsDueNext7Days.totalMinorByCurrency.USD).toBe(4999);
+    expect(res.body.overview.subscriptionsDueNext7Days.totalMinorByCurrency.USD).toBe('4999');
   });
 
   it('GET /search finds items across features and enforces q', async () => {

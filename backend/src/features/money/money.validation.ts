@@ -1,3 +1,4 @@
+import { currencySchema } from '../../core/security/profile-validation.js';
 /**
  * src/features/money/money.validation.ts
  *
@@ -51,58 +52,60 @@ export const monetaryAmountSchema = z
     { message: 'Amount must be greater than 0' }
   );
 
-export const currencyCodeSchema = z
-  .string()
-  .trim()
-  .length(3, 'Currency must be an ISO-4217 3-letter code')
-  .regex(/^[A-Z]{3}$/, 'Currency must be uppercase 3-letter ISO-4217 code');
+export const currencyCodeSchema = currencySchema;
 
 export const dateStringSchema = z
   .string()
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD');
 
-export const createCategorySchema = z.object({
-  kind: z.enum(['expense', 'income']),
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Category name cannot be empty')
-    .max(60, 'Category name cannot exceed 60 characters'),
-  icon: z.string().trim().max(40, 'Icon cannot exceed 40 characters').nullable().optional(),
-  color: z
-    .string()
-    .trim()
-    .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Color must be a valid hex color string')
-    .nullable()
-    .optional()
-});
+export const createCategorySchema = z
+  .object({
+    kind: z.enum(['expense', 'income']),
+    name: z
+      .string()
+      .trim()
+      .min(1, 'Category name cannot be empty')
+      .max(60, 'Category name cannot exceed 60 characters'),
+    icon: z.string().trim().max(40, 'Icon cannot exceed 40 characters').nullable().optional(),
+    color: z
+      .string()
+      .trim()
+      .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Color must be a valid hex color string')
+      .nullable()
+      .optional()
+  })
+  .strict();
 
-export const updateCategorySchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Category name cannot be empty')
-    .max(60, 'Category name cannot exceed 60 characters')
-    .optional(),
-  icon: z.string().trim().max(40, 'Icon cannot exceed 40 characters').nullable().optional(),
-  color: z
-    .string()
-    .trim()
-    .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Color must be a valid hex color string')
-    .nullable()
-    .optional(),
-  archived: z.boolean().optional(),
-  version: z.number().int().positive().optional()
-});
+export const updateCategorySchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, 'Category name cannot be empty')
+      .max(60, 'Category name cannot exceed 60 characters')
+      .optional(),
+    icon: z.string().trim().max(40, 'Icon cannot exceed 40 characters').nullable().optional(),
+    color: z
+      .string()
+      .trim()
+      .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Color must be a valid hex color string')
+      .nullable()
+      .optional(),
+    archived: z.boolean().optional(),
+    version: z.number().int().positive().optional()
+  })
+  .strict();
 
-export const listCategoriesQuerySchema = z.object({
-  kind: z.enum(['expense', 'income']).optional(),
-  includeArchived: z
-    .enum(['true', 'false'])
-    .transform((v) => v === 'true')
-    .optional()
-});
+export const listCategoriesQuerySchema = z
+  .object({
+    kind: z.enum(['expense', 'income']).optional(),
+    includeArchived: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .optional()
+  })
+  .strict();
 
 export const createTransactionSchema = z
   .object({
@@ -126,6 +129,7 @@ export const createTransactionSchema = z
     subscriptionId: z.string().uuid('Invalid subscriptionId format').nullable().optional(),
     billingDate: dateStringSchema.nullable().optional()
   })
+  .strict()
   .refine(
     (data) => validateMonetaryString(data.amount, data.currency),
     (data) => ({
@@ -167,6 +171,7 @@ export const updateTransactionSchema = z
       .optional(),
     version: z.number().int().positive().optional()
   })
+  .strict()
   .refine(
     (data) => {
       if (data.amount !== undefined && data.currency !== undefined) {
@@ -180,18 +185,20 @@ export const updateTransactionSchema = z
     })
   );
 
-export const listTransactionsQuerySchema = z.object({
-  kind: z.enum(['expense', 'income']).optional(),
-  categoryId: z.string().uuid('Invalid categoryId format').optional(),
-  from: dateStringSchema.optional(),
-  to: dateStringSchema.optional(),
-  currency: currencyCodeSchema.optional(),
-  minAmount: monetaryAmountSchema.optional(),
-  maxAmount: monetaryAmountSchema.optional(),
-  sort: z.enum(['occurredOn', 'amount']).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(25).optional(),
-  cursor: z.string().optional()
-});
+export const listTransactionsQuerySchema = z
+  .object({
+    kind: z.enum(['expense', 'income']).optional(),
+    categoryId: z.string().uuid('Invalid categoryId format').optional(),
+    from: dateStringSchema.optional(),
+    to: dateStringSchema.optional(),
+    currency: currencyCodeSchema.optional(),
+    minAmount: monetaryAmountSchema.optional(),
+    maxAmount: monetaryAmountSchema.optional(),
+    sort: z.enum(['occurredOn', 'amount']).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(25).optional(),
+    cursor: z.string().optional()
+  })
+  .strict();
 
 export const createSubscriptionSchema = z
   .object({
@@ -210,6 +217,7 @@ export const createSubscriptionSchema = z
     reminderDaysBefore: z.number().int().min(0).max(30).nullable().optional(),
     notes: z.string().trim().max(1000, 'Notes cannot exceed 1000 characters').nullable().optional()
   })
+  .strict()
   .refine(
     (data) => validateMonetaryString(data.amount, data.currency),
     (data) => ({
@@ -234,6 +242,7 @@ export const updateSubscriptionSchema = z
     notes: z.string().trim().max(1000).nullable().optional(),
     version: z.number().int().positive().optional()
   })
+  .strict()
   .refine(
     (data) => {
       if (data.amount !== undefined && data.currency !== undefined) {
@@ -247,16 +256,20 @@ export const updateSubscriptionSchema = z
     })
   );
 
-export const listSubscriptionsQuerySchema = z.object({
-  status: z.enum(['active', 'paused', 'cancelled']).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(25).optional(),
-  cursor: z.string().optional()
-});
+export const listSubscriptionsQuerySchema = z
+  .object({
+    status: z.enum(['active', 'paused', 'cancelled']).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(25).optional(),
+    cursor: z.string().optional()
+  })
+  .strict();
 
-export const paySubscriptionSchema = z.object({
-  amount: monetaryAmountSchema.optional(),
-  occurredOn: dateStringSchema.optional()
-});
+export const paySubscriptionSchema = z
+  .object({
+    amount: monetaryAmountSchema.optional(),
+    occurredOn: dateStringSchema.optional()
+  })
+  .strict();
 
 export const createBudgetSchema = z
   .object({
@@ -265,6 +278,7 @@ export const createBudgetSchema = z
     currency: currencyCodeSchema,
     period: z.enum(['monthly']).optional().default('monthly')
   })
+  .strict()
   .refine(
     (data) => validateMonetaryString(data.amountLimit, data.currency),
     (data) => ({
@@ -273,10 +287,12 @@ export const createBudgetSchema = z
     })
   );
 
-export const updateBudgetSchema = z.object({
-  amountLimit: monetaryAmountSchema.optional(),
-  version: z.number().int().positive().optional()
-});
+export const updateBudgetSchema = z
+  .object({
+    amountLimit: monetaryAmountSchema.optional(),
+    version: z.number().int().positive().optional()
+  })
+  .strict();
 
 export const reportSummaryQuerySchema = z
   .object({
@@ -285,6 +301,7 @@ export const reportSummaryQuerySchema = z
     currency: currencyCodeSchema.optional(),
     groupBy: z.enum(['none', 'day', 'week', 'month']).default('none').optional()
   })
+  .strict()
   .refine((data) => data.to >= data.from, {
     message: 'to date must be greater than or equal to from date',
     path: ['to']
@@ -299,18 +316,26 @@ export const reportSummaryQuerySchema = z
     { message: 'Report date span cannot exceed 366 days', path: ['to'] }
   );
 
-export const categoryIdParamSchema = z.object({
-  id: z.string().uuid('Invalid category ID format')
-});
+export const categoryIdParamSchema = z
+  .object({
+    id: z.string().uuid('Invalid category ID format')
+  })
+  .strict();
 
-export const transactionIdParamSchema = z.object({
-  id: z.string().uuid('Invalid transaction ID format')
-});
+export const transactionIdParamSchema = z
+  .object({
+    id: z.string().uuid('Invalid transaction ID format')
+  })
+  .strict();
 
-export const subscriptionIdParamSchema = z.object({
-  id: z.string().uuid('Invalid subscription ID format')
-});
+export const subscriptionIdParamSchema = z
+  .object({
+    id: z.string().uuid('Invalid subscription ID format')
+  })
+  .strict();
 
-export const budgetIdParamSchema = z.object({
-  id: z.string().uuid('Invalid budget ID format')
-});
+export const budgetIdParamSchema = z
+  .object({
+    id: z.string().uuid('Invalid budget ID format')
+  })
+  .strict();

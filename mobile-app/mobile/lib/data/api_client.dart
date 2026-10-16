@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:lifestyle_mobile/core/archive/archive_cancellation.dart';
+import 'package:lifestyle_mobile/core/archive/archive_verifier.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -34,15 +37,18 @@ class ApiClient {
     required Uri baseUri,
     required TokenStore tokenStore,
     http.Client? httpClient,
+    http.Client Function()? archiveClientFactory,
   })  : _baseUri = baseUri.replace(
           path: baseUri.path.endsWith('/') ? baseUri.path : '${baseUri.path}/',
         ),
         _tokenStore = tokenStore,
-        _httpClient = httpClient ?? http.Client();
+        _httpClient = httpClient ?? http.Client(),
+        _archiveClientFactory = archiveClientFactory ?? http.Client.new;
 
   final Uri _baseUri;
   final TokenStore _tokenStore;
   final http.Client _httpClient;
+  final http.Client Function() _archiveClientFactory;
   Future<void>? _refreshFlight;
 
   void close() => _httpClient.close();
@@ -126,6 +132,109 @@ class ApiClient {
 
     if (exception != null) throw exception;
     return _decodeSuccess(response);
+  }
+
+  /// Dedicated streaming connection. Refresh only an explicit pre-body TOKEN_EXPIRED,
+  /// once; never replay a partial archive or a lost/uncertain response.
+  Stream<List<int>> streamAccountArchive(
+      String password, ArchiveCancellation cancel) async* {
+    cancel.check();
+    final client = _archiveClientFactory();
+    var closed = false;
+    void close() {
+      if (!closed) {
+        closed = true;
+        client.close();
+      }
+    }
+
+    unawaited(cancel.whenCancelled.then((_) => close()));
+    final deadline = Timer(const Duration(seconds: 90), cancel.cancel);
+    try {
+      var tokens = await cancel.bind(_tokenStore.read());
+      for (var attempt = 0; attempt < 2; attempt++) {
+        cancel.check();
+        final currentTokens = tokens;
+        if (currentTokens == null)
+          throw const ApiException(
+              statusCode: 401,
+              code: 'UNAUTHENTICATED',
+              message: 'Sign in again before exporting.');
+        final request =
+            http.Request('POST', _uri('users/me/export/archive', null))
+              ..followRedirects = false
+              ..maxRedirects = 0;
+        request.headers.addAll({
+          'accept': 'application/x-ndjson',
+          'content-type': 'application/json; charset=utf-8',
+          'authorization': 'Bearer ${currentTokens.accessToken}'
+        });
+        request.body = jsonEncode({'currentPassword': password});
+        final response = await cancel
+            .bind(client.send(request).timeout(const Duration(seconds: 30)));
+        if (response.statusCode != 200) {
+          // Error bodies are also bounded; do not use Response.fromStream or log raw bodies.
+          final body = BytesBuilder(copy: false);
+          await for (final chunk
+              in response.stream.timeout(const Duration(seconds: 15))) {
+            cancel.check();
+            if (body.length + chunk.length > 64 * 1024)
+              throw const ArchiveException();
+            body.add(chunk);
+          }
+          var code = 'ARCHIVE_UNAVAILABLE';
+          try {
+            final error = jsonDecode(utf8.decode(body.takeBytes()));
+            if (error is Map<String, dynamic> &&
+                error['error'] is Map<String, dynamic>) {
+              final candidate =
+                  (error['error'] as Map<String, dynamic>)['code'];
+              if (candidate == 'TOKEN_EXPIRED') code = 'TOKEN_EXPIRED';
+            }
+          } on FormatException {/* Never surface provider content. */}
+          if (response.statusCode == 401 &&
+              code == 'TOKEN_EXPIRED' &&
+              attempt == 0) {
+            await cancel.bind(_refreshAfterExpiry(currentTokens.accessToken));
+            tokens = await cancel.bind(_tokenStore.read());
+            continue;
+          }
+          throw ApiException(
+              statusCode: response.statusCode,
+              code: code,
+              message:
+                  'The archive could not be downloaded. Verify your session and password, then retry.');
+        }
+        if (response.headers['content-type']
+                ?.split(';')
+                .first
+                .trim()
+                .toLowerCase() !=
+            'application/x-ndjson') throw const ArchiveException();
+        await for (final chunk
+            in response.stream.timeout(const Duration(seconds: 15))) {
+          cancel.check();
+          // Bound codec/verifier input even if a transport yields a larger buffer.
+          for (var start = 0; start < chunk.length; start += 32 * 1024) {
+            cancel.check();
+            final end = start + 32 * 1024 < chunk.length
+                ? start + 32 * 1024
+                : chunk.length;
+            yield chunk.sublist(start, end);
+          }
+        }
+        cancel.check();
+        return;
+      }
+      throw const ArchiveException();
+    } on ApiException {
+      rethrow;
+    } on Object {
+      throw const ArchiveException();
+    } finally {
+      deadline.cancel();
+      close();
+    }
   }
 
   /// Rotates a stored refresh token during app restoration. A single request

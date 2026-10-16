@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/ingest-flow.test.ts
  *

@@ -1,3 +1,4 @@
+import { literalContainsPattern } from '../../core/pagination/search-pattern.js';
 /**
  * src/features/notes/notes.reader.ts
  *
@@ -23,7 +24,7 @@ export class PgNotesReader implements NotesReader {
   constructor(private readonly db: Kysely<DatabaseSchema>) {}
 
   public async search(userId: string, q: string, limit: number): Promise<NoteSearchItem[]> {
-    const pattern = `%${q}%`;
+    const pattern = literalContainsPattern(q);
     const rows = await this.db
       .selectFrom('notes')
       .select(['id', 'title', 'body', 'is_pinned'])

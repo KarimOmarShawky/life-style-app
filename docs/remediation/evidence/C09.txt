@@ -1,0 +1,7 @@
+$ npm --prefix backend run openapi:generate
+Exit: 0
+
+> lifestyle-backend@1.0.1 openapi:generate
+> tsx src/docs/openapi-generator.ts
+
+✅ OpenAPI document generated at: /home/user/life-style-app/docs/api/openapi.yaml

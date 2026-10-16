@@ -20,7 +20,7 @@ export interface DashboardOverview {
   eventsToday: number;
   subscriptionsDueNext7Days: {
     count: number;
-    totalMinorByCurrency: Record<string, number>;
+    totalMinorByCurrency: Record<string, string>;
   };
   activeSubscriptions: number;
   activeTimer: { id: string; taskId: string | null; startedAt: string } | null;

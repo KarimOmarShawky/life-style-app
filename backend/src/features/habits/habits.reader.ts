@@ -1,3 +1,4 @@
+import { literalContainsPattern } from '../../core/pagination/search-pattern.js';
 /**
  * src/features/habits/habits.reader.ts
  *
@@ -94,7 +95,7 @@ export class PgHabitReader implements HabitReader {
       .select(['id', 'name', 'color', 'reminder_time', 'status'])
       .where('user_id', '=', userId)
       .where('deleted_at', 'is', null)
-      .where('name', 'ilike', `%${q}%`)
+      .where('name', 'ilike', literalContainsPattern(q))
       .orderBy('updated_at', 'desc')
       .limit(limit)
       .execute();

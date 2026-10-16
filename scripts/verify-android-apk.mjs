@@ -1,0 +1,40 @@
+/** Requires real Android SDK apksigner in CLI mode. Parsing tests are not APK verification. */
+import { existsSync, readdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
+
+export function verifyCertificate(output, mode, expected = '') {
+  if (!['debug', 'release'].includes(mode)) throw new Error('APK mode must be debug or release');
+  const digest = output.match(/^Signer #1 certificate SHA-256 digest: ([a-fA-F0-9]{64})\s*$/m)?.[1]?.toLowerCase();
+  if (!/^Number of signers: 1\s*$/m.test(output) || !digest) throw new Error('A verified single-signer APK is required');
+  const debug = /^Signer #1 certificate DN: .*\bCN=Android Debug(?:,|\s*$)/m.test(output);
+  if (mode === 'debug' && !debug) throw new Error('Validation APK must use the explicit Android debug identity');
+  if (mode === 'release') {
+    const normalized = expected.replaceAll(':', '').toLowerCase();
+    if (!/^[a-f0-9]{64}$/.test(normalized) || normalized !== digest || debug) {
+      throw new Error('Release signer is debug, unexpected or not explicitly configured');
+    }
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try {
+    const [mode, path] = process.argv.slice(2);
+    const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+    if (!sdk || !path || !existsSync(path)) throw new Error('APK and Android SDK are required');
+    const tools = join(sdk, 'build-tools');
+    const version = readdirSync(tools).filter((name) => /^\d+\.\d+\.\d+$/.test(name) && existsSync(join(tools, name, 'lib', 'apksigner.jar')))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
+    if (!version) throw new Error('Android apksigner unavailable');
+    const java = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
+    // Invoke the SDK jar directly: no shell interpolation or Windows .bat handling.
+    const output = execFileSync(java, ['-jar', join(tools, version, 'lib', 'apksigner.jar'), 'verify', '--verbose', '--print-certs', resolve(path)],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    verifyCertificate(output, mode, process.env.ANDROID_RELEASE_CERT_SHA256);
+    console.log(`PASS: ${mode} APK signature verified; not device, backend-connectivity or feature certification`);
+  } catch {
+    console.error('FAIL: APK signature verification failed or prerequisites missing; no release artifact accepted');
+    process.exitCode = 1;
+  }
+}

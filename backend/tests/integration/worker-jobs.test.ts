@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/worker-jobs.test.ts
  *
@@ -69,6 +70,29 @@ async function createReminder(
 }
 
 describe('PgReminderDispatchStore', () => {
+  it('reclaims a crashed lease, increments exactly once, and ignores stale acknowledgements', async () => {
+    const taskId = crypto.randomUUID();
+    const id = crypto.randomUUID();
+    await createTask(taskId);
+    await createReminder(id, taskId, 'email', 'processing', 1);
+    await pool.query(
+      "UPDATE reminders SET processing_started_at = TIMESTAMPTZ '2026-11-30 07:40:00Z' WHERE id = $1",
+      [id]
+    );
+    const now = new Date('2026-11-30T08:00:01Z');
+    const reclaimed = await reminderStore.claimDue(now, 10);
+    expect(reclaimed).toHaveLength(1);
+    expect(reclaimed[0]!.attemptCount).toBe(2);
+    await reminderStore.markSent(id, now, 1);
+    expect(
+      (await pool.query('SELECT status FROM reminders WHERE id = $1', [id])).rows[0].status
+    ).toBe('processing');
+    await reminderStore.markSent(id, now, 2);
+    expect(
+      (await pool.query('SELECT status FROM reminders WHERE id = $1', [id])).rows[0].status
+    ).toBe('sent');
+  });
+
   it('claims due pending reminders exactly once and marks them sent', async () => {
     const taskId = crypto.randomUUID();
     await createTask(taskId);
@@ -83,7 +107,7 @@ describe('PgReminderDispatchStore', () => {
     const second = await reminderStore.claimDue(now, 10);
     expect(second).toHaveLength(0);
 
-    await reminderStore.markSent(first[0]!.id, now);
+    await reminderStore.markSent(first[0]!.id, now, first[0]!.attemptCount);
     const { rows } = await pool.query<{ status: string; sent_at: Date | null }>(
       'SELECT status, sent_at FROM reminders WHERE id = $1',
       [first[0]!.id]
@@ -96,10 +120,10 @@ describe('PgReminderDispatchStore', () => {
     const taskId = crypto.randomUUID();
     await createTask(taskId);
     const id = crypto.randomUUID();
-    await createReminder(id, taskId, 'push', 'pending', 1);
+    await createReminder(id, taskId, 'push', 'processing', 1);
 
     const next = new Date('2026-11-30T08:05:00Z');
-    await reminderStore.markRetry(id, next, 'DELIVERY_FAILED', 'PUSH_UNAVAILABLE');
+    await reminderStore.markRetry(id, next, 'DELIVERY_FAILED', 'PUSH_UNAVAILABLE', 1);
     const retryRow = await pool.query<{
       status: string;
       next_attempt_at: Date | null;
@@ -108,7 +132,8 @@ describe('PgReminderDispatchStore', () => {
     expect(retryRow.rows[0]?.status).toBe('pending');
     expect(retryRow.rows[0]?.last_error_code).toBe('DELIVERY_FAILED');
 
-    await reminderStore.markFailed(id, next, 'DELIVERY_FAILED', 'PUSH_UNAVAILABLE');
+    await reminderStore.claimDue(next, 10);
+    await reminderStore.markFailed(id, next, 'DELIVERY_FAILED', 'PUSH_UNAVAILABLE', 2);
     const failedRow = await pool.query<{ status: string; next_attempt_at: Date | null }>(
       'SELECT status, next_attempt_at FROM reminders WHERE id = $1',
       [id]
@@ -151,6 +176,11 @@ describe('PgTimerMaintenanceStore', () => {
     );
     expect(rows[0]?.end_reason).toBe('auto_closed');
     expect(rows[0]?.ended_at).not.toBeNull();
+    const duration = await pool.query(
+      'SELECT extract(epoch FROM (ended_at - started_at))::int AS seconds FROM timer_sessions WHERE user_id = $1',
+      [userId]
+    );
+    expect(duration.rows[0].seconds).toBe(43200);
   });
 });
 

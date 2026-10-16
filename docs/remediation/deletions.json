@@ -1,0 +1,10 @@
+{
+  "base_revision": "47cf1fd09540e7bcc8b291d6d9a1559cf0c5f855",
+  "deleted_paths": [
+    "Dockerfile (1).txt",
+    "Dockerfile.txt",
+    "backend/src/jobs/email-queue.ts",
+    "mobile-app/mobile/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java"
+  ],
+  "note": "ZIP extraction does not delete files; review apply-patch.md."
+}

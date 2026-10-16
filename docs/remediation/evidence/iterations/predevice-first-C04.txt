@@ -1,0 +1,12 @@
+$ npm --prefix backend run lint
+Exit: 1
+
+> lifestyle-backend@1.0.1 lint
+> eslint "src/**/*.ts" "tests/**/*.ts"
+
+
+/home/user/life-style-app/backend/src/features/auth/auth.service.ts
+  2:1  error  '../../core/security/reset-request-dispatcher.js' import is duplicated  no-duplicate-imports
+
+✖ 1 problem (1 error, 0 warnings)
+

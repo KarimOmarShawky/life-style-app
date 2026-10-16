@@ -12,11 +12,10 @@ import {
   processRecurringGeneration,
   processTimerAutoClose,
   processPurge,
-  processPasswordResetEmail,
+  type PurgeStore,
   type ReminderDispatchStore,
   type DispatchableReminder
 } from '../../src/jobs/job-processors.js';
-import { QueuedEmailSender, type EmailJobQueue } from '../../src/jobs/email-queue.js';
 import type { EmailSender } from '../../src/infrastructure/external/email-sender.js';
 
 const NOW = new Date('2026-10-11T12:00:00.000Z');
@@ -30,7 +29,7 @@ function reminder(overrides: Partial<DispatchableReminder> = {}): DispatchableRe
     entityId: 'task-1',
     channel: 'in_app',
     remindAt: NOW,
-    attemptCount: 0,
+    attemptCount: 1,
     ...overrides
   };
 }
@@ -91,12 +90,12 @@ describe('processReminderDispatch', () => {
   });
 
   it('retries push reminders when no push sender is available, then fails at the cap', async () => {
-    const store = fakeStore([reminder({ id: 'rem-3', channel: 'push', attemptCount: 0 })]);
+    const store = fakeStore([reminder({ id: 'rem-3', channel: 'push', attemptCount: 1 })]);
     const first = await processReminderDispatch(clock, store, emails, emailSender, pushUnavailable);
     expect(first).toMatchObject({ sent: 0, retried: 1, failed: 0 });
     expect(store.retried[0]?.id).toBe('rem-3');
 
-    const atCap = fakeStore([reminder({ id: 'rem-4', channel: 'push', attemptCount: 4 })]);
+    const atCap = fakeStore([reminder({ id: 'rem-4', channel: 'push', attemptCount: 5 })]);
     const second = await processReminderDispatch(
       clock,
       atCap,
@@ -106,6 +105,19 @@ describe('processReminderDispatch', () => {
     );
     expect(second).toMatchObject({ sent: 0, retried: 0, failed: 1 });
     expect(atCap.failed).toEqual(['rem-4']);
+  });
+
+  it('retries the fourth claimed attempt with a 20 minute delay and fails only the fifth', async () => {
+    const store = fakeStore([reminder({ channel: 'push', attemptCount: 4 })]);
+    const result = await processReminderDispatch(
+      clock,
+      store,
+      emails,
+      emailSender,
+      pushUnavailable
+    );
+    expect(result.retried).toBe(1);
+    expect(store.retried[0]?.next).toEqual(new Date(NOW.getTime() + 20 * 60_000));
   });
 
   it('cancels orphaned reminders before claiming', async () => {
@@ -136,45 +148,6 @@ describe('maintenance processors', () => {
     const result = await processPurge(clock, store);
     expect(result.purged).toBe(5);
     expect(store.purgeSoftDeleted).toHaveBeenCalledWith(new Date(NOW.getTime() - 30 * 86_400_000));
-  });
-
-  it('sends queued password-reset emails through the direct sender', async () => {
-    await processPasswordResetEmail({ to: 'a@example.com', code: '123456' }, emailSender);
-    expect(emailSender.sendPasswordResetEmail).toHaveBeenCalledWith('a@example.com', '123456');
-  });
-});
-
-describe('QueuedEmailSender', () => {
-  it('enqueues password-reset emails instead of sending synchronously', async () => {
-    const queue: EmailJobQueue = { enqueuePasswordReset: vi.fn(async () => undefined) };
-    const fallback: EmailSender = {
-      sendPasswordResetEmail: vi.fn(async () => undefined),
-      sendReminderEmail: vi.fn(async () => undefined)
-    };
-    const sender = new QueuedEmailSender(queue, fallback);
-
-    await sender.sendPasswordResetEmail('a@example.com', '123456');
-    expect(queue.enqueuePasswordReset).toHaveBeenCalledWith({
-      to: 'a@example.com',
-      code: '123456'
-    });
-    expect(fallback.sendPasswordResetEmail).not.toHaveBeenCalled();
-  });
-
-  it('falls back to synchronous delivery when the queue is down', async () => {
-    const queue: EmailJobQueue = {
-      enqueuePasswordReset: vi.fn(async () => {
-        throw new Error('redis down');
-      })
-    };
-    const fallback: EmailSender = {
-      sendPasswordResetEmail: vi.fn(async () => undefined),
-      sendReminderEmail: vi.fn(async () => undefined)
-    };
-    const sender = new QueuedEmailSender(queue, fallback);
-
-    await sender.sendPasswordResetEmail('a@example.com', '654321');
-    expect(fallback.sendPasswordResetEmail).toHaveBeenCalledWith('a@example.com', '654321');
   });
 
   it('processPurge purges both soft-deleted rows and expired pending_deletion accounts', async () => {

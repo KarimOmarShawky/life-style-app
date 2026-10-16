@@ -1,0 +1,108 @@
+$ node --check scripts/ci-resource-guard.mjs && node --test scripts/ci-resource-guard.test.mjs
+Exit: 0
+TAP version 13
+# Subtest: guard pins local inspect and verifies job-owned IDs/network/ports (command spy, no services)
+ok 1 - guard pins local inspect and verifies job-owned IDs/network/ports (command spy, no services)
+  ---
+  duration_ms: 2.363889
+  type: 'test'
+  ...
+# Subtest: guard rejects ordinary local execution before Docker inspection
+ok 2 - guard rejects ordinary local execution before Docker inspection
+  ---
+  duration_ms: 0.336205
+  type: 'test'
+  ...
+# Subtest: guard rejects self-hosted runner before Docker inspection
+ok 3 - guard rejects self-hosted runner before Docker inspection
+  ---
+  duration_ms: 0.113814
+  type: 'test'
+  ...
+# Subtest: guard rejects missing acknowledgement before Docker inspection
+ok 4 - guard rejects missing acknowledgement before Docker inspection
+  ---
+  duration_ms: 0.151894
+  type: 'test'
+  ...
+# Subtest: guard rejects development target before Docker inspection
+ok 5 - guard rejects development target before Docker inspection
+  ---
+  duration_ms: 0.263952
+  type: 'test'
+  ...
+# Subtest: guard rejects remote endpoint before Docker inspection
+ok 6 - guard rejects remote endpoint before Docker inspection
+  ---
+  duration_ms: 0.144331
+  type: 'test'
+  ...
+# Subtest: guard rejects Redis zero before Docker inspection
+ok 7 - guard rejects Redis zero before Docker inspection
+  ---
+  duration_ms: 0.165758
+  type: 'test'
+  ...
+# Subtest: guard rejects missing actual service ID before Docker inspection
+ok 8 - guard rejects missing actual service ID before Docker inspection
+  ---
+  duration_ms: 0.129012
+  type: 'test'
+  ...
+# Subtest: guard rejects mismatched id without any mutation (spy)
+ok 9 - guard rejects mismatched id without any mutation (spy)
+  ---
+  duration_ms: 0.604115
+  type: 'test'
+  ...
+# Subtest: guard rejects mismatched image without any mutation (spy)
+ok 10 - guard rejects mismatched image without any mutation (spy)
+  ---
+  duration_ms: 0.51314
+  type: 'test'
+  ...
+# Subtest: guard rejects mismatched network without any mutation (spy)
+ok 11 - guard rejects mismatched network without any mutation (spy)
+  ---
+  duration_ms: 0.235424
+  type: 'test'
+  ...
+# Subtest: guard rejects mismatched port without any mutation (spy)
+ok 12 - guard rejects mismatched port without any mutation (spy)
+  ---
+  duration_ms: 0.153818
+  type: 'test'
+  ...
+# Subtest: guard rejects mismatched database without any mutation (spy)
+ok 13 - guard rejects mismatched database without any mutation (spy)
+  ---
+  duration_ms: 0.12127
+  type: 'test'
+  ...
+# Subtest: guard rejects mismatched stopped without any mutation (spy)
+ok 14 - guard rejects mismatched stopped without any mutation (spy)
+  ---
+  duration_ms: 1.225876
+  type: 'test'
+  ...
+# Subtest: Docker errors/malformed inspection fail closed; raw metadata is never used as a safe error
+ok 15 - Docker errors/malformed inspection fail closed; raw metadata is never used as a safe error
+  ---
+  duration_ms: 0.323316
+  type: 'test'
+  ...
+# Subtest: isolated workflow establishes ownership before bootstrap and never weakens the policy gate
+ok 16 - isolated workflow establishes ownership before bootstrap and never weakens the policy gate
+  ---
+  duration_ms: 0.309741
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 78.490461

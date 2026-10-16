@@ -47,6 +47,7 @@ COPY --chown=node:node --from=builder /app/package.json ./package.json
 
 # Copy compiled artifacts from builder
 COPY --chown=node:node --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/src/infrastructure/database/postgres/migrations ./src/infrastructure/database/postgres/migrations
 
 # Healthcheck probing process liveness
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \

@@ -1,3 +1,4 @@
+import type { AccountArchiveSummary } from './account-archive.js';
 /**
  * src/features/users/users.repository.ts
  *
@@ -30,4 +31,8 @@ export interface UsersRepository {
   purgeAccount(userId: string, options?: PurgeAccountOptions): Promise<boolean>;
   purgeExpiredAccounts(cutoff: Date): Promise<number>;
   getUserExportData(userId: string): Promise<UserExportData>;
+  streamUserArchive(
+    userId: string,
+    signal: AbortSignal
+  ): AsyncGenerator<string, AccountArchiveSummary | undefined>;
 }

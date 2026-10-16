@@ -1,0 +1,287 @@
+[
+  {
+    "id": "C01",
+    "command": "npm --prefix backend ci --no-audit --no-fund",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Lockfile installation, including native bcrypt install.",
+    "evidence": "docs/remediation/evidence/C01.txt"
+  },
+  {
+    "id": "C02",
+    "command": "npm --prefix backend run typecheck",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Production source strict compilation.",
+    "evidence": "docs/remediation/evidence/C02.txt"
+  },
+  {
+    "id": "C03",
+    "command": "npm --prefix backend run typecheck:tests",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Strict compilation includes all unit/integration/security test sources.",
+    "evidence": "docs/remediation/evidence/C03.txt"
+  },
+  {
+    "id": "C04",
+    "command": "npm --prefix backend run lint",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "",
+    "evidence": "docs/remediation/evidence/C04.txt"
+  },
+  {
+    "id": "C05",
+    "command": "npm --prefix backend run format:check",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "",
+    "evidence": "docs/remediation/evidence/C05.txt"
+  },
+  {
+    "id": "C06",
+    "command": "npm --prefix backend run test:unit",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Only unit tests; inert endpoints and in-memory OTP.",
+    "evidence": "docs/remediation/evidence/C06.txt"
+  },
+  {
+    "id": "C07",
+    "command": "npm --prefix backend run build",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "",
+    "evidence": "docs/remediation/evidence/C07.txt"
+  },
+  {
+    "id": "C08",
+    "command": "npm --prefix backend audit --omit=dev --audit-level=high",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Production dependency audit; not a full supply-chain certification.",
+    "evidence": "docs/remediation/evidence/C08.txt"
+  },
+  {
+    "id": "C09",
+    "command": "npm --prefix backend run openapi:generate",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Generator executes; generated file must match the intentionally updated contract.",
+    "evidence": "docs/remediation/evidence/C09.txt"
+  },
+  {
+    "id": "C10",
+    "command": "node scripts/check-forbidden.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Owner-authorized local-only audio declaration/consumer exception; no global file_picker allowlist, server upload dependencies remain forbidden. Actual guard result, not native/network certification.",
+    "evidence": "docs/remediation/evidence/C10.txt"
+  },
+  {
+    "id": "C11",
+    "command": "cd backend && ./node_modules/.bin/vitest run tests/integration/health.test.ts",
+    "result": "PASS",
+    "exit_code": 1,
+    "reason": "Expected nonzero refusal before integration file import/cleanup; NOT an integration test success.",
+    "evidence": "docs/remediation/evidence/C11.txt"
+  },
+  {
+    "id": "C12",
+    "command": "node scripts/check-dart-syntax.mjs /home/user/tooling/node_modules/@wasm-fmt/dart_fmt/dart_fmt_node.js",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Scratch npm @wasm-fmt/dart_fmt@0.4.0. Syntax only; Flutter SDK absent.",
+    "evidence": "docs/remediation/evidence/C12.txt"
+  },
+  {
+    "id": "C13",
+    "command": "git diff --check",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Tracked diff whitespace/error check; packaging verifies new files separately.",
+    "evidence": "docs/remediation/evidence/C13.txt"
+  },
+  {
+    "id": "C14",
+    "command": "/home/user/.venv/bin/python scripts/package-remediation.py --output /home/user",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Actual ZIP CRC, exact changed/new inventory, per-entry SHA-256, explicit reviewed deletions and PDF extraction verified; patch set, not full repository.",
+    "evidence": "docs/remediation/evidence/C14.txt"
+  },
+  {
+    "id": "C15",
+    "command": "npm run test:integration (owned C32 services only)",
+    "result": "PASS",
+    "reason": "Actual integration suite, disposable current-schema fixtures only; not deployed data or Flutter E2E.",
+    "evidence": "docs/remediation/evidence/C32.txt"
+  },
+  {
+    "id": "C16",
+    "command": "npm run test:security (owned C32 services only)",
+    "result": "PASS",
+    "reason": "Actual current security suite, not exhaustive penetration/provider/device testing.",
+    "evidence": "docs/remediation/evidence/C32.txt"
+  },
+  {
+    "id": "C17",
+    "command": "Owned C32 bootstrap/fresh/repeat/synthetic-populated/failed migration and grant probes",
+    "result": "PASS",
+    "reason": "Actual PostgreSQL fixtures and psql bootstrap. Not an upgrade rehearsal against actual deployed legacy history/data; that remains C35 BLOCKED.",
+    "evidence": "docs/remediation/evidence/C32.txt"
+  },
+  {
+    "id": "C18",
+    "command": "docker compose config && docker compose build && docker compose up",
+    "result": "BLOCKED",
+    "reason": "Docker executable/daemon unavailable."
+  },
+  {
+    "id": "C19",
+    "command": "cd mobile-app/mobile && flutter analyze --fatal-infos",
+    "result": "BLOCKED",
+    "reason": "Flutter/Dart SDK unavailable; WASM parse is not analysis."
+  },
+  {
+    "id": "C20",
+    "command": "cd mobile-app/mobile && flutter test",
+    "result": "BLOCKED",
+    "reason": "Flutter SDK unavailable, including Digital Detox, wallet and 25 new archive protocol/transport/widget cases."
+  },
+  {
+    "id": "C21",
+    "command": "cd mobile-app/mobile && flutter build apk --release; Android JVM tests and signature verification",
+    "result": "BLOCKED",
+    "reason": "Flutter/Android SDK and signing credentials unavailable. Scratch Java/Kotlin execute the Android-free stage only in C30; bridge/app compilation remains BLOCKED."
+  },
+  {
+    "id": "C22",
+    "command": "Physical-device restriction/backup/Keystore/archive document-provider/lifecycle/SMTP verification checklist",
+    "result": "BLOCKED",
+    "reason": "No physical device/emulator or SMTP provider access/credentials. Real delivery and device enforcement unverified."
+  },
+  {
+    "id": "C23",
+    "command": "Full application end-to-end suite",
+    "result": "NOT RUN",
+    "reason": "No E2E execution attempted; native and infrastructure prerequisites not satisfied."
+  },
+  {
+    "id": "C24",
+    "command": "Container-image security scanners / hosted CI execution",
+    "result": "NOT RUN",
+    "reason": "No Docker images/hosted execution. Current source is C25 and local reachable Git text history C36; B-31 stays partial."
+  },
+  {
+    "id": "C25",
+    "command": "npm --prefix tools/security audit --audit-level=high && node scripts/scan-secrets.mjs --self-test && node scripts/scan-secrets.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Current-source only; real detector probes, no allowlist, metadata-only output. Original 18 provenance records and historical 18/16 findings remain in secret-triage.json; current-source result does not assess deployed reuse, Git history, images or generated private configuration.",
+    "evidence": "docs/remediation/evidence/C25.txt"
+  },
+  {
+    "id": "C26",
+    "command": "bash -n scripts/ensure-env.sh scripts/verify-ci.sh && node --test scripts/check-environment.test.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "17 local configuration/command-spy/provenance/Compose source tests; no actual migrations, Docker networking or infrastructure suite success implied.",
+    "evidence": "docs/remediation/evidence/C26.txt"
+  },
+  {
+    "id": "C27",
+    "command": "node --check scripts/local-setup.mjs && node --check scripts/local-stack.mjs && node --check scripts/ci-database-env.mjs && node --test scripts/local-setup.test.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "22 fresh-setup/private-file/CI-fixture/command-spy/source tests in owned temporary directories only. No real Docker, PostgreSQL, migrations or hosted runner verification.",
+    "evidence": "docs/remediation/evidence/C27.txt"
+  },
+  {
+    "id": "C28",
+    "command": "node --check scripts/ci-resource-guard.mjs && node --test scripts/ci-resource-guard.test.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "16 hosted-resource guard/negative/source tests with Docker command spies only. Hosted workflow itself NOT RUN; these are command spies only. Actual archive/infrastructure execution is separately C15/C32, not inferred from C28.",
+    "evidence": "docs/remediation/evidence/C28.txt"
+  },
+  {
+    "id": "C29",
+    "command": "node --test scripts/archive-mobile-contract.test.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "8 synthetic archive-wire-fixture/source-contract checks. Not Dart execution, Android bridge compilation or document-provider/UI integration.",
+    "evidence": "docs/remediation/evidence/C29.txt"
+  },
+  {
+    "id": "C30",
+    "command": "python scripts/check-archive-stage.py",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "10 real JVM crypto/file-I/O checks compiling the actual Android-free Kotlin stager. Android bridge, document providers, Activity lifecycle, Flutter and physical-device behavior NOT RUN; not a native app build.",
+    "evidence": "docs/remediation/evidence/C30.txt"
+  },
+  {
+    "id": "C31",
+    "command": "node --test scripts/check-forbidden.test.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "21 scoped policy negative/source/actual-CLI fixture checks. No production upload/device/network observation implied; C06 also executes 13 real JSON-only middleware checks.",
+    "evidence": "docs/remediation/evidence/C31.txt"
+  },
+  {
+    "id": "C32",
+    "command": "python scripts/run-disposable-verification.py",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Actual owned PostgreSQL16/Redis7 bootstrap/migration/grants/integration/security harness. No Docker, deployed legacy data, native device or real SMTP delivery certification.",
+    "evidence": "docs/remediation/evidence/C32.txt"
+  },
+  {
+    "id": "C33",
+    "command": "node --test scripts/native-voice-cleanup.test.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "8 native voice cleanup/source-contract checks only. No Kotlin Android compile or speech/notification/lifecycle/device execution.",
+    "evidence": "docs/remediation/evidence/C33.txt"
+  },
+  {
+    "id": "C34",
+    "command": "npm --prefix backend run typecheck -- --noUnusedLocals --noUnusedParameters",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Actual strict TypeScript unused-local/parameter check; no backend source candidates removed without compiler evidence.",
+    "evidence": "docs/remediation/evidence/C34.txt"
+  },
+  {
+    "id": "C35",
+    "command": "Actual legacy deployment migration/restore rehearsal",
+    "result": "BLOCKED",
+    "reason": "Actual deployed legacy schema/history, backup and target unavailable. Owned current-schema fixture C17 does not certify real deployment/restore. No user database contacted."
+  },
+  {
+    "id": "C36",
+    "command": "python scripts/scan-git-history.py",
+    "result": "FAIL",
+    "exit_code": 1,
+    "reason": "Actual unique UTF-8 Git blobs in locally reachable refs only; binary/large/non-UTF8/unfetched/unreachable/image/runtime contents excluded explicitly. Historical matches FAIL pending operational assessment, not proof of live reuse.",
+    "evidence": "docs/remediation/evidence/C36.txt"
+  },
+  {
+    "id": "C37",
+    "command": "node --check scripts/prepare-android-signing.mjs && node --check scripts/verify-android-apk.mjs && node --test scripts/android-build-preparation.test.mjs",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "13 real private-filesystem/negative/parser/source/YAML/bash/conditional-copy and missing-SDK CLI-refusal checks. Synthetic byte/certificate fixtures are not a key, real APK, Gradle execution, hosted runner or Android signature verification PASS; these remain C21/C24.",
+    "evidence": "docs/remediation/evidence/C37.txt"
+  },
+  {
+    "id": "C38",
+    "command": "python scripts/review-history-provenance.py --self-test && python scripts/review-history-provenance.py",
+    "result": "PASS",
+    "exit_code": 0,
+    "reason": "Strict negative provenance self-test and actual in-memory comparison of every C36 match with baseline development-role definitions/local service hosts. Metadata only; C36 stays FAIL. Deployed reuse/rotation remains BLOCKED, original 18 source records preserved separately.",
+    "evidence": "docs/remediation/evidence/C38.txt"
+  }
+]

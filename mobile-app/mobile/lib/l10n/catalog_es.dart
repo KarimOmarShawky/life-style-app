@@ -22,7 +22,8 @@ const Map<String, String> esCatalog = {
   'dueDate': 'Fecha límite',
   'resetPassword': 'Restablecer contraseña',
   'sendResetCode': 'Enviar código',
-  'resetCodeSent': 'Código de restablecimiento enviado a tu correo',
+  'resetCodeSent':
+      'Si esta dirección cumple los requisitos, intentaremos enviarte un código. Revisa tu correo.',
   'enterResetCode': 'Introduce el código de 6 dígitos',
   'newPassword': 'Nueva contraseña',
   'confirmNewPassword': 'Confirmar nueva contraseña',

@@ -22,7 +22,8 @@ const Map<String, String> deCatalog = {
   'dueDate': 'Fälligkeitsdatum',
   'resetPassword': 'Passwort zurücksetzen',
   'sendResetCode': 'Code senden',
-  'resetCodeSent': 'Reset-Code an deine E-Mail gesendet',
+  'resetCodeSent':
+      'Wenn diese Adresse berechtigt ist, versuchen wir, einen Code zu senden. Bitte prüfe deinen Posteingang.',
   'enterResetCode': '6-stelligen Code eingeben',
   'newPassword': 'Neues Passwort',
   'confirmNewPassword': 'Neues Passwort bestätigen',

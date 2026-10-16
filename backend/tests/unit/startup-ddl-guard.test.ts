@@ -67,7 +67,7 @@ describe('Boot-Time Database DDL & Schema Drift Guard (B-09)', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
-  it('reconciles table definitions across authoritative migrations, schema-sql.ts, and schema.sql with zero drift', () => {
+  it('reconciles table definitions across authoritative migrations, schema-sql.ts, and schema.sql have matching table inventories (not full schema equivalence)', () => {
     const migrationsDir = resolve(backendRoot, 'src/infrastructure/database/postgres/migrations');
     const migrationFiles = readdirSync(migrationsDir)
       .filter((f) => f.endsWith('.cjs'))
@@ -86,6 +86,21 @@ describe('Boot-Time Database DDL & Schema Drift Guard (B-09)', () => {
     expect(migrationTables.length).toBeGreaterThanOrEqual(23);
     expect(schemaTsTables).toEqual(migrationTables);
     expect(rootSchemaTables).toEqual(migrationTables);
+  });
+
+  it('keeps the approved optional timer task nullable in the reference schema', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    const timer = root.slice(root.indexOf('CREATE TABLE timer_sessions'));
+    expect(timer.split(');')[0]).not.toMatch(/task_id\s+UUID\s+NOT NULL/i);
+    expect(
+      readFileSync(
+        resolve(
+          backendRoot,
+          'src/infrastructure/database/postgres/migrations/1727300004000_timer_sessions_optional_task.cjs'
+        ),
+        'utf8'
+      )
+    ).toMatch(/ALTER COLUMN task_id DROP NOT NULL/);
   });
 
   it('confirms GET /health/migrate remains removed (404)', async () => {

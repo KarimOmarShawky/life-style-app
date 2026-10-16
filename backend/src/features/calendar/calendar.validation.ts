@@ -6,11 +6,13 @@
 
 import { z } from 'zod';
 
-export const createReminderSchema = z.object({
-  channel: z.enum(['push', 'in_app', 'email']).default('push'),
-  offsetMinutes: z.number().int().min(0).max(43200).nullable().optional(),
-  remindAt: z.string().datetime().optional()
-});
+export const createReminderSchema = z
+  .object({
+    channel: z.enum(['push', 'in_app', 'email']).default('push'),
+    offsetMinutes: z.number().int().min(0).max(43200).nullable().optional(),
+    remindAt: z.string().datetime().optional()
+  })
+  .strict();
 
 export const createEventSchema = z
   .object({
@@ -35,6 +37,7 @@ export const createEventSchema = z
     timezone: z.string({ required_error: 'timezone is required' }).trim().min(1).max(64),
     reminders: z.array(createReminderSchema).optional()
   })
+  .strict()
   .refine((data) => new Date(data.endAt) >= new Date(data.startAt), {
     message: 'endAt must be greater than or equal to startAt',
     path: ['endAt']
@@ -63,6 +66,7 @@ export const updateEventSchema = z
     timezone: z.string().trim().min(1).max(64).optional(),
     version: z.number().int().positive().optional()
   })
+  .strict()
   .refine(
     (data) => {
       if (data.startAt && data.endAt) {
@@ -76,14 +80,16 @@ export const updateEventSchema = z
     }
   );
 
-export const listEventsQuerySchema = z.object({
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
-  includeDeleted: z
-    .enum(['true', 'false'])
-    .transform((v) => v === 'true')
-    .optional()
-});
+export const listEventsQuerySchema = z
+  .object({
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    includeDeleted: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .optional()
+  })
+  .strict();
 
 export const conflictQuerySchema = z
   .object({
@@ -95,23 +101,30 @@ export const conflictQuerySchema = z
     }),
     excludeEventId: z.string().uuid('Invalid excludeEventId format').optional()
   })
+  .strict()
   .refine((data) => new Date(data.endAt) >= new Date(data.startAt), {
     message: 'endAt must be greater than or equal to startAt',
     path: ['endAt']
   });
 
-export const agendaQuerySchema = z.object({
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD')
-    .optional()
-});
+export const agendaQuerySchema = z
+  .object({
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD')
+      .optional()
+  })
+  .strict();
 
-export const eventIdParamSchema = z.object({
-  id: z.string().uuid('Invalid event ID format')
-});
+export const eventIdParamSchema = z
+  .object({
+    id: z.string().uuid('Invalid event ID format')
+  })
+  .strict();
 
-export const eventReminderParamSchema = z.object({
-  id: z.string().uuid('Invalid event ID format'),
-  reminderId: z.string().uuid('Invalid reminder ID format')
-});
+export const eventReminderParamSchema = z
+  .object({
+    id: z.string().uuid('Invalid event ID format'),
+    reminderId: z.string().uuid('Invalid reminder ID format')
+  })
+  .strict();

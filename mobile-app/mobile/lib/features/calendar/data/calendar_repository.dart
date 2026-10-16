@@ -85,7 +85,7 @@ class CalendarRepository {
     final response = jsonObject(
       await _api.post(
         'events/$eventId/reminders',
-        body: {'channel': 'push', 'offsetMinutes': offsetMinutes},
+        body: {'channel': 'in_app', 'offsetMinutes': offsetMinutes},
       ),
       'reminder',
     );

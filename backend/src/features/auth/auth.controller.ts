@@ -21,7 +21,7 @@ function extractMeta(req: Request): RequestMeta {
   return {
     ip: req.ip || req.socket.remoteAddress,
     userAgent: req.headers['user-agent'],
-    requestId: (req as unknown as { requestId?: string }).requestId
+    requestId: req.id
   };
 }
 
@@ -100,7 +100,7 @@ export class AuthController {
     try {
       const input = forgotPasswordSchema.parse(req.body);
       await this.authService.forgotPassword(input.email, extractMeta(req));
-      // Always return 202 Accepted with indistinguishable empty body
+      // Accepted volatile work shares 202 {}; capacity/draining refusal is generic 503.
       res.status(202).json({});
     } catch (err) {
       next(err);

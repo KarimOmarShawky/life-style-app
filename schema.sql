@@ -416,7 +416,7 @@ CREATE TABLE tasks (
 CREATE TABLE timer_sessions (
       id UUID NOT NULL DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      task_id UUID NOT NULL,
+      task_id UUID,
       started_at TIMESTAMPTZ NOT NULL,
       ended_at TIMESTAMPTZ,
       mode TEXT NOT NULL DEFAULT 'stopwatch' CHECK (mode IN ('stopwatch', 'countdown')),

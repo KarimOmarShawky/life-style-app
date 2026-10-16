@@ -1,0 +1,34 @@
+name: Source secret detection
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-secrets:
+    name: Current source secret scan (not Git history or container images)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup security tooling runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/security/package-lock.json
+      - name: Install pinned isolated tools without lifecycle scripts
+        run: npm --prefix tools/security ci --ignore-scripts --no-audit --no-fund
+      - name: Prove detector rejects private-key probes
+        run: node scripts/scan-secrets.mjs --self-test
+      - name: Helper safety and source-provenance tests (no infrastructure)
+        run: bash -n scripts/ensure-env.sh scripts/verify-ci.sh && node --test scripts/check-environment.test.mjs scripts/local-setup.test.mjs scripts/archive-mobile-contract.test.mjs scripts/check-forbidden.test.mjs scripts/native-voice-cleanup.test.mjs
+      - name: Scan source with metadata-only diagnostics
+        run: node scripts/scan-secrets.mjs

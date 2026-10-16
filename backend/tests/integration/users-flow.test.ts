@@ -1,3 +1,4 @@
+import '../infrastructure-safety.js';
 /**
  * tests/integration/users-flow.test.ts
  *
@@ -123,7 +124,8 @@ describe('Users Flow Integration Tests', () => {
 
     const res = await request(app)
       .post('/api/v1/users/me/export')
-      .set('Authorization', `Bearer ${tokens.accessToken}`);
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ currentPassword: 'ValidUserPassword123!' });
 
     expect(res.status).toBe(200);
     expect(res.body.exportedAt).toBeDefined();
@@ -140,7 +142,8 @@ describe('Users Flow Integration Tests', () => {
     // 1. Request deletion (starts 14-day grace period)
     const delReq = await request(app)
       .post('/api/v1/users/me/deletion')
-      .set('Authorization', `Bearer ${tokens.accessToken}`);
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ currentPassword: 'ValidUserPassword123!' });
 
     expect(delReq.status).toBe(200);
     expect(delReq.body.status).toBe('pending_deletion');
@@ -165,7 +168,8 @@ describe('Users Flow Integration Tests', () => {
 
     const exportAllowed = await request(app)
       .post('/api/v1/users/me/export')
-      .set('Authorization', `Bearer ${tokens.accessToken}`);
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ currentPassword: 'ValidUserPassword123!' });
 
     expect(exportAllowed.status).toBe(200);
 
@@ -201,6 +205,29 @@ describe('Users Flow Integration Tests', () => {
     expect(res.body.error.code).toBe('ACCOUNT_DISABLED');
   });
 
+  it('domain archive endpoint remains available with current-password proof during the deletion grace period', async () => {
+    const { tokens } = await registerUser('archive-grace@example.test');
+    const deletion = await request(app)
+      .post('/api/v1/users/me/deletion')
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ currentPassword: 'ValidUserPassword123!' });
+    expect(deletion.status).toBe(200);
+    const archive = await request(app)
+      .post('/api/v1/users/me/export/archive')
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ currentPassword: 'ValidUserPassword123!' });
+    expect(archive.status).toBe(200);
+    const frames = archive.text
+      .trimEnd()
+      .split('\n')
+      .map((line: string) => JSON.parse(line));
+    expect(frames[0]).toMatchObject({ type: 'manifest', version: 1 });
+    expect(frames.at(-1)).toMatchObject({ type: 'complete' });
+    expect(
+      frames.find((frame: { section?: string }) => frame.section === 'profile').data.status
+    ).toBe('pending_deletion');
+  });
+
   it('B-07: Purges expired pending_deletion account with categories/transactions without touching other users', async () => {
     const { user: userA, tokens: tokensA } = await registerUser('purge-a@example.com');
     const { user: userB, tokens: tokensB } = await registerUser('purge-b@example.com');
@@ -234,10 +261,12 @@ describe('Users Flow Integration Tests', () => {
     // Schedule deletion for userA; second HTTP request is blocked by pending_deletion guard
     const sched1 = await request(app)
       .post('/api/v1/users/me/deletion')
-      .set('Authorization', `Bearer ${tokensA.accessToken}`);
+      .set('Authorization', `Bearer ${tokensA.accessToken}`)
+      .send({ currentPassword: 'ValidUserPassword123!' });
     const sched2 = await request(app)
       .post('/api/v1/users/me/deletion')
-      .set('Authorization', `Bearer ${tokensA.accessToken}`);
+      .set('Authorization', `Bearer ${tokensA.accessToken}`)
+      .send({ currentPassword: 'ValidUserPassword123!' });
     expect(sched1.status).toBe(200);
     expect(sched2.status).toBe(403);
     expect(sched2.body.error.code).toBe('ACCOUNT_PENDING_DELETION');

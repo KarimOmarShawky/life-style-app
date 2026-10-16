@@ -107,7 +107,7 @@ describe('Environment Configuration Validation (Spec §16.6)', () => {
     expect(validateEnv(productionEnv).DATABASE_SSL).toBe(true);
   });
 
-  it('permits the least-privilege role and the managed-cloud admin role in production', () => {
+  it('permits the least-privilege role and rejects the managed-cloud admin role in production', () => {
     const productionBase = {
       ...validBaseEnv,
       NODE_ENV: 'production',
@@ -124,14 +124,12 @@ describe('Environment Configuration Validation (Spec §16.6)', () => {
       }).DATABASE_URL
     ).toContain('lifestyle_app');
 
-    // Accepted exception (commit 12af0b9): managed cloud databases such as
-    // Railway/Neon only expose their admin role, so `postgres` is permitted.
-    expect(
+    expect(() =>
       validateEnv({
         ...productionBase,
         DATABASE_URL: 'postgresql://postgres:pass@localhost:5432/lifestyle_prod'
-      }).DATABASE_URL
-    ).toContain('postgres');
+      })
+    ).toThrow(/must use lifestyle_app/);
   });
 
   it('rejects arbitrary database roles in production', () => {
@@ -145,7 +143,7 @@ describe('Environment Configuration Validation (Spec §16.6)', () => {
     };
 
     expect(() => validateEnv(productionEnv)).toThrowError(
-      /DATABASE_URL must use lifestyle_app or postgres in production/
+      /DATABASE_URL must use lifestyle_app in production/
     );
   });
 });

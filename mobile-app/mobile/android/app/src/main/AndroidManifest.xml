@@ -7,13 +7,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- Wallet/banking SMS auto-capture (opt-in from the Money screen). -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
 
     <application
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="LifeStyle"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
@@ -25,8 +26,6 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize">
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
@@ -57,7 +56,6 @@
 
         <service
             android:name=".VoiceRecordingService"
-            android:foregroundServiceType="microphone"
             android:exported="false" />
 
         <receiver

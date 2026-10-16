@@ -1,0 +1,114 @@
+$ bash -n scripts/ensure-env.sh scripts/verify-ci.sh && node --test scripts/check-environment.test.mjs
+Exit: 0
+TAP version 13
+# Subtest: configuration preflight is non-mutating and independent of caller cwd
+ok 1 - configuration preflight is non-mutating and independent of caller cwd
+  ---
+  duration_ms: 44.876006
+  type: 'test'
+  ...
+# Subtest: missing preflight environment fails without setup/false readiness
+ok 2 - missing preflight environment fails without setup/false readiness
+  ---
+  duration_ms: 39.144428
+  type: 'test'
+  ...
+# Subtest: configuration parser diagnostics never echo malformed URL secrets
+ok 3 - configuration parser diagnostics never echo malformed URL secrets
+  ---
+  duration_ms: 42.1615
+  type: 'test'
+  ...
+# Subtest: unit-mode shell orchestration never runs migrations or infrastructure suites (command spies)
+ok 4 - unit-mode shell orchestration never runs migrations or infrastructure suites (command spies)
+  ---
+  duration_ms: 18.245407
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects missing acknowledgement before any migration/test command
+ok 5 - isolated helper rejects missing acknowledgement before any migration/test command
+  ---
+  duration_ms: 41.148361
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects development database before any migration/test command
+ok 6 - isolated helper rejects development database before any migration/test command
+  ---
+  duration_ms: 53.331814
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects Redis zero before any migration/test command
+ok 7 - isolated helper rejects Redis zero before any migration/test command
+  ---
+  duration_ms: 47.821745
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects different migration host before any migration/test command
+ok 8 - isolated helper rejects different migration host before any migration/test command
+  ---
+  duration_ms: 39.785997
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects different migration database before any migration/test command
+ok 9 - isolated helper rejects different migration database before any migration/test command
+  ---
+  duration_ms: 41.377424
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects runtime superuser before any migration/test command
+ok 10 - isolated helper rejects runtime superuser before any migration/test command
+  ---
+  duration_ms: 37.009569
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects migration identity override before any migration/test command
+ok 11 - isolated helper rejects migration identity override before any migration/test command
+  ---
+  duration_ms: 38.753073
+  type: 'test'
+  ...
+# Subtest: isolated helper rejects Redis URL override before any migration/test command
+ok 12 - isolated helper rejects Redis URL override before any migration/test command
+  ---
+  duration_ms: 54.40736
+  type: 'test'
+  ...
+# Subtest: isolated mode command spies prove forward up/repeat only; no real DB execution
+ok 13 - isolated mode command spies prove forward up/repeat only; no real DB execution
+  ---
+  duration_ms: 76.321366
+  type: 'test'
+  ...
+# Subtest: migration error propagates without repeat, tests or false success (command spies)
+ok 14 - migration error propagates without repeat, tests or false success (command spies)
+  ---
+  duration_ms: 61.018719
+  type: 'test'
+  ...
+# Subtest: explicit guard accepts equivalent default PostgreSQL ports, rejects invalid modes
+ok 15 - explicit guard accepts equivalent default PostgreSQL ports, rejects invalid modes
+  ---
+  duration_ms: 0.680061
+  type: 'test'
+  ...
+# Subtest: both compose entry points limit database/Redis/mail host exposure and preserve parity
+ok 16 - both compose entry points limit database/Redis/mail host exposure and preserve parity
+  ---
+  duration_ms: 1.447221
+  type: 'test'
+  ...
+# Subtest: all 18 historical findings retain provenance, past outcomes and current source fingerprints
+ok 17 - all 18 historical findings retain provenance, past outcomes and current source fingerprints
+  ---
+  duration_ms: 2.214929
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 722.459973

@@ -137,6 +137,7 @@ void main() {
         httpClient: MockClient((request) async {
           seenPaths.add('${request.method} ${request.url.path}');
           if (request.url.path.endsWith('/users/me/export')) {
+            expect(jsonDecode(request.body), {'currentPassword': 'CurrentPassword123!'});
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'exportedAt': '2026-10-12T10:00:00.000Z',
@@ -151,6 +152,7 @@ void main() {
           }
           if (request.method == 'POST' &&
               request.url.path.endsWith('/users/me/deletion')) {
+            expect(jsonDecode(request.body), {'currentPassword': 'CurrentPassword123!'});
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'status': 'pending_deletion',
@@ -174,10 +176,10 @@ void main() {
       addTearDown(client.close);
 
       final repo = AuthRepository(api: client, tokens: store);
-      final exported = await repo.exportUserData();
+      final exported = await repo.exportUserData('CurrentPassword123!');
       expect(exported['exportedAt'], '2026-10-12T10:00:00.000Z');
 
-      final scheduledFor = await repo.scheduleAccountDeletion();
+      final scheduledFor = await repo.scheduleAccountDeletion('CurrentPassword123!');
       expect(scheduledFor, isNotNull);
 
       await repo.cancelAccountDeletion();
@@ -201,7 +203,7 @@ void main() {
         baseUri: Uri.parse('https://api.example.test/api/v1/'),
         tokenStore: store,
         httpClient: MockClient((request) async {
-          if (request.url.path.endsWith('/dashboard')) {
+          if (request.url.path.endsWith('/dashboard/overview')) {
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'overview': <String, dynamic>{
@@ -219,7 +221,7 @@ void main() {
                   'eventsToday': 2,
                   'subscriptionsDueNext7Days': <String, dynamic>{
                     'count': 1,
-                    'totalMinorByCurrency': <String, dynamic>{'USD': 1500},
+                    'totalMinorByCurrency': <String, dynamic>{'USD': '1500'},
                   },
                   'activeSubscriptions': 5,
                   'activeTimer': null,
@@ -267,7 +269,8 @@ void main() {
                     <String, dynamic>{
                       'id': 's-1',
                       'name': 'Cloud Storage',
-                      'amountMinor': 999,
+                      'amountMinor': '999',
+                      'currencyExponent': 2,
                       'currency': 'USD',
                       'billingUnit': 'month',
                       'nextBillingDate': '2026-10-12',

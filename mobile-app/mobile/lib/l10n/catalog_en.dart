@@ -6,6 +6,41 @@ const Map<String, String> enCatalog = {
   'createAccount': 'Create account',
   'email': 'Email',
   'password': 'Password',
+  'archiveTitle': 'Export domain archive (Android)',
+  'archiveSubtitle':
+      'Download, verify, then choose a file destination. Other platforms unsupported.',
+  'archivePrivacy':
+      'Contains sensitive account, notes and financial data, including soft-deleted records; credentials and infrastructure/device-only data are excluded. Download is staged encrypted in app-private, backup-excluded storage with a temporary in-memory key. Save requires a separate action and creates a PLAINTEXT document at your chosen provider, which may back up or sync it. Interrupted saves can leave partial documents. No clipboard copy. Android device behavior is not yet verified for release.',
+  'archiveUnsupported':
+      'Archive file saving is unsupported on this platform. No download will start.',
+  'archiveAcknowledge':
+      'I understand the plaintext destination, backup/sync and partial-file risks.',
+  'archiveBytes': 'Downloaded bytes',
+  'archiveVerified': 'Verified archive records',
+  'archiveCancelled':
+      'File chooser cancelled. No save confirmed; you may choose again.',
+  'archiveFailed':
+      'Export or save was not completed. No save is confirmed. Check/remove any partial document at a chosen destination. Temporary encrypted cleanup may need checking; download again to retry.',
+  'archiveSaved':
+      'The chosen document was written and its readback verified. Provider durability, backups and sync remain outside LifeStyle control.',
+  'archiveClose': 'Close / stop export',
+  'archiveDownload': 'Download and verify',
+  'archiveSave': 'Choose destination and save',
+  'accountExportTitle': 'Export account metadata (JSON)',
+  'accountExportReady': 'Account metadata export ready',
+  'accountExportPrivacy':
+      'This is a metadata-only export, not a complete archive of tasks, notes, finances or other application data. Copying is optional and may expose your personal account metadata to other apps, keyboards, clipboard history or synced devices. Clipboard copies are not automatically cleared by LifeStyle and may persist after you close this screen.',
+  'accountExportAcknowledge': 'I understand the clipboard privacy risk.',
+  'accountExportCopied':
+      'Copied to clipboard. Close this screen when finished.',
+  'accountExportCopyFailed':
+      'Could not copy the export. Nothing is confirmed copied; you can retry.',
+  'accountExportCopy': 'Copy metadata export',
+  'accountExportPreviewSubtitle':
+      'Export profile, sessions, categories and push-device metadata only',
+  'verifyCurrentPassword': 'Verify your current password',
+  'currentPassword': 'Current password',
+  'verifyAndContinue': 'Verify and continue',
   'displayName': 'Display name',
   'tasks': 'Tasks',
   'habits': 'Habits',
@@ -23,7 +58,8 @@ const Map<String, String> enCatalog = {
   'dueDate': 'Due date',
   'resetPassword': 'Reset Password',
   'sendResetCode': 'Send Reset Code',
-  'resetCodeSent': 'Reset code sent to your email',
+  'resetCodeSent':
+      'If this address is eligible, we’ll try to email a reset code. Please check your inbox.',
   'enterResetCode': 'Enter 6-digit code',
   'newPassword': 'New Password',
   'confirmNewPassword': 'Confirm New Password',

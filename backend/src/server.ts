@@ -8,6 +8,7 @@
  */
 
 import http from 'node:http';
+import { drainApiWork } from './core/lifecycle/drain-api.js';
 import { getContainer } from './container.js';
 import { createApp } from './app.js';
 import { getEnv, validateEnv } from './config/env.js';
@@ -50,38 +51,6 @@ async function handleShutdown(signal: string): Promise<void> {
   // 1. Immediately flip readiness health probe to failing (503 degraded) so LB drains traffic
   setDrainingStatus(true);
   const auth = getContainer().authService;
-  auth.stopResetRequests();
-
-  // 2. Stop accepting new HTTP connections (primary and auxiliary listeners)
-  for (const aux of auxiliaryServers) {
-    aux.close();
-  }
-  server.close(async (err) => {
-    if (err) {
-      logger.error('Error while closing HTTP server', err);
-      process.exit(1);
-    }
-
-    logger.info('HTTP server closed. Draining database and cache connections...');
-
-    try {
-      // Accepted volatile reset requests need Redis/PG until their workers finish.
-      await auth.waitForResetRequests();
-
-      // 3. Close Redis connection
-      await closeRedisClient();
-
-      // 4. Close PostgreSQL connection pool
-      await closePgPool();
-
-      logger.info('Graceful shutdown completed successfully. Exiting.');
-      process.exit(0);
-    } catch (shutdownErr) {
-      logger.error('Error during infrastructure disconnection', shutdownErr);
-      process.exit(1);
-    }
-  });
-
   // 5. Force termination if in-flight requests exceed 30 seconds cap (Section 4.7)
   const shutdownTimer = setTimeout(() => {
     logger.error(
@@ -92,6 +61,19 @@ async function handleShutdown(signal: string): Promise<void> {
   }, 30000);
 
   shutdownTimer.unref();
+  try {
+    // Includes auxiliary listeners: the primary alone cannot prove HTTP has drained.
+    await drainApiWork([server, ...auxiliaryServers], auth);
+    await closeRedisClient();
+    await closePgPool();
+    clearTimeout(shutdownTimer);
+    logger.info('HTTP, accepted reset work and infrastructure drained. Exiting.');
+    process.exit(0);
+  } catch {
+    // Do not serialize infrastructure/provider exception values into shutdown logs.
+    logger.error('Graceful shutdown failed; infrastructure may not have drained.');
+    process.exit(1);
+  }
 }
 
 process.on('SIGTERM', () => void handleShutdown('SIGTERM'));

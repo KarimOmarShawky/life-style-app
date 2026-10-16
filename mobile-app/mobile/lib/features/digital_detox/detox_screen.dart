@@ -69,11 +69,12 @@ class _DigitalDetoxScreenState extends ConsumerState<DigitalDetoxScreen> {
       );
       if (mounted) setState(() => _selectionError = null);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _selectionError =
               'Application selection is unavailable. No application list has been fabricated.',
         );
+      }
     }
   }
 
@@ -165,7 +166,7 @@ class _DigitalDetoxScreenState extends ConsumerState<DigitalDetoxScreen> {
             const Text('Sign in to create a private session.'),
           const SizedBox(height: 16),
           DropdownButtonFormField<DetoxMode>(
-            value: _mode,
+            initialValue: _mode,
             decoration: const InputDecoration(labelText: 'Restriction mode'),
             items: const [
               DropdownMenuItem(

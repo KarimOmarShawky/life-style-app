@@ -227,10 +227,11 @@ class DetoxSession {
       }
       if (restriction.status == RestrictionStatus.off ||
           restriction.status == RestrictionStatus.unavailable) {
-        if (!allowUnenforced)
+        if (!allowUnenforced) {
           throw StateError(
             'Restrictions unavailable. Stop and explicitly choose an unenforced timer if desired.',
           );
+        }
       }
       await _move(_focusState(restriction));
       _anchorClock();
@@ -262,8 +263,9 @@ class DetoxSession {
     try {
       final result = await enforcer.release(id);
       restriction = result;
-      if (result.status != RestrictionStatus.off)
+      if (result.status != RestrictionStatus.off) {
         throw StateError('Release unconfirmed');
+      }
       return true;
     } catch (_) {
       await _fail(
@@ -286,10 +288,11 @@ class DetoxSession {
                     (_monotonic.elapsedMilliseconds - _lastMono))
                 .abs() >
             120000) {
-      if (await _release())
+      if (await _release()) {
         await _fail(
           'Device time changed. Restrictions released; stop and start a new session.',
         );
+      }
       return;
     }
     _anchorClock();
@@ -303,8 +306,9 @@ class DetoxSession {
           RestrictionStatus.unavailable,
           'Cannot verify platform restriction',
         );
-        if (state != DetoxState.FOCUS_UNENFORCED)
+        if (state != DetoxState.FOCUS_UNENFORCED) {
           await _move(DetoxState.FOCUS_UNENFORCED);
+        }
       }
     }
     if (endAt != null && !now().isBefore(endAt!)) {
@@ -332,8 +336,9 @@ class DetoxSession {
       });
 
   Future<void> resume() => _serial(() async {
-        if (state != DetoxState.PAUSED)
+        if (state != DetoxState.PAUSED) {
           throw StateError('Session is not paused.');
+        }
         if (phase == 'focus') {
           await _beginFocus(pausedSeconds);
         } else {
@@ -349,7 +354,9 @@ class DetoxSession {
           DetoxState.IDLE,
           DetoxState.STOPPED,
           DetoxState.COMPLETED,
-        ].contains(state)) return;
+        ].contains(state)) {
+          return;
+        }
         if (await _release()) {
           await _move(DetoxState.STOPPED);
           if (id.isEmpty) await store.clear();
@@ -386,16 +393,18 @@ class DetoxSession {
             return;
           }
           final json = jsonDecode(encoded) as Map<String, dynamic>;
-          if (json['version'] != 1)
+          if (json['version'] != 1) {
             throw const FormatException('Unknown schema');
+          }
           final recoveredState =
               DetoxState.values.byName(json['state'] as String);
           final focus = json['focusMinutes'] as int;
           final rest = json['breakMinutes'] as int;
           validateDetoxDurations(focus, rest);
           final owner = json['id'] as String;
-          if (!owner.startsWith('detox:'))
+          if (!owner.startsWith('detox:')) {
             throw const FormatException('Invalid owner');
+          }
           final selected = (json['packages'] as List).cast<String>().toSet();
           if (selected.length > 1000 ||
               selected.any(

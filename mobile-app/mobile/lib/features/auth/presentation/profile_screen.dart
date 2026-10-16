@@ -553,6 +553,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ? null
                 : () => _changeCurrency(context, activeUser),
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              isAr
+                  ? 'إظهار عناوين التذكيرات في الإشعارات'
+                  : 'Show reminder titles in notifications',
+            ),
+            subtitle: Text(
+              isAr
+                  ? 'عند الإيقاف، يظهر نص عام لحماية الخصوصية على شاشة القفل'
+                  : 'When off, push notifications use generic text on the lock screen',
+            ),
+            value: activeUser.pushShowTitles,
+            onChanged: activeUser.isPendingDeletion || _busyAction
+                ? null
+                : (val) async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      await ref
+                          .read(authProvider.notifier)
+                          .updatePushShowTitles(val);
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(e.toString())),
+                      );
+                    }
+                  },
+          ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.key_outlined),

@@ -398,7 +398,7 @@ describe('Production Readiness Audit Regressions (DEF-01..DEF-09)', () => {
       )
     ).rejects.toMatchObject({
       httpStatus: 409,
-      code: 'CONFLICT'
+      code: 'NOT_PENDING_DELETION'
     });
   });
 
@@ -424,7 +424,7 @@ describe('Production Readiness Audit Regressions (DEF-01..DEF-09)', () => {
       repo.cancelDeletion('11111111-1111-4111-8111-111111111111')
     ).rejects.toMatchObject({
       httpStatus: 409,
-      code: 'CONFLICT'
+      code: 'NOT_PENDING_DELETION'
     });
   });
 

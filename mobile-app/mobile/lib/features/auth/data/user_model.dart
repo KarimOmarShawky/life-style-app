@@ -7,6 +7,8 @@ class AppUser {
     required this.locale,
     required this.defaultCurrency,
     required this.status,
+    this.weekStart = 1,
+    this.pushShowTitles = true,
     this.deletionScheduledFor,
   });
 
@@ -17,6 +19,8 @@ class AppUser {
   final String locale;
   final String defaultCurrency;
   final String status;
+  final int weekStart;
+  final bool pushShowTitles;
   final DateTime? deletionScheduledFor;
 
   bool get isPendingDeletion => status == 'pending_deletion';
@@ -29,6 +33,8 @@ class AppUser {
         locale: _string(json, 'locale'),
         defaultCurrency: _string(json, 'defaultCurrency'),
         status: _string(json, 'status'),
+        weekStart: (json['weekStart'] as num?)?.toInt() ?? 1,
+        pushShowTitles: (json['pushShowTitles'] as bool?) ?? true,
         deletionScheduledFor: _optionalDateTime(json, 'deletionScheduledFor'),
       );
 }

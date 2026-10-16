@@ -17,6 +17,8 @@ export interface DispatchableReminder {
   channel: 'push' | 'in_app' | 'email';
   remindAt: Date;
   attemptCount: number;
+  pushShowTitles?: boolean | undefined;
+  entityTitle?: string | null | undefined;
 }
 
 export interface ReminderDispatchStore {
@@ -117,7 +119,12 @@ export async function processReminderDispatch(
         if (!push.isAvailable()) {
           throw new Error('PUSH_UNAVAILABLE');
         }
-        await push.send(reminder.userId, 'Reminder', 'You have a scheduled reminder');
+        const showTitles = reminder.pushShowTitles ?? true;
+        const trimmedTitle =
+          typeof reminder.entityTitle === 'string' ? reminder.entityTitle.trim() : '';
+        const notificationBody =
+          showTitles && trimmedTitle.length > 0 ? trimmedTitle : 'You have a reminder';
+        await push.send(reminder.userId, 'Reminder', notificationBody);
       }
       // 'in_app': delivered by presence in the API listing.
       await store.markSent(reminder.id, now, reminder.attemptCount);

@@ -47,6 +47,8 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
       channel: 'push' | 'in_app' | 'email';
       remind_at: Date;
       attempt_count: number;
+      push_show_titles: boolean;
+      entity_title: string | null;
     }>`
       UPDATE reminders r
       SET status = 'processing',
@@ -63,7 +65,21 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING r.id, r.user_id, r.entity_type, r.entity_id, r.channel, r.remind_at, r.attempt_count
+      RETURNING
+        r.id,
+        r.user_id,
+        r.entity_type,
+        r.entity_id,
+        r.channel,
+        r.remind_at,
+        r.attempt_count,
+        COALESCE((SELECT u.push_show_titles FROM users u WHERE u.id = r.user_id), true) AS push_show_titles,
+        COALESCE(
+          (SELECT t.title FROM tasks t WHERE t.id = r.task_id AND t.user_id = r.user_id AND t.deleted_at IS NULL),
+          (SELECT h.name FROM habits h WHERE h.id = r.habit_id AND h.user_id = r.user_id AND h.deleted_at IS NULL),
+          (SELECT e.title FROM events e WHERE e.id = r.event_id AND e.user_id = r.user_id AND e.deleted_at IS NULL),
+          (SELECT s.name FROM subscriptions s WHERE s.id = r.subscription_id AND s.user_id = r.user_id AND s.deleted_at IS NULL)
+        ) AS entity_title
     `.execute(this.db);
 
     return rows.rows.map((row) => ({
@@ -73,7 +89,9 @@ export class PgReminderDispatchStore implements ReminderDispatchStore {
       entityId: row.entity_id,
       channel: row.channel,
       remindAt: row.remind_at,
-      attemptCount: row.attempt_count
+      attemptCount: row.attempt_count,
+      pushShowTitles: row.push_show_titles,
+      entityTitle: row.entity_title
     }));
   }
 

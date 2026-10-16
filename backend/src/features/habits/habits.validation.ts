@@ -16,8 +16,8 @@ export const habitCheckinStatusSchema = z.enum(['done', 'skipped']);
 export const habitRecurrenceSchema = z
   .object({
     freq: z.enum(['daily', 'weekly']),
-    interval: z.number().int().min(1).default(1),
-    byWeekday: z.array(z.number().int().min(1).max(7)).optional().nullable()
+    interval: z.number().int().min(1).max(365).default(1),
+    byWeekday: z.array(z.number().int().min(1).max(7)).min(1).max(7).optional().nullable()
   })
   .strict()
   .refine(
@@ -25,11 +25,14 @@ export const habitRecurrenceSchema = z
       if (data.freq === 'weekly') {
         return Array.isArray(data.byWeekday) && data.byWeekday.length > 0;
       }
+      if (data.freq === 'daily') {
+        return data.byWeekday == null;
+      }
       return true;
     },
     {
       path: ['byWeekday'],
-      message: 'byWeekday is required for weekly recurrence'
+      message: 'byWeekday is required for weekly recurrence and must be omitted for daily recurrence'
     }
   );
 
@@ -42,7 +45,7 @@ export const createHabitSchema = z
       .max(120, { message: 'Habit name must not exceed 120 characters' }),
     description: z
       .string()
-      .max(5000, { message: 'Description must not exceed 5000 characters' })
+      .max(2000, { message: 'Description must not exceed 2000 characters' })
       .optional()
       .nullable(),
     startDate: z.string().regex(DATE_REGEX, { message: 'startDate must be in YYYY-MM-DD format' }),
@@ -73,7 +76,7 @@ export const updateHabitSchema = z
       .optional(),
     description: z
       .string()
-      .max(5000, { message: 'Description must not exceed 5000 characters' })
+      .max(2000, { message: 'Description must not exceed 2000 characters' })
       .optional()
       .nullable(),
     status: habitStatusSchema.optional(),

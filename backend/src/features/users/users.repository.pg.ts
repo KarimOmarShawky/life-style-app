@@ -244,7 +244,7 @@ export class PgUsersRepository implements UsersRepository {
     );
     if ((res.rowCount ?? 0) === 0) {
       throw AppError.conflict(
-        'CONFLICT',
+        'NOT_PENDING_DELETION',
         'Account is not currently scheduled for deletion'
       );
     }

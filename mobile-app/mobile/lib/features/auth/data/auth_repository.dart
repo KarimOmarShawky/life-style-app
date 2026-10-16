@@ -97,6 +97,8 @@ class AuthRepository {
     String? displayName,
     String? timezone,
     String? defaultCurrency,
+    int? weekStart,
+    bool? pushShowTitles,
   }) async {
     final response = await _api.patch(
       'users/me',
@@ -104,6 +106,8 @@ class AuthRepository {
         if (displayName != null) 'displayName': displayName.trim(),
         if (timezone != null) 'timezone': timezone,
         if (defaultCurrency != null) 'defaultCurrency': defaultCurrency,
+        if (weekStart != null) 'weekStart': weekStart,
+        if (pushShowTitles != null) 'pushShowTitles': pushShowTitles,
       },
     );
     if (response is! Map<String, dynamic> ||

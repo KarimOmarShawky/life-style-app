@@ -34,8 +34,8 @@ class AppLocalizations {
 
   /// Locales shipped with the app, in picker order.
   static const List<Locale> supportedLocales = <Locale>[
-    Locale('ar'),
     Locale('en'),
+    Locale('ar'),
     Locale('fr'),
     Locale('es'),
     Locale('de'),

@@ -282,7 +282,7 @@ test('DEF-03 / SEC-03 & DEF-05: UsersController extracts req.id and PgUsersRepos
     () => repo.cancelDeletion('11111111-1111-4111-8111-111111111111'),
     (err) => {
       assert.equal(err.httpStatus, 409);
-      assert.equal(err.code, 'CONFLICT');
+      assert.equal(err.code, 'NOT_PENDING_DELETION');
       return true;
     },
   );
@@ -653,4 +653,102 @@ test('Existing Backend Unit Suite Execution: recurrence-engine, streaks-engine, 
   assert.ok(!logOutput.includes('secret-refresh-token'));
   assert.ok(!logOutput.includes('Bearer secret-jwt'));
   assert.ok(logOutput.includes('[REDACTED]'));
+});
+
+
+test('Final Specification Compliance (D-22, D-23, D-24, §6.4/§6.5, §10.3/§17.5, §14.1/§14.3)', async () => {
+  // 1. D-22 / ADR-042: processReminderDispatch respects pushShowTitles and entityTitle
+  const harness = createTranspiledBackendHarness(['backend/src/jobs/job-processors.ts']);
+  try {
+    const { processReminderDispatch } = await harness.importModule('backend/src/jobs/job-processors.js');
+  const now = new Date('2026-10-16T12:00:00.000Z');
+  const sentPayloads = [];
+  const pushSender = {
+    isAvailable: () => true,
+    send: async (userId, title, body) => {
+      sentPayloads.push({ userId, title, body });
+    }
+  };
+  const emailSender = {
+    sendPasswordResetEmail: async () => undefined,
+    sendReminderEmail: async () => undefined
+  };
+  const emails = { findEmails: async () => new Map() };
+  const reminderStore = {
+    cancelOrphans: async () => 0,
+    claimDue: async () => [
+      {
+        id: 'rem-show',
+        userId: 'user-1',
+        entityType: 'task',
+        entityId: 'task-1',
+        channel: 'push',
+        remindAt: now,
+        attemptCount: 1,
+        pushShowTitles: true,
+        entityTitle: 'Submit quarterly report'
+      },
+      {
+        id: 'rem-hide',
+        userId: 'user-2',
+        entityType: 'task',
+        entityId: 'task-2',
+        channel: 'push',
+        remindAt: now,
+        attemptCount: 1,
+        pushShowTitles: false,
+        entityTitle: 'Private medical appointment'
+      }
+    ],
+    markSent: async () => undefined,
+    markRetry: async () => undefined,
+    markFailed: async () => undefined
+  };
+
+  const dispatchRes = await processReminderDispatch(
+    { now: () => now },
+    reminderStore,
+    emails,
+    emailSender,
+    pushSender
+  );
+  assert.equal(dispatchRes.sent, 2);
+  assert.deepEqual(sentPayloads, [
+    { userId: 'user-1', title: 'Reminder', body: 'Submit quarterly report' },
+    { userId: 'user-2', title: 'Reminder', body: 'You have a reminder' }
+  ]);
+  } finally {
+    harness.cleanup();
+  }
+
+  // 2. D-23 / ADR-043: Flutter SettingsState defaults to Locale('en') and supportedLocales starts with Locale('en')
+  const settingsProviderDart = read('mobile-app/mobile/lib/data/settings_provider.dart');
+  assert.match(settingsProviderDart, /this\.locale = const Locale\('en'\)/);
+  assert.doesNotMatch(settingsProviderDart, /const Locale\('ar'\)/);
+
+  const appLocalizationsDart = read('mobile-app/mobile/lib/l10n/app_localizations.dart');
+  assert.match(
+    appLocalizationsDart,
+    /supportedLocales = <Locale>\[\s*Locale\('en'\),/
+  );
+
+  // 3. D-22 Mobile: AppUser parses pushShowTitles (default true) & weekStart (default 1)
+  const userModelDart = read('mobile-app/mobile/lib/features/auth/data/user_model.dart');
+  assert.match(userModelDart, /this\.pushShowTitles = true/);
+  assert.match(userModelDart, /pushShowTitles: \(json\['pushShowTitles'\] as bool\?\) \?\? true/);
+
+  // 4. §6.4 & §6.5 Habits validation: description <= 2000, interval <= 365, daily rejects byWeekday
+  const habitsValSrc = read('backend/src/features/habits/habits.validation.ts');
+  assert.match(habitsValSrc, /\.max\(2000,\s*\{\s*message:\s*'Description must not exceed 2000 characters'\s*\}\)/);
+  assert.match(habitsValSrc, /interval:\s*z\.number\(\)\.int\(\)\.min\(1\)\.max\(365\)\.default\(1\)/);
+
+  // 5. §1.4.2 (FR-DAY-04) & §14.1: dayParamSchema enforces 2000-01-01..2100-12-31
+  const daysValSrc = read('backend/src/features/days/days.validation.ts');
+  assert.match(daysValSrc, /2000-01-01/);
+  assert.match(daysValSrc, /2100-12-31/);
+
+  // 6. §10.3 & §17.5: DeepLinkParser validates lifestyle://{section}/{uuid}
+  const deepLinkDart = read('mobile-app/mobile/lib/navigation/deep_link_parser.dart');
+  assert.match(deepLinkDart, /'\/money\/transactions': '\/money'/);
+  assert.match(deepLinkDart, /_uuidPattern/);
 });

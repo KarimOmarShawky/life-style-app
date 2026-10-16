@@ -126,6 +126,31 @@ describe('processReminderDispatch', () => {
     expect(store.cancelOrphans).toHaveBeenCalled();
     expect(store.claimDue).toHaveBeenCalledWith(NOW, 50);
   });
+
+  it('D-22 / ADR-042: sends entityTitle when pushShowTitles is true and generic text when false', async () => {
+    const pushSpy = {
+      isAvailable: () => true,
+      send: vi.fn(async () => undefined)
+    };
+    const store = fakeStore([
+      reminder({
+        id: 'rem-title-on',
+        channel: 'push',
+        pushShowTitles: true,
+        entityTitle: 'Pay electricity bill'
+      }),
+      reminder({
+        id: 'rem-title-off',
+        channel: 'push',
+        pushShowTitles: false,
+        entityTitle: 'Confidential therapy session'
+      })
+    ]);
+    const res = await processReminderDispatch(clock, store, emails, emailSender, pushSpy);
+    expect(res.sent).toBe(2);
+    expect(pushSpy.send).toHaveBeenNthCalledWith(1, 'user-1', 'Reminder', 'Pay electricity bill');
+    expect(pushSpy.send).toHaveBeenNthCalledWith(2, 'user-1', 'Reminder', 'You have a reminder');
+  });
 });
 
 describe('maintenance processors', () => {

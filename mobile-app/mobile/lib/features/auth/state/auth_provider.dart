@@ -63,6 +63,13 @@ class AuthController extends AsyncNotifier<AppUser?> {
     state = AsyncData(updated);
   }
 
+  Future<void> updatePushShowTitles(bool showTitles) async {
+    final updated = await ref.read(authRepositoryProvider).updateProfile(
+          pushShowTitles: showTitles,
+        );
+    state = AsyncData(updated);
+  }
+
   Future<Map<String, dynamic>> exportUserData(String currentPassword) =>
       ref.read(authRepositoryProvider).exportUserData(currentPassword);
 

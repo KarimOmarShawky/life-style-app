@@ -102,6 +102,17 @@ export class PgProjectsRepository implements ProjectsRepository {
 
       // 2. Cascade soft-delete vs detach open/done tasks (AC-PROJ-01)
       if (cascade) {
+        await sql`
+          UPDATE reminders
+          SET status = 'cancelled', next_attempt_at = NULL, updated_at = now()
+          WHERE user_id = ${userId}
+            AND status IN ('pending', 'processing')
+            AND task_id IN (
+              SELECT id FROM tasks
+              WHERE project_id = ${id} AND user_id = ${userId} AND deleted_at IS NULL
+            )
+        `.execute(trx);
+
         await trx
           .updateTable('tasks')
           .set({

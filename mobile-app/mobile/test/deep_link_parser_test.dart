@@ -9,6 +9,7 @@ void main() {
       expect(DeepLinkParser.routeFor('lifestyle://money'), '/money');
       expect(DeepLinkParser.routeFor('lifestyle://notes'), '/notes');
       expect(DeepLinkParser.routeFor('lifestyle://profile'), '/profile');
+      expect(DeepLinkParser.routeFor('lifestyle://ai'), '/ai');
       expect(DeepLinkParser.routeFor('/tasks'), '/tasks');
     });
 

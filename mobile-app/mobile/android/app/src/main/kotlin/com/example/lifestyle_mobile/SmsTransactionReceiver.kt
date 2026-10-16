@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -268,6 +269,18 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             .commit()
     }
 
+    private fun isTrustedApiBase(rawUrl: String): Boolean {
+        return try {
+            val uri = URI(rawUrl)
+            val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return false
+            val host = uri.host?.lowercase(Locale.ROOT) ?: return false
+            if (scheme == "https") return host.isNotEmpty()
+            scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "10.0.2.2")
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /**
      * Sends the queue with the ingest token when one is stored. That token is bound to the login session,
      * so it works while the app is closed. Without it, queued entries remain in SharedPreferences until
@@ -275,7 +288,12 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      */
     private fun flushPending(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val apiBase = prefs.getString(KEY_API_BASE, null)?.trimEnd('/') ?: DEFAULT_API_BASE
+        val configuredBase = prefs.getString(KEY_API_BASE, null)?.trim()?.trimEnd('/')
+        val apiBase = if (!configuredBase.isNullOrEmpty() && isTrustedApiBase(configuredBase)) {
+            configuredBase
+        } else {
+            DEFAULT_API_BASE
+        }
 
         val ingestToken = WalletCredentialStore(context).read()
         if (!ingestToken.isNullOrEmpty()) {
@@ -527,6 +545,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(text)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
@@ -587,7 +606,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$text\n${tx.rawMessage}"))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

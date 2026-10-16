@@ -16,6 +16,7 @@ export const createNoteLinkSchema = z
     habitId: z.string().uuid('Invalid habitId format').nullable().optional(),
     eventId: z.string().uuid('Invalid eventId format').nullable().optional()
   })
+  .strict()
   .refine(
     (data) => {
       if (data.entityType && data.entityId) {
@@ -73,6 +74,7 @@ export const createNoteSchema = z
     isPinned: z.boolean().optional().default(false),
     links: z.array(createNoteLinkSchema).max(20, 'Maximum 20 links allowed').optional()
   })
+  .strict()
   .refine(
     (data) => {
       const hasTitle = typeof data.title === 'string' && data.title.trim().length > 0;
@@ -102,7 +104,7 @@ export const updateNoteSchema = z.object({
   isPinned: z.boolean().optional(),
   links: z.array(createNoteLinkSchema).max(20, 'Maximum 20 links allowed').optional(),
   version: z.number().int().positive().optional()
-});
+}).strict();
 
 export const listNotesQuerySchema = z
   .object({
@@ -128,6 +130,7 @@ export const listNotesQuerySchema = z
       .transform((v) => v === 'true')
       .optional()
   })
+  .strict()
   .transform((data) => {
     const isPinned = data.isPinned !== undefined ? data.isPinned : data.pinned;
     let taskId = data.taskId;
@@ -159,9 +162,9 @@ export const listNotesQuerySchema = z
 
 export const noteIdParamSchema = z.object({
   id: z.string().uuid('Invalid note ID format')
-});
+}).strict();
 
 export const noteLinkIdParamSchema = z.object({
   id: z.string().uuid('Invalid note ID format'),
   linkId: z.string().uuid('Invalid link ID format')
-});
+}).strict();

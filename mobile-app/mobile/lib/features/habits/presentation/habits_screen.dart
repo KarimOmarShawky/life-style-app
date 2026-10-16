@@ -70,10 +70,19 @@ class HabitsScreen extends ConsumerWidget {
                         );
                       },
                       onDismissed: (_) async {
-                        await ref
-                            .read(habitsRepositoryProvider)
-                            .deleteHabit(habit.id);
-                        ref.invalidate(habitsProvider);
+                        try {
+                          await ref
+                              .read(habitsRepositoryProvider)
+                              .deleteHabit(habit.id);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString())),
+                            );
+                          }
+                        } finally {
+                          ref.invalidate(habitsProvider);
+                        }
                       },
                       child: HabitCard(habit: habit),
                     );

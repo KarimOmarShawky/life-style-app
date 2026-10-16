@@ -16,8 +16,8 @@ export const recurrenceFreqSchema = z.enum(['daily', 'weekly', 'monthly', 'yearl
 export const recurrenceDefinitionSchema = z
   .object({
     freq: recurrenceFreqSchema,
-    interval: z.number().int().min(1).default(1),
-    byWeekday: z.array(z.number().int().min(1).max(7)).optional().nullable(),
+    interval: z.number().int().min(1).max(365).default(1),
+    byWeekday: z.array(z.number().int().min(1).max(7)).min(1).max(7).optional().nullable(),
     byMonthDay: z
       .number()
       .int()
@@ -46,6 +46,37 @@ export const recurrenceDefinitionSchema = z
     {
       path: ['endDate'],
       message: 'endDate must be on or after startDate'
+    }
+  )
+  .refine((data) => !(data.endDate != null && data.occurrenceLimit != null), {
+    path: ['occurrenceLimit'],
+    message: 'endDate and occurrenceLimit are mutually exclusive'
+  })
+  .refine(
+    (data) => {
+      if (data.freq === 'daily') {
+        return data.byWeekday == null && data.byMonthDay == null && data.byMonth == null;
+      }
+      if (data.freq === 'weekly') {
+        return (
+          Array.isArray(data.byWeekday) &&
+          data.byWeekday.length > 0 &&
+          data.byMonthDay == null &&
+          data.byMonth == null
+        );
+      }
+      if (data.freq === 'monthly') {
+        return data.byMonthDay != null && data.byWeekday == null && data.byMonth == null;
+      }
+      if (data.freq === 'yearly') {
+        return data.byMonth != null && data.byMonthDay != null && data.byWeekday == null;
+      }
+      return true;
+    },
+    {
+      path: ['freq'],
+      message:
+        'Recurrence fields must match frequency (daily: none; weekly: byWeekday; monthly: byMonthDay; yearly: byMonth + byMonthDay)'
     }
   );
 

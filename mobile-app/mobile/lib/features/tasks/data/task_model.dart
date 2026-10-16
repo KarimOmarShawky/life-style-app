@@ -23,6 +23,13 @@ class Task {
 
   bool get isDone => status == 'done';
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is Task && other.id == id);
+
+  @override
+  int get hashCode => id.hashCode;
+
   factory Task.fromJson(Map<String, dynamic> json) => Task(
         id: _string(json, 'id'),
         title: _string(json, 'title'),

@@ -74,7 +74,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       setState(() => _errorMessage = l10n.enterResetCode);
       return;
     }
-    if (newPassword.length < 8) {
+    if (newPassword.length < 10 || newPassword.length > 128) {
       setState(() => _errorMessage = l10n.passwordMinLengthError);
       return;
     }

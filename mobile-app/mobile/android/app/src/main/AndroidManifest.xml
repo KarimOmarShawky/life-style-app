@@ -60,7 +60,7 @@
 
         <receiver
             android:name=".VoiceActionReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.example.lifestyle_mobile.RECORD_VOICE" />
             </intent-filter>

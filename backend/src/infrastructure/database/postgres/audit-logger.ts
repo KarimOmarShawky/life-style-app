@@ -9,6 +9,23 @@
 import type pg from 'pg';
 import { logger } from '../../../core/logger/logger.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function normalizeAuditRequestId(
+  requestId: string | null | undefined,
+  metadata?: Record<string, unknown> | undefined
+): { uuidRequestId: string | null; metadata: Record<string, unknown> } {
+  const baseMeta = metadata ? { ...metadata } : {};
+  if (!requestId) {
+    return { uuidRequestId: null, metadata: baseMeta };
+  }
+  if (UUID_REGEX.test(requestId)) {
+    return { uuidRequestId: requestId, metadata: baseMeta };
+  }
+  baseMeta.clientRequestId = requestId.slice(0, 64);
+  return { uuidRequestId: null, metadata: baseMeta };
+}
+
 export interface AuditEvent {
   actorType: 'user' | 'system';
   actorUserId?: string | null | undefined;
@@ -38,6 +55,8 @@ export class PgAuditLogger implements AuditLogger {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
     `;
 
+    const normalized = normalizeAuditRequestId(event.requestId, event.metadata);
+
     const values = [
       event.actorType,
       event.actorUserId ?? null,
@@ -46,10 +65,10 @@ export class PgAuditLogger implements AuditLogger {
       event.outcome,
       event.entityType ?? null,
       event.entityId ?? null,
-      event.requestId ?? null,
+      normalized.uuidRequestId,
       event.ip ?? null,
       event.userAgent ? event.userAgent.slice(0, 300) : null,
-      JSON.stringify(event.metadata ?? {})
+      JSON.stringify(normalized.metadata)
     ];
 
     try {

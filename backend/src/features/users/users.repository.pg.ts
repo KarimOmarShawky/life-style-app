@@ -118,14 +118,28 @@ export class PgUsersRepository implements UsersRepository {
         app_version = EXCLUDED.app_version,
         last_seen_at = now(),
         disabled_at = NULL
+      WHERE push_devices.user_id = EXCLUDED.user_id
+         OR push_devices.disabled_at IS NOT NULL
+         OR NOT EXISTS (
+           SELECT 1 FROM auth_sessions s
+           WHERE s.id = push_devices.session_id
+             AND s.revoked_at IS NULL
+             AND s.absolute_expires_at > now()
+         )
     `;
-    await this.pool.query(query, [
+    const res = await this.pool.query(query, [
       userId,
       sessionId,
       input.platform,
       input.pushToken,
       input.appVersion ?? null
     ]);
+    if ((res.rowCount ?? 0) === 0) {
+      throw AppError.conflict(
+        'CONFLICT',
+        'Push token is already registered to another active session'
+      );
+    }
   }
 
   public async deletePushDevice(userId: string, deviceId: string): Promise<boolean> {
@@ -222,12 +236,18 @@ export class PgUsersRepository implements UsersRepository {
   }
 
   public async cancelDeletion(userId: string): Promise<void> {
-    await this.pool.query(
+    const res = await this.pool.query(
       `UPDATE users 
        SET status = 'active', deletion_scheduled_for = NULL, updated_at = now() 
-       WHERE id = $1`,
+       WHERE id = $1 AND status = 'pending_deletion'`,
       [userId]
     );
+    if ((res.rowCount ?? 0) === 0) {
+      throw AppError.conflict(
+        'CONFLICT',
+        'Account is not currently scheduled for deletion'
+      );
+    }
   }
 
   public async purgeAccount(userId: string, options?: PurgeAccountOptions): Promise<boolean> {

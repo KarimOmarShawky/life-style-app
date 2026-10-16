@@ -13,7 +13,7 @@ import { getCurrencyExponent } from './money.dto.js';
  * Validates that an amount is a decimal string > 0 with scale <= currency exponent.
  * Rejects JSON numbers completely per Section 7.2 & AC-MON-01.
  */
-function validateMonetaryString(val: unknown, currency?: string): boolean {
+export function validateMonetaryString(val: unknown, currency?: string): boolean {
   if (typeof val !== 'string') {
     return false;
   }
@@ -71,7 +71,7 @@ export const createCategorySchema = z
     color: z
       .string()
       .trim()
-      .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Color must be a valid hex color string')
+      .regex(/^#[A-Fa-f0-9]{6}$/, 'Color must be a valid 6-digit hex color string (#RRGGBB)')
       .nullable()
       .optional()
   })
@@ -89,7 +89,7 @@ export const updateCategorySchema = z
     color: z
       .string()
       .trim()
-      .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Color must be a valid hex color string')
+      .regex(/^#[A-Fa-f0-9]{6}$/, 'Color must be a valid 6-digit hex color string (#RRGGBB)')
       .nullable()
       .optional(),
     archived: z.boolean().optional(),

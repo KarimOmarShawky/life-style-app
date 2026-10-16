@@ -52,6 +52,7 @@ export const createGoalSchema = z
       .nullable()
       .optional()
   })
+  .strict()
   .refine(
     (data) => {
       if (data.progressType === 'numeric') {
@@ -132,6 +133,7 @@ export const updateGoalSchema = z
       .optional(),
     version: z.number().int().positive().optional()
   })
+  .strict()
   .refine(
     (data) => {
       if (data.startDate && data.targetDate) {
@@ -152,11 +154,11 @@ export const listGoalsQuerySchema = z.object({
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
     .optional()
-});
+}).strict();
 
 export const goalIdParamSchema = z.object({
   id: z.string().uuid('Invalid goal ID format')
-});
+}).strict();
 
 export const createMilestoneSchema = z.object({
   title: z
@@ -170,7 +172,7 @@ export const createMilestoneSchema = z.object({
     .nullable()
     .optional(),
   sortOrder: z.number().int().optional()
-});
+}).strict();
 
 export const updateMilestoneSchema = z.object({
   title: z
@@ -187,9 +189,9 @@ export const updateMilestoneSchema = z.object({
   completed: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   version: z.number().int().positive().optional()
-});
+}).strict();
 
 export const goalMilestoneParamSchema = z.object({
   id: z.string().uuid('Invalid goal ID format'),
   milestoneId: z.string().uuid('Invalid milestone ID format')
-});
+}).strict();

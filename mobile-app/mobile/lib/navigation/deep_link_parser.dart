@@ -8,7 +8,8 @@ abstract final class DeepLinkParser {
     '/notes',
     '/profile',
     '/focus',
-    '/daily-plan'
+    '/daily-plan',
+    '/ai',
   };
 
   static String routeFor(String? rawLocation) {

@@ -5,6 +5,7 @@
  */
 
 import { sql, type Kysely } from 'kysely';
+import { literalContainsPattern } from '../../core/pagination/search-pattern.js';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
 import type { NotesRepository } from './notes.repository.js';
 import type {
@@ -166,7 +167,7 @@ export class PgNotesRepository implements NotesRepository {
 
     if (filter.q) {
       query = query.where(
-        sql<boolean>`(search_vector @@ plainto_tsquery('simple', ${filter.q}) OR title ILIKE ${'%' + filter.q + '%'})`
+        sql<boolean>`(search_vector @@ plainto_tsquery('simple', ${filter.q}) OR title ILIKE ${literalContainsPattern(filter.q)} ESCAPE '\\')`
       );
     }
 

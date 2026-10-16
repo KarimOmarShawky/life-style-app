@@ -66,7 +66,9 @@ export class TimerSessionsService {
 
     const now = this.clock.now();
     const startedAt = new Date(session.started_at).getTime();
-    const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedAt) / 1000));
+    // Respect PostgreSQL CHECK (ended_at > started_at) even if stopped within the same millisecond.
+    const effectiveEndedAt = now.getTime() <= startedAt ? new Date(startedAt + 1) : now;
+    const elapsedSeconds = Math.max(0, Math.floor((effectiveEndedAt.getTime() - startedAt) / 1000));
 
     let endReason: TimerEndReason = 'stopped';
     if (
@@ -77,12 +79,17 @@ export class TimerSessionsService {
       endReason = 'completed';
     }
 
-    const stopped = await this.timerSessionsRepository.stop(userId, id, now, endReason);
+    const stopped = await this.timerSessionsRepository.stop(
+      userId,
+      id,
+      effectiveEndedAt,
+      endReason
+    );
     if (!stopped) {
       throw AppError.conflict('TIMER_NOT_RUNNING', 'Timer session is not running');
     }
 
-    return toTimerSessionDto(stopped, now);
+    return toTimerSessionDto(stopped, effectiveEndedAt);
   }
 
   async getActiveTimer(userId: string): Promise<TimerSessionDto | null> {

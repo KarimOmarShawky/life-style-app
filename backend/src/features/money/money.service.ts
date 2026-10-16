@@ -31,12 +31,14 @@ import {
   toSubscriptionDto,
   toBudgetDto,
   toReportSummaryDto,
+  getCurrencyExponent,
   type CategoryDto,
   type TransactionDto,
   type SubscriptionDto,
   type BudgetDto,
   type ReportSummaryDto
 } from './money.dto.js';
+import { validateMonetaryString } from './money.validation.js';
 import {
   calculateNextBillingDate,
   calculateInitialNextBillingDate,
@@ -81,6 +83,17 @@ export function computeTransactionFingerprint(input: {
 
 function getUserToday(timezone: string): string {
   return getUserTodayDate(timezone);
+}
+
+function assertCurrencyScale(amount: string, currency: string, field = 'amount'): void {
+  if (!validateMonetaryString(amount, currency)) {
+    throw AppError.validation([
+      {
+        field,
+        message: `Amount scale exceeds maximum allowed for currency ${currency} (${getCurrencyExponent(currency)} decimals)`
+      }
+    ]);
+  }
 }
 
 export class MoneyService {
@@ -341,6 +354,12 @@ export class MoneyService {
       throw AppError.notFound('Transaction not found');
     }
 
+    if (input.amount !== undefined || input.currency !== undefined) {
+      const effectiveAmount = input.amount ?? new Decimal(existing.amount).toFixed();
+      const effectiveCurrency = input.currency ?? existing.currency;
+      assertCurrencyScale(effectiveAmount, effectiveCurrency, 'amount');
+    }
+
     const effectiveKind = input.kind ?? existing.kind;
     if (input.categoryId) {
       const category = await this.moneyRepository.findCategoryById(userId, input.categoryId);
@@ -526,6 +545,12 @@ export class MoneyService {
       throw AppError.notFound('Subscription not found');
     }
 
+    if (input.amount !== undefined || input.currency !== undefined) {
+      const effectiveAmount = input.amount ?? new Decimal(existing.amount).toFixed();
+      const effectiveCurrency = input.currency ?? existing.currency;
+      assertCurrencyScale(effectiveAmount, effectiveCurrency, 'amount');
+    }
+
     if (input.categoryId) {
       const category = await this.moneyRepository.findCategoryById(userId, input.categoryId);
       if (!category) {
@@ -600,6 +625,10 @@ export class MoneyService {
 
     if (sub.status !== 'active') {
       throw AppError.conflict('SUBSCRIPTION_NOT_ACTIVE', 'Subscription is not active');
+    }
+
+    if (input.amount !== undefined) {
+      assertCurrencyScale(input.amount, sub.currency, 'amount');
     }
 
     const newNextBillingDate = calculateNextBillingDate(
@@ -790,6 +819,10 @@ export class MoneyService {
     const existing = await this.moneyRepository.findBudgetById(userId, budgetId);
     if (!existing) {
       throw AppError.notFound('Budget not found');
+    }
+
+    if (input.amountLimit !== undefined) {
+      assertCurrencyScale(input.amountLimit, existing.currency, 'amountLimit');
     }
 
     const updated = await this.moneyRepository.updateBudget(userId, budgetId, input, input.version);

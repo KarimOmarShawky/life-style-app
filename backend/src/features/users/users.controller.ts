@@ -21,7 +21,7 @@ function extractMeta(req: Request): RequestMeta {
   return {
     ip: req.ip || req.socket.remoteAddress,
     userAgent: req.headers['user-agent'],
-    requestId: (req as unknown as { requestId?: string }).requestId
+    requestId: req.id ?? (req as unknown as { requestId?: string }).requestId
   };
 }
 

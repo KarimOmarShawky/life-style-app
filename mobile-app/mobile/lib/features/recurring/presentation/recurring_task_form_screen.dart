@@ -114,10 +114,18 @@ class _RecurringTaskFormScreenState
   Map<String, Object?> _recurrenceFields(int interval) {
     final end = _endDate;
     final weekdays = _weekdays.toList()..sort();
+    final effectiveWeekdays = _freq == 'weekly'
+        ? (weekdays.isNotEmpty ? weekdays : <int>[_startDate.weekday])
+        : null;
+    final effectiveMonthDay =
+        (_freq == 'monthly' || _freq == 'yearly') ? _startDate.day : null;
+    final effectiveMonth = _freq == 'yearly' ? _startDate.month : null;
     return {
       'freq': _freq,
       'interval': interval,
-      'byWeekday': _freq == 'weekly' && weekdays.isNotEmpty ? weekdays : null,
+      'byWeekday': effectiveWeekdays,
+      'byMonthDay': effectiveMonthDay,
+      'byMonth': effectiveMonth,
       'startDate': formatApiDate(_startDate),
       'endDate': end == null ? null : formatApiDate(end),
     };
@@ -365,7 +373,7 @@ class _RecurringTaskFormScreenState
                       ),
                       validator: (value) {
                         final number = int.tryParse((value ?? '').trim());
-                        return number == null || number < 1
+                        return number == null || number < 1 || number > 365
                             ? l10n.intervalInvalid
                             : null;
                       },

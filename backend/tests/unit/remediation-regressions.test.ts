@@ -20,7 +20,12 @@ import { literalContainsPattern } from '../../src/core/pagination/search-pattern
 import { assertTestTargets } from '../test-safety.js';
 import { currencySchema, timezoneSchema } from '../../src/core/security/profile-validation.js';
 import { passwordSchema } from '../../src/features/auth/auth.validation.js';
-import { createTransactionSchema } from '../../src/features/money/money.validation.js';
+import {
+  createTransactionSchema,
+  createCategorySchema,
+  updateCategorySchema,
+  validateMonetaryString
+} from '../../src/features/money/money.validation.js';
 import { SmtpEmailSender } from '../../src/infrastructure/external/email-sender.js';
 import {
   PgTimerMaintenanceStore,
@@ -28,6 +33,24 @@ import {
   PgReminderDispatchStore
 } from '../../src/jobs/job-stores.pg.js';
 import type { Transporter } from 'nodemailer';
+import {
+  normalizeAuditRequestId,
+  PgAuditLogger
+} from '../../src/infrastructure/database/postgres/audit-logger.js';
+import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
+import { TimerSessionsService } from '../../src/features/timer-sessions/timer-sessions.service.js';
+import { recurrenceDefinitionSchema } from '../../src/features/recurring-tasks/recurring-tasks.validation.js';
+import {
+  createNoteSchema,
+  updateNoteSchema,
+  linkNoteSchema
+} from '../../src/features/notes/notes.validation.js';
+import {
+  createGoalSchema,
+  updateGoalSchema
+} from '../../src/features/goals/goals.validation.js';
+import { createReminderSchema } from '../../src/features/reminders/reminders.validation.js';
+import { searchQuerySchema } from '../../src/features/search/search.validation.js';
 
 const source = (path: string) => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
 
@@ -327,4 +350,158 @@ it('every infrastructure suite has an import-time safety guard even without runn
       ).toBe(true);
     }
   }
+});
+
+describe('Production Readiness Audit Regressions (DEF-01..DEF-09)', () => {
+  it('DEF-01 / SEC-01: normalizes non-UUID request IDs before audit_logs insertion and preserves clientRequestId in metadata', async () => {
+    const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+    expect(normalizeAuditRequestId(validUuid, { a: 1 })).toEqual({
+      uuidRequestId: validUuid,
+      metadata: { a: 1 }
+    });
+
+    const nonUuid = 'custom-trace-id-not-uuid';
+    expect(normalizeAuditRequestId(nonUuid, { ip: '127.0.0.1' })).toEqual({
+      uuidRequestId: null,
+      metadata: { ip: '127.0.0.1', clientRequestId: nonUuid }
+    });
+
+    const querySpy = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
+    const auditLogger = new PgAuditLogger({ query: querySpy } as never);
+    await auditLogger.log({
+      actorType: 'user',
+      actorUserId: validUuid,
+      action: 'auth.login',
+      outcome: 'failure',
+      requestId: nonUuid,
+      metadata: { reason: 'bad_password' }
+    });
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const params = querySpy.mock.calls[0]?.[1] as unknown[];
+    expect(params[7]).toBeNull();
+    expect(JSON.parse(String(params[10]))).toEqual({
+      reason: 'bad_password',
+      clientRequestId: nonUuid
+    });
+  });
+
+  it('DEF-02 / SEC-02: prevents cross-account push token hijacking in PgUsersRepository.upsertPushDevice', async () => {
+    const querySpy = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+    const repo = new PgUsersRepository({ query: querySpy } as never);
+
+    await expect(
+      repo.upsertPushDevice(
+        '22222222-2222-4222-8222-222222222222',
+        '33333333-3333-4333-8333-333333333333',
+        { platform: 'android', pushToken: 'token-owned-by-another-active-user' }
+      )
+    ).rejects.toMatchObject({
+      httpStatus: 409,
+      code: 'CONFLICT'
+    });
+  });
+
+  it('DEF-04 / SEC-04: enforces 6-digit hex category colors and currency exponent validation', () => {
+    expect(
+      createCategorySchema.safeParse({ name: 'Food', kind: 'expense', color: '#abc' }).success
+    ).toBe(false);
+    expect(
+      createCategorySchema.safeParse({ name: 'Food', kind: 'expense', color: '#AABBCC' }).success
+    ).toBe(true);
+    expect(updateCategorySchema.safeParse({ color: '#123', version: 1 }).success).toBe(false);
+    expect(validateMonetaryString('100.50', 'JPY')).toBe(false);
+    expect(validateMonetaryString('100', 'JPY')).toBe(true);
+    expect(validateMonetaryString('10.123', 'KWD')).toBe(true);
+    expect(validateMonetaryString('10.123', 'EGP')).toBe(false);
+  });
+
+  it('DEF-05: rejects cancelDeletion with 409 CONFLICT when account is not pending_deletion', async () => {
+    const querySpy = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+    const repo = new PgUsersRepository({ query: querySpy } as never);
+
+    await expect(
+      repo.cancelDeletion('11111111-1111-4111-8111-111111111111')
+    ).rejects.toMatchObject({
+      httpStatus: 409,
+      code: 'CONFLICT'
+    });
+  });
+
+  it('DEF-07: clamps ended_at to started_at + 1ms when stopping a timer within the same millisecond', async () => {
+    const now = new Date('2026-10-16T15:00:00.100Z');
+    const stopSpy = vi.fn().mockImplementation(async (_u, id, endedAt, endReason) => ({
+      id,
+      user_id: '11111111-1111-4111-8111-111111111111',
+      task_id: null,
+      mode: 'stopwatch',
+      planned_seconds: null,
+      started_at: now,
+      ended_at: endedAt,
+      end_reason: endReason,
+      created_at: now,
+      updated_at: endedAt
+    }));
+    const repo = {
+      findById: vi.fn().mockResolvedValue({
+        id: '22222222-2222-4222-8222-222222222222',
+        user_id: '11111111-1111-4111-8111-111111111111',
+        task_id: null,
+        mode: 'stopwatch',
+        planned_seconds: null,
+        started_at: now,
+        ended_at: null,
+        end_reason: null,
+        created_at: now,
+        updated_at: now
+      }),
+      stop: stopSpy
+    };
+
+    const service = new TimerSessionsService(repo as never, {} as never, { now: () => now });
+    const dto = await service.stopTimer(
+      '11111111-1111-4111-8111-111111111111',
+      '22222222-2222-4222-8222-222222222222'
+    );
+    expect(stopSpy).toHaveBeenCalledTimes(1);
+    const passedEndedAt = stopSpy.mock.calls[0]?.[2] as Date;
+    expect(passedEndedAt.getTime()).toBe(now.getTime() + 1);
+    expect(dto.durationSeconds).toBe(0);
+  });
+
+  it('DEF-08: enforces strict request schemas and recurrence DB check invariants', () => {
+    expect(createNoteSchema.safeParse({ title: 'T', body: 'B', unknownField: 1 }).success).toBe(
+      false
+    );
+    expect(updateNoteSchema.safeParse({ title: 'T', version: 1, extra: true }).success).toBe(false);
+    expect(
+      linkNoteSchema.safeParse({
+        entityType: 'task',
+        entityId: '550e8400-e29b-41d4-a716-446655440000',
+        extra: 1
+      }).success
+    ).toBe(false);
+    expect(createGoalSchema.safeParse({ title: 'G', extra: 1 }).success).toBe(false);
+    expect(updateGoalSchema.safeParse({ title: 'G', version: 1, extra: 1 }).success).toBe(false);
+    expect(
+      createReminderSchema.safeParse({ remindAt: '2026-10-16T12:00:00Z', extra: 1 }).success
+    ).toBe(false);
+    expect(searchQuerySchema.safeParse({ q: 'hello', extra: 1 }).success).toBe(false);
+
+    expect(
+      recurrenceDefinitionSchema.safeParse({
+        freq: 'daily',
+        interval: 366,
+        startDate: '2026-10-16'
+      }).success
+    ).toBe(false);
+
+    expect(
+      recurrenceDefinitionSchema.safeParse({
+        freq: 'monthly',
+        interval: 1,
+        startDate: '2026-10-16'
+      }).success
+    ).toBe(false);
+  });
 });

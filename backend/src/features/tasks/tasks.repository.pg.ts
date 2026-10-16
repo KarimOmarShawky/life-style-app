@@ -215,31 +215,50 @@ export class PgTasksRepository implements TasksRepository {
     if (filter.cursor) {
       try {
         const decoded = Buffer.from(filter.cursor, 'base64').toString('utf8');
-        const { id, createdAt } = JSON.parse(decoded);
+        const parsed = JSON.parse(decoded) as {
+          id?: string;
+          createdAt?: string;
+          updatedAt?: string;
+          dueDate?: string | null;
+          priority?: number;
+        };
+        const { id } = parsed;
+        const cmpOp = orderDirection === 'desc' ? '<' : '>';
         if (id) {
           if (filter.sort === 'dueDate') {
-            if (orderDirection === 'desc') {
-              query = query.where('id', '<', id);
-            } else {
-              query = query.where('id', '>', id);
-            }
-          } else {
-            const cursorDate = new Date(createdAt);
-            if (orderDirection === 'desc') {
+            if (parsed.dueDate !== undefined && parsed.dueDate !== null) {
               query = query.where((eb) =>
                 eb.or([
-                  eb('created_at', '<', cursorDate),
-                  eb.and([eb('created_at', '=', cursorDate), eb('id', '<', id)])
+                  eb('due_date', cmpOp, parsed.dueDate!),
+                  eb.and([eb('due_date', '=', parsed.dueDate!), eb('id', cmpOp, id)])
                 ])
               );
             } else {
-              query = query.where((eb) =>
-                eb.or([
-                  eb('created_at', '>', cursorDate),
-                  eb.and([eb('created_at', '=', cursorDate), eb('id', '>', id)])
-                ])
-              );
+              query = query.where('id', cmpOp, id);
             }
+          } else if (filter.sort === 'priority' && typeof parsed.priority === 'number') {
+            query = query.where((eb) =>
+              eb.or([
+                eb('priority', cmpOp, parsed.priority!),
+                eb.and([eb('priority', '=', parsed.priority!), eb('id', cmpOp, id)])
+              ])
+            );
+          } else if (filter.sort === 'updatedAt' && (parsed.updatedAt || parsed.createdAt)) {
+            const cursorUpdated = new Date((parsed.updatedAt ?? parsed.createdAt)!);
+            query = query.where((eb) =>
+              eb.or([
+                eb('updated_at', cmpOp, cursorUpdated),
+                eb.and([eb('updated_at', '=', cursorUpdated), eb('id', cmpOp, id)])
+              ])
+            );
+          } else if (parsed.createdAt) {
+            const cursorDate = new Date(parsed.createdAt);
+            query = query.where((eb) =>
+              eb.or([
+                eb('created_at', cmpOp, cursorDate),
+                eb.and([eb('created_at', '=', cursorDate), eb('id', cmpOp, id)])
+              ])
+            );
           }
         }
       } catch {
@@ -254,9 +273,22 @@ export class PgTasksRepository implements TasksRepository {
     let nextCursor: string | null = null;
     const lastItem = items.length > 0 ? items[items.length - 1] : undefined;
     if (hasMore && lastItem) {
+      const rawDue = lastItem.due_date;
+      const dueDateStr =
+        rawDue instanceof Date
+          ? rawDue.toISOString().slice(0, 10)
+          : typeof rawDue === 'string'
+            ? rawDue.slice(0, 10)
+            : null;
       const payload = {
         id: lastItem.id,
-        createdAt: (lastItem.created_at as Date).toISOString()
+        createdAt: (lastItem.created_at as Date).toISOString(),
+        updatedAt:
+          lastItem.updated_at instanceof Date
+            ? lastItem.updated_at.toISOString()
+            : (lastItem.created_at as Date).toISOString(),
+        dueDate: dueDateStr,
+        priority: lastItem.priority
       };
       nextCursor = Buffer.from(JSON.stringify(payload)).toString('base64');
     }

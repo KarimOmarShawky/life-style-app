@@ -30,6 +30,7 @@ import type {
   BudgetPeriod
 } from './money.types.js';
 import { AppError } from '../../core/errors/app-error.js';
+import { normalizeAuditRequestId } from '../../infrastructure/database/postgres/audit-logger.js';
 
 interface CategoryDbRow {
   id: string;
@@ -210,6 +211,7 @@ async function insertAuditLogRow(
   dbOrTrx: Kysely<DatabaseSchema>,
   data: AuditLogData
 ): Promise<void> {
+  const normalized = normalizeAuditRequestId(data.requestId, data.metadata);
   await sql`
     INSERT INTO audit_logs (
       actor_type, actor_user_id, session_id, event_type, outcome,
@@ -222,10 +224,10 @@ async function insertAuditLogRow(
       ${data.outcome},
       ${data.entityType ?? null},
       ${data.entityId ?? null},
-      ${data.requestId ?? null},
+      ${normalized.uuidRequestId},
       ${data.ip ?? null},
       ${data.userAgent ? data.userAgent.slice(0, 300) : null},
-      ${JSON.stringify(data.metadata ?? {})}::jsonb
+      ${JSON.stringify(normalized.metadata)}::jsonb
     )
   `.execute(dbOrTrx);
 }

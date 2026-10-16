@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, lstatSync, chmodSync, symlinkSync, rmSync, existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import { initializeLocalSetup, readLocalSetup } from './local-setup.mjs';
 import { localStack } from './local-stack.mjs';
 
-const sourceRoot = resolve(import.meta.dirname, '..');
+const sourceRoot = resolve(import.meta.dirname ?? dirname(fileURLToPath(import.meta.url)), '..');
 function workspace(t) {
   const path = realpathSync(mkdtempSync(join(tmpdir(), 'lifestyle-fresh-test-')));
   t.after(() => rmSync(path, { recursive: true, force: true })); // Only owned scratch data.

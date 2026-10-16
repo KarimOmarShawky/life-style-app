@@ -144,11 +144,41 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                         child: const Icon(Icons.delete_outline,
                             color: Colors.white),
                       ),
+                      confirmDismiss: (_) async {
+                        return await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: Text(l10n.deleteConfirm),
+                            content: Text(note.title),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: Text(l10n.cancel),
+                              ),
+                              FilledButton(
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.red),
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: Text(l10n.delete),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                       onDismissed: (_) async {
-                        await ref
-                            .read(notesRepositoryProvider)
-                            .deleteNote(note.id);
-                        ref.invalidate(notesProvider);
+                        try {
+                          await ref
+                              .read(notesRepositoryProvider)
+                              .deleteNote(note.id);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString())),
+                            );
+                          }
+                        } finally {
+                          ref.invalidate(notesProvider);
+                        }
                       },
                       child: InkWell(
                         onLongPress: () => _toggleNoteSelection(note.id),
@@ -234,7 +264,9 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
             ref.invalidate(notesProvider);
             if (dialogContext.mounted) Navigator.of(dialogContext).pop();
           } catch (e) {
-            setDialogState(() => error = e.toString());
+            if (dialogContext.mounted) {
+              setDialogState(() => error = e.toString());
+            }
           } finally {
             if (dialogContext.mounted) setDialogState(() => busy = false);
           }
@@ -311,4 +343,8 @@ Future<void> _showAddNote(BuildContext context, WidgetRef ref) async {
       },
     ),
   );
+
+  titleController.dispose();
+  bodyController.dispose();
+  tagsController.dispose();
 }

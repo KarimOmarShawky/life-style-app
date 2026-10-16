@@ -158,7 +158,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     showSearch(
                       context: context,
                       delegate: GlobalSearchDelegate(ref,
-                          isArabic: localization.isArabic),
+                           isArabic: localization.isArabic),
                     );
                   },
                 ),
@@ -295,10 +295,21 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                               onToggleSelect: () =>
                                   _toggleTaskSelection(task.id),
                               onDelete: () async {
-                                await ref
-                                    .read(tasksRepositoryProvider)
-                                    .deleteTask(task.id);
-                                ref.invalidate(tasksProvider);
+                                try {
+                                  await ref
+                                      .read(tasksRepositoryProvider)
+                                      .deleteTask(task.id);
+                                } catch (error) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(_safeMessage(error)),
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  ref.invalidate(tasksProvider);
+                                }
                               },
                             );
                           },
@@ -612,7 +623,7 @@ class _TaskTile extends ConsumerStatefulWidget {
   final bool isSelectionMode;
   final bool isSelected;
   final VoidCallback onToggleSelect;
-  final VoidCallback onDelete;
+  final Future<void> Function() onDelete;
 
   @override
   ConsumerState<_TaskTile> createState() => _TaskTileState();
@@ -644,6 +655,7 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dismissible(
       key: Key(widget.task.id),
       direction: DismissDirection.endToStart,
@@ -653,6 +665,26 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
         color: Colors.red.shade700,
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(l10n.deleteConfirm),
+            content: Text(widget.task.title),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(l10n.delete),
+              ),
+            ],
+          ),
+        );
+      },
       onDismissed: (_) => widget.onDelete(),
       child: InkWell(
         onLongPress: widget.onToggleSelect,

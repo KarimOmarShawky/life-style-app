@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/core/money/decimal_amount.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
@@ -26,19 +27,18 @@ class SubscriptionsScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => Center(child: Text('${l10n.errorTitle}: $err')),
           data: (subs) {
-            double monthlyTotal = 0;
-            String currency = 'EGP';
-            for (final s in subs) {
-              final amt = double.tryParse(s.amount) ?? 0;
-              currency = s.currency;
-              if (s.billingUnit == 'year') {
-                monthlyTotal += (amt / 12);
-              } else if (s.billingUnit == 'week') {
-                monthlyTotal += (amt * 4.33);
-              } else {
-                monthlyTotal += amt;
-              }
-            }
+            final activeSubs =
+                subs.where((s) => s.status == 'active').toList();
+            final totalsByCurrency = sumAmountsByCurrency(
+              activeSubs.map(
+                (s) => (currency: s.currency, amount: s.monthlyEquivalent),
+              ),
+            );
+            final totalSummaryText = totalsByCurrency.isEmpty
+                ? '${DecimalAmount.zero.format('EGP')} EGP'
+                : totalsByCurrency.entries
+                    .map((e) => '${e.value.format(e.key)} ${e.key}')
+                    .join(' • ');
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -74,7 +74,7 @@ class SubscriptionsScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${monthlyTotal.toStringAsFixed(2)} $currency',
+                                totalSummaryText,
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
@@ -96,7 +96,7 @@ class SubscriptionsScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            '${subs.length}',
+                            '${activeSubs.length}',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -408,8 +408,8 @@ Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
                             if (v == null || v.trim().isEmpty) {
                               return l10n.enterAmount;
                             }
-                            final n = double.tryParse(v.trim());
-                            if (n == null || n <= 0) {
+                            final parsed = DecimalAmount.tryParse(v.trim());
+                            if (parsed == null || !parsed.isPositive) {
                               return l10n.amountMustBePositive;
                             }
                             return null;

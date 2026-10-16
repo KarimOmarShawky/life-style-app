@@ -13,12 +13,12 @@ const uuidSchema = z.string().uuid('id must be a valid UUID');
 
 export const parentParamsSchema = z.object({
   id: uuidSchema
-});
+}).strict();
 
 export const reminderParamsSchema = z.object({
   id: uuidSchema,
   reminderId: uuidSchema
-});
+}).strict();
 
 export const createReminderSchema = z
   .object({
@@ -47,7 +47,7 @@ export const listRemindersQuerySchema = z.object({
     .datetime({ offset: true, message: 'to must be a valid ISO 8601 datetime' })
     .optional(),
   entityType: reminderParentKindSchema.optional()
-});
+}).strict();
 
 export type CreateReminderBody = z.infer<typeof createReminderSchema>;
 export type ListRemindersQuery = z.infer<typeof listRemindersQuerySchema>;

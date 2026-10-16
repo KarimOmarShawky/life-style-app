@@ -219,6 +219,11 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 80 analyze.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            # Diagnostic-only official fix candidate; this step STILL FAILS and no APK is built.
+            dart fix --apply --code=curly_braces_in_flow_control_structures
+            dart format lib test
+            git diff --binary > "$RUNNER_TEMP/dart-analysis-fix.patch"
+            python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-analysis-fix.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart analysis fix %03d::"%(i//3500)+s[i:i+3500]) for i in range(0,len(s),3500)]'
             grep -E "error •|error -|warning -|info -|\.dart" analyze.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
             exit 1
           }

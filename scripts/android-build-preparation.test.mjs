@@ -167,3 +167,23 @@ test('public X509 certificate parser computes SHA256 independently of SDK human 
   assert.throws(() => verifyCertificate(output, 'debug'));
   assert.throws(() => verifyCertificate(output + '\n' + pem, 'release', expected));
 });
+
+
+test('temporary connected pilot is push/session-only and must pass exact-host HTTPS/API smoke before Flutter build', () => {
+  const require = createRequire(new URL('../backend/package.json', import.meta.url));
+  const ci = require('js-yaml').load(readFileSync('.github/workflows/ci.yml', 'utf8'));
+  const job = ci.jobs['mobile-gate'];
+  assert.match(job.env.VALIDATION_API_BASE_URL, /github.event_name == 'push' && github.ref == 'refs\/heads\/arena\/3f871eac-life-style-app'/);
+  assert.match(job.env.VALIDATION_API_BASE_URL, /inputs.validation_api_base_url \|\| 'https:\/\/validation.invalid\/api\/v1'/);
+  const probe = job.steps.findIndex(s => s.run?.includes('check-pilot-api.py'));
+  const build = job.steps.findIndex(s => s.run?.includes('flutter build apk --debug'));
+  assert.ok(probe >= 0 && probe < build);
+  assert.equal(job.steps[probe].env.PILOT_API_BASE_URL, '${{ env.VALIDATION_API_BASE_URL }}');
+  assert.equal(job.steps[probe]['continue-on-error'], undefined);
+  assert.equal(job.steps[build].env?.VALIDATION_API_BASE_URL, undefined);
+  assert.match(job.steps[probe].if, /env.VALIDATION_API_BASE_URL != 'https:\/\/validation.invalid\/api\/v1'/);
+  const source = readFileSync('scripts/check-pilot-api.py', 'utf8');
+  assert.match(source, /url.netloc == '8787-itafbygcp2juf4i455pef.e2b.app'/);
+  assert.match(source, /Temporary endpoint approval expired/);
+  assert.doesNotMatch(source, /unverified_context|CERT_NONE|check_hostname\s*=\s*False/);
+});

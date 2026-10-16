@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     # Explicit owner-approved temporary pilot, session branch ONLY; main stays offline.
     env:
-      VALIDATION_API_BASE_URL: ${{ inputs.validation_api_base_url || (github.ref == 'refs/heads/arena/3f871eac-life-style-app' && 'https://8787-itafbygcp2juf4i455pef.e2b.app/api/v1') || 'https://validation.invalid/api/v1' }}
+      VALIDATION_API_BASE_URL: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/arena/3f871eac-life-style-app' && 'https://8787-itafbygcp2juf4i455pef.e2b.app/api/v1') || inputs.validation_api_base_url || 'https://validation.invalid/api/v1' }}
     defaults:
       run:
         working-directory: mobile-app/mobile

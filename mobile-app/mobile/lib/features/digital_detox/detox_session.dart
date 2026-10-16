@@ -413,11 +413,13 @@ class DetoxSession {
             throw const FormatException('Invalid selection');
           }
           final savedPhase = json['phase'] as String;
-          if (!['focus', 'break'].contains(savedPhase))
+          if (!['focus', 'break'].contains(savedPhase)) {
             throw const FormatException('Invalid phase');
+          }
           final pause = json['pausedSeconds'] as int;
-          if (pause < 0 || pause > 10800)
+          if (pause < 0 || pause > 10800) {
             throw const FormatException('Invalid pause');
+          }
           id = owner;
           state = recoveredState;
           focusMinutes = focus;
@@ -437,18 +439,20 @@ class DetoxSession {
           error = json['error'] as String?;
           if (endAt!.isAfter(now().add(const Duration(hours: 4))) ||
               lastTransition!.isAfter(now().add(const Duration(minutes: 2)))) {
-            if (await _release())
+            if (await _release()) {
               await _fail(
                 'Clock or stored deadline inconsistent. Stop and start again.',
               );
+            }
           } else if ([
             DetoxState.PREPARING,
             DetoxState.FOCUS_PENDING,
           ].contains(state)) {
-            if (await _release())
+            if (await _release()) {
               await _fail(
                 'Session interrupted while preparing. Stop and start again.',
               );
+            }
           } else if (running) {
             // Never infer native restriction from the stored enum.
             if (phase == 'break' && !await _release()) return;

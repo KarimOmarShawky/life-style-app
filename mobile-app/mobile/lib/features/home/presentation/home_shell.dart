@@ -65,7 +65,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     try {
       await WalletIngestToken(ref.read(apiClientProvider)).ensure();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -73,6 +73,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
             ),
           ),
         );
+      }
     }
   }
 

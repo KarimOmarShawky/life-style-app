@@ -38,7 +38,9 @@ void main() {
       'exact bytes, multibyte boundaries, decimal strings and whole-file digest verify',
       () {
     final bytes = fixture(), verifier = ArchiveVerifier(expectedUserId: userId);
-    for (final byte in bytes) verifier.add([byte]);
+    for (final byte in bytes) {
+      verifier.add([byte]);
+    }
     final info = verifier.finish();
     expect(info.records, 3);
     expect(info.counts['notes'], 1);
@@ -48,9 +50,10 @@ void main() {
   for (final size in [1, 7, 127, 1024]) {
     test('chunk size $size is independent of framing and UTF-8 boundaries', () {
       final bytes = fixture(), parser = ArchiveVerifier(expectedUserId: userId);
-      for (var at = 0; at < bytes.length; at += size)
+      for (var at = 0; at < bytes.length; at += size) {
         parser.add(bytes.sublist(
             at, at + size < bytes.length ? at + size : bytes.length));
+      }
       expect(parser.finish().records, 3);
     });
   }

@@ -16,8 +16,9 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
       if (call.method == 'Clipboard.setData') {
         writes.add(call);
-        if (fail)
+        if (fail) {
           throw PlatformException(code: 'PRIVATE', message: 'provider-secret');
+        }
       }
       return null;
     });

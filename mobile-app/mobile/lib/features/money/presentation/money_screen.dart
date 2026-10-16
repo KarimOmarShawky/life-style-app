@@ -817,9 +817,10 @@ class _SmsSyncCard extends ConsumerWidget {
         await walletToken.revoke();
       }
     } catch (_) {
-      if (enabled)
+      if (enabled) {
         await ref.read(settingsProvider.notifier).setSmsSyncEnabled(false);
-      if (context.mounted)
+      }
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -827,6 +828,7 @@ class _SmsSyncCard extends ConsumerWidget {
             ),
           ),
         );
+      }
     }
   }
 

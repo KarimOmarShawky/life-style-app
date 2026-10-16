@@ -29,8 +29,9 @@ class PlatformWalletCredentialStore implements WalletCredentialStore {
 
   @override
   Future<bool> hasToken() async {
-    if (Platform.isAndroid)
+    if (Platform.isAndroid) {
       return await _channel.invokeMethod<bool>('hasWalletIngestToken') ?? false;
+    }
     await _migrateOtherPlatform();
     return (await _secure.read(
           key: WalletIngestToken.storageKey,

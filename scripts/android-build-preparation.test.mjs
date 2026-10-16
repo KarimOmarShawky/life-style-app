@@ -169,11 +169,15 @@ test('public X509 certificate parser computes SHA256 independently of SDK human 
 });
 
 
-test('temporary connected pilot is push/session-only and must pass exact-host HTTPS/API smoke before Flutter build', () => {
+test('blocked public pilot defaults offline and any explicit connected build requires exact-host HTTPS/API smoke before Flutter build', () => {
   const require = createRequire(new URL('../backend/package.json', import.meta.url));
   const ci = require('js-yaml').load(readFileSync('.github/workflows/ci.yml', 'utf8'));
   const job = ci.jobs['mobile-gate'];
-  assert.match(job.env.VALIDATION_API_BASE_URL, /github.event_name == 'push' && github.ref == 'refs\/heads\/arena\/3f871eac-life-style-app'/);
+  assert.equal(job.env.VALIDATION_API_BASE_URL, "${{ inputs.validation_api_base_url || 'https://validation.invalid/api/v1' }}");
+  assert.ok(!job.env.VALIDATION_API_BASE_URL.includes('.e2b.app'));
+  for (const name of ['Flutter static analysis', 'Flutter tests']) {
+    assert.match(job.steps.find(s => s.name === name).if, /steps.flutter_sdk.outcome == 'success'/);
+  }
   assert.match(job.env.VALIDATION_API_BASE_URL, /inputs.validation_api_base_url \|\| 'https:\/\/validation.invalid\/api\/v1'/);
   const probe = job.steps.findIndex(s => s.run?.includes('check-pilot-api.py'));
   const build = job.steps.findIndex(s => s.run?.includes('flutter build apk --debug'));

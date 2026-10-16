@@ -69,3 +69,27 @@ build; main and manual default remain offline. The exact-host real HTTPS/API pro
 is mandatory before compilation. Its approval refuses remote use from 18:00 UTC on
 2026-10-16 onward; that cutoff is NOT a promise that the sandbox will stay alive until
 then. A subsequent pilot needs explicit endpoint review, not a silent fallback.
+
+
+## Actual external boundary: BLOCKED
+
+Run38914942984 / f55b45f, mobile job117019887767 emitted the bounded actual HTTPS
+probe annotation: readiness HTTP403, JSON body class, before a successful API check.
+The local application health handler only returns200/503; no public phone readiness
+is inferred. No sandbox token is read, shared, embedded or used to bypass protection.
+This ingress refusal blocks a connected APK; the build was not uploaded. Restored
+all-branch offline default and retained mandatory TLS/API probe for any explicitly
+selected connected build. An existing offline APK is NOT relabeled connected.
+
+Because the early probe failed, Flutter setup was skipped in those attempts and
+always-run analysis/test commands then reported command-not-found; these are SDK
+prerequisite failures, not evidence the Flutter application regressed. Conditions
+now require actual successful SDK setup before analysis/tests, and formatter patch
+steps require an actual format failure. A failed HTTPS gate still fails the job and
+prevents APK compilation/upload. No fatal analysis flags/test assertions relaxed.
+
+A connected phone trial requires a separately approved hosting surface with real
+public HTTPS API ingress; the Arena preview is not assumed to supply that. Do not
+make the current production service the fallback. The active sandbox service may
+be viewed within the authenticated preview where supported, but is not a durable
+or externally verified phone backend.

@@ -131,9 +131,9 @@ jobs:
   mobile-gate:
     name: Flutter and Android debug validation (not a release)
     runs-on: ubuntu-latest
-    # Explicit owner-approved temporary pilot, session branch ONLY; main stays offline.
+    # Public pilot ingress returned HTTP403; no implicit connected endpoint or fallback to production.
     env:
-      VALIDATION_API_BASE_URL: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/arena/3f871eac-life-style-app' && 'https://8787-itafbygcp2juf4i455pef.e2b.app/api/v1') || inputs.validation_api_base_url || 'https://validation.invalid/api/v1' }}
+      VALIDATION_API_BASE_URL: ${{ inputs.validation_api_base_url || 'https://validation.invalid/api/v1' }}
     defaults:
       run:
         working-directory: mobile-app/mobile
@@ -165,6 +165,7 @@ jobs:
         run: python3 ../../scripts/check-pilot-api.py
 
       - name: Setup Flutter stable channel
+        id: flutter_sdk
         uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -174,6 +175,7 @@ jobs:
         run: flutter pub get
 
       - name: Dart formatting
+        id: dart_format
         run: |
           if ! dart format --output=none --set-exit-if-changed lib test; then
             dart format lib test
@@ -185,35 +187,35 @@ jobs:
           fi
 
       - name: Formatting diagnostics 2
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(10*3500,min(len(s),20*3500),3500)]'
           fi
 
       - name: Formatting diagnostics 3
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(20*3500,min(len(s),30*3500),3500)]'
           fi
 
       - name: Formatting diagnostics 4
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(30*3500,min(len(s),40*3500),3500)]'
           fi
 
       - name: Formatting diagnostics 5
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         run: |
           if [ -f "$RUNNER_TEMP/dart-format.patch" ]; then
             python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/dart-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=Dart formatting patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(40*3500,min(len(s),50*3500),3500)]'
           fi
 
       - name: Upload formatting fix when needed
-        if: failure()
+        if: failure() && steps.dart_format.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: dart-format-fix
@@ -221,7 +223,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Flutter static analysis
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flutter_sdk.outcome == 'success' }}
         run: |
           flutter analyze --fatal-infos > analyze.log 2>&1 || {
             echo '### failure log: analyze.log' >> "$GITHUB_STEP_SUMMARY"
@@ -241,7 +243,7 @@ jobs:
           }
 
       - name: Flutter tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flutter_sdk.outcome == 'success' }}
         run: |
           flutter test --coverage > flutter-test.log 2>&1 || {
             echo '### failure log: flutter-test.log' >> "$GITHUB_STEP_SUMMARY"

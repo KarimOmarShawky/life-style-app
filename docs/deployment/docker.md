@@ -2,7 +2,7 @@
 
 > **Specification Reference:** Section 19.4
 
-## 1. Multi-Stage Dockerfile (`docker/Dockerfile`)
+## 1. Multi-Stage Dockerfile (`backend/Dockerfile`)
 
 The container image is built using a multi-stage process to minimize image attack surface and eliminate build-time tools from the final runtime image:
 
@@ -14,7 +14,7 @@ The container image is built using a multi-stage process to minimize image attac
 
 ---
 
-## 2. Local Docker Compose (`docker/docker-compose.yml`)
+## 2. Local Docker Compose (`docker-compose.yml`)
 
 The local compose file spins up the complete development topology:
 * `postgres`: PostgreSQL 16 on port 5432 with healthchecks and persistent volume `postgres_data`.

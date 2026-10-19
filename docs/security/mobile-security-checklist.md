@@ -17,6 +17,7 @@
 - [x] HTTP redirects are disabled so bearer credentials are not forwarded to another origin; requests have a bounded 30-second timeout.
 - [x] User-visible errors use the API's safe message and request ID is not treated as a credential.
 - [x] No passwords, access tokens, refresh tokens, OTPs, or request bodies are logged.
+- [x] AI assistant egress is opt-in per conversation: the consent dialog states that typed text, conversation history, display name and task/habit counts are sent to Google Gemini using the user's own API key, that financial records are not included automatically, and warns against typing secrets (R-21).
 - [x] Deep links route through a fixed destination allowlist. Query and fragment values are not propagated to screens.
 - [x] The API server remains responsible for authentication, authorization, ownership, validation, and rate limits.
 - [x] No local business database, background synchronization, or browser runtime was introduced.

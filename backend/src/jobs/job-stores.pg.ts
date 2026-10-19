@@ -17,7 +17,9 @@ import type {
   UserEmailLookup,
   RecurringGenerationStore,
   TimerMaintenanceStore,
-  PurgeStore
+  PurgeStore,
+  SessionRetentionStore,
+  AuditRetentionStore
 } from './job-processors.js';
 import { computeOccurrences } from '../features/recurring-tasks/recurrence-engine.js';
 import type {
@@ -312,6 +314,37 @@ export class PgPurgeStore implements PurgeStore {
 
   public async purgeExpiredAccounts(now: Date): Promise<number> {
     return new PgUsersRepository(getPgPool()).purgeExpiredAccounts(now);
+  }
+}
+
+/**
+ * Session retention store: the runtime role holds DELETE on auth_sessions,
+ * so expired sessions are purged through the ordinary pool.
+ */
+export class PgSessionRetentionStore implements SessionRetentionStore {
+  constructor(private readonly db: Kysely<DatabaseSchema>) {}
+
+  public async purgeExpiredSessions(cutoff: Date): Promise<number> {
+    const result = await sql<{ id: string }>`
+      DELETE FROM auth_sessions WHERE absolute_expires_at < ${cutoff} RETURNING id
+    `.execute(this.db);
+    return result.rows.length;
+  }
+}
+
+/**
+ * Audit retention store: audit_logs DELETE is granted only to the
+ * maintenance role (least privilege, B-07 residual: 12-month audit
+ * retention), so this store must run on a maintenance-role connection.
+ */
+export class PgAuditRetentionStore implements AuditRetentionStore {
+  constructor(private readonly db: Kysely<DatabaseSchema>) {}
+
+  public async purgeAuditLogsOlderThan(cutoff: Date): Promise<number> {
+    const result = await sql<{ id: string }>`
+      DELETE FROM audit_logs WHERE occurred_at < ${cutoff} RETURNING id
+    `.execute(this.db);
+    return result.rows.length;
   }
 }
 

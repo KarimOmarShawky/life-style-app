@@ -22,9 +22,18 @@ describe('Environment Configuration Validation (Spec §16.6)', () => {
     expect(config.NODE_ENV).toBe('test');
     expect(config.PORT).toBe(3000);
     expect(config.DATABASE_POOL_MAX).toBe(10);
+    expect(config.DATABASE_STATEMENT_TIMEOUT_MS).toBe(15000);
     expect(config.ACCESS_TOKEN_TTL_SECONDS).toBe(900);
     expect(config.REFRESH_TOKEN_TTL_DAYS).toBe(30);
     expect(config.BCRYPT_COST).toBe(12);
+  });
+
+  it('accepts a custom statement timeout ceiling', () => {
+    const config = validateEnv({
+      ...validBaseEnv,
+      DATABASE_STATEMENT_TIMEOUT_MS: '45000'
+    });
+    expect(config.DATABASE_STATEMENT_TIMEOUT_MS).toBe(45000);
   });
 
   it('fails fast when DATABASE_URL is missing or invalid URL', () => {

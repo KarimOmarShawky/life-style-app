@@ -68,6 +68,20 @@ export interface PurgeStore {
   purgeExpiredAccounts?(now: Date): Promise<number>;
 }
 
+export interface SessionRetentionStore {
+  /** Hard-deletes auth sessions that expired before cutoff. Returns rows removed. */
+  purgeExpiredSessions(cutoff: Date): Promise<number>;
+}
+
+export interface AuditRetentionStore {
+  /**
+   * Hard-deletes audit log rows older than cutoff. Requires the maintenance
+   * role (lifestyle_maintenance holds DELETE on audit_logs); the runtime
+   * application role intentionally does not.
+   */
+  purgeAuditLogsOlderThan(cutoff: Date): Promise<number>;
+}
+
 export interface JobClock {
   now(): Date;
 }
@@ -175,4 +189,34 @@ export async function processPurge(
   const softDeleted = await store.purgeSoftDeleted(cutoff);
   const expiredAccounts = store.purgeExpiredAccounts ? await store.purgeExpiredAccounts(now) : 0;
   return { purged: softDeleted + expiredAccounts };
+}
+
+/**
+ * Hard-deletes authentication sessions whose absolute expiry passed before
+ * the cutoff. Complements the session TTLs (B-07 residual: expired-session
+ * cleanup) so abandoned sessions do not accumulate indefinitely.
+ */
+export async function processSessionRetention(
+  clock: JobClock,
+  store: SessionRetentionStore,
+  retentionDays = 90
+): Promise<{ purged: number }> {
+  const cutoff = new Date(clock.now().getTime() - retentionDays * 86_400_000);
+  const purged = await store.purgeExpiredSessions(cutoff);
+  return { purged };
+}
+
+/**
+ * Hard-deletes audit log rows older than the retention window
+ * (spec: 12 months). Runs under the maintenance role, which is the
+ * only role granted DELETE on audit_logs.
+ */
+export async function processAuditRetention(
+  clock: JobClock,
+  store: AuditRetentionStore,
+  retentionMonths = 12
+): Promise<{ purged: number }> {
+  const cutoff = new Date(clock.now().getTime() - retentionMonths * 30 * 86_400_000);
+  const purged = await store.purgeAuditLogsOlderThan(cutoff);
+  return { purged };
 }

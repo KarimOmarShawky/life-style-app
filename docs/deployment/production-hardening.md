@@ -10,7 +10,7 @@ When `NODE_ENV=production`, backend configuration now requires:
 - Values for `JWT_ACCESS_SECRET` and `OTP_HMAC_SECRET` that do not match known development or test examples.
 - `DATABASE_URL` using the documented least-privilege `lifestyle_app` role.
 
-Use a managed secret store or an equivalent runtime secret injector. Never reuse values from `.env.example` or `docker/docker-compose.yml`. Keep migration and maintenance connections separate from the API role. Do not pass production secrets as Docker build arguments or bake them into the image.
+Use a managed secret store or an equivalent runtime secret injector. Never reuse values from `.env.example` or `docker-compose.yml`. Keep migration and maintenance connections separate from the API role. Do not pass production secrets as Docker build arguments or bake them into the image.
 
 Recommended production environment also sets `TRUST_PROXY_HOPS` to the exact trusted proxy count, uses a TLS-terminating edge, and supplies a real SMTP/FCM integration only where configured by the deployment owner. The native client must be built with an HTTPS `API_BASE_URL`.
 
@@ -29,7 +29,7 @@ Before production promotion:
 
 1. Run all required GitHub Actions gates, including forbidden-dependency scan, OpenAPI drift, migrations, backend security/integration tests, Flutter analysis, and Flutter tests.
 2. Review `npm audit` output and the resolved Flutter dependencies.
-3. Run migrations with the migration role in a controlled deployment step; do not run migrations as the API process.
+3. Run migrations with the migration role in a controlled deployment step; do not run migrations as the API process. For large `notes` tables, create `idx_notes_body_trgm` with `CREATE INDEX CONCURRENTLY` before migrating (the migration itself is transactional and briefly locks writes while building the index).
 4. Verify readiness/liveness probes and SIGTERM draining in the target environment.
 5. Confirm PostgreSQL TLS certificate validation and backup restore procedures.
 6. Build/sign and exercise iOS/Android artifacts using the real platform signing configuration and staging API.

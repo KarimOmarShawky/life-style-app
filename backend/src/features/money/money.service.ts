@@ -9,7 +9,7 @@ import { Decimal } from 'decimal.js';
 import { AppError } from '../../core/errors/app-error.js';
 import { getUserTodayDate, addDaysToDateString } from '../../core/time/date-utils.js';
 import type { MoneyRepository } from './money.repository.js';
-import type { RemindersRepository } from '../reminders/reminders.repository.js';
+import type { ReminderCancellationPort } from '../reminders/reminder-cancellation.port.js';
 import type {
   CreateCategoryInput,
   UpdateCategoryInput,
@@ -86,7 +86,7 @@ function getUserToday(timezone: string): string {
 export class MoneyService {
   constructor(
     private readonly moneyRepository: MoneyRepository,
-    private readonly remindersRepository: RemindersRepository
+    private readonly remindersRepository: ReminderCancellationPort
   ) {}
 
   // ==========================================

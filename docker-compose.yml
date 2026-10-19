@@ -1,5 +1,5 @@
 # ==============================================================================
-# docker/docker-compose.yml
+# docker-compose.yml
 #
 # Implements Section 19.4 & ADR-001: Local Development Infrastructure.
 # Services: PostgreSQL 16, Redis 7, Mailpit (local email capture), API, Worker.

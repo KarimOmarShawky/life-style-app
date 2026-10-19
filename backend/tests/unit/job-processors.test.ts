@@ -12,6 +12,8 @@ import {
   processRecurringGeneration,
   processTimerAutoClose,
   processPurge,
+  processSessionRetention,
+  processAuditRetention,
   type PurgeStore,
   type ReminderDispatchStore,
   type DispatchableReminder
@@ -160,5 +162,23 @@ describe('maintenance processors', () => {
 
     expect(res).toEqual({ purged: 6 });
     expect(store.purgeExpiredAccounts).toHaveBeenCalledWith(clock.now());
+  });
+
+  it('processSessionRetention purges sessions expired before the cutoff', async () => {
+    const store = { purgeExpiredSessions: vi.fn(async () => 7) };
+    const result = await processSessionRetention(clock, store, 90);
+    expect(result).toEqual({ purged: 7 });
+    expect(store.purgeExpiredSessions).toHaveBeenCalledWith(
+      new Date(NOW.getTime() - 90 * 86_400_000)
+    );
+  });
+
+  it('processAuditRetention purges audit logs older than the retention window', async () => {
+    const store = { purgeAuditLogsOlderThan: vi.fn(async () => 120) };
+    const result = await processAuditRetention(clock, store, 12);
+    expect(result).toEqual({ purged: 120 });
+    expect(store.purgeAuditLogsOlderThan).toHaveBeenCalledWith(
+      new Date(NOW.getTime() - 12 * 30 * 86_400_000)
+    );
   });
 });

@@ -30,3 +30,11 @@ DO $body$ BEGIN
 END $body$;
 
 ALTER TABLE timer_sessions ALTER COLUMN task_id DROP NOT NULL;
+
+-- Audit-retention job (B-07 residual repair): a filtered DELETE reads rows,
+-- so the maintenance role also needs SELECT on audit_logs.
+DO $body$ BEGIN
+  IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_maintenance') THEN
+    GRANT SELECT ON audit_logs TO lifestyle_maintenance;
+  END IF;
+END $body$;

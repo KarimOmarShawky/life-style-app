@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, arena/3f871eac-life-style-app]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -55,6 +55,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Secret scan (worktree, isolated secretlint)
+        run: |
+          npm --prefix tools/security ci --ignore-scripts --no-audit --no-fund
+          node scripts/scan-secrets.mjs
+
+      - name: Repository config/dependency scan (advisory until image baseline exists)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scan-target: .
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+        continue-on-error: true
+        # TODO: flip exit-code to '1' after the first clean baseline is recorded.
 
       - name: Setup Node.js runtime
         uses: actions/setup-node@v4

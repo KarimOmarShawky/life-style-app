@@ -59,7 +59,7 @@ Release builds reject non-HTTPS API URLs. For a local backend, use a debug build
 
 ```bash
 # from the repo root; for the first run, follow docs/deployment/docker.md (env and migrations)
-docker compose -f docker/docker-compose.yml up -d
+docker compose up -d
 cd mobile-app/mobile
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1 --dart-define=GEMINI_API_KEY=<new key>
 ```

@@ -73,6 +73,9 @@ android {
         release {
             // No debug signing identity and no intentional unsigned release path.
             signingConfig = signingConfigs.getByName("release")
+            // R8 shrinking + obfuscation for release artifacts (B-30).
+            isMinifyEnabled = true
+            isShrinkResources = true
         }
     }
 }

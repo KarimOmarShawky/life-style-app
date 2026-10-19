@@ -10,7 +10,7 @@ import { getUserTodayDate } from '../../core/time/date-utils.js';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
 import type { Kysely } from 'kysely';
 import type { HabitsRepository } from './habits.repository.js';
-import type { RemindersRepository } from '../reminders/reminders.repository.js';
+import type { ReminderCancellationPort } from '../reminders/reminder-cancellation.port.js';
 import type {
   CreateHabitInput,
   UpdateHabitInput,
@@ -35,7 +35,7 @@ export class HabitsService {
     private readonly habitsRepository: HabitsRepository,
     private readonly db: Kysely<DatabaseSchema>,
     private readonly clock: Clock,
-    private readonly remindersRepository: RemindersRepository
+    private readonly remindersRepository: ReminderCancellationPort
   ) {}
 
   private async verifyGoalOwnership(userId: string, goalId: string): Promise<void> {

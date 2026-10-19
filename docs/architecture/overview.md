@@ -50,6 +50,19 @@ flowchart LR
 | **PostgreSQL 16** | Sole source of truth for all business entities | ACID, composite FKs, soft deletes, least-privilege roles |
 | **Redis 7** | Ephemeral infrastructure state | Safe to lose/rebuild; strictly zero primary business data |
 
+### 2.1 Reminder Delivery Model (ADR-044 guardrail, R-04)
+
+| Channel | Server behavior | Client behavior |
+| :--- | :--- | :--- |
+| `in_app` (default) | Reminder row becomes visible through the reminders API | App schedules a local notification from the due reminder |
+| `email` | Worker dispatches via SMTP (nodemailer, TLS) with 5 attempts | n/a |
+| `push` | **Stub in this phase**: the sender always fails with `PUSH_UNAVAILABLE` after retries; FCM credentials are optional (Phase P1) | The shipped client requests `in_app` for every event reminder |
+
+Until FCM credentials are configured and a push provider is wired into
+`worker.ts`, push-channel reminders are created but end failed after
+their retry budget. On-device local notifications keep the user-facing
+reminder experience intact in the meantime.
+
 ---
 
 ## 3. Core Operating Loop

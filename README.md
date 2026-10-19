@@ -45,7 +45,6 @@ lifestyle/
 │   ├── deployment/           # Docker, environment variables, health checks, CI/CD
 │   ├── api/                  # Conventions, error contract, OpenAPI document
 │   └── security/             # Threat model, input validation, HTTP hardening
-├── docker/                   # Multi-stage Dockerfile and docker-compose.yml
 └── scripts/                  # ADR-039 forbidden-dependency guard & tooling
 ```
 

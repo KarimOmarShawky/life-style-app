@@ -504,6 +504,9 @@ CREATE TABLE notes (
     CREATE INDEX idx_notes_trgm 
       ON notes USING gin (title gin_trgm_ops);
 
+    CREATE INDEX idx_notes_body_trgm
+      ON notes USING gin (body gin_trgm_ops);
+
 CREATE TABLE events (
       id UUID NOT NULL DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

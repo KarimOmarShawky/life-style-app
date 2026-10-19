@@ -161,7 +161,7 @@ describe('Phase P3 SQL Constraint & Schema Integrity Test Suite', () => {
 
     // Deleting the referenced category must fail with foreign key violation (RESTRICT)
     await expect(pool.query('DELETE FROM categories WHERE id = $1', [catId])).rejects.toThrowError(
-      /violates foreign key constraint/
+      /violates (RESTRICT setting of )?foreign key constraint/
     );
   });
 
@@ -182,7 +182,7 @@ describe('Phase P3 SQL Constraint & Schema Integrity Test Suite', () => {
         `INSERT INTO tasks (user_id, title, project_id) VALUES ($1, 'Malicious Task', $2)`,
         [userB, projA]
       )
-    ).rejects.toThrowError(/violates foreign key constraint/);
+    ).rejects.toThrowError(/violates (RESTRICT setting of )?foreign key constraint/);
   });
 
   it('Enforces category kind consistency on transactions, subscriptions, and budgets', async () => {
@@ -202,7 +202,7 @@ describe('Phase P3 SQL Constraint & Schema Integrity Test Suite', () => {
          VALUES ($1, 'expense', 10.0000, 'USD', '2026-09-27', $2)`,
         [userId, incomeCatId]
       )
-    ).rejects.toThrowError(/violates foreign key constraint/);
+    ).rejects.toThrowError(/violates (RESTRICT setting of )?foreign key constraint/);
 
     // 2. Attempt to create a subscription (which is always expense) referencing an INCOME category -> REJECT
     await expect(
@@ -211,7 +211,7 @@ describe('Phase P3 SQL Constraint & Schema Integrity Test Suite', () => {
          VALUES ($1, 'Invalid Sub', 10.0000, 'USD', 'month', '2026-01-01', '2026-10-01', $2)`,
         [userId, incomeCatId]
       )
-    ).rejects.toThrowError(/violates foreign key constraint/);
+    ).rejects.toThrowError(/violates (RESTRICT setting of )?foreign key constraint/);
   });
 
   it('Enforces partial unique indexes (one focus/day, one running timer)', async () => {
@@ -305,5 +305,34 @@ describe('Phase P3 SQL Constraint & Schema Integrity Test Suite', () => {
     const finalUpdatedAt = new Date(updatedProj.rows[0].updated_at).getTime();
 
     expect(finalUpdatedAt).toBeGreaterThan(initialUpdatedAt);
+  });
+
+  it('Accelerates body substring search with a trigram index (R-14)', async () => {
+    const userId = await createTestUser();
+    await pool.query(
+      `INSERT INTO notes (user_id, title, body)
+       VALUES ($1, 'Plan', 'The quick brown fox jumps over the lazy dog')`,
+      [userId]
+    );
+
+    const idx = await pool.query(
+      `SELECT 1 FROM pg_indexes
+       WHERE schemaname = 'public' AND tablename = 'notes'
+         AND indexname = 'idx_notes_body_trgm'`
+    );
+    expect(idx.rows.length).toBe(1);
+
+    // Prove the index is actually usable for body-only ILIKE predicates.
+    // Sequential scans are disabled for this session so the planner must
+    // choose the trigram GIN index on a tiny table.
+    const client = await pool.connect();
+    try {
+      await client.query('SET enable_seqscan = off');
+      const plan = await client.query(`EXPLAIN SELECT id FROM notes WHERE body ILIKE '%lazy dog%'`);
+      const lines = plan.rows.map((r) => String(r['QUERY PLAN'] ?? ''));
+      expect(lines.join('\n')).toContain('idx_notes_body_trgm');
+    } finally {
+      client.release();
+    }
   });
 });

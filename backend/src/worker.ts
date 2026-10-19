@@ -10,25 +10,31 @@
 
 import { Redis as IORedis } from 'ioredis';
 import { Worker, Queue } from 'bullmq';
+import { Pool as PgPool } from 'pg';
+import { Kysely, PostgresDialect } from 'kysely';
 import { validateEnv, getEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 import { SystemClock } from './core/time/clock.js';
 import { closePgPool } from './infrastructure/database/postgres/pool.js';
-import { getKyselyDb } from './infrastructure/database/postgres/kysely.js';
+import { getKyselyDb, type DatabaseSchema } from './infrastructure/database/postgres/kysely.js';
 import { closeRedisClient, getRedisClient } from './infrastructure/redis/redis-client.js';
 import { SmtpEmailSender } from './infrastructure/external/email-sender.js';
 import {
   processReminderDispatch,
   processRecurringGeneration,
   processTimerAutoClose,
-  processPurge
+  processPurge,
+  processSessionRetention,
+  processAuditRetention
 } from './jobs/job-processors.js';
 import {
   PgReminderDispatchStore,
   PgUserEmailLookup,
   PgRecurringGenerationStore,
   PgTimerMaintenanceStore,
-  PgPurgeStore
+  PgPurgeStore,
+  PgSessionRetentionStore,
+  PgAuditRetentionStore
 } from './jobs/job-stores.pg.js';
 
 validateEnv();
@@ -44,6 +50,34 @@ const userEmails = new PgUserEmailLookup(db);
 const recurringStore = new PgRecurringGenerationStore(db);
 const timerStore = new PgTimerMaintenanceStore(db);
 const purgeStore = new PgPurgeStore(db);
+const sessionRetentionStore = new PgSessionRetentionStore(db);
+
+// Audit-log retention runs under the maintenance role: DELETE on audit_logs
+// is granted to lifestyle_maintenance only (least privilege). When the
+// maintenance URL is not configured, the schedule is not registered and the
+// gap is logged instead of failing every tick.
+let auditRetentionStore: PgAuditRetentionStore | null = null;
+let maintenancePool: PgPool | null = null;
+if (env.DATABASE_MAINTENANCE_URL) {
+  maintenancePool = new PgPool({
+    connectionString: env.DATABASE_MAINTENANCE_URL,
+    max: 2,
+    ssl: env.DATABASE_SSL ? { rejectUnauthorized: true } : false,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 15000
+  });
+  maintenancePool.on('error', (err) => {
+    logger.error('Unexpected error on idle maintenance PostgreSQL pool', err);
+  });
+  auditRetentionStore = new PgAuditRetentionStore(
+    new Kysely<DatabaseSchema>({ dialect: new PostgresDialect({ pool: maintenancePool }) })
+  );
+} else {
+  logger.warn(
+    'DATABASE_MAINTENANCE_URL is not set; audit-log retention schedule will not be registered'
+  );
+}
 
 // BullMQ needs a connection without request retries; keep it separate from the
 // shared application client used for OTP/rate-limit state.
@@ -92,6 +126,20 @@ const maintenanceWorker = new Worker(
         logger.info('Soft-delete purge tick', result);
         break;
       }
+      case 'purge-expired-sessions': {
+        const result = await processSessionRetention(clock, sessionRetentionStore);
+        logger.info('Expired-session purge tick', result);
+        break;
+      }
+      case 'audit-retention': {
+        if (!auditRetentionStore) {
+          logger.warn('Audit retention job ran without a maintenance-role store');
+          break;
+        }
+        const result = await processAuditRetention(clock, auditRetentionStore);
+        logger.info('Audit retention tick', result);
+        break;
+      }
       default:
         logger.warn(`Unknown maintenance job: ${job.name}`);
     }
@@ -128,6 +176,18 @@ async function registerSchedules(): Promise<void> {
     { pattern: '30 3 * * *' },
     { name: 'purge-soft-deleted', data: {} }
   );
+  await maintenanceQueue.upsertJobScheduler(
+    'purge-expired-sessions',
+    { pattern: '45 3 * * *' },
+    { name: 'purge-expired-sessions', data: {} }
+  );
+  if (auditRetentionStore) {
+    await maintenanceQueue.upsertJobScheduler(
+      'audit-retention',
+      { pattern: '0 4 1 * *' },
+      { name: 'audit-retention', data: {} }
+    );
+  }
   logger.info('Maintenance schedules registered');
 }
 
@@ -149,6 +209,9 @@ async function handleWorkerShutdown(signal: string, exitCode = 0): Promise<void>
 
     await closeRedisClient(getRedisClient());
     await closePgPool();
+    if (maintenancePool) {
+      await maintenancePool.end();
+    }
 
     logger.info('Worker shutdown complete. Exiting cleanly.');
     process.exit(exitCode);

@@ -25,6 +25,10 @@ const baseEnvSchema = z.object({
   DATABASE_MIGRATION_URL: z.string().url().optional(),
   DATABASE_MAINTENANCE_URL: z.string().url().optional(),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+  // Per-statement safety ceiling for every pooled connection (ms).
+  // 15s default; raise for deployments with legitimately long
+  // statements (large exports, heavy analytics) or lower to fail fast.
+  DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   DATABASE_SSL: z
     .string()
     .transform((val) => val === 'true' || val === '1')

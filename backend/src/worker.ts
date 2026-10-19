@@ -65,7 +65,7 @@ if (env.DATABASE_MAINTENANCE_URL) {
     ssl: env.DATABASE_SSL ? { rejectUnauthorized: true } : false,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
-    statement_timeout: 15000
+    statement_timeout: env.DATABASE_STATEMENT_TIMEOUT_MS
   });
   maintenancePool.on('error', (err) => {
     logger.error('Unexpected error on idle maintenance PostgreSQL pool', err);

@@ -8,11 +8,19 @@
  * multi-column GIN index only when the query constrains every column;
  * body-only predicates must remain index-accelerated on their own.
  * The pg_trgm extension already exists (1727300002000).
+ *
+ * Deployment note: this runs inside the migration transaction, so
+ * CREATE INDEX (not CONCURRENTLY) briefly locks writes on notes.
+ * For large production tables, create the index manually first —
+ *   CREATE INDEX CONCURRENTLY idx_notes_body_trgm ON notes USING gin (body gin_trgm_ops);
+ * — then run migrations; the IF-not-exists guard below keeps it idempotent.
  */
-exports.up = (pgm) => pgm.sql(`
-  CREATE INDEX idx_notes_body_trgm ON notes USING gin (body gin_trgm_ops);
+exports.up = (pgm) =>
+  pgm.sql(`
+  CREATE INDEX IF NOT EXISTS idx_notes_body_trgm ON notes USING gin (body gin_trgm_ops);
 `);
 
-exports.down = (pgm) => pgm.sql(`
+exports.down = (pgm) =>
+  pgm.sql(`
   DROP INDEX IF EXISTS idx_notes_body_trgm;
 `);

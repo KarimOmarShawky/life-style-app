@@ -29,7 +29,7 @@ Before production promotion:
 
 1. Run all required GitHub Actions gates, including forbidden-dependency scan, OpenAPI drift, migrations, backend security/integration tests, Flutter analysis, and Flutter tests.
 2. Review `npm audit` output and the resolved Flutter dependencies.
-3. Run migrations with the migration role in a controlled deployment step; do not run migrations as the API process.
+3. Run migrations with the migration role in a controlled deployment step; do not run migrations as the API process. For large `notes` tables, create `idx_notes_body_trgm` with `CREATE INDEX CONCURRENTLY` before migrating (the migration itself is transactional and briefly locks writes while building the index).
 4. Verify readiness/liveness probes and SIGTERM draining in the target environment.
 5. Confirm PostgreSQL TLS certificate validation and backup restore procedures.
 6. Build/sign and exercise iOS/Android artifacts using the real platform signing configuration and staging API.

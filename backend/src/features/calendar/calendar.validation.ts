@@ -17,7 +17,7 @@ export const createReminderSchema = z
 export const createEventSchema = z
   .object({
     title: z
-      .string({ required_error: 'Title is required' })
+      .string({ error: 'Title is required' })
       .trim()
       .min(1, 'Title must be at least 1 character long')
       .max(200, 'Title cannot exceed 200 characters'),
@@ -27,14 +27,14 @@ export const createEventSchema = z
       .nullable()
       .optional(),
     location: z.string().max(300, 'Location cannot exceed 300 characters').nullable().optional(),
-    startAt: z.string({ required_error: 'startAt is required' }).datetime({
+    startAt: z.string({ error: 'startAt is required' }).datetime({
       message: 'startAt must be a valid ISO 8601 datetime'
     }),
-    endAt: z.string({ required_error: 'endAt is required' }).datetime({
+    endAt: z.string({ error: 'endAt is required' }).datetime({
       message: 'endAt must be a valid ISO 8601 datetime'
     }),
     allDay: z.boolean().optional().default(false),
-    timezone: z.string({ required_error: 'timezone is required' }).trim().min(1).max(64),
+    timezone: z.string({ error: 'timezone is required' }).trim().min(1).max(64),
     reminders: z.array(createReminderSchema).optional()
   })
   .strict()
@@ -93,13 +93,13 @@ export const listEventsQuerySchema = z
 
 export const conflictQuerySchema = z
   .object({
-    startAt: z.string({ required_error: 'startAt is required' }).datetime({
+    startAt: z.string({ error: 'startAt is required' }).datetime({
       message: 'startAt must be a valid ISO 8601 datetime'
     }),
-    endAt: z.string({ required_error: 'endAt is required' }).datetime({
+    endAt: z.string({ error: 'endAt is required' }).datetime({
       message: 'endAt must be a valid ISO 8601 datetime'
     }),
-    excludeEventId: z.string().uuid('Invalid excludeEventId format').optional()
+    excludeEventId: z.guid('Invalid excludeEventId format').optional()
   })
   .strict()
   .refine((data) => new Date(data.endAt) >= new Date(data.startAt), {
@@ -118,13 +118,13 @@ export const agendaQuerySchema = z
 
 export const eventIdParamSchema = z
   .object({
-    id: z.string().uuid('Invalid event ID format')
+    id: z.guid('Invalid event ID format')
   })
   .strict();
 
 export const eventReminderParamSchema = z
   .object({
-    id: z.string().uuid('Invalid event ID format'),
-    reminderId: z.string().uuid('Invalid reminder ID format')
+    id: z.guid('Invalid event ID format'),
+    reminderId: z.guid('Invalid reminder ID format')
   })
   .strict();

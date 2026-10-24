@@ -43,7 +43,7 @@ export const createTaskSchema = z
       .nullable(),
     isFocus: z.boolean().default(false),
     estimateMinutes: z.number().int().min(1).max(1440).optional().nullable(),
-    projectId: z.string().uuid({ message: 'projectId must be a valid UUID' }).optional().nullable()
+    projectId: z.guid({ message: 'projectId must be a valid UUID' }).optional().nullable()
   })
   .strict()
   .refine((data) => !data.dueTime || Boolean(data.dueDate), {
@@ -89,7 +89,7 @@ export const updateTaskSchema = z
       .nullable(),
     isFocus: z.boolean().optional(),
     estimateMinutes: z.number().int().min(1).max(1440).optional().nullable(),
-    projectId: z.string().uuid({ message: 'projectId must be a valid UUID' }).optional().nullable(),
+    projectId: z.guid({ message: 'projectId must be a valid UUID' }).optional().nullable(),
     version: z.number().int().min(1).optional()
   })
   .strict();
@@ -120,7 +120,7 @@ export const listTasksQuerySchema = z
       .string()
       .transform((val) => parseInt(val, 10))
       .pipe(z.number().min(1).max(100))
-      .default('25'),
+      .default(25),
     cursor: z.string().optional()
   })
   .strict();
@@ -129,6 +129,6 @@ export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
 
 export const taskIdParamSchema = z
   .object({
-    id: z.string().uuid({ message: 'Task ID must be a valid UUID' })
+    id: z.guid({ message: 'Task ID must be a valid UUID' })
   })
   .strict();

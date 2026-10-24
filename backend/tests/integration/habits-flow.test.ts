@@ -41,7 +41,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
       timezone,
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   describe('Habits CRUD & Lifecycle', () => {
@@ -64,7 +64,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
         });
 
       expect(createRes.status).toBe(201);
-      const habit = createRes.body.habit;
+      const habit = createRes.body.data.habit;
       expect(habit.name).toBe('Morning Meditation');
       expect(habit.recurrence.freq).toBe('daily');
       expect(habit.currentStreak).toBe(0);
@@ -76,8 +76,8 @@ describe('Habits & Daily Progress Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(getRes.status).toBe(200);
-      expect(getRes.body.habit.id).toBe(habit.id);
-      expect(getRes.body.habit.reminderTime).toBe('07:30');
+      expect(getRes.body.data.habit.id).toBe(habit.id);
+      expect(getRes.body.data.habit.reminderTime).toBe('07:30');
     });
 
     it('Updates habit fields and recurrence', async () => {
@@ -95,7 +95,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
           }
         });
 
-      const habitId = createRes.body.habit.id;
+      const habitId = createRes.body.data.habit.id;
 
       // Update name and change to weekly recurrence (Mon, Wed, Fri)
       const patchRes = await request(app)
@@ -108,13 +108,13 @@ describe('Habits & Daily Progress Integration Tests', () => {
             freq: 'weekly',
             byWeekday: [1, 3, 5]
           },
-          version: createRes.body.habit.version
+          version: createRes.body.data.habit.version
         });
 
       expect(patchRes.status).toBe(200);
-      expect(patchRes.body.habit.name).toBe('Gym Workout');
-      expect(patchRes.body.habit.recurrence.freq).toBe('weekly');
-      expect(patchRes.body.habit.recurrence.byWeekday).toEqual([1, 3, 5]);
+      expect(patchRes.body.data.habit.name).toBe('Gym Workout');
+      expect(patchRes.body.data.habit.recurrence.freq).toBe('weekly');
+      expect(patchRes.body.data.habit.recurrence.byWeekday).toEqual([1, 3, 5]);
     });
 
     it('Soft deletes habit, cancels pending reminders, and restores within 30 days', async () => {
@@ -128,7 +128,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
           startDate: '2026-09-01',
           recurrence: { freq: 'daily', interval: 1 }
         });
-      const habitId = createRes.body.habit.id;
+      const habitId = createRes.body.data.habit.id;
 
       // Seed a pending reminder in DB for this habit
       const reminderRes = await pool.query(
@@ -162,7 +162,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(restoreRes.status).toBe(200);
-      expect(restoreRes.body.habit.id).toBe(habitId);
+      expect(restoreRes.body.data.habit.id).toBe(habitId);
 
       // Active GET works again
       const getAgain = await request(app)
@@ -189,7 +189,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
             byWeekday: [1] // Monday only
           }
         });
-      const habitId = habitRes.body.habit.id;
+      const habitId = habitRes.body.data.habit.id;
 
       // 1. Future date check-in (AC-HAB-03) -> 400
       const futureCheckin = await request(app)
@@ -231,7 +231,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
           startDate: today,
           recurrence: { freq: 'daily', interval: 1 }
         });
-      const habitId = habitRes.body.habit.id;
+      const habitId = habitRes.body.data.habit.id;
 
       // 1. Initial check-in: done -> streak 1
       const checkin1 = await request(app)
@@ -240,9 +240,9 @@ describe('Habits & Daily Progress Integration Tests', () => {
         .send({ status: 'done', note: '2 liters drunk' });
 
       expect(checkin1.status).toBe(200);
-      expect(checkin1.body.checkin.status).toBe('done');
-      expect(checkin1.body.checkin.note).toBe('2 liters drunk');
-      expect(checkin1.body.currentStreak).toBe(1);
+      expect(checkin1.body.data.checkin.status).toBe('done');
+      expect(checkin1.body.data.checkin.note).toBe('2 liters drunk');
+      expect(checkin1.body.data.currentStreak).toBe(1);
 
       // 2. Repeated check-in updates instead of duplicating (toggle to skipped)
       const checkinUpdate = await request(app)
@@ -251,9 +251,9 @@ describe('Habits & Daily Progress Integration Tests', () => {
         .send({ status: 'skipped', note: 'Fasting today' });
 
       expect(checkinUpdate.status).toBe(200);
-      expect(checkinUpdate.body.checkin.status).toBe('skipped');
+      expect(checkinUpdate.body.data.checkin.status).toBe('skipped');
       // Skipped today -> current streak becomes 0 (since only 1 day exists and it's skipped)
-      expect(checkinUpdate.body.currentStreak).toBe(0);
+      expect(checkinUpdate.body.data.currentStreak).toBe(0);
 
       // Verify exactly 1 checkin row exists in DB
       const countRes = await pool.query(
@@ -291,7 +291,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
           recurrence: { freq: 'daily', interval: 1 }
         });
       await request(app)
-        .put(`/api/v1/habits/${h1.body.habit.id}/checkins/${today}`)
+        .put(`/api/v1/habits/${h1.body.data.habit.id}/checkins/${today}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ status: 'done' });
 
@@ -305,7 +305,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
           recurrence: { freq: 'daily', interval: 1 }
         });
       await request(app)
-        .put(`/api/v1/habits/${h2.body.habit.id}/checkins/${today}`)
+        .put(`/api/v1/habits/${h2.body.data.habit.id}/checkins/${today}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ status: 'skipped' });
 
@@ -325,7 +325,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(progressRes.status).toBe(200);
-      expect(progressRes.body.progress).toEqual({
+      expect(progressRes.body.data.progress).toEqual({
         totalScheduled: 3,
         done: 1,
         skipped: 1,
@@ -344,7 +344,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
           startDate: '2026-09-01',
           recurrence: { freq: 'daily', interval: 1 }
         });
-      const habitId = habitRes.body.habit.id;
+      const habitId = habitRes.body.data.habit.id;
 
       // Seed 3 checkins directly
       await pool.query(
@@ -379,7 +379,7 @@ describe('Habits & Daily Progress Integration Tests', () => {
           startDate: today,
           recurrence: { freq: 'daily', interval: 1 }
         });
-      const habitAId = habitA.body.habit.id;
+      const habitAId = habitA.body.data.habit.id;
 
       // User B tries to read User A habit -> 404
       const getB = await request(app)

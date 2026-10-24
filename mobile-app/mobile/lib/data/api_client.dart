@@ -415,7 +415,21 @@ class ApiClient {
   Object? _decodeSuccess(http.Response response) {
     if (response.statusCode == 204 || response.body.isEmpty) return null;
     try {
-      return jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
+      // The API v1 contract wraps ordinary success payloads. Keep support for
+      // legacy raw responses during rolling upgrades; health/export streams are
+      // handled separately and are not unwrapped here.
+      if (decoded is Map<String, dynamic> &&
+          decoded['success'] == true &&
+          decoded.containsKey('data')) {
+        // Preserve the existing paginated feature contract while removing the
+        // transport-only success flag from the wrapped response.
+        if (decoded['meta'] is Map<String, dynamic>) {
+          return {'data': decoded['data'], 'meta': decoded['meta']};
+        }
+        return decoded['data'];
+      }
+      return decoded;
     } on FormatException {
       throw const ApiException(
         statusCode: 502,

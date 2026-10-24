@@ -11,7 +11,7 @@ export const timerModeSchema = z.enum(['stopwatch', 'countdown']);
 export const createTimerSessionSchema = z
   .object({
     // A focus session can exist without a task. When taskId is set, the task must belong to the user.
-    taskId: z.string().uuid({ message: 'taskId must be a valid UUID' }).nullable().optional(),
+    taskId: z.guid({ message: 'taskId must be a valid UUID' }).nullable().optional(),
     mode: timerModeSchema.default('stopwatch'),
     plannedSeconds: z
       .number()
@@ -39,14 +39,14 @@ export type CreateTimerSessionInput = z.infer<typeof createTimerSessionSchema>;
 
 export const listTimerSessionsQuerySchema = z
   .object({
-    taskId: z.string().uuid().optional(),
+    taskId: z.guid().optional(),
     from: z.string().datetime().optional(),
     to: z.string().datetime().optional(),
     limit: z
       .string()
       .transform((val) => parseInt(val, 10))
       .pipe(z.number().min(1).max(100))
-      .default('25'),
+      .default(25),
     cursor: z.string().optional()
   })
   .strict();
@@ -55,6 +55,6 @@ export type ListTimerSessionsQuery = z.infer<typeof listTimerSessionsQuerySchema
 
 export const timerSessionIdParamSchema = z
   .object({
-    id: z.string().uuid({ message: 'Timer session ID must be a valid UUID' })
+    id: z.guid({ message: 'Timer session ID must be a valid UUID' })
   })
   .strict();

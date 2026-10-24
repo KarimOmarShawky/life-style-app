@@ -12,6 +12,7 @@ import { requestIdMiddleware } from './core/middleware/request-id.js';
 import { helmetSecurityMiddleware, enforceJsonContentType } from './core/middleware/security.js';
 import { globalErrorHandler } from './core/middleware/error-handler.js';
 import { createRateLimitMiddleware } from './core/middleware/rate-limiter.js';
+import { successEnvelopeMiddleware } from './core/middleware/success-envelope.js';
 import { AppError } from './core/errors/app-error.js';
 import { LIVE_PREVIEW_HTML } from './demo/live-preview-page.js';
 import { healthRouter } from './features/health/health.routes.js';
@@ -255,14 +256,14 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
   );
 
   // Query surface (P1-05): Daily Plan, Dashboard overview, Global Search
-  v1Router.use(
-    '/days',
-    createDaysRouter({
-      service: container.daysService,
-      authenticate: container.authenticate,
-      rateLimiter: container.rateLimiter
-    })
-  );
+  const daysRouterOptions = {
+    service: container.daysService,
+    authenticate: container.authenticate,
+    rateLimiter: container.rateLimiter
+  };
+  // The locked specification uses singular /day paths; clients now target
+  // these canonical routes rather than carrying plural aliases.
+  v1Router.use('/day', createDaysRouter(daysRouterOptions));
   v1Router.use(
     '/dashboard',
     createDashboardRouter({
@@ -280,7 +281,7 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     })
   );
 
-  app.use('/api/v1', v1Router);
+  app.use('/api/v1', successEnvelopeMiddleware, v1Router);
 
   // 8. Catch-all 404 handler for unknown routes
   app.use((_req, _res, next) => {

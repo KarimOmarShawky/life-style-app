@@ -9,12 +9,12 @@ import { z } from 'zod';
 export const createNoteLinkSchema = z
   .object({
     entityType: z.enum(['task', 'project', 'goal', 'habit', 'event']).optional(),
-    entityId: z.string().uuid('Invalid entityId format').optional(),
-    taskId: z.string().uuid('Invalid taskId format').nullable().optional(),
-    projectId: z.string().uuid('Invalid projectId format').nullable().optional(),
-    goalId: z.string().uuid('Invalid goalId format').nullable().optional(),
-    habitId: z.string().uuid('Invalid habitId format').nullable().optional(),
-    eventId: z.string().uuid('Invalid eventId format').nullable().optional()
+    entityId: z.guid('Invalid entityId format').optional(),
+    taskId: z.guid('Invalid taskId format').nullable().optional(),
+    projectId: z.guid('Invalid projectId format').nullable().optional(),
+    goalId: z.guid('Invalid goalId format').nullable().optional(),
+    habitId: z.guid('Invalid habitId format').nullable().optional(),
+    eventId: z.guid('Invalid eventId format').nullable().optional()
   })
   .refine(
     (data) => {
@@ -117,12 +117,12 @@ export const listNotesQuerySchema = z
       .transform((v) => v === 'true')
       .optional(),
     linkedEntityType: z.enum(['task', 'project', 'goal', 'habit', 'event']).optional(),
-    linkedEntityId: z.string().uuid('Invalid linkedEntityId format').optional(),
-    taskId: z.string().uuid('Invalid taskId format').optional(),
-    projectId: z.string().uuid('Invalid projectId format').optional(),
-    goalId: z.string().uuid('Invalid goalId format').optional(),
-    habitId: z.string().uuid('Invalid habitId format').optional(),
-    eventId: z.string().uuid('Invalid eventId format').optional(),
+    linkedEntityId: z.guid('Invalid linkedEntityId format').optional(),
+    taskId: z.guid('Invalid taskId format').optional(),
+    projectId: z.guid('Invalid projectId format').optional(),
+    goalId: z.guid('Invalid goalId format').optional(),
+    habitId: z.guid('Invalid habitId format').optional(),
+    eventId: z.guid('Invalid eventId format').optional(),
     includeDeleted: z
       .enum(['true', 'false'])
       .transform((v) => v === 'true')
@@ -158,10 +158,10 @@ export const listNotesQuerySchema = z
   });
 
 export const noteIdParamSchema = z.object({
-  id: z.string().uuid('Invalid note ID format')
+  id: z.guid('Invalid note ID format')
 });
 
 export const noteLinkIdParamSchema = z.object({
-  id: z.string().uuid('Invalid note ID format'),
-  linkId: z.string().uuid('Invalid link ID format')
+  id: z.guid('Invalid note ID format'),
+  linkId: z.guid('Invalid link ID format')
 });

@@ -14,9 +14,11 @@ import type {
   ReminderEntity,
   CreateReminderRepoInput,
   ListRemindersFilter,
+  UpdateReminderRepoInput,
   ReminderParentKind
 } from './reminders.types.js';
 import { AppError } from '../../core/errors/app-error.js';
+import { zonedDateTimeToUtc } from '../../core/time/date-utils.js';
 
 interface ReminderDbRow {
   id: string;
@@ -59,6 +61,7 @@ function toEntity(row: ReminderDbRow): ReminderEntity {
     attemptCount: row.attempt_count,
     sentAt: row.sent_at,
     failedAt: row.failed_at,
+    lastErrorCode: row.last_error_code,
     dedupeKey: row.dedupe_key,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -140,6 +143,74 @@ export class PgRemindersRepository implements RemindersRepository {
       .where('id', '=', reminderId)
       .executeTakeFirst();
     return row ? toEntity(row as unknown as ReminderDbRow) : null;
+  }
+
+  public async update(
+    userId: string,
+    reminderId: string,
+    changes: UpdateReminderRepoInput
+  ): Promise<ReminderEntity | null> {
+    const values: {
+      remind_at?: Date;
+      next_attempt_at?: Date;
+      offset_minutes?: number | null;
+      channel?: 'push' | 'in_app' | 'email';
+    } = {};
+    if (changes.remindAt !== undefined) {
+      values.remind_at = changes.remindAt;
+      values.next_attempt_at = changes.remindAt;
+    }
+    if (changes.offsetMinutes !== undefined) {
+      values.offset_minutes = changes.offsetMinutes;
+    }
+    if (changes.channel !== undefined) {
+      values.channel = changes.channel;
+    }
+
+    const updated = await this.db
+      .updateTable('reminders')
+      .set(values)
+      .where('user_id', '=', userId)
+      .where('id', '=', reminderId)
+      .where('source', '=', 'user')
+      .where('status', '=', 'pending')
+      .returningAll()
+      .executeTakeFirst();
+    return updated ? toEntity(updated as unknown as ReminderDbRow) : null;
+  }
+
+  public async getParentAnchor(
+    userId: string,
+    parentKind: ReminderParentKind,
+    parentId: string,
+    timeZone: string
+  ): Promise<Date | null> {
+    if (parentKind === 'task') {
+      const row = await this.db
+        .selectFrom('tasks')
+        .select(['due_date', 'due_time', 'status', 'deleted_at'])
+        .where('user_id', '=', userId)
+        .where('id', '=', parentId)
+        .executeTakeFirst();
+      if (!row || row.deleted_at || !row.due_date || ['done', 'cancelled'].includes(row.status)) {
+        return null;
+      }
+      return zonedDateTimeToUtc(row.due_date, row.due_time ?? '09:00', timeZone);
+    }
+    if (parentKind === 'event') {
+      const row = await this.db
+        .selectFrom('events')
+        .select(['start_at', 'deleted_at'])
+        .where('user_id', '=', userId)
+        .where('id', '=', parentId)
+        .executeTakeFirst();
+      if (!row || row.deleted_at) {
+        return null;
+      }
+      return row.start_at;
+    }
+    // Habit and subscription reminders are system-generated in the MVP.
+    return null;
   }
 
   public async delete(userId: string, reminderId: string): Promise<boolean> {

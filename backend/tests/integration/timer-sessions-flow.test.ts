@@ -40,7 +40,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
       timezone: 'UTC',
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   async function createTask(tokens: { accessToken: string }, title = 'Test Task') {
@@ -48,7 +48,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
       .post('/api/v1/tasks')
       .set('Authorization', `Bearer ${tokens.accessToken}`)
       .send({ title });
-    return res.body.task;
+    return res.body.data.task;
   }
 
   it('AC-TMR-01: Starting a timer session when one is already running returns 409 TIMER_ALREADY_RUNNING', async () => {
@@ -66,8 +66,8 @@ describe('Timer Sessions Flow Integration Tests', () => {
       });
 
     expect(timer1.status).toBe(201);
-    expect(timer1.body.timerSession.taskId).toBe(task1.id);
-    expect(timer1.body.timerSession.endedAt).toBeNull();
+    expect(timer1.body.data.timerSession.taskId).toBe(task1.id);
+    expect(timer1.body.data.timerSession.endedAt).toBeNull();
 
     // 2. Attempt to start another timer while timer 1 is running
     const timer2 = await request(app)
@@ -116,7 +116,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
       });
 
     expect(startRes.status).toBe(201);
-    const sessionId = startRes.body.timerSession.id;
+    const sessionId = startRes.body.data.timerSession.id;
 
     // Simulate 150 seconds elapsed in DB by moving started_at back
     await pool.query(
@@ -130,9 +130,9 @@ describe('Timer Sessions Flow Integration Tests', () => {
       .set('Authorization', `Bearer ${tokens.accessToken}`);
 
     expect(stopRes.status).toBe(200);
-    expect(stopRes.body.timerSession.endedAt).not.toBeNull();
-    expect(stopRes.body.timerSession.durationSeconds).toBeGreaterThanOrEqual(149);
-    expect(stopRes.body.timerSession.endReason).toBe('completed');
+    expect(stopRes.body.data.timerSession.endedAt).not.toBeNull();
+    expect(stopRes.body.data.timerSession.durationSeconds).toBeGreaterThanOrEqual(149);
+    expect(stopRes.body.data.timerSession.endReason).toBe('completed');
 
     // 3. Stopping already ended timer returns 409 TIMER_NOT_RUNNING
     const stopAgain = await request(app)
@@ -156,7 +156,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
         taskId: task1.id,
         mode: 'stopwatch'
       });
-    const timer1Id = timer1.body.timerSession.id;
+    const timer1Id = timer1.body.data.timerSession.id;
 
     // Simulate 13 hours passed since timer 1 started
     await pool.query(
@@ -216,7 +216,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
 
     expect(taskDetail.status).toBe(200);
     // 1800 + 360 + ~300 = ~2460 seconds
-    expect(taskDetail.body.task.trackedSeconds).toBeGreaterThanOrEqual(2400);
+    expect(taskDetail.body.data.task.trackedSeconds).toBeGreaterThanOrEqual(2400);
   });
 
   it('Cross-tenant isolation: User B cannot access or stop User A timer session (404)', async () => {
@@ -233,7 +233,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
         mode: 'stopwatch'
       });
 
-    const sessionId = sessionA.body.timerSession.id;
+    const sessionId = sessionA.body.data.timerSession.id;
 
     // User B attempts to stop User A's timer -> 404
     const stopB = await request(app)
@@ -252,7 +252,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
       .get('/api/v1/timer-sessions/active')
       .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
     expect(activeB.status).toBe(200);
-    expect(activeB.body.timerSession).toBeNull();
+    expect(activeB.body.data.timerSession).toBeNull();
   });
 
   it('Lists timer sessions with pagination and filters, and deletes a timer session', async () => {
@@ -264,7 +264,7 @@ describe('Timer Sessions Flow Integration Tests', () => {
       .post('/api/v1/timer-sessions')
       .set('Authorization', `Bearer ${tokens.accessToken}`)
       .send({ taskId: task.id });
-    const s1Id = s1.body.timerSession.id;
+    const s1Id = s1.body.data.timerSession.id;
 
     // Stop session 1
     await request(app)

@@ -56,7 +56,7 @@ export const createHabitSchema = z
       .regex(COLOR_REGEX, { message: 'color must be a valid hex code (#RRGGBB)' })
       .optional()
       .nullable(),
-    goalId: z.string().uuid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
+    goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
     recurrence: habitRecurrenceSchema
   })
   .strict();
@@ -87,7 +87,7 @@ export const updateHabitSchema = z
       .regex(COLOR_REGEX, { message: 'color must be a valid hex code (#RRGGBB)' })
       .optional()
       .nullable(),
-    goalId: z.string().uuid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
+    goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
     recurrence: habitRecurrenceSchema.optional(),
     version: z.number().int().min(1).optional()
   })
@@ -136,7 +136,7 @@ export const listHabitsQuerySchema = z
       .string()
       .transform((val) => parseInt(val, 10))
       .pipe(z.number().min(1).max(100))
-      .default('25'),
+      .default(25),
     cursor: z.string().optional()
   })
   .strict();
@@ -145,13 +145,13 @@ export type ListHabitsQuery = z.infer<typeof listHabitsQuerySchema>;
 
 export const habitIdParamSchema = z
   .object({
-    id: z.string().uuid({ message: 'Habit ID must be a valid UUID' })
+    id: z.guid({ message: 'Habit ID must be a valid UUID' })
   })
   .strict();
 
 export const checkinDateParamSchema = z
   .object({
-    id: z.string().uuid({ message: 'Habit ID must be a valid UUID' }),
+    id: z.guid({ message: 'Habit ID must be a valid UUID' }),
     date: z.string().regex(DATE_REGEX, { message: 'Date must be in YYYY-MM-DD format' })
   })
   .strict();

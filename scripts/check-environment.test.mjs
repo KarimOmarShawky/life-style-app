@@ -1,7 +1,7 @@
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,14 +119,15 @@ test('explicit guard accepts equivalent default PostgreSQL ports, rejects invali
   assert.throws(() => checkEnvironment(targets, 'unsafe'));
 });
 
-test('both compose entry points limit database/Redis/mail host exposure and preserve parity', () => {
-  const first = readFileSync(join(root, 'docker-compose.yml'), 'utf8');
-  const second = readFileSync(join(root, 'docker/docker-compose.yml'), 'utf8');
+test('canonical compose entry point limits database/Redis/mail host exposure', () => {
+  const compose = readFileSync(join(root, 'docker-compose.yml'), 'utf8');
   for (const port of ['5432', '6379', '1025', '8025']) {
-    assert.ok(first.includes(`"127.0.0.1:${port}:${port}"`));
-    assert.ok(second.includes(`"127.0.0.1:${port}:${port}"`));
+    assert.ok(compose.includes(`"127.0.0.1:${port}:${port}"`));
   }
-  assert.equal(second.replaceAll('../backend', './backend'), first);
+  // Finding B-32 removed the duplicate compose/Dockerfile pair; do not reintroduce it.
+  assert.equal(existsSync(join(root, 'docker/docker-compose.yml')), false);
+  assert.equal(existsSync(join(root, 'docker/Dockerfile')), false);
+  assert.equal(existsSync(join(root, 'backend/Dockerfile')), true);
 });
 
 test('all 18 historical findings retain provenance, past outcomes and current source fingerprints', () => {
@@ -136,8 +137,6 @@ test('all 18 historical findings retain provenance, past outcomes and current so
   assert.equal(new Set(triage.records.map((r) => `${r.original_file}:${r.original_line}`)).size, 18);
   for (const row of triage.records) {
     assert.equal(row.production_reuse_verification, 'BLOCKED');
-    const text = readFileSync(join(root, row.original_file), 'utf8');
-    const after = createHash('sha256').update(text).digest('hex');
     let expected = row.source_sha256_after_fresh_setup;
     for (const followup of row.source_followups ?? []) {
       assert.equal(followup.previous_source_sha256, expected, 'Preserve the earlier provenance fingerprint chain');
@@ -145,7 +144,14 @@ test('all 18 historical findings retain provenance, past outcomes and current so
       assert.match(followup.source_sha256, /^[a-f0-9]{64}$/);
       expected = followup.source_sha256;
     }
-    assert.equal(after, expected, 'Current source fingerprint must match the documented follow-up');
+    if (row.deleted_after_review === true) {
+      assert.equal(existsSync(join(root, row.original_file)), false, 'Deleted historical source must stay absent');
+      assert.ok(String(row.deletion_reason ?? '').length > 20, 'Document why the historical source was removed');
+    } else {
+      const text = readFileSync(join(root, row.original_file), 'utf8');
+      const after = createHash('sha256').update(text).digest('hex');
+      assert.equal(after, expected, 'Current source fingerprint must match the documented follow-up');
+    }
     assert.match(row.source_sha256_before_review, /^[a-f0-9]{64}$/);
     assert.match(row.source_sha256_after_review, /^[a-f0-9]{64}$/);
     assert.equal(row.current_detector_match, false);

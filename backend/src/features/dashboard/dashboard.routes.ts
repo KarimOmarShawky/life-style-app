@@ -2,7 +2,7 @@
  * src/features/dashboard/dashboard.routes.ts
  *
  * Routes for the Dashboard (Section 14, P1-05):
- *   GET /api/v1/dashboard/overview
+ *   GET /api/v1/dashboard (locked-specification path)
  */
 
 import { Router, type RequestHandler } from 'express';
@@ -26,7 +26,7 @@ export function createDashboardRouter(options: {
   });
 
   router.use(options.authenticate, userRateLimiter);
-  router.get('/overview', controller.getOverview);
+  router.get('/', controller.getOverview);
 
   return router;
 }

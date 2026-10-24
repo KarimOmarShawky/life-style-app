@@ -103,7 +103,7 @@ export class UsersController {
         extractMeta(req),
         req.sessionId
       );
-      res.status(200).json(result);
+      res.status(202).json(result);
     } catch (err) {
       next(err);
     }
@@ -118,8 +118,8 @@ export class UsersController {
       if (!req.user) {
         throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
       }
-      const result = await this.usersService.cancelDeletion(req.user.id, extractMeta(req));
-      res.status(200).json(result);
+      await this.usersService.cancelDeletion(req.user.id, extractMeta(req));
+      res.status(204).send();
     } catch (err) {
       next(err);
     }

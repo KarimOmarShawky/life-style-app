@@ -72,7 +72,7 @@ describe('SMS fallback analyze route', () => {
       defaultCurrency: 'EGP'
     });
     expect(res.status).toBe(201);
-    return res.body as {
+    return res.body.data as {
       tokens: { accessToken: string; refreshToken: string };
     };
   }
@@ -82,7 +82,7 @@ describe('SMS fallback analyze route', () => {
       .post('/api/v1/ingest/token')
       .set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(201);
-    return res.body.token as string;
+    return res.body.data.token as string;
   }
 
   it('requires authentication', async () => {
@@ -118,9 +118,9 @@ describe('SMS fallback analyze route', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers['cache-control']).toContain('no-store');
-    expect(res.body.status).toBe('recognized');
-    expect(res.body.confidence).toBe('high');
-    expect(res.body.transaction).toEqual({
+    expect(res.body.data.status).toBe('recognized');
+    expect(res.body.data.confidence).toBe('high');
+    expect(res.body.data.transaction).toEqual({
       kind: 'expense',
       amount: '250.00',
       currency: 'EGP',
@@ -140,8 +140,8 @@ describe('SMS fallback analyze route', () => {
       .send({ text: 'paid maybe 250', receivedAt: '2026-10-08' });
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('recognized');
-    expect(res.body.confidence).toBe('low');
+    expect(res.body.data.status).toBe('recognized');
+    expect(res.body.data.confidence).toBe('low');
   });
 
   it('hands the analyzer only sanitized text and sender', async () => {
@@ -180,9 +180,9 @@ describe('SMS fallback analyze route', () => {
       .send({ text: 'random marketing text', receivedAt: '2026-10-08' });
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('unrecognized');
-    expect(res.body.transaction).toBeNull();
-    expect(res.body.confidence).toBeNull();
+    expect(res.body.data.status).toBe('unrecognized');
+    expect(res.body.data.transaction).toBeNull();
+    expect(res.body.data.confidence).toBeNull();
   });
 
   it('maps upstream failure to a retryable 503 with a stable code', async () => {

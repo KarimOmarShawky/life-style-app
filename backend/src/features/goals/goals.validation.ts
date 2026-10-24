@@ -12,7 +12,7 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 export const createGoalSchema = z
   .object({
     title: z
-      .string({ required_error: 'Title is required' })
+      .string({ error: 'Title is required' })
       .trim()
       .min(1, 'Title must be at least 1 character long')
       .max(200, 'Title cannot exceed 200 characters'),
@@ -22,7 +22,7 @@ export const createGoalSchema = z
       .nullable()
       .optional(),
     progressType: z.enum(['milestones', 'numeric'], {
-      required_error: 'progressType is required'
+      error: 'progressType is required'
     }),
     targetValue: z
       .string()
@@ -155,12 +155,12 @@ export const listGoalsQuerySchema = z.object({
 });
 
 export const goalIdParamSchema = z.object({
-  id: z.string().uuid('Invalid goal ID format')
+  id: z.guid('Invalid goal ID format')
 });
 
 export const createMilestoneSchema = z.object({
   title: z
-    .string({ required_error: 'Title is required' })
+    .string({ error: 'Title is required' })
     .trim()
     .min(1, 'Title must be at least 1 character long')
     .max(200, 'Title cannot exceed 200 characters'),
@@ -190,6 +190,6 @@ export const updateMilestoneSchema = z.object({
 });
 
 export const goalMilestoneParamSchema = z.object({
-  id: z.string().uuid('Invalid goal ID format'),
-  milestoneId: z.string().uuid('Invalid milestone ID format')
+  id: z.guid('Invalid goal ID format'),
+  milestoneId: z.guid('Invalid milestone ID format')
 });

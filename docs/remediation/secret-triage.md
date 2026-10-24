@@ -60,3 +60,22 @@ fingerprints, with an appended dated `source_followups` chain and reason. C26 ch
 each prior-to-next fingerprint and current bytes; no original record is renumbered,
 removed or blindly replaced. The current-source detector remains authoritative for
 current tracked source, separately from historical or deployed configurations.
+
+## Follow-up: canonical Compose source and refreshed fingerprint chain — 2026-10-24
+
+Repository hygiene finding B-32 removed the duplicate `docker/docker-compose.yml`
+and `docker/Dockerfile`; `docker-compose.yml` plus `backend/Dockerfile` are now
+the canonical local entry points. SR-13–SR-16 therefore remain historical
+source-location records with `deleted_after_review: true` and a recorded deletion
+reason, rather than fingerprints of a file that must exist. C26 now asserts the
+duplicate files stay absent and that the canonical Compose file keeps PostgreSQL,
+Redis and Mailpit bound to loopback.
+
+Subsequent maintenance also changed `.env.example`, `backend/.env.example`,
+`.github/workflows/ci.yml` and root `docker-compose.yml` after the previously
+recorded hashes. Their original, previous-review and fresh-setup hashes are
+preserved; a dated 2026-10-24 `source_followups` entry appends each measured
+current hash without adding a detector exception or credential default. All 109
+selected helper/source tests pass with this chain. This is current-source
+provenance only: Git history, ignored/deployed configurations and production
+secret reuse remain outside the scan and stay BLOCKED.

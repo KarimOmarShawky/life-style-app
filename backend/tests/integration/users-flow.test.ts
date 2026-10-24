@@ -37,7 +37,7 @@ describe('Users Flow Integration Tests', () => {
       timezone: 'UTC',
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   it('AC-AUTH-11: GET /users/me returns authenticated user profile omitting password_hash', async () => {
@@ -48,11 +48,11 @@ describe('Users Flow Integration Tests', () => {
       .set('Authorization', `Bearer ${tokens.accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.user).toBeDefined();
-    expect(res.body.user.id).toBe(user.id);
-    expect(res.body.user.email).toBe(user.email);
-    expect(res.body.user.password_hash).toBeUndefined();
-    expect(res.body.user.status).toBe('active');
+    expect(res.body.data.user).toBeDefined();
+    expect(res.body.data.user.id).toBe(user.id);
+    expect(res.body.data.user.email).toBe(user.email);
+    expect(res.body.data.user.password_hash).toBeUndefined();
+    expect(res.body.data.user.status).toBe('active');
   });
 
   it('AC-AUTH-11: PATCH /users/me updates profile settings', async () => {
@@ -73,12 +73,12 @@ describe('Users Flow Integration Tests', () => {
       .send(updatePayload);
 
     expect(res.status).toBe(200);
-    expect(res.body.user.displayName).toBe('Updated Name');
-    expect(res.body.user.timezone).toBe('Europe/Paris');
-    expect(res.body.user.locale).toBe('fr');
-    expect(res.body.user.weekStart).toBe(7);
-    expect(res.body.user.defaultCurrency).toBe('EUR');
-    expect(res.body.user.pushShowTitles).toBe(false);
+    expect(res.body.data.user.displayName).toBe('Updated Name');
+    expect(res.body.data.user.timezone).toBe('Europe/Paris');
+    expect(res.body.data.user.locale).toBe('fr');
+    expect(res.body.data.user.weekStart).toBe(7);
+    expect(res.body.data.user.defaultCurrency).toBe('EUR');
+    expect(res.body.data.user.pushShowTitles).toBe(false);
   });
 
   it('AC-AUTH-11: PUT and DELETE /users/me/devices manages push device tokens', async () => {
@@ -95,7 +95,7 @@ describe('Users Flow Integration Tests', () => {
       });
 
     expect(regDevice.status).toBe(200);
-    expect(regDevice.body.status).toBe('registered');
+    expect(regDevice.body.data.status).toBe('registered');
 
     const dbDevice = await pool.query('SELECT * FROM push_devices WHERE user_id = $1', [user.id]);
     expect(dbDevice.rows.length).toBe(1);
@@ -145,9 +145,9 @@ describe('Users Flow Integration Tests', () => {
       .set('Authorization', `Bearer ${tokens.accessToken}`)
       .send({ currentPassword: 'ValidUserPassword123!' });
 
-    expect(delReq.status).toBe(200);
-    expect(delReq.body.status).toBe('pending_deletion');
-    expect(delReq.body.deletionScheduledFor).toBeDefined();
+    expect(delReq.status).toBe(202);
+    expect(delReq.body.data.status).toBe('pending_deletion');
+    expect(delReq.body.data.deletionScheduledFor).toBeDefined();
 
     // 2. Normal mutating endpoints should now be blocked with 403 ACCOUNT_PENDING_DELETION
     const patchBlocked = await request(app)
@@ -164,7 +164,7 @@ describe('Users Flow Integration Tests', () => {
       .set('Authorization', `Bearer ${tokens.accessToken}`);
 
     expect(meAllowed.status).toBe(200);
-    expect(meAllowed.body.user.status).toBe('pending_deletion');
+    expect(meAllowed.body.data.user.status).toBe('pending_deletion');
 
     const exportAllowed = await request(app)
       .post('/api/v1/users/me/export')
@@ -178,8 +178,8 @@ describe('Users Flow Integration Tests', () => {
       .delete('/api/v1/users/me/deletion')
       .set('Authorization', `Bearer ${tokens.accessToken}`);
 
-    expect(cancelRes.status).toBe(200);
-    expect(cancelRes.body.status).toBe('active');
+    expect(cancelRes.status).toBe(204);
+    expect(cancelRes.text).toBe('');
 
     // 5. Now normal mutating endpoints should work again
     const patchAllowed = await request(app)
@@ -188,7 +188,7 @@ describe('Users Flow Integration Tests', () => {
       .send({ displayName: 'Unblocked Name' });
 
     expect(patchAllowed.status).toBe(200);
-    expect(patchAllowed.body.user.displayName).toBe('Unblocked Name');
+    expect(patchAllowed.body.data.user.displayName).toBe('Unblocked Name');
   });
 
   it('AC-AUTH-10: Disabled account is blocked with 403 ACCOUNT_DISABLED', async () => {
@@ -211,7 +211,7 @@ describe('Users Flow Integration Tests', () => {
       .post('/api/v1/users/me/deletion')
       .set('Authorization', `Bearer ${tokens.accessToken}`)
       .send({ currentPassword: 'ValidUserPassword123!' });
-    expect(deletion.status).toBe(200);
+    expect(deletion.status).toBe(202);
     const archive = await request(app)
       .post('/api/v1/users/me/export/archive')
       .set('Authorization', `Bearer ${tokens.accessToken}`)
@@ -248,7 +248,7 @@ describe('Users Flow Integration Tests', () => {
         amount: '45.00',
         currency: 'USD',
         occurredOn: '2026-01-15',
-        categoryId: catARes.body.category.id
+        categoryId: catARes.body.data.category.id
       });
     expect(txARes.status).toBe(201);
 
@@ -267,7 +267,7 @@ describe('Users Flow Integration Tests', () => {
       .post('/api/v1/users/me/deletion')
       .set('Authorization', `Bearer ${tokensA.accessToken}`)
       .send({ currentPassword: 'ValidUserPassword123!' });
-    expect(sched1.status).toBe(200);
+    expect(sched1.status).toBe(202);
     expect(sched2.status).toBe(403);
     expect(sched2.body.error.code).toBe('ACCOUNT_PENDING_DELETION');
 
@@ -297,7 +297,7 @@ describe('Users Flow Integration Tests', () => {
 
     const remB = await pool.query(
       'SELECT count(*)::int AS cnt FROM categories WHERE user_id = $1 AND id = $2',
-      [userB.id, catBRes.body.category.id]
+      [userB.id, catBRes.body.data.category.id]
     );
     expect(remB.rows[0]?.cnt).toBe(1);
   });

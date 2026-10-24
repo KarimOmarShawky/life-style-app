@@ -12,6 +12,9 @@ import {
   parentParamsSchema,
   reminderParamsSchema,
   createReminderSchema,
+  createUserReminderSchema,
+  updateUserReminderSchema,
+  reminderIdParamSchema,
   listRemindersQuerySchema
 } from './reminders.validation.js';
 
@@ -26,7 +29,10 @@ function toDto(reminder: ReminderEntity): Record<string, unknown> {
     channel: reminder.channel,
     status: reminder.status,
     nextAttemptAt: reminder.nextAttemptAt ? reminder.nextAttemptAt.toISOString() : null,
+    attemptCount: reminder.attemptCount,
     sentAt: reminder.sentAt ? reminder.sentAt.toISOString() : null,
+    failedAt: reminder.failedAt ? reminder.failedAt.toISOString() : null,
+    lastErrorCode: reminder.lastErrorCode,
     dedupeKey: reminder.dedupeKey,
     createdAt: reminder.createdAt.toISOString()
   };
@@ -100,6 +106,55 @@ export class UnifiedRemindersController {
       const query = listRemindersQuerySchema.parse(req.query);
       const reminders = await this.remindersService.listAll(req.user.id, query);
       res.status(200).json({ reminders: reminders.map(toDto) });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
+      }
+      const body = createUserReminderSchema.parse(req.body);
+      const reminder = await this.remindersService.createUserReminder(
+        req.user.id,
+        body,
+        req.user.timezone || 'UTC'
+      );
+      res.status(201).json(toDto(reminder));
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
+      }
+      const { id } = reminderIdParamSchema.parse(req.params);
+      const body = updateUserReminderSchema.parse(req.body);
+      const reminder = await this.remindersService.updateUserReminder(
+        req.user.id,
+        id,
+        body,
+        req.user.timezone || 'UTC'
+      );
+      res.status(200).json(toDto(reminder));
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
+      }
+      const { id } = reminderIdParamSchema.parse(req.params);
+      await this.remindersService.deleteUserReminder(req.user.id, id);
+      res.status(204).send();
     } catch (err) {
       next(err);
     }

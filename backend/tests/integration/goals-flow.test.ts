@@ -39,7 +39,7 @@ describe('Goals & Milestones Integration Tests', () => {
       timezone,
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   describe('AC-GOAL-01: Goal Creation & Type Invariants', () => {
@@ -61,11 +61,11 @@ describe('Goals & Milestones Integration Tests', () => {
         });
 
       expect(numRes.status).toBe(201);
-      expect(numRes.body.goal).toBeDefined();
-      expect(numRes.body.goal.title).toBe('Read 24 Books');
-      expect(numRes.body.goal.progressType).toBe('numeric');
-      expect(numRes.body.goal.targetValue).toBe('24.0000');
-      expect(numRes.body.goal.progressPercentage).toBe(0);
+      expect(numRes.body.data.goal).toBeDefined();
+      expect(numRes.body.data.goal.title).toBe('Read 24 Books');
+      expect(numRes.body.data.goal.progressType).toBe('numeric');
+      expect(numRes.body.data.goal.targetValue).toBe('24.0000');
+      expect(numRes.body.data.goal.progressPercentage).toBe(0);
 
       // 2. Create milestone goal
       const msRes = await request(app)
@@ -79,10 +79,10 @@ describe('Goals & Milestones Integration Tests', () => {
         });
 
       expect(msRes.status).toBe(201);
-      expect(msRes.body.goal.progressType).toBe('milestones');
-      expect(msRes.body.goal.targetValue).toBeNull();
-      expect(msRes.body.goal.progressPercentage).toBe(0);
-      expect(msRes.body.goal.totalMilestones).toBe(0);
+      expect(msRes.body.data.goal.progressType).toBe('milestones');
+      expect(msRes.body.data.goal.targetValue).toBeNull();
+      expect(msRes.body.data.goal.progressPercentage).toBe(0);
+      expect(msRes.body.data.goal.totalMilestones).toBe(0);
     });
 
     it('Rejects invalid goal inputs (numeric target <= 0, milestone with targetValue, startDate > targetDate)', async () => {
@@ -136,8 +136,8 @@ describe('Goals & Milestones Integration Tests', () => {
           progressType: 'numeric',
           targetValue: '50.0000'
         });
-      const goalId = createRes.body.goal.id;
-      expect(createRes.body.goal.achievedAt).toBeNull();
+      const goalId = createRes.body.data.goal.id;
+      expect(createRes.body.data.goal.achievedAt).toBeNull();
 
       // 1. Manually mark achieved
       const achieveRes = await request(app)
@@ -146,8 +146,8 @@ describe('Goals & Milestones Integration Tests', () => {
         .send({ status: 'achieved' });
 
       expect(achieveRes.status).toBe(200);
-      expect(achieveRes.body.goal.status).toBe('achieved');
-      expect(achieveRes.body.goal.achievedAt).not.toBeNull();
+      expect(achieveRes.body.data.goal.status).toBe('achieved');
+      expect(achieveRes.body.data.goal.achievedAt).not.toBeNull();
 
       // 2. Reopen to active
       const reopenRes = await request(app)
@@ -156,8 +156,8 @@ describe('Goals & Milestones Integration Tests', () => {
         .send({ status: 'active' });
 
       expect(reopenRes.status).toBe(200);
-      expect(reopenRes.body.goal.status).toBe('active');
-      expect(reopenRes.body.goal.achievedAt).toBeNull();
+      expect(reopenRes.body.data.goal.status).toBe('active');
+      expect(reopenRes.body.data.goal.achievedAt).toBeNull();
 
       // 3. Auto-achievement when currentValue reaches targetValue
       const autoRes = await request(app)
@@ -166,9 +166,9 @@ describe('Goals & Milestones Integration Tests', () => {
         .send({ currentValue: '50.0000' });
 
       expect(autoRes.status).toBe(200);
-      expect(autoRes.body.goal.status).toBe('achieved');
-      expect(autoRes.body.goal.achievedAt).not.toBeNull();
-      expect(autoRes.body.goal.progressPercentage).toBe(100);
+      expect(autoRes.body.data.goal.status).toBe('achieved');
+      expect(autoRes.body.data.goal.achievedAt).not.toBeNull();
+      expect(autoRes.body.data.goal.progressPercentage).toBe(100);
     });
   });
 
@@ -184,28 +184,28 @@ describe('Goals & Milestones Integration Tests', () => {
           title: 'Build Mobile App',
           progressType: 'milestones'
         });
-      const goalId = goalRes.body.goal.id;
+      const goalId = goalRes.body.data.goal.id;
 
       // 2. Add two milestones
       const m1Res = await request(app)
         .post(`/api/v1/goals/${goalId}/milestones`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ title: 'Design Mockups', sortOrder: 1 });
-      const m1Id = m1Res.body.milestone.id;
+      const m1Id = m1Res.body.data.milestone.id;
 
       const m2Res = await request(app)
         .post(`/api/v1/goals/${goalId}/milestones`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ title: 'Implement Backend', sortOrder: 2 });
-      const m2Id = m2Res.body.milestone.id;
+      const m2Id = m2Res.body.data.milestone.id;
 
       // Verify goal detail reflects 2 milestones, 0% progress
       const detail1 = await request(app)
         .get(`/api/v1/goals/${goalId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(detail1.body.goal.totalMilestones).toBe(2);
-      expect(detail1.body.goal.completedMilestones).toBe(0);
-      expect(detail1.body.goal.progressPercentage).toBe(0);
+      expect(detail1.body.data.goal.totalMilestones).toBe(2);
+      expect(detail1.body.data.goal.completedMilestones).toBe(0);
+      expect(detail1.body.data.goal.progressPercentage).toBe(0);
 
       // 3. Complete first milestone -> 50%
       const comp1 = await request(app)
@@ -213,14 +213,14 @@ describe('Goals & Milestones Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ completed: true });
       expect(comp1.status).toBe(200);
-      expect(comp1.body.milestone.completed).toBe(true);
+      expect(comp1.body.data.milestone.completed).toBe(true);
 
       const detail2 = await request(app)
         .get(`/api/v1/goals/${goalId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(detail2.body.goal.completedMilestones).toBe(1);
-      expect(detail2.body.goal.progressPercentage).toBe(50);
-      expect(detail2.body.goal.status).toBe('active');
+      expect(detail2.body.data.goal.completedMilestones).toBe(1);
+      expect(detail2.body.data.goal.progressPercentage).toBe(50);
+      expect(detail2.body.data.goal.status).toBe('active');
 
       // 4. Complete second milestone -> 100% and auto-achieved
       await request(app)
@@ -231,9 +231,9 @@ describe('Goals & Milestones Integration Tests', () => {
       const detail3 = await request(app)
         .get(`/api/v1/goals/${goalId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(detail3.body.goal.completedMilestones).toBe(2);
-      expect(detail3.body.goal.progressPercentage).toBe(100);
-      expect(detail3.body.goal.status).toBe('achieved');
+      expect(detail3.body.data.goal.completedMilestones).toBe(2);
+      expect(detail3.body.data.goal.progressPercentage).toBe(100);
+      expect(detail3.body.data.goal.status).toBe('achieved');
 
       // 5. Uncomplete second milestone -> auto-reopen to active
       await request(app)
@@ -244,9 +244,9 @@ describe('Goals & Milestones Integration Tests', () => {
       const detail4 = await request(app)
         .get(`/api/v1/goals/${goalId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(detail4.body.goal.completedMilestones).toBe(1);
-      expect(detail4.body.goal.progressPercentage).toBe(50);
-      expect(detail4.body.goal.status).toBe('active');
+      expect(detail4.body.data.goal.completedMilestones).toBe(1);
+      expect(detail4.body.data.goal.progressPercentage).toBe(50);
+      expect(detail4.body.data.goal.status).toBe('active');
     });
 
     it('Rejects adding milestones to a numeric goal', async () => {
@@ -260,7 +260,7 @@ describe('Goals & Milestones Integration Tests', () => {
           progressType: 'numeric',
           targetValue: '100'
         });
-      const goalId = numRes.body.goal.id;
+      const goalId = numRes.body.data.goal.id;
 
       const addRes = await request(app)
         .post(`/api/v1/goals/${goalId}/milestones`)
@@ -282,7 +282,7 @@ describe('Goals & Milestones Integration Tests', () => {
           title: 'Goal to Delete',
           progressType: 'milestones'
         });
-      const goalId = createRes.body.goal.id;
+      const goalId = createRes.body.data.goal.id;
 
       // Soft delete
       const delRes = await request(app)
@@ -301,8 +301,8 @@ describe('Goals & Milestones Integration Tests', () => {
         .post(`/api/v1/goals/${goalId}/restore`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(restoreRes.status).toBe(200);
-      expect(restoreRes.body.goal.id).toBe(goalId);
-      expect(restoreRes.body.goal.deletedAt).toBeNull();
+      expect(restoreRes.body.data.goal.id).toBe(goalId);
+      expect(restoreRes.body.data.goal.deletedAt).toBeNull();
     });
 
     it('Rejects restoration when soft-deleted more than 30 days ago (410 Gone)', async () => {
@@ -315,7 +315,7 @@ describe('Goals & Milestones Integration Tests', () => {
           title: 'Old Goal',
           progressType: 'milestones'
         });
-      const goalId = createRes.body.goal.id;
+      const goalId = createRes.body.data.goal.id;
 
       // Soft delete
       await request(app)
@@ -347,7 +347,7 @@ describe('Goals & Milestones Integration Tests', () => {
           progressType: 'numeric',
           targetValue: '100'
         });
-      const goalId = createRes.body.goal.id;
+      const goalId = createRes.body.data.goal.id;
 
       // Successful update
       const update1 = await request(app)
@@ -358,7 +358,7 @@ describe('Goals & Milestones Integration Tests', () => {
           version: 1
         });
       expect(update1.status).toBe(200);
-      expect(update1.body.goal.version).toBe(2);
+      expect(update1.body.data.goal.version).toBe(2);
 
       // Stale update with version 1 -> 409
       const update2 = await request(app)
@@ -383,7 +383,7 @@ describe('Goals & Milestones Integration Tests', () => {
           title: 'User A Secret Goal',
           progressType: 'milestones'
         });
-      const goalId = createRes.body.goal.id;
+      const goalId = createRes.body.data.goal.id;
 
       // User B attempts GET -> 404
       const getRes = await request(app)

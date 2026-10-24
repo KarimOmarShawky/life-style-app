@@ -39,7 +39,7 @@ describe('Ingest token flow (background SMS capture)', () => {
       defaultCurrency: 'EGP'
     });
     expect(res.status).toBe(201);
-    return res.body as {
+    return res.body.data as {
       user: { id: string };
       tokens: { accessToken: string; refreshToken: string };
     };
@@ -50,7 +50,7 @@ describe('Ingest token flow (background SMS capture)', () => {
       .post('/api/v1/ingest/token')
       .set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(201);
-    return res.body.token as string;
+    return res.body.data.token as string;
   }
 
   function transactionBody() {
@@ -77,11 +77,13 @@ describe('Ingest token flow (background SMS capture)', () => {
 
     expect(res.status).toBe(201);
     expect(res.headers['cache-control']).toContain('no-store');
-    expect(res.body.token).toMatch(/^lsi_[A-Za-z0-9_-]{43}$/);
+    expect(res.body.data.token).toMatch(/^lsi_[A-Za-z0-9_-]{43}$/);
 
     const stored = await pool.query('SELECT token_hash FROM ingest_tokens');
     expect(stored.rows).toHaveLength(1);
-    expect(Buffer.from(stored.rows[0].token_hash).toString('utf8')).not.toContain(res.body.token);
+    expect(Buffer.from(stored.rows[0].token_hash).toString('utf8')).not.toContain(
+      res.body.data.token
+    );
   });
 
   it('creates a transaction with the ingest token and replays the same Idempotency-Key', async () => {
@@ -95,7 +97,7 @@ describe('Ingest token flow (background SMS capture)', () => {
       .set('Idempotency-Key', idempotencyKey)
       .send(transactionBody());
     expect(first.status).toBe(201);
-    expect(first.body.transaction.merchant).toBe('InstaPay');
+    expect(first.body.data.transaction.merchant).toBe('InstaPay');
 
     const replay = await request(app)
       .post('/api/v1/ingest/transactions')
@@ -103,7 +105,7 @@ describe('Ingest token flow (background SMS capture)', () => {
       .set('Idempotency-Key', idempotencyKey)
       .send(transactionBody());
     expect(replay.status).toBe(200);
-    expect(replay.body.transaction.id).toBe(first.body.transaction.id);
+    expect(replay.body.data.transaction.id).toBe(first.body.data.transaction.id);
   });
 
   it('rejects a missing Idempotency-Key on the ingest route', async () => {

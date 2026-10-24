@@ -81,23 +81,27 @@ describe('R-01 real dashboard router / mobile contract', () => {
   it('serves the actual client route and preserves the overview response key and user scope', async () => {
     const client = source('mobile-app/mobile/lib/features/more/data/daily_plan_models.dart');
     const path = /_api.get\('(dashboard[^']*)'\)/.exec(client)?.[1];
-    expect(path).toBe('dashboard/overview');
-    expect(source('docs/api/openapi.yaml')).toContain('/dashboard/overview:');
+    expect(path).toBe('dashboard');
+    expect(source('docs/api/openapi.yaml')).not.toContain('/dashboard/overview:');
+    expect(source('docs/api/openapi.yaml')).toContain('/dashboard:');
     const { api, service } = app(true);
     const response = await request(api).get(`/api/v1/${path}`);
     expect(response.status).toBe(200);
     expect(response.body.overview.tasks.dueToday).toBe(0);
     expect(service.getOverview).toHaveBeenCalledWith('user-a', 'UTC');
-    expect((await request(api).get('/api/v1/dashboard')).status).toBe(404);
+    // The canonical specification path serves the same response for new clients.
+    const canonical = await request(api).get('/api/v1/dashboard');
+    expect(canonical.status).toBe(200);
+    expect(canonical.body.overview.tasks.dueToday).toBe(0);
   });
   it('rejects unauthenticated requests and does not call the service', async () => {
     const { api, service } = app(false);
-    expect((await request(api).get('/api/v1/dashboard/overview')).status).toBe(401);
+    expect((await request(api).get('/api/v1/dashboard')).status).toBe(401);
     expect(service.getOverview).not.toHaveBeenCalled();
   });
   it('returns a failure, not a successful empty overview, when composition fails', async () => {
     const { api } = app(true, true);
-    const response = await request(api).get('/api/v1/dashboard/overview');
+    const response = await request(api).get('/api/v1/dashboard');
     expect(response.status).toBe(500);
     expect(JSON.stringify(response.body)).not.toContain('DB private error');
   });

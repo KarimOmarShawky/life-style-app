@@ -32,7 +32,7 @@ const baseEnvSchema = z.object({
   DATABASE_SSL: z
     .string()
     .transform((val) => val === 'true' || val === '1')
-    .default('false'),
+    .default(false),
 
   // Temporary / Infrastructure Store (Redis 7)
   REDIS_URL: z.string().url({ message: 'REDIS_URL must be a valid Redis connection URL' }),

@@ -295,6 +295,8 @@ jobs:
           echo '::error title=probe-daily-plan::MARKER'
           grep -aE '\.dart:' probe-daily-plan.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan::/'
           grep -aE 'Expected|Actual|Some tests failed' probe-daily-plan.log | head -4 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-detail::/'
+          grep -aE '\[E\]' probe-daily-plan.log | head -3 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-name::/'
+          grep -aA 6 -E '^\[E\]|  [A-Za-z]*Error|  [A-Za-z]*Exception' probe-daily-plan.log | head -8 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-why::/'
           tail -n 4 probe-daily-plan.log | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-tail::/'
       - name: TEMP probe - reminder_channel_test.dart
         if: always()

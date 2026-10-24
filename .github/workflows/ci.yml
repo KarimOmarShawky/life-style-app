@@ -283,19 +283,25 @@ jobs:
 
       - name: TEMP probe - wallet_review_test.dart
         if: always()
-        run: flutter test test/wallet_review_test.dart > probe-wallet-review.log 2>&1
-      - name: TEMP probe - wallet_sync_test.dart
-        if: always()
-        run: flutter test test/wallet_sync_test.dart > probe-wallet-sync.log 2>&1
+        run: |
+          flutter test test/wallet_review_test.dart > probe-wallet-review.log 2>&1 || true
+          echo '::error title=probe-wallet-review::MARKER'
+          grep -aE '\.dart:' probe-wallet-review.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-wallet-review::/'
+          grep -aE 'Expected|Actual|Some tests failed' probe-wallet-review.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-wallet-review-detail::/'
       - name: TEMP probe - daily_plan_and_lifecycle_test.dart
         if: always()
-        run: flutter test test/daily_plan_and_lifecycle_test.dart > probe-daily-plan.log 2>&1
+        run: |
+          flutter test test/daily_plan_and_lifecycle_test.dart > probe-daily-plan.log 2>&1 || true
+          echo '::error title=probe-daily-plan::MARKER'
+          grep -aE '\.dart:' probe-daily-plan.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan::/'
+          grep -aE 'Expected|Actual|Some tests failed' probe-daily-plan.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-detail::/'
       - name: TEMP probe - reminder_channel_test.dart
         if: always()
-        run: flutter test test/reminder_channel_test.dart > probe-reminder-channel.log 2>&1
-      - name: TEMP probe - remaining suites
-        if: always()
-        run: flutter test --exclude-tags=none test > /dev/null 2>&1 || true
+        run: |
+          flutter test test/reminder_channel_test.dart > probe-reminder-channel.log 2>&1 || true
+          echo '::error title=probe-reminder-channel::MARKER'
+          grep -aE '\.dart:' probe-reminder-channel.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel::/'
+          grep -aE 'Expected|Actual|Some tests failed|Error' probe-reminder-channel.log | head -8 | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel-detail::/'
 
       - name: Kotlin JVM unit tests
         run: |

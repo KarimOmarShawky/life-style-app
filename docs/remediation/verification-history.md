@@ -456,3 +456,39 @@ FAIL, at4d69890. This includes preserved stash refs; not all commits are new sou
 changes or remote main commits. Exact baseline provenance37 PASS does not clear
 history or deployed reuse. Full local regressions re-executed on scratch-owned
 services independently of the active pilot; no destructive hook targeted the pilot.
+
+### 2026-10-24 audit-response verification (F-01..F-09)
+
+Workspace (no Docker, PostgreSQL, Redis, Flutter/Dart SDK, JVM or Android SDK):
+- `npm run typecheck`, `npm run typecheck:tests`, `npm run lint`,
+  `npm run format:check` (backend): PASS.
+- `npm run test:unit` (backend): PASS, 36 files / 377 tests.
+- `node --test scripts/*.test.mjs`: PASS, 128 tests (wallet SMS contract,
+  documentation consistency, environment, forbidden-dependency, archive,
+  setup, resource-guard, voice cleanup, local setup).
+- `node scripts/scan-secrets.mjs` (pinned secretlint, worktree only): PASS,
+  634 files, 0 findings, after two connection strings with an inline password
+  in the new full-cycle document were removed.
+- `node scripts/check-docs-consistency.mjs`: PASS.
+- Scratch WASM dart_style: 138 tracked Dart files parse, 0 need formatting.
+  This is not a Dart compiler or Flutter test result.
+
+Hosted pull-request runs (branch arena/c720cf53-life-style-app):
+- Isolated backend runtime verification, run 40110764907: PASS. Disposable
+  per-job PostgreSQL 16 + Redis 7, forward migrations twice, real integration
+  and security suites. First run at 40104069153 FAILed with
+  `column reference "id" is ambiguous` in the durable reset claim statements;
+  corrected by qualifying the RETURNING columns with the UPDATE target alias.
+- Flutter and Android debug validation, run 40110764909: PASS, 264 tests.
+  Earlier runs FAILed (254 passed / 10 failed) for four regressions from this
+  response, all corrected: retention-expired fixtures, a reminder-channel mock
+  that answered a reminder POST with an event payload, removed route aliases in
+  a daily-plan mock, and one unsupported Dart digit separator.
+- Source secret detection, run 40110764911: PASS.
+- Backend Quality, Security & API Contract Gate: FAIL at "Set up job" in every
+  run, including the pre-change baseline on main 772332e (run 40090093877).
+  The runner does not start the job's service containers, so no step of ours
+  executes. Environmental, not a regression from this response.
+- Kotlin JVM unit tests, debug validation APK build and APK signature
+  verification: NOT RUN, the mobile workflow skips them unless the Flutter gate
+  passes with an approved validation API configured.

@@ -33,10 +33,18 @@ emulator or physical device. The audit reached the same boundary — it explicit
 labels native runtime, device, provider and hosted-CI verification as not
 performed.
 
-Consequence: Dart and Kotlin changes are **syntax- and contract-verified only**.
-Dart files were parsed with a WASM build of `dart_style` (138/138 files parse;
-0/138 need formatting) and Kotlin/Gradle were reviewed statically; no
-`flutter test`, no `gradlew test`, and no APK was produced here.
+Consequence inside this workspace: Dart and Kotlin changes are **syntax- and
+contract-verified only**. Dart files were parsed with a WASM build of
+`dart_style` (138/138 files parse; 0/138 need formatting) and Kotlin/Gradle were
+reviewed statically; no `flutter test`, no `gradlew test`, and no APK was
+produced here.
+
+Hosted CI on the pull request **is** available and covers three of those gates,
+so the record below separates what this workspace executed from what the hosted
+runners executed. Console logs and build artifacts could not be downloaded from
+the sandbox (log and artifact hosts are not reachable), so the CI results below
+come from the run/job/annotation API — job conclusions and the annotation
+messages the workflows emit.
 
 ## Status summary
 
@@ -47,7 +55,7 @@ Dart files were parsed with a WASM build of `dart_style` (138/138 files parse;
 | F-03 | Medium | Rate limiting fails bounded, not open; auth routes opt in | PASS (17 unit tests) |
 | F-04 | Medium | Clients request `in_app` everywhere; worker fails push rows permanently | code_unverified (backend tests PASS, contract tests PASS) |
 | F-05 | Medium | Queue payloads encrypted with Android Keystore AES-256-GCM; no plaintext fallback | code_unverified (contract tests PASS) |
-| F-06 | Medium | Accepted reset work persisted, leased, retried and dead-lettered | code_unverified (durability tests PASS) |
+| F-06 | Medium | Accepted reset work persisted, leased, retried and dead-lettered | PASS on real PostgreSQL/Redis in CI after fixing an ambiguous RETURNING |
 | F-07 | Low | Search covers goals and subscriptions; transactions excluded **by product decision, now documented** | code_unverified (unit + contract tests PASS) |
 | F-08 | Low | Paths, routes and historical-report labelling corrected | PASS (documents reviewed) |
 | F-09 | Low | Trivy filesystem scan enforced (`exit-code: 1`) with a reviewed `.trivyignore` baseline | code_unverified (workflow reviewed; hosted run BLOCKED) |
@@ -158,10 +166,21 @@ recovers rows whose lease expired. The dispatcher keeps the existing
 non-enumerable 202 response and still never discloses account existence.
 
 **Verification.** `backend/tests/unit/password-reset-durability.test.ts` and the
-dispatcher tests PASS.
+dispatcher tests PASS. The hosted isolated-runtime workflow then ran the
+integration and security suites against disposable PostgreSQL 16 and Redis 7
+containers: PASS (run 40110764907), including the auth-flow acceptance test that
+asserts the OTP reaches Redis after a 202 acknowledgement.
 
-**Not verified.** Worker execution against PostgreSQL and a live SMTP provider
-(BLOCKED here).
+**Corrected after that gate ran.** The first hosted run failed with
+`column reference "id" is ambiguous`: with `UPDATE ... FROM`, an unqualified
+column in `RETURNING` is ambiguous between the update target and the joined
+sub-select, so both claim statements threw. Every accepted request therefore
+went straight to `DELIVERY_FAILED` with no OTP ever generated — worse than the
+volatile behaviour this replaced, and invisible to the in-memory fakes the unit
+tests use. `RETURNING` columns are now qualified with the target alias. This is
+exactly the class of defect the audit's P1 item 7 exists to catch.
+
+**Not verified.** Worker execution against a live SMTP provider (BLOCKED here).
 
 ## F-07 — Global search limited to five domains
 
@@ -229,12 +248,38 @@ baseline remain to be established on the first clean runner.
 
 ---
 
+## Evidence from hosted CI (pull-request runs)
+
+| Workflow / job | Result | What it executed |
+| :--- | :--- | :--- |
+| Isolated backend runtime verification | PASS (run 40110764907) | Disposable per-job PostgreSQL 16 + Redis 7; forward migrations twice; `npm run test:integration` and `npm run test:security` |
+| Flutter and Android debug validation | PASS (run 40110764909) | Dart formatting, `flutter analyze`, `flutter test` (264 tests, 0 failures) |
+| Source secret detection | PASS (run 40110764911) | secretlint over 634 current files, 0 findings, plus the detector self-test |
+| Backend Quality, Security & API Contract Gate | FAIL at "Set up job" | Pre-existing and environmental: the runner fails to start the job's service containers before any step runs. Identical failure on `main` at `772332e` (run 40090093877), i.e. before any change in this response. |
+
+The Flutter gate was red on this branch at first (254 passed, 10 failed against
+a baseline of 257/1). All ten were regressions from this response and are fixed:
+
+- `wallet_review_test.dart` — fixtures were frozen to 2026-10-08, so the 7-day
+  retention window added for F-05 expired every candidate before the suite ran
+  and `flush()` resolved nothing.
+- `reminder_channel_test.dart` (new) — the mock answered the reminder POST with
+  an event payload, so `addReminder`'s `{reminder: ...}` parse threw.
+- `daily_plan_and_lifecycle_test.dart` — the mock still answered the removed
+  `/dashboard/overview` and `/days/:date` aliases, so every request 404'd. Same
+  drift class as F-08, in a test rather than a document.
+- One Dart digit separator the project's language version does not accept.
+
 ## What this response does **not** claim
 
 - No backend HTTP server, worker, migration, or database-backed suite was run
-  here; no Docker, PostgreSQL or Redis is available in this environment.
+  in this workspace; no Docker, PostgreSQL or Redis is available here. The
+  database suites did run on the hosted isolated-runtime workflow (see above).
 - No Flutter analyze/test, no Dart VM, no Gradle/Kotlin test, and no APK build
-  was executed; mobile and native changes are static- and contract-verified.
+  was executed here. The Flutter analyze/test gate did run on the hosted mobile
+  workflow (see above); the Kotlin JVM suite and the APK build are still NOT RUN
+  because the mobile workflow skips them unless the Flutter gate passes with a
+  validation API configured.
 - No external provider (SMTP, Gemini, push), localization/RTL, accessibility,
   offline/interruption, or physical-device verification was performed.
 - The audit's P1 item 7 — “run the full clean verification matrix” — is therefore
@@ -257,5 +302,6 @@ baseline remain to be established on the first clean runner.
 | `node --test scripts/*.test.mjs` | PASS — 128 tests |
 | Dart syntax + formatting (WASM `dart_style`) | PASS — 138 files parse, 0 need formatting |
 
-Everything above is reproducible in this workspace, except the backend suite,
-which needs `npm ci --prefix backend` first.
+Every command above is reproducible in this workspace (the backend suite needs
+`npm ci --prefix backend` first). The database and Flutter results in the hosted-CI
+table above are not reproducible here and are attributed to their runs.

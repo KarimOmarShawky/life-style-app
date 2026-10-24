@@ -206,7 +206,9 @@ void main() {
         baseUri: Uri.parse('https://api.example.test/api/v1/'),
         tokenStore: store,
         httpClient: MockClient((request) async {
-          if (request.url.path.endsWith('/dashboard/overview')) {
+          // Canonical routes: the /dashboard/overview and /days/:date aliases
+          // were removed, so a mock that still answers them 404s the client.
+          if (request.url.path.endsWith('/dashboard')) {
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'overview': <String, dynamic>{
@@ -234,7 +236,7 @@ void main() {
               headers: <String, String>{'content-type': 'application/json'},
             );
           }
-          if (request.url.path.endsWith('/days/2026-10-12')) {
+          if (request.url.path.endsWith('/day/2026-10-12')) {
             return http.Response(
               jsonEncode(<String, dynamic>{
                 'day': <String, dynamic>{

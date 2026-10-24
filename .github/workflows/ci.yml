@@ -281,38 +281,6 @@ jobs:
             exit 1
           }
 
-      - name: TEMP probe - wallet_review_test.dart
-        if: always()
-        run: |
-          flutter test test/wallet_review_test.dart > probe-wallet-review.log 2>&1 || true
-          echo '::error title=probe-wallet-review::MARKER'
-          grep -aE '\.dart:' probe-wallet-review.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-wallet-review::/'
-          grep -aE 'Expected|Actual|Some tests failed' probe-wallet-review.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-wallet-review-detail::/'
-      - name: TEMP probe - daily plan BYOK store
-        if: always()
-        run: flutter test test/daily_plan_and_lifecycle_test.dart --plain-name 'stores, uses, and clears user BYOK key'
-      - name: TEMP probe - daily plan circuit breaker
-        if: always()
-        run: flutter test test/daily_plan_and_lifecycle_test.dart --plain-name 'pauses requests after 3 consecutive provider errors'
-      - name: TEMP probe - daily plan auth repository
-        if: always()
-        run: flutter test test/daily_plan_and_lifecycle_test.dart --plain-name 'calls export, schedule deletion'
-      - name: TEMP probe - daily plan repository
-        if: always()
-        run: |
-          flutter test test/daily_plan_and_lifecycle_test.dart --plain-name 'parses dashboard overview' > probe-dpr.log 2>&1 || true
-          echo '::error title=probe-dpr::MARKER'
-          grep -aE '\[E\]|Expected|Actual|Error|Exception|failed' probe-dpr.log | head -8 | cut -c1-230 | sed 's/^/::error title=probe-dpr::/'
-          tail -n 6 probe-dpr.log | cut -c1-230 | sed 's/^/::error title=probe-dpr-tail::/'
-      - name: TEMP probe - reminder_channel_test.dart
-        if: always()
-        run: |
-          flutter test test/reminder_channel_test.dart > probe-reminder-channel.log 2>&1 || true
-          echo '::error title=probe-reminder-channel::MARKER'
-          grep -aE '\.dart:' probe-reminder-channel.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel::/'
-          grep -aE 'Expected|Actual|Some tests failed|Error' probe-reminder-channel.log | head -4 | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel-detail::/'
-          tail -n 4 probe-reminder-channel.log | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel-tail::/'
-
       - name: Kotlin JVM unit tests
         run: |
           # Run from the app project so the unqualified test task selects our

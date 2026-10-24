@@ -1,5 +1,11 @@
 # SMS auto-capture — verification report (2026-10-10)
 
+> **Historical snapshot (2026-10-10).** This describes the tree as it was on
+> that date and is not re-verified by later passes. The wallet SMS contract
+> changed afterwards (envelope decoding, `unavailable` retry semantics and
+> encrypted local queues); see
+> `docs/remediation/audit-response-2026-10-24.md` for the current behaviour.
+
 Scope: finish the remaining verification for SMS auto-capture and related gaps
 (option B: implement the gaps first, then verify). Everything marked **verified
 here** was executed in this session's sandbox on this branch. Anything marked

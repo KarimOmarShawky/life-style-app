@@ -7,9 +7,9 @@ The MVP client is a native Flutter app that talks directly to the REST API. It i
 - Flutter source package at `mobile-app/mobile/`, using Riverpod for authentication/task state.
 - REST transport compatible with the API's raw success DTOs, `{ data, meta }` collection responses, and `{ success: false, error }` errors.
 - Registration, login, password-reset request/confirmation, profile display, task listing/creation/completion, and logout.
-- Access and opaque refresh tokens stored together in one secure-storage value; access/refresh tokens are not written to preferences, logs, or navigation state. The ingest token uses native Android Keystore ciphertext / secure storage; SMS candidate queues still use private preferences (residual risk).
+- Access and opaque refresh tokens stored together in one secure-storage value; access/refresh tokens are not written to preferences, logs, or navigation state. The ingest token uses native Android Keystore ciphertext / secure storage. The SMS candidate, review and pending-transaction queues are also sealed with the same non-exportable Keystore key before they are written to private preferences; there is no plaintext fallback. Entries written by builds before that change stay readable and are re-sealed on their next write.
 - One in-flight refresh operation is shared across concurrent expired-token responses. A request is replayed once only after `TOKEN_EXPIRED`; unrelated `401` errors are not retried. If rotation outcome is uncertain, the stored pair is cleared because replaying an old token would trigger the server's strict reuse detection.
-- English localization scaffolding in `mobile/lib/l10n/` and English ARB source catalog. Six locales are currently registered: en, ar, de, es, fr, tr.
+- English localization scaffolding in `mobile-app/mobile/lib/l10n/` and English ARB source catalog. Six locales are currently registered: en, ar, de, es, fr, tr.
 - Native route handling accepts the paths in `navigation/deep_link_parser.dart`. URI query strings and fragments are discarded.
 
 ## Requirements to run

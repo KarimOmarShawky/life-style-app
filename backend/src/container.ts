@@ -87,6 +87,7 @@ import { CalendarController } from './features/calendar/calendar.controller.js';
 
 // Goals Module
 import { PgGoalsRepository } from './features/goals/goals.repository.pg.js';
+import { PgGoalsReader, type GoalsReader } from './features/goals/goals.reader.js';
 import type { GoalsRepository } from './features/goals/goals.repository.js';
 import { GoalsService } from './features/goals/goals.service.js';
 import { GoalsController } from './features/goals/goals.controller.js';
@@ -134,6 +135,8 @@ import { PgProjectsReader, type ProjectsReader } from './features/projects/proje
 import { DaysService } from './features/days/days.service.js';
 import { DashboardService } from './features/dashboard/dashboard.service.js';
 import { SearchService } from './features/search/search.service.js';
+import { PgPasswordResetRequestStore } from './features/auth/password-reset-request.repository.pg.js';
+import type { ResetRequestStore } from './core/security/reset-request-store.js';
 
 export interface AppContainer {
   clock: Clock;
@@ -194,6 +197,7 @@ export interface AppContainer {
   searchService: SearchService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
+  resetRequestStore: ResetRequestStore;
 }
 
 let containerInstance: AppContainer | null = null;
@@ -227,6 +231,10 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     overrides?.authenticate ?? createAuthenticateMiddleware(tokenService, sessionValidator);
 
   const authRepository = overrides?.authRepository ?? new PgAuthRepository(pgPool);
+  // Durable password-reset delivery (F-06): accepted work is persisted before
+  // the API answers 202, then retried with backoff or dead-lettered, so a
+  // crash, restart or forced shutdown can no longer silently drop it.
+  const resetRequestStore = overrides?.resetRequestStore ?? new PgPasswordResetRequestStore(db);
   const authService =
     overrides?.authService ??
     new AuthService(
@@ -236,7 +244,13 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
       tokenService,
       otpStore,
       emailSender,
-      auditLogger
+      auditLogger,
+      {
+        store: resetRequestStore,
+        concurrency: 2,
+        maxAttempts: 5,
+        retryBackoffMs: 30_000
+      }
     );
   const authController = overrides?.authController ?? new AuthController(authService);
 
@@ -335,6 +349,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const timerReader: TimerReader = new PgTimerReader(db);
   const notesReader: NotesReader = new PgNotesReader(db);
   const projectsReader: ProjectsReader = new PgProjectsReader(db);
+  const goalsReader: GoalsReader = new PgGoalsReader(db);
 
   const daysService = new DaysService(
     taskReader,
@@ -357,7 +372,9 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     habitReader,
     calendarReader,
     notesReader,
-    projectsReader
+    projectsReader,
+    goalsReader,
+    moneyReader
   );
 
   const container: AppContainer = {
@@ -418,7 +435,8 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     remindersService,
     daysService,
     dashboardService,
-    searchService
+    searchService,
+    resetRequestStore
   };
 
   if (!overrides) {

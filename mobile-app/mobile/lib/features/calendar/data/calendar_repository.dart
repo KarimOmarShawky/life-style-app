@@ -2,6 +2,7 @@ import 'package:lifestyle_mobile/core/time/api_time.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/json_fields.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_event_model.dart';
+import 'package:lifestyle_mobile/features/calendar/data/reminder_channel.dart';
 
 class CalendarRepository {
   const CalendarRepository(this._api);
@@ -79,13 +80,18 @@ class CalendarRepository {
     ).map(CalendarReminder.fromJson).toList(growable: false);
   }
 
-  /// Adds a push reminder that fires [offsetMinutes] before the event starts.
+  /// Adds a reminder that fires [offsetMinutes] before the event starts.
+  ///
+  /// Uses the same supported channel as event creation (F-04).
   Future<CalendarReminder> addReminder(
       String eventId, int offsetMinutes) async {
     final response = jsonObject(
       await _api.post(
         'events/$eventId/reminders',
-        body: {'channel': 'in_app', 'offsetMinutes': offsetMinutes},
+        body: {
+          'channel': CalendarReminderChannel.inApp,
+          'offsetMinutes': offsetMinutes,
+        },
       ),
       'reminder',
     );

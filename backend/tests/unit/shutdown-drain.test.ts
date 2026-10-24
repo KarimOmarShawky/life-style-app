@@ -48,7 +48,7 @@ describe('HTTP and reset shutdown boundary', () => {
             stopResetRequests: () => queue.stopAccepting(),
             waitForResetRequests: () => { process.send({stage:'waiting-worker'}); return queue.waitForIdle(); }
           });
-          process.send({stage:'stopping',accepted:queue.admit({email:'late@example.invalid'})});
+          process.send({stage:'stopping',accepted:await queue.admit({email:'late@example.invalid'})});
           await draining;
           process.send({stage:'drained'});
           process.exit(0);

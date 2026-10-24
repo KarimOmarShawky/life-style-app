@@ -8,6 +8,7 @@ import 'package:lifestyle_mobile/data/session_tokens.dart';
 import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_reviews.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MemoryTokenStore implements TokenStore {
@@ -61,11 +62,20 @@ String _reviewItem(
       'createdAt': createdAt,
     });
 
-String _candidateItem(String id, {int attempts = 0}) => jsonEncode({
+/// One queued candidate. [receivedAtMs] defaults to a fresh timestamp: entries
+/// are dropped after the 7-day retention window (F-05), so a fixture frozen to
+/// a calendar date would age out of the suite.
+String _candidateItem(
+  String id, {
+  int attempts = 0,
+  int? receivedAtMs,
+}) =>
+    jsonEncode({
       'id': id,
       'text': 'Debited 450 EGP at UNKNOWN SHOP',
       'sender': '[PHONE]',
-      'receivedAtMs': 1791460000000,
+      'receivedAtMs':
+          receivedAtMs ?? DateTime.now().millisecondsSinceEpoch - 60000,
       'attempts': attempts,
     });
 
@@ -132,9 +142,11 @@ void main() {
             _reviewItem('earlier', createdAt: 10),
         'flutter.pending_wallet_review.bad': 'not json',
       });
-      final reviews = PendingWalletReviews(MoneyRepository(_apiWith(MockClient(
-        (request) async => http.Response('', 500),
-      ))));
+      final reviews = PendingWalletReviews(
+          MoneyRepository(_apiWith(MockClient(
+            (request) async => http.Response('', 500),
+          ))),
+          codec: const PlainWalletQueueCodec());
 
       final items = await reviews.load();
 
@@ -153,7 +165,7 @@ void main() {
           captured = request;
           return http.Response('', 201);
         }),
-      )));
+      )), codec: const PlainWalletQueueCodec());
 
       final item = (await reviews.load()).single;
       await reviews.confirm(
@@ -187,7 +199,7 @@ void main() {
           called = true;
           return http.Response('', 201);
         }),
-      )));
+      )), codec: const PlainWalletQueueCodec());
 
       await reviews.discard('gone');
 
@@ -226,6 +238,7 @@ void main() {
             headers: {'content-type': 'application/json'},
           );
         }))),
+        codec: const PlainWalletQueueCodec(),
       );
 
       final resolved = await candidates.flush();
@@ -234,9 +247,12 @@ void main() {
       expect(requestedPaths.single, endsWith('/ingest/sms/analyze'));
       expect(sentKeys, ['high']);
       expect(
-          await PendingWalletReviews(MoneyRepository(_apiWith(MockClient(
-            (request) async => http.Response('', 500),
-          )))).load(),
+          await PendingWalletReviews(
+                  MoneyRepository(_apiWith(MockClient(
+                    (request) async => http.Response('', 500),
+                  ))),
+                  codec: const PlainWalletQueueCodec())
+              .load(),
           isEmpty);
     });
 
@@ -260,15 +276,19 @@ void main() {
           saved = true;
           return http.Response('', 201);
         }))),
+        codec: const PlainWalletQueueCodec(),
       );
 
       final resolved = await candidates.flush();
 
       expect(resolved, 1);
       expect(saved, isFalse);
-      final reviews = await PendingWalletReviews(MoneyRepository(_apiWith(
-        MockClient((request) async => http.Response('', 500)),
-      ))).load();
+      final reviews = await PendingWalletReviews(
+              MoneyRepository(_apiWith(
+                MockClient((request) async => http.Response('', 500)),
+              )),
+              codec: const PlainWalletQueueCodec())
+          .load();
       expect(reviews, hasLength(1));
       expect(reviews.single.id, 'low');
       expect(reviews.single.amount, '450.00');
@@ -286,6 +306,7 @@ void main() {
             ))),
         MoneyRepository(
             _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
       );
 
       expect(await candidates.flush(), 1);
@@ -308,6 +329,7 @@ void main() {
             ))),
         MoneyRepository(
             _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
       );
 
       expect(await candidates.flush(), 0);
@@ -333,6 +355,7 @@ void main() {
             ))),
         MoneyRepository(
             _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
       );
 
       expect(await candidates.flush(), 1);
@@ -341,7 +364,9 @@ void main() {
       expect(prefs.getString('pending_wallet_candidate.junk'), isNull);
     });
 
-    test('a candidate that exhausted its attempts is dropped', () async {
+    test(
+        'a candidate that exhausted its attempts stops retrying but stays '
+        'visible', () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.old':
             _candidateItem('old', attempts: 5),
@@ -354,13 +379,108 @@ void main() {
         })),
         MoneyRepository(
             _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
       );
 
       await candidates.flush();
 
       expect(called, isFalse);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('pending_wallet_candidate.old'), isNull);
+      // Not deleted: dropping it would lose a reviewable financial message.
+      final stored = prefs.getString('pending_wallet_candidate.old');
+      expect(stored, isNotNull);
+      expect(jsonDecode(stored!)['blocked'], isTrue);
+      expect(prefs.getString('wallet_sms_fallback_unavailable'), isNotNull);
+    });
+
+    test('an unavailable fallback keeps the candidate for a later attempt',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.later': _candidateItem('later'),
+      });
+      var attempts = 0;
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async {
+          attempts++;
+          return http.Response(
+            jsonEncode({
+              'success': false,
+              'error': {
+                'code': 'SMS_FALLBACK_UNAVAILABLE',
+                'message':
+                    'SMS analysis is temporarily unavailable; retry later',
+              },
+            }),
+            503,
+            headers: {'content-type': 'application/json'},
+          );
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+
+      // "unavailable" is not a verdict on the message: nothing is resolved.
+      expect(await candidates.flush(), 0);
+      expect(attempts, 1);
+
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('pending_wallet_candidate.later');
+      expect(stored, isNotNull);
+      final decoded = jsonDecode(stored!) as Map<String, dynamic>;
+      expect(decoded['attempts'], 1);
+      expect(decoded['nextAttemptAtMs'], isNotNull);
+      // The stalled fallback is published so the UI can surface it.
+      expect(prefs.getString('wallet_sms_fallback_unavailable'), isNotNull);
+    });
+
+    test('an unavailable status inside a 200 body is also retryable', () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.soft': _candidateItem('soft'),
+      });
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async => http.Response(
+              _analyzeResponse(status: 'unavailable'),
+              200,
+              headers: {'content-type': 'application/json'},
+            ))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+
+      expect(await candidates.flush(), 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.soft'), isNotNull);
+    });
+
+    test('candidates older than the retention window are dropped', () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.stale': jsonEncode({
+          'id': 'stale',
+          'text': 'Debited 10 EGP',
+          'sender': '[PHONE]',
+          'receivedAtMs': DateTime.now().millisecondsSinceEpoch -
+              const Duration(days: 8).inMilliseconds,
+          'attempts': 0,
+        }),
+      });
+      var called = false;
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async {
+          called = true;
+          return http.Response('', 200);
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+
+      await candidates.flush();
+
+      expect(called, isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.stale'), isNull);
     });
   });
 }

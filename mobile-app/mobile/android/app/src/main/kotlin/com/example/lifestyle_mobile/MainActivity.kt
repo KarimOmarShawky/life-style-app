@@ -67,6 +67,27 @@ class MainActivity : FlutterActivity() {
                         result.error("SECURE_STORAGE_UNAVAILABLE", "Wallet credential storage is unavailable", null)
                     }
                 }
+                // Local wallet queues are Keystore-encrypted on Android (F-05).
+                // Flutter asks the platform to seal/unseal an entry because the
+                // key must never leave the Keystore.
+                "encryptWalletPayload", "decryptWalletPayload" -> {
+                    try {
+                        val cipher = WalletQueueCipher()
+                        val value = requireNotNull(call.argument<String>("value"))
+                        result.success(
+                            when (call.method) {
+                                "encryptWalletPayload" -> cipher.encrypt(value)
+                                else -> cipher.decrypt(value)
+                            }
+                        )
+                    } catch (_: Exception) {
+                        result.error(
+                            "WALLET_QUEUE_CIPHER_UNAVAILABLE",
+                            "Wallet queue encryption is unavailable",
+                            null
+                        )
+                    }
+                }
                 "refreshPinnedNotification" -> {
                     showNativePinnedNotification(this)
                     result.success(true)

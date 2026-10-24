@@ -748,6 +748,37 @@ CREATE TABLE reminders (
       ON reminders (user_id, dedupe_key) 
       WHERE dedupe_key IS NOT NULL;
 
+CREATE TABLE password_reset_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email CITEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'sent', 'failed', 'dead_letter')),
+      attempts SMALLINT NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+      next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_error_code VARCHAR(50),
+      request_id VARCHAR(128),
+      ip VARCHAR(64),
+      user_agent VARCHAR(512),
+      processing_started_at TIMESTAMPTZ,
+      lease_expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      completed_at TIMESTAMPTZ,
+      CHECK (status <> 'processing' OR lease_expires_at IS NOT NULL),
+      CHECK (status NOT IN ('sent', 'dead_letter') OR completed_at IS NOT NULL)
+    );
+
+    CREATE INDEX idx_password_reset_due
+      ON password_reset_requests (next_attempt_at)
+      WHERE status IN ('pending', 'failed');
+
+    CREATE INDEX idx_password_reset_lease
+      ON password_reset_requests (lease_expires_at)
+      WHERE status = 'processing';
+
+    CREATE INDEX idx_password_reset_retention
+      ON password_reset_requests (COALESCE(completed_at, updated_at))
+      WHERE status IN ('sent', 'dead_letter');
+
 CREATE TABLE ingest_tokens (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

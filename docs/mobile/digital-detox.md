@@ -61,7 +61,16 @@ Android Keystore key, shared by the receiver and a native method channel. Flutte
 receives only a presence flag on reads. Successful encrypted writes remove the legacy
 plaintext token; failures do not silently downgrade storage. Other native targets use
 FlutterSecureStorage. Backup and device-transfer exclusions cover all app domains.
-Native Keystore migration/device behavior is unverified here. Financial SMS candidate,
-review and pending-transaction queues remain plaintext in private app preferences;
-root/compromised-device access and indefinite local retention remain residual B-01/R-08
-risks. Do not describe all local SMS storage as encrypted.
+The financial SMS candidate, review and pending-transaction queues are written to the
+same private preferences, but every entry is sealed with the non-exportable Keystore key
+(`lifestyle.wallet.queue.v1`, AES-256-GCM) through `WalletQueueCipher` on the native side
+and `WalletQueueCodec` in Dart. There is no plaintext fallback: when the platform key
+cannot seal an entry, the write is refused and logged instead of storing the payload in
+the clear. Entries written by earlier builds remain readable and are re-sealed on their
+next write.
+
+Residual risk after this change: entries can still be read by code running as the app on
+a rooted or compromised device while the key is usable, and candidates are retained for a
+bounded seven days rather than indefinitely. Keystore migration across a device restore is
+unverified - no device run has been performed. Describe the queues as encrypted **with
+those caveats**, not as protected against a compromised device.

@@ -15,6 +15,7 @@ The following capabilities are **explicitly excluded** from the MVP (Release Pha
 | **Synchronization**| Offline-First Sync Engines | Local offline databases (Drift, SQLite, Hive) are deferred to R4. MVP provides bounded client caching with live REST updates. |
 | **Client Platforms**| Web Client & Desktop | MVP targets native iOS and Android. Web interfaces are non-goals. |
 | **UI** | Web/desktop UI chrome | Native mobile UI only. Multi-language localization (`en`, `ar`, `de`, `es`, `fr`, `tr`) and RTL are approved scope per ADR-044. |
+| **Search scope** | Financial transactions in global search | `GET /search` covers tasks, notes, habits, projects, events, goals and subscriptions. Transactions stay out: Money deliberately exposes no transaction-history surface anywhere in the product, and search must not create one. |
 
 ## Scope amendments (approved 2026-10-11 — ADR-044)
 
@@ -29,4 +30,4 @@ for these items specifically; the table above lists only what remains excluded.
 | Mobile AI assistant (chat) | R1 "AI / ML" exclusion (this use only) | Release builds disable compile-time keys (`kReleaseMode`); dev/test override or BYOK pilot only (`BYOK_ARCHITECTURE_AND_PILOT_PLAN.md`) |
 | Multi-language & RTL catalogs (`en`, `ar`, `de`, `es`, `fr`, `tr`) | English-only UI lock | Standard Flutter localization and RTL layout rules |
 | Focus Timer sessions without a task | TimerSession-must-belong-to-a-Task lock | Task link is optional, not removed |
-| Backend query surfaces (`/dashboard/overview`, `/days/:date`, `/search`) | Mobile-first parity assumption | Active and tested in backend API (`P1-05`); mobile navigation shell focuses on the 9 domain tabs |
+| Backend query surfaces (`/search`, canonical `/dashboard`, `/day/today`, `/day/{date}`) | Mobile-first parity assumption | Active and tested in backend API (`P1-05`); mobile navigation shell focuses on the 9 domain tabs. The older `/dashboard/overview` and `/days/:date` aliases were removed in favour of the canonical routes — do not reintroduce them |

@@ -15,10 +15,16 @@ import { Kysely, PostgresDialect } from 'kysely';
 import { validateEnv, getEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 import { SystemClock } from './core/time/clock.js';
-import { closePgPool } from './infrastructure/database/postgres/pool.js';
+import { closePgPool, getPgPool } from './infrastructure/database/postgres/pool.js';
 import { getKyselyDb, type DatabaseSchema } from './infrastructure/database/postgres/kysely.js';
 import { closeRedisClient, getRedisClient } from './infrastructure/redis/redis-client.js';
 import { SmtpEmailSender } from './infrastructure/external/email-sender.js';
+import { ResetRequestDispatcher } from './core/security/reset-request-dispatcher.js';
+import { PgPasswordResetRequestStore } from './features/auth/password-reset-request.repository.pg.js';
+import { PasswordResetProcessor } from './features/auth/password-reset.processor.js';
+import { PgAuthRepository } from './features/auth/auth.repository.pg.js';
+import { RedisOtpStore } from './core/security/otp-service.js';
+import { PgAuditLogger } from './infrastructure/database/postgres/audit-logger.js';
 import {
   processReminderDispatch,
   processRecurringGeneration,
@@ -83,12 +89,36 @@ if (env.DATABASE_MAINTENANCE_URL) {
 // shared application client used for OTP/rate-limit state.
 const bullConnection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
 
+// Durable password-reset delivery (F-06). The API process persists every
+// accepted request and drains it immediately; this worker drains what a crash,
+// restart, forced shutdown or SMTP failure left behind, releases expired
+// leases, and applies the retention window. Rows are claimed with SKIP LOCKED,
+// so both processes can run against the same table safely.
+const resetRequestStore = new PgPasswordResetRequestStore(db);
+const resetProcessor = new PasswordResetProcessor(
+  new PgAuthRepository(getPgPool()),
+  new RedisOtpStore(getRedisClient()),
+  emailSender,
+  new PgAuditLogger(getPgPool())
+);
+const resetDispatcher = new ResetRequestDispatcher(
+  ({ email, meta }) => resetProcessor.process(email, meta),
+  { store: resetRequestStore, concurrency: 2, maxAttempts: 5, retryBackoffMs: 30_000 }
+);
+// Completed and dead-lettered rows hold an email address; do not keep them.
+const RESET_RETENTION_MS = 24 * 60 * 60 * 1000;
+const RESET_RETENTION_BATCH = 500;
+
 const MAINTENANCE_QUEUE = 'maintenance';
 
-// Unavailable push delivery: FCM credentials are optional (Phase P1). Without
-// them, push-channel reminders retry and then fail with PUSH_UNAVAILABLE.
+// Unavailable push delivery: FCM credentials are optional (Phase P1) and no
+// provider is wired up here, so push is permanently unavailable in this
+// deployment. Push-channel reminders therefore fail immediately instead of
+// retrying five times (F-04). Ship a real PushSender (and drop
+// `permanentlyUnavailable`) when a provider is configured.
 const pushSender = {
   isAvailable: () => false,
+  permanentlyUnavailable: true,
   send: async (): Promise<void> => {
     throw new Error('PUSH_UNAVAILABLE');
   }
@@ -131,6 +161,16 @@ const maintenanceWorker = new Worker(
         logger.info('Expired-session purge tick', result);
         break;
       }
+      case 'reset-request-recovery': {
+        const recovered = await resetDispatcher.recoverStale();
+        const claimed = await resetDispatcher.drainDue();
+        const purged = await resetRequestStore.purgeOlderThan(
+          new Date(clock.now().getTime() - RESET_RETENTION_MS),
+          RESET_RETENTION_BATCH
+        );
+        logger.info('Password reset recovery tick', { recovered, claimed, purged });
+        break;
+      }
       case 'audit-retention': {
         if (!auditRetentionStore) {
           logger.warn('Audit retention job ran without a maintenance-role store');
@@ -160,6 +200,11 @@ async function registerSchedules(): Promise<void> {
     'reminder-dispatch',
     { pattern: '* * * * *' },
     { name: 'reminder-dispatch', data: {} }
+  );
+  await maintenanceQueue.upsertJobScheduler(
+    'reset-request-recovery',
+    { pattern: '*/2 * * * *' },
+    { name: 'reset-request-recovery', data: {} }
   );
   await maintenanceQueue.upsertJobScheduler(
     'recurring-generation',

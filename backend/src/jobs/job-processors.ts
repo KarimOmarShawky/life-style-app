@@ -48,6 +48,8 @@ export interface UserEmailLookup {
 
 export interface PushSender {
   isAvailable(): boolean;
+  /** True when no push provider can ever be configured in this deployment. */
+  readonly permanentlyUnavailable?: boolean;
   send(userId: string, title: string, body: string): Promise<void>;
 }
 
@@ -129,6 +131,20 @@ export async function processReminderDispatch(
         );
       } else if (reminder.channel === 'push') {
         if (!push.isAvailable()) {
+          if (push.permanentlyUnavailable) {
+            // No provider exists in this deployment: retrying cannot succeed,
+            // so the row fails immediately instead of burning five attempts
+            // and delaying every later reminder (F-04).
+            await store.markFailed(
+              reminder.id,
+              now,
+              'PUSH_UNAVAILABLE',
+              'Push delivery is not configured on this deployment',
+              reminder.attemptCount
+            );
+            failed += 1;
+            continue;
+          }
           throw new Error('PUSH_UNAVAILABLE');
         }
         await push.send(reminder.userId, 'Reminder', 'You have a scheduled reminder');

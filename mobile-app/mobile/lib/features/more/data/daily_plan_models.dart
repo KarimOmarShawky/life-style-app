@@ -249,6 +249,57 @@ class SearchProjectItem {
       );
 }
 
+/// Tolerant reader for search groups that older deployments omit.
+///
+/// Global search gained goals and server-side subscriptions in F-07; a backend
+/// that does not return them yet must degrade to "no extra results", not throw.
+List<Map<String, dynamic>> jsonSearchList(Object? value) {
+  if (value is! List<dynamic>) return const <Map<String, dynamic>>[];
+  return value.whereType<Map<String, dynamic>>().toList(growable: false);
+}
+
+/// One goal matched by global search.
+class SearchGoalItem {
+  const SearchGoalItem({
+    required this.id,
+    required this.title,
+    required this.status,
+  });
+
+  final String id;
+  final String title;
+  final String status;
+
+  factory SearchGoalItem.fromJson(Map<String, dynamic> json) => SearchGoalItem(
+        id: jsonString(json, 'id'),
+        title: jsonString(json, 'title'),
+        status: jsonOptionalString(json, 'status') ?? '',
+      );
+}
+
+/// One subscription matched by global search (server-side match on name/notes).
+class SearchSubscriptionItem {
+  const SearchSubscriptionItem({
+    required this.id,
+    required this.name,
+    required this.status,
+    required this.nextBillingDate,
+  });
+
+  final String id;
+  final String name;
+  final String status;
+  final String nextBillingDate;
+
+  factory SearchSubscriptionItem.fromJson(Map<String, dynamic> json) =>
+      SearchSubscriptionItem(
+        id: jsonString(json, 'id'),
+        name: jsonString(json, 'name'),
+        status: jsonOptionalString(json, 'status') ?? '',
+        nextBillingDate: jsonOptionalString(json, 'nextBillingDate') ?? '',
+      );
+}
+
 class GlobalSearchResult {
   const GlobalSearchResult({
     required this.query,
@@ -257,6 +308,8 @@ class GlobalSearchResult {
     required this.habits,
     required this.projects,
     required this.events,
+    this.goals = const <SearchGoalItem>[],
+    this.subscriptions = const <SearchSubscriptionItem>[],
   });
 
   final String query;
@@ -265,6 +318,9 @@ class GlobalSearchResult {
   final List<DayPlanHabitItem> habits;
   final List<SearchProjectItem> projects;
   final List<DayPlanEventItem> events;
+  // F-07: goals and money (subscriptions) are part of global search too.
+  final List<SearchGoalItem> goals;
+  final List<SearchSubscriptionItem> subscriptions;
 
   factory GlobalSearchResult.fromJson(Map<String, dynamic> json) =>
       GlobalSearchResult(
@@ -283,6 +339,12 @@ class GlobalSearchResult {
             .toList(growable: false),
         events: jsonObjectList(json['events'], 'events')
             .map(DayPlanEventItem.fromJson)
+            .toList(growable: false),
+        goals: jsonSearchList(json['goals'])
+            .map(SearchGoalItem.fromJson)
+            .toList(growable: false),
+        subscriptions: jsonSearchList(json['subscriptions'])
+            .map(SearchSubscriptionItem.fromJson)
             .toList(growable: false),
       );
 }

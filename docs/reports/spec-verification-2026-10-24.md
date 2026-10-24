@@ -1,5 +1,9 @@
 # Locked-PDF specification verification — 2026-10-24
 
+> **Historical snapshot (2026-10-24).** Findings describe the tree as it was on
+> that date and are not re-verified by later passes. Later corrections live in
+> the dated reports that follow this one.
+
 **Source of truth:** `/tmp/arena-coding-uploads/LifeStyle-App-Final-Specification (2).pdf`
 — *LifeStyle App Final Technical & Product Specification v1.0.1*, 103 pages, P0-locked.
 **Branch:** `arena/0a645a6c-life-style-app`.
@@ -19,7 +23,8 @@ gates cannot be completed in this sandbox.
    (`body-parser@2.4.0`, `nodemailer@10.2.1` resolved).
 2. **Spec endpoint paths.** Added canonical `GET /day/today`, `GET /day/{date}`
    and `GET /dashboard`, migrated Flutter to these paths, and removed the three
-   non-spec plural/overview aliases.
+   non-spec plural/overview aliases (`/dashboard/overview` and `/days/:date` are
+   gone — do not reintroduce them).
 3. **Canonical top-level reminders.** Added `POST /reminders`,
    `PATCH /reminders/{id}` and `DELETE /reminders/{id}` with:
    - `entityType` restricted to user-editable `task`/`event`;

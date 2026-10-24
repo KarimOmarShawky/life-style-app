@@ -182,3 +182,51 @@ describe('maintenance processors', () => {
     );
   });
 });
+
+describe('processReminderDispatch push channel policy (F-04)', () => {
+  const pushPermanentlyUnavailable = {
+    isAvailable: () => false,
+    permanentlyUnavailable: true,
+    send: vi.fn(async () => undefined)
+  };
+
+  it('fails a push row immediately when no push provider can ever be configured', async () => {
+    const store = fakeStore([reminder({ id: 'rem-push-1', channel: 'push', attemptCount: 1 })]);
+    const result = await processReminderDispatch(
+      clock,
+      store,
+      emails,
+      emailSender,
+      pushPermanentlyUnavailable
+    );
+
+    expect(result).toMatchObject({ sent: 0, retried: 0, failed: 1 });
+    expect(store.failed).toEqual(['rem-push-1']);
+    expect(store.retried).toEqual([]);
+    expect(store.markFailed).toHaveBeenCalledWith(
+      'rem-push-1',
+      NOW,
+      'PUSH_UNAVAILABLE',
+      'Push delivery is not configured on this deployment',
+      1
+    );
+    expect(pushPermanentlyUnavailable.send).not.toHaveBeenCalled();
+  });
+
+  it('still retries when push is only temporarily unavailable', async () => {
+    const store = fakeStore([reminder({ id: 'rem-push-2', channel: 'push', attemptCount: 1 })]);
+    const result = await processReminderDispatch(clock, store, emails, emailSender, {
+      isAvailable: () => false,
+      send: vi.fn(async () => undefined)
+    });
+    expect(result).toMatchObject({ sent: 0, retried: 1, failed: 0 });
+  });
+
+  it('delivers through the provider when push becomes available', async () => {
+    const push = { isAvailable: () => true, send: vi.fn(async () => undefined) };
+    const store = fakeStore([reminder({ id: 'rem-push-3', channel: 'push' })]);
+    const result = await processReminderDispatch(clock, store, emails, emailSender, push);
+    expect(result).toMatchObject({ sent: 1, failed: 0 });
+    expect(push.send).toHaveBeenCalledOnce();
+  });
+});

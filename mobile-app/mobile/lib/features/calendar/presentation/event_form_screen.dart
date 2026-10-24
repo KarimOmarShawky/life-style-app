@@ -5,6 +5,7 @@ import 'package:lifestyle_mobile/core/widgets/feature_widgets.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_event_model.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
+import 'package:lifestyle_mobile/features/calendar/data/reminder_channel.dart';
 import 'package:lifestyle_mobile/features/calendar/presentation/calendar_labels.dart';
 import 'package:lifestyle_mobile/features/calendar/state/calendar_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
@@ -192,7 +193,12 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           'timezone': _timezone,
           'reminders': [
             if (reminder != null)
-              {'channel': 'push', 'offsetMinutes': reminder},
+              {
+                // The worker has no push provider; every shipped path uses
+                // in_app so the reminder is actually deliverable (F-04).
+                'channel': CalendarReminderChannel.inApp,
+                'offsetMinutes': reminder,
+              },
           ],
         });
         await syncCalendarEventReminders(

@@ -348,6 +348,8 @@ class AppLocalizations {
   String get smsReviewAmountLabel => _s('smsReviewAmountLabel');
   String get smsReviewOriginalLabel => _s('smsReviewOriginalLabel');
   String get smsReviewInvalidAmount => _s('smsReviewInvalidAmount');
+  String get smsFallbackUnavailableTitle => _s('smsFallbackUnavailableTitle');
+  String get smsFallbackUnavailableDesc => _s('smsFallbackUnavailableDesc');
 
   // ---- Parameterized strings -------------------------------------------
 

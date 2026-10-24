@@ -1,0 +1,17 @@
+# Trivy suppression baseline — recorded 2026-10-24 (F-09)
+#
+# The filesystem scan (severity HIGH,CRITICAL; ignore-unfixed) is enforced in
+# CI from this date: it fails the workflow instead of running advisory.
+# This file starts empty: no suppression is carried over from the advisory
+# period. The first hosted run of the enforced scan establishes the baseline;
+# if it reports findings, they are fixed or recorded here as reviewed
+# exceptions with the four fields below.
+#
+# Adding a line here is a reviewed exception, not a fix. Every entry needs:
+#   1. the finding ID,
+#   2. an owner,
+#   3. an expiry date, and
+#   4. the reason (upstream fix pending, not reachable in this deployment, or
+#      an accepted risk with a written decision).
+# Trailing expiry dates are reviewed; entries without an owner and a date are
+# rejected. Remove an entry as soon as the underlying cause is resolved.

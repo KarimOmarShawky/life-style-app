@@ -10,6 +10,8 @@ import type { HabitReaderItem } from '../habits/habits.reader.js';
 import type { EventReaderItem } from '../calendar/calendar.reader.js';
 import type { NoteSearchItem } from '../notes/notes.reader.js';
 import type { ProjectSearchItem } from '../projects/projects.reader.js';
+import type { GoalSearchItem } from '../goals/goals.reader.js';
+import type { SubscriptionSearchItem } from '../money/money.reader.js';
 
 export interface SearchResults {
   query: string;
@@ -18,4 +20,6 @@ export interface SearchResults {
   habits: HabitReaderItem[];
   projects: ProjectSearchItem[];
   events: EventReaderItem[];
+  goals: GoalSearchItem[];
+  subscriptions: SubscriptionSearchItem[];
 }

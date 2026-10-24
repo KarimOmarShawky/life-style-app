@@ -5,7 +5,8 @@ import type { Redis } from 'ioredis';
 import {
   MemoryRateLimiter,
   RedisRateLimiter,
-  createRateLimitMiddleware
+  createRateLimitMiddleware,
+  defaultFallbackLimit
 } from '../../src/core/middleware/rate-limiter.js';
 import { globalErrorHandler } from '../../src/core/middleware/error-handler.js';
 import { logger } from '../../src/core/logger/logger.js';
@@ -123,5 +124,119 @@ describe('Rate limiter boundaries and outage policy', () => {
     const { server, handler } = app(false);
     expect((await request(server).get('/')).status).toBe(200);
     expect(handler).toHaveBeenCalledOnce();
+  });
+});
+
+describe('Redis-outage degraded policy for security-sensitive routes (F-03)', () => {
+  function degradedApp(options: {
+    degradedPolicy?: 'allow' | 'fail-closed' | 'bounded-fallback';
+    limit?: number;
+    fallbackLimit?: number;
+    withFallbackLimiter?: boolean;
+  }) {
+    const { limiter } = redisFixture(null, true); // Redis is down for every request
+    const handler = vi.fn((_req: express.Request, res: express.Response) => res.json({ ok: true }));
+    const server = express();
+    server.get(
+      '/',
+      createRateLimitMiddleware({
+        limiter,
+        limit: options.limit ?? 15,
+        windowSeconds: 900,
+        keyGenerator: () => 'login:account:user@example.com:10.0.0.1',
+        degradedPolicy: options.degradedPolicy ?? 'bounded-fallback',
+        fallbackLimiter:
+          options.withFallbackLimiter === false ? undefined : new MemoryRateLimiter(),
+        ...(options.fallbackLimit ? { fallbackLimit: options.fallbackLimit } : {})
+      }),
+      handler
+    );
+    server.use(globalErrorHandler);
+    return { server, handler };
+  }
+
+  it('keeps a brute-force bound on a login route when Redis is down', async () => {
+    const { server, handler } = degradedApp({ limit: 15 });
+    // Degraded quota is one third of the shared quota (ceil), per process.
+    const results = [];
+    for (let i = 0; i < 6; i++) {
+      results.push(await request(server).get('/'));
+    }
+    expect(results.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 429]);
+    expect(handler).toHaveBeenCalledTimes(5);
+    expect(results[5]!.body.error.code).toBe('RATE_LIMITED');
+  });
+
+  it('marks degraded responses and alerts without logging provider secrets', async () => {
+    const warning = vi.spyOn(logger, 'warn');
+    const { server } = degradedApp({ limit: 15 });
+    const response = await request(server).get('/');
+    expect(response.status).toBe(200);
+    expect(response.headers['ratelimit-degraded']).toBe('1');
+    expect(warning).toHaveBeenCalledWith('Rate limit degraded to bounded local fallback', {
+      path: '/',
+      backend: 'memory',
+      fallbackLimit: 5
+    });
+    expect(JSON.stringify(warning.mock.calls)).not.toContain('provider-password');
+  });
+
+  it('honours an explicit tighter degraded quota', async () => {
+    const { server, handler } = degradedApp({ limit: 15, fallbackLimit: 1 });
+    expect((await request(server).get('/')).status).toBe(200);
+    expect((await request(server).get('/')).status).toBe(429);
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it('fails closed when the route asks for it', async () => {
+    const { server, handler } = degradedApp({ degradedPolicy: 'fail-closed' });
+    const response = await request(server).get('/');
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('SERVICE_UNAVAILABLE');
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('never disables the control when a fallback limiter is missing', async () => {
+    const { server, handler } = degradedApp({ withFallbackLimiter: false });
+    expect((await request(server).get('/')).status).toBe(503);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('still allows ordinary routes that keep the availability policy', async () => {
+    const { server, handler } = degradedApp({ degradedPolicy: 'allow' });
+    for (let i = 0; i < 3; i++) {
+      expect((await request(server).get('/')).status).toBe(200);
+    }
+    expect(handler).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses the shared quota normally while Redis answers', async () => {
+    const { limiter } = redisFixture([1, 60]);
+    const handler = vi.fn((_req: express.Request, res: express.Response) => res.json({ ok: true }));
+    const server = express();
+    server.get(
+      '/',
+      createRateLimitMiddleware({
+        limiter,
+        limit: 15,
+        windowSeconds: 900,
+        keyGenerator: () => 'login:ip:10.0.0.1',
+        degradedPolicy: 'bounded-fallback',
+        fallbackLimiter: new MemoryRateLimiter()
+      }),
+      handler
+    );
+    const response = await request(server).get('/');
+    expect(response.status).toBe(200);
+    expect(response.headers['ratelimit-remaining']).toBe('14');
+    expect(response.headers['ratelimit-degraded']).toBeUndefined();
+  });
+
+  it('rejects invalid degraded bounds instead of defaulting to unbounded', () => {
+    expect(() => new MemoryRateLimiter({ maxKeys: 0 })).toThrow(
+      'Invalid memory rate limiter bound'
+    );
+    expect(defaultFallbackLimit(0)).toBe(1);
+    expect(defaultFallbackLimit(15)).toBe(5);
   });
 });

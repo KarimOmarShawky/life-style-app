@@ -2,9 +2,8 @@ import '../infrastructure-safety.js';
 /**
  * TEMPORARY diagnostic suite — remove before merge.
  *
- * Calls each step of the password-reset delivery path directly and reports the
- * first failure, so the CI annotation shows the real error instead of
- * "got object".
+ * Wraps the reset processor with a spy so the HTTP-path error is reported in
+ * the CI annotation instead of the coarse DELIVERY_FAILED code.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -13,11 +12,6 @@ import { getContainer } from '../../src/container.js';
 import { createApp } from '../../src/app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
-
-const describeError = (error: unknown): string => {
-  if (error instanceof Error) return `${error.name}: ${error.message}`;
-  return String(error);
-};
 
 describe('TEMP reset diagnostics', () => {
   const app = createApp();
@@ -34,7 +28,7 @@ describe('TEMP reset diagnostics', () => {
     await getContainer().authService.waitForResetRequests();
   });
 
-  it('DIAG: each reset delivery step in isolation', async () => {
+  it('DIAG: error thrown on the HTTP reset path', async () => {
     const regRes = await request(app).post('/api/v1/auth/register').send({
       email: 'diag@example.com',
       password: 'DiagPassword123!',
@@ -46,39 +40,38 @@ describe('TEMP reset diagnostics', () => {
     const service = getContainer().authService as unknown as Record<string, any>;
     const diag: Record<string, unknown> = { userId };
 
-    const step = async (name: string, fn: () => Promise<unknown>) => {
+    const processor = service.resetProcessor;
+    const original = processor.process.bind(processor);
+    processor.process = async (email: string, meta: unknown) => {
+      diag.processCalled = true;
+      diag.processMeta = JSON.stringify(meta);
       try {
-        const value = await fn();
-        diag[name] = value === undefined ? 'undefined' : JSON.stringify(value)?.slice(0, 200);
+        const result = await original(email, meta as never);
+        diag.processResult = 'resolved';
+        return result;
       } catch (error) {
-        diag[name] = `THREW ${describeError(error)}`;
+        const err = error as Error;
+        diag.processError = `${err?.name}: ${err?.message}`;
+        diag.processStack = String(err?.stack ?? '').split('\n').slice(1, 5).join(' | ');
+        throw error;
       }
     };
 
-    await step('findUserByEmail', async () => service.repo.findUserByEmail('diag@example.com'));
-    await step('findUserByEmailMissing', async () => service.repo.findUserByEmail('nobody@example.com'));
-    await step('checkCooldown', async () => service.otpStore.checkCooldown(userId));
-    await step('generateAndStoreCode', async () => service.otpStore.generateAndStoreCode(userId));
-    await step('redisDirect', async () => (await redis.get(`pwreset:${userId}`)) ?? 'NULL');
-    await step('emailSender', async () => {
-      await service.emailSender.sendPasswordResetEmail('diag@example.com', '000000');
-      return 'sent';
-    });
-    await step('processDirect', async () => {
-      await service.resetProcessor.process('diag@example.com', { requestId: 'diag-1' });
-      return 'ok';
-    });
-    await step('processUnknown', async () => {
-      await service.resetProcessor.process('ghost-diag@example.com', { requestId: 'diag-2' });
-      return 'ok';
-    });
+    const forgotRes = await request(app)
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: 'diag@example.com' });
+    diag.forgotStatus = forgotRes.status;
+    diag.requestId = forgotRes.headers['x-request-id'];
+
+    await getContainer().authService.waitForResetRequests();
+    diag.redisKeys = await redis.keys('pwreset*');
+    diag.redisValue = (await redis.get(`pwreset:${userId}`)) ?? 'NULL';
 
     const rows = await pool.query(
       `SELECT email, status, attempts, last_error_code FROM password_reset_requests
-        WHERE email LIKE '%diag%' ORDER BY created_at`
+        WHERE email = 'diag@example.com' ORDER BY created_at`
     );
     diag.rows = rows.rows;
-    diag.redisKeys = await redis.keys('pwreset*');
 
     const message = JSON.stringify(diag);
     expect(message, message).toBe('DIAG');

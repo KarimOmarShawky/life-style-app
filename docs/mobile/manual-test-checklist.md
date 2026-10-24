@@ -174,7 +174,10 @@ exported report, and check pending ones in the "Needs review" card.
 
 Setup: SMS auto-capture is on, and the backend it talks to has
 `SMS_FALLBACK_GEMINI_KEY` set (ask whoever runs the backend; the key is never in
-the APK). Without the key, candidates are dropped quietly — that is expected.
+the APK). Without the key the backend answers `503 SMS_FALLBACK_UNAVAILABLE`,
+which is **not** the same as "not a transaction": the candidate is retried with
+backoff, kept for seven days, and Money shows a *Wallet SMS analysis paused* card.
+See SMS-F-8.
 
 ```bash
 adb -s emulator-5554 emu sms send BANKX "Transfer of 475.5 EGP to merchant CITY TAXI completed today"
@@ -204,6 +207,13 @@ adb -s emulator-5554 emu sms send BANKX "Money movement: EGP 320.00 to UNKNOWN S
 - [ ] **SMS-F-7** Send `"Your OTP is 772211 for transaction of 500 EGP"` from a
   bank-looking sender. No candidate, no review item, no transaction. The log
   (`adb logcat -s SmsTransactionReceiver`) shows no message body.
+- [ ] **SMS-F-8** Point the app at a backend **without**
+  `SMS_FALLBACK_GEMINI_KEY` and send `Money movement: EGP 320.00 to UNKNOWN
+  SHOP ref omitted` from an unknown sender. Nothing is saved and no review item
+  appears, but the message is **not** discarded: Money shows the *Wallet SMS
+  analysis paused* card, and the log shows retry attempts instead of a delete.
+  Restore the key, reopen the app, and the queued candidate is analyzed and
+  becomes a saved transaction or a review item.
 
 ### AI assistant (AI tab). Needs Option B or C
 

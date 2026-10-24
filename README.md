@@ -100,7 +100,7 @@ lifestyle/
 
 8. **Verify the Flutter package:**
    ```bash
-   cd ../mobile
+   cd ../mobile-app/mobile
    flutter pub get
    dart format --output=none --set-exit-if-changed lib test
    flutter analyze --fatal-infos
@@ -127,7 +127,7 @@ npm run --prefix backend format:check
 npm run --prefix backend test
 
 # Run Flutter style, static analysis, and client tests
-cd mobile
+cd mobile-app/mobile
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze --fatal-infos

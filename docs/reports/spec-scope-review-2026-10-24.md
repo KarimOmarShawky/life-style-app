@@ -1,5 +1,9 @@
 # API scope review against the locked v1.0.1 endpoint index
 
+> **Historical snapshot (2026-10-24).** Endpoint counts and dispositions
+> describe the tree as it was on that date and are not re-verified by later
+> passes. Later corrections live in the dated reports that follow this one.
+
 **Source:** PDF §14.18, complete endpoint index (95 method/path pairs).
 **Compared against:** generated `docs/api/openapi.yaml` (125 operations).
 **Result:** 95/95 specified operations present; after client migration and alias removal, 30 additional operations remain.

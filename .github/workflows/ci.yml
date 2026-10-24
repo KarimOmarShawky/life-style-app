@@ -99,6 +99,9 @@ jobs:
       - name: Wallet SMS fallback and local queue contract regressions (source only)
         run: node --test scripts/wallet-sms-contract.test.mjs
 
+      - name: Documentation consistency (package paths, canonical routes, historical labelling)
+        run: node scripts/check-docs-consistency.mjs
+
       - name: Code style & lint
         working-directory: backend
         run: |

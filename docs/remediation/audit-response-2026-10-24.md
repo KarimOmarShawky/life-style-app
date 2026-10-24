@@ -199,10 +199,17 @@ subscriptions (NOT RUN here — no Flutter SDK); contract test PASS.
 carry “Historical snapshot” banners and no longer describe the current tree as a
 patch set.
 
-**Verification.** Document review (PASS).
+**Verification.** Document review (PASS); `scripts/check-docs-consistency.mjs`
+enforces the corrections in CI and locally, and `scripts/docs-consistency.test.mjs`
+proves the guard fails on each piece of drift (11 tests PASS).
 
-**Not verified.** No automated documentation-consistency gate exists; adding one
-is left as a follow-up.
+**Also corrected, same class.** Stale `cd mobile` / `cd ../mobile` steps in
+`README.md`, `mobile/lib/l10n/` in `docs/mobile/flutter-integration.md`, the
+"queues remain plaintext" claim in `docs/mobile/digital-detox.md` and
+`docs/mobile/flutter-integration.md` (now wrong after F-05), the
+"candidates are dropped quietly" note in `docs/mobile/manual-test-checklist.md`
+(now wrong after F-02, replaced with a device test SMS-F-8 for the stalled
+state), and missing historical banners on two dated reports.
 
 ## F-09 — Scanning remains advisory in CI
 
@@ -232,6 +239,11 @@ baseline remain to be established on the first clean runner.
   offline/interruption, or physical-device verification was performed.
 - The audit's P1 item 7 — “run the full clean verification matrix” — is therefore
   still outstanding and is the gate this work is being prepared for.
+  `node scripts/run-full-verification.mjs` is the entry point for that cycle: it
+  runs every gate it can, reports `BLOCKED` (never `PASS`) for the ones it
+  cannot, and can be told to fail when a required gate produces no evidence
+  (`--require <gate>`). Usage, guarded database prerequisites and the manual
+  pass that remains are written up in `docs/verification/full-cycle.md`.
 
 ## Executed evidence attached to this response
 
@@ -242,7 +254,7 @@ baseline remain to be established on the first clean runner.
 | `npm run lint` (backend) | PASS |
 | `npm run format:check` (backend) | PASS |
 | `npm run test:unit` (backend) | PASS — 36 files / 377 tests |
-| `node --test scripts/*.test.mjs` | PASS — 117 tests |
+| `node --test scripts/*.test.mjs` | PASS — 128 tests |
 | Dart syntax + formatting (WASM `dart_style`) | PASS — 138 files parse, 0 need formatting |
 
 Everything above is reproducible in this workspace, except the backend suite,

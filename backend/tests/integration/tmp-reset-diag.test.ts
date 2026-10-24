@@ -2,9 +2,9 @@ import '../infrastructure-safety.js';
 /**
  * TEMPORARY diagnostic suite — remove before merge.
  *
- * Dumps the durable password-reset row and the Redis OTP state right after the
- * same drain the failing assertion relies on, so the CI annotation shows what
- * actually happened instead of "got object".
+ * Calls each step of the password-reset delivery path directly and reports the
+ * first failure, so the CI annotation shows the real error instead of
+ * "got object".
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -13,6 +13,11 @@ import { getContainer } from '../../src/container.js';
 import { createApp } from '../../src/app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
+
+const describeError = (error: unknown): string => {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  return String(error);
+};
 
 describe('TEMP reset diagnostics', () => {
   const app = createApp();
@@ -29,7 +34,7 @@ describe('TEMP reset diagnostics', () => {
     await getContainer().authService.waitForResetRequests();
   });
 
-  it('DIAG: durable row and redis state after forgot-password', async () => {
+  it('DIAG: each reset delivery step in isolation', async () => {
     const regRes = await request(app).post('/api/v1/auth/register').send({
       email: 'diag@example.com',
       password: 'DiagPassword123!',
@@ -37,28 +42,45 @@ describe('TEMP reset diagnostics', () => {
       timezone: 'UTC',
       defaultCurrency: 'GBP'
     });
-    const userId = regRes.body?.data?.user?.id;
+    const userId = regRes.body?.data?.user?.id as string;
+    const service = getContainer().authService as unknown as Record<string, any>;
+    const diag: Record<string, unknown> = { userId };
 
-    await request(app).post('/api/v1/auth/forgot-password').send({ email: 'diag@example.com' });
-    await getContainer().authService.waitForResetRequests();
+    const step = async (name: string, fn: () => Promise<unknown>) => {
+      try {
+        const value = await fn();
+        diag[name] = value === undefined ? 'undefined' : JSON.stringify(value)?.slice(0, 200);
+      } catch (error) {
+        diag[name] = `THREW ${describeError(error)}`;
+      }
+    };
+
+    await step('findUserByEmail', async () => service.repo.findUserByEmail('diag@example.com'));
+    await step('findUserByEmailMissing', async () => service.repo.findUserByEmail('nobody@example.com'));
+    await step('checkCooldown', async () => service.otpStore.checkCooldown(userId));
+    await step('generateAndStoreCode', async () => service.otpStore.generateAndStoreCode(userId));
+    await step('redisDirect', async () => (await redis.get(`pwreset:${userId}`)) ?? 'NULL');
+    await step('emailSender', async () => {
+      await service.emailSender.sendPasswordResetEmail('diag@example.com', '000000');
+      return 'sent';
+    });
+    await step('processDirect', async () => {
+      await service.resetProcessor.process('diag@example.com', { requestId: 'diag-1' });
+      return 'ok';
+    });
+    await step('processUnknown', async () => {
+      await service.resetProcessor.process('ghost-diag@example.com', { requestId: 'diag-2' });
+      return 'ok';
+    });
 
     const rows = await pool.query(
-      `SELECT email, status, attempts, last_error_code,
-              next_attempt_at, lease_expires_at, completed_at
-         FROM password_reset_requests ORDER BY created_at`
+      `SELECT email, status, attempts, last_error_code FROM password_reset_requests
+        WHERE email LIKE '%diag%' ORDER BY created_at`
     );
-    const keys = await redis.keys('pwreset*');
-    const raw = await redis.get(`pwreset:${userId}`);
-    const diag = JSON.stringify({
-      userId,
-      rowCount: rows.rows.length,
-      rows: rows.rows,
-      redisKeys: keys,
-      rawType: typeof raw,
-      rawIsNull: raw === null,
-      rawSample: typeof raw === 'string' ? raw.slice(0, 12) : String(raw),
-      counts: getContainer().authService.resetRequestCounts()
-    });
-    expect(diag, diag).toBe('DIAG');
+    diag.rows = rows.rows;
+    diag.redisKeys = await redis.keys('pwreset*');
+
+    const message = JSON.stringify(diag);
+    expect(message, message).toBe('DIAG');
   });
 });

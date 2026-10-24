@@ -49,8 +49,25 @@ void main() {
   test('event creation and addReminder use the same deliverable channel',
       () async {
     final bodies = <Map<String, dynamic>>[];
+    final headers = {'content-type': 'application/json'};
     final client = MockClient((request) async {
       bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+      // addReminder parses {reminder: ...}; createEvent parses {event: ...}.
+      if (request.url.path.endsWith('/reminders')) {
+        return http.Response(
+          jsonEncode({
+            'reminder': {
+              'id': 'reminder-1',
+              'channel': CalendarReminderChannel.inApp,
+              'offsetMinutes': 15,
+              'remindAt': '2026-10-24T08:45:00.000Z',
+              'status': 'pending',
+            },
+          }),
+          201,
+          headers: headers,
+        );
+      }
       return http.Response(
         jsonEncode({
           'event': {
@@ -65,7 +82,7 @@ void main() {
           },
         }),
         201,
-        headers: {'content-type': 'application/json'},
+        headers: headers,
       );
     });
     final repository = CalendarRepository(_apiWith(client));

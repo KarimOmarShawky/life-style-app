@@ -62,11 +62,20 @@ String _reviewItem(
       'createdAt': createdAt,
     });
 
-String _candidateItem(String id, {int attempts = 0}) => jsonEncode({
+/// One queued candidate. [receivedAtMs] defaults to a fresh timestamp: entries
+/// are dropped after the 7-day retention window (F-05), so a fixture frozen to
+/// a calendar date would age out of the suite.
+String _candidateItem(
+  String id, {
+  int attempts = 0,
+  int? receivedAtMs,
+}) =>
+    jsonEncode({
       'id': id,
       'text': 'Debited 450 EGP at UNKNOWN SHOP',
       'sender': '[PHONE]',
-      'receivedAtMs': 1791460000000,
+      'receivedAtMs':
+          receivedAtMs ?? DateTime.now().millisecondsSinceEpoch - 60000,
       'attempts': attempts,
     });
 

@@ -294,14 +294,16 @@ jobs:
           flutter test test/daily_plan_and_lifecycle_test.dart > probe-daily-plan.log 2>&1 || true
           echo '::error title=probe-daily-plan::MARKER'
           grep -aE '\.dart:' probe-daily-plan.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan::/'
-          grep -aE 'Expected|Actual|Some tests failed' probe-daily-plan.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-detail::/'
+          grep -aE 'Expected|Actual|Some tests failed' probe-daily-plan.log | head -4 | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-detail::/'
+          tail -n 4 probe-daily-plan.log | cut -c1-230 | sed 's/^/::error title=probe-daily-plan-tail::/'
       - name: TEMP probe - reminder_channel_test.dart
         if: always()
         run: |
           flutter test test/reminder_channel_test.dart > probe-reminder-channel.log 2>&1 || true
           echo '::error title=probe-reminder-channel::MARKER'
           grep -aE '\.dart:' probe-reminder-channel.log | head -6 | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel::/'
-          grep -aE 'Expected|Actual|Some tests failed|Error' probe-reminder-channel.log | head -8 | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel-detail::/'
+          grep -aE 'Expected|Actual|Some tests failed|Error' probe-reminder-channel.log | head -4 | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel-detail::/'
+          tail -n 4 probe-reminder-channel.log | cut -c1-230 | sed 's/^/::error title=probe-reminder-channel-tail::/'
 
       - name: Kotlin JVM unit tests
         run: |

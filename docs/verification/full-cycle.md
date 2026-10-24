@@ -56,11 +56,16 @@ removes one; `--help` prints usage.
 `scripts/check-environment.mjs` accepts the environment in `isolated` mode:
 
 ```bash
-export DATABASE_URL='postgresql://lifestyle_app:<pw>@localhost:5432/lifestyle_test'
-export DATABASE_MIGRATION_URL='postgresql://lifestyle_migrator:<pw>@localhost:5432/lifestyle_test'
+export DATABASE_URL='postgresql://lifestyle_app@localhost:5432/lifestyle_test'
+export DATABASE_MIGRATION_URL='postgresql://lifestyle_migrator@localhost:5432/lifestyle_test'
 export REDIS_URL='redis://localhost:6379/1'
 export ALLOW_DESTRUCTIVE_TESTS='isolated-resources-only'
 ```
+
+Credentials come from the environment described in
+`docs/development/environment.md`; keep them out of the shell history and out
+of any file in the worktree (the source secret scan rejects committed
+connection strings with a password).
 
 The guard requires the application role (`lifestyle_app`) and the migration
 role (`lifestyle_migrator`) to point at the **same** host/port and a

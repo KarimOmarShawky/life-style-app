@@ -90,8 +90,17 @@ jobs:
           echo 'PASS: repeated bootstrap refused existing roles; runtime connection/grants tested next'
       - name: Real integration and security suites, including archive SQL/snapshot tests
         run: |
-          npm --prefix backend run test:integration
-          npm --prefix backend run test:security
+          set -o pipefail
+          npm --prefix backend run test:integration 2>&1 | tee integration-test.log || true
+          npm --prefix backend run test:security 2>&1 | tee security-test.log || true
+          test ${PIPESTATUS[0]:-0} -eq 0 || exit 1
+      - name: TEMP diagnostic - upload integration test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-log
+          path: integration-test.log
+          if-no-files-found: ignore
       # Deliberately no continue-on-error, no down migration, no external database,
       # no environment dump, secret-bearing logs/artifacts, deployment or production approval.
       # Existing policy/format/unit/mobile workflows remain independent and mandatory.

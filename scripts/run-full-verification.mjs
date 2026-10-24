@@ -179,6 +179,16 @@ const GATES = [
     steps: () => [{ label: 'npm run test:coverage', run: () => run('npm', ['run', 'test:coverage'], backend) }]
   },
   {
+    id: 'secrets',
+    title: 'Source secret scan (worktree only; detector self-test included)',
+    kind: 'tool',
+    tool: () =>
+      existsSync(join(root, 'tools', 'security', 'node_modules', 'secretlint', 'bin', 'secretlint.js'))
+        ? null
+        : 'secretlint not installed - run: npm --prefix tools/security ci',
+    steps: () => [{ label: 'node scripts/scan-secrets.mjs', run: () => run('node', ['scripts/scan-secrets.mjs'], root) }]
+  },
+  {
     id: 'audit',
     title: 'Production dependency audit (backend, dev deps excluded)',
     kind: 'always',

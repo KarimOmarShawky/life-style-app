@@ -281,6 +281,14 @@ jobs:
             exit 1
           }
 
+      - name: TEMP diagnostic - upload flutter test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-log
+          path: mobile-app/mobile/flutter-test.log
+          if-no-files-found: ignore
+
       - name: Kotlin JVM unit tests
         run: |
           # Run from the app project so the unqualified test task selects our

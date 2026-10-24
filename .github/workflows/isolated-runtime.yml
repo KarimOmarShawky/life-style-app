@@ -90,17 +90,22 @@ jobs:
           echo 'PASS: repeated bootstrap refused existing roles; runtime connection/grants tested next'
       - name: Real integration and security suites, including archive SQL/snapshot tests
         run: |
+          set +e
           set -o pipefail
-          npm --prefix backend run test:integration 2>&1 | tee integration-test.log || true
-          npm --prefix backend run test:security 2>&1 | tee security-test.log || true
-          test ${PIPESTATUS[0]:-0} -eq 0 || exit 1
-      - name: TEMP diagnostic - upload integration test log
+          npm --prefix backend run test:integration 2>&1 | tee integration-test.log
+          integration_status=$?
+          npm --prefix backend run test:security 2>&1 | tee security-test.log
+          security_status=$?
+          [ "$integration_status" -eq 0 ] && [ "$security_status" -eq 0 ] || exit 1
+      - name: TEMP diagnostic - integration failure names
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-log
-          path: integration-test.log
-          if-no-files-found: ignore
+        run: |
+          if [ -f integration-test.log ]; then
+            grep -E '^ FAIL |TypeError|AssertionError|Expected:|expected ' integration-test.log | head -8 | cut -c1-230 | sed 's/^/::error title=integration-failure::/'
+          fi
+          if [ -f security-test.log ]; then
+            grep -E '^ FAIL |TypeError|AssertionError|Expected:|expected ' security-test.log | head -6 | cut -c1-230 | sed 's/^/::error title=security-failure::/'
+          fi
       # Deliberately no continue-on-error, no down migration, no external database,
       # no environment dump, secret-bearing logs/artifacts, deployment or production approval.
       # Existing policy/format/unit/mobile workflows remain independent and mandatory.

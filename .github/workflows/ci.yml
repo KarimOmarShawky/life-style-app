@@ -281,13 +281,12 @@ jobs:
             exit 1
           }
 
-      - name: TEMP diagnostic - upload flutter test log
+      - name: TEMP diagnostic - flutter failure names
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-test-log
-          path: mobile-app/mobile/flutter-test.log
-          if-no-files-found: ignore
+        run: |
+          if [ -f flutter-test.log ]; then
+            grep -E '\[E\]$' flutter-test.log | head -8 | cut -c1-230 | sed 's/^/::error title=flutter-failure::/'
+          fi
 
       - name: Kotlin JVM unit tests
         run: |

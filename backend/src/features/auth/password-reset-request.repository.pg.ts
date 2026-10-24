@@ -33,9 +33,13 @@ interface ResetRequestRow {
   lease_expires_at: Date | null;
 }
 
-const RETURNING = sql`RETURNING id, email, status, attempts, next_attempt_at,
-  last_error_code, request_id, ip, user_agent, created_at, updated_at,
-  completed_at, lease_expires_at`;
+// Every column is qualified with the UPDATE target alias: with UPDATE ... FROM
+// an unqualified name in RETURNING is ambiguous between the target and the
+// joined sub-select, which fails at execution time (caught by the real-DB gate,
+// never by an in-memory fake).
+const RETURNING = sql`RETURNING r.id, r.email, r.status, r.attempts,
+  r.next_attempt_at, r.last_error_code, r.request_id, r.ip, r.user_agent,
+  r.created_at, r.updated_at, r.completed_at, r.lease_expires_at`;
 
 function toRecord(row: ResetRequestRow): ResetRequestRecord {
   return {
@@ -98,7 +102,7 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
     const result = await sql<ResetRequestRow>`
       UPDATE password_reset_requests AS r
          SET status = 'processing',
-             attempts = r.attempts + 1,
+             attempts = (r.attempts + 1)::smallint,
              processing_started_at = ${now},
              lease_expires_at = ${lease},
              updated_at = ${now}
@@ -119,7 +123,7 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
     const result = await sql<ResetRequestRow>`
       UPDATE password_reset_requests AS r
          SET status = 'processing',
-             attempts = r.attempts + 1,
+             attempts = (r.attempts + 1)::smallint,
              processing_started_at = ${now},
              lease_expires_at = ${lease},
              updated_at = ${now}

@@ -285,8 +285,7 @@ jobs:
         if: always()
         run: |
           if [ -f flutter-test.log ]; then
-            sed 's/\x1b\[[0-9;]*m//g' flutter-test.log | grep -E '\[E\]$' | head -5 | cut -c1-230 | sed 's/^/::error title=flutter-failure::/'
-            sed 's/\x1b\[[0-9;]*m//g' flutter-test.log | grep -E '^ *[0-9]+:[0-9]+ +-|: *(Expected|Actual)' | head -5 | cut -c1-230 | sed 's/^/::error title=flutter-detail::/'
+            sed 's/\x1b\[[0-9;]*m//g; s/\r$//' flutter-test.log | grep -E '\[E\]' | head -9 | cut -c1-230 | sed 's/^/::error title=flutter-failure::/'
           fi
 
       - name: Kotlin JVM unit tests

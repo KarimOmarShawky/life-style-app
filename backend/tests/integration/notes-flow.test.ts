@@ -40,7 +40,7 @@ describe('Notes & Linking Integration Tests', () => {
       timezone,
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   describe('AC-NOTE-01: Note Creation & Validation', () => {
@@ -57,13 +57,13 @@ describe('Notes & Linking Integration Tests', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.note).toBeDefined();
-      expect(res.body.note.title).toBe('Architecture Meeting');
-      expect(res.body.note.body).toBe('Discuss database schema and partitioning strategies.');
-      expect(res.body.note.isPinned).toBe(false);
+      expect(res.body.data.note).toBeDefined();
+      expect(res.body.data.note.title).toBe('Architecture Meeting');
+      expect(res.body.data.note.body).toBe('Discuss database schema and partitioning strategies.');
+      expect(res.body.data.note.isPinned).toBe(false);
       // Tags must be trimmed, lower-cased, and deduplicated
-      expect(res.body.note.tags).toEqual(['backend', 'postgres', 'db']);
-      expect(res.body.note.version).toBe(1);
+      expect(res.body.data.note.tags).toEqual(['backend', 'postgres', 'db']);
+      expect(res.body.data.note.version).toBe(1);
     });
 
     it('Allows note with only title or only non-empty body', async () => {
@@ -77,8 +77,8 @@ describe('Notes & Linking Integration Tests', () => {
           title: 'Quick reminder headline'
         });
       expect(resTitle.status).toBe(201);
-      expect(resTitle.body.note.title).toBe('Quick reminder headline');
-      expect(resTitle.body.note.body).toBe('');
+      expect(resTitle.body.data.note.title).toBe('Quick reminder headline');
+      expect(resTitle.body.data.note.body).toBe('');
 
       // Body only
       const resBody = await request(app)
@@ -88,8 +88,8 @@ describe('Notes & Linking Integration Tests', () => {
           body: 'Detailed scratchpad without a headline.'
         });
       expect(resBody.status).toBe(201);
-      expect(resBody.body.note.title).toBeNull();
-      expect(resBody.body.note.body).toBe('Detailed scratchpad without a headline.');
+      expect(resBody.body.data.note.title).toBeNull();
+      expect(resBody.body.data.note.body).toBe('Detailed scratchpad without a headline.');
     });
 
     it('Rejects note when both title and body are empty', async () => {
@@ -147,15 +147,15 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(listRes.status).toBe(200);
-      expect(listRes.body.notes).toHaveLength(3);
+      expect(listRes.body.data.notes).toHaveLength(3);
 
       // Pinned note comes first
-      expect(listRes.body.notes[0].title).toBe('Important Pinned Note');
-      expect(listRes.body.notes[0].isPinned).toBe(true);
+      expect(listRes.body.data.notes[0].title).toBe('Important Pinned Note');
+      expect(listRes.body.data.notes[0].isPinned).toBe(true);
 
       // Verify excerpt is truncated to 200 chars and full body is omitted from list
-      expect(listRes.body.notes[0].excerpt).toHaveLength(200);
-      expect(listRes.body.notes[0].body).toBeUndefined();
+      expect(listRes.body.data.notes[0].excerpt).toHaveLength(200);
+      expect(listRes.body.data.notes[0].body).toBeUndefined();
     });
 
     it('Filters notes by tag and searches via q across title, body, and tags', async () => {
@@ -185,8 +185,8 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(tagRes.status).toBe(200);
-      expect(tagRes.body.notes).toHaveLength(1);
-      expect(tagRes.body.notes[0].title).toBe('Grocery Checklist');
+      expect(tagRes.body.data.notes).toHaveLength(1);
+      expect(tagRes.body.data.notes[0].title).toBe('Grocery Checklist');
 
       // Search via q across body
       const searchRes = await request(app)
@@ -194,8 +194,8 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(searchRes.status).toBe(200);
-      expect(searchRes.body.notes).toHaveLength(1);
-      expect(searchRes.body.notes[0].title).toBe('Grocery Checklist');
+      expect(searchRes.body.data.notes).toHaveLength(1);
+      expect(searchRes.body.data.notes[0].title).toBe('Grocery Checklist');
 
       // Search via q across title
       const titleSearchRes = await request(app)
@@ -203,8 +203,8 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(titleSearchRes.status).toBe(200);
-      expect(titleSearchRes.body.notes).toHaveLength(1);
-      expect(titleSearchRes.body.notes[0].title).toBe('Quarterly OKRs');
+      expect(titleSearchRes.body.data.notes).toHaveLength(1);
+      expect(titleSearchRes.body.data.notes[0].title).toBe('Quarterly OKRs');
     });
 
     it('Stores and returns opaque script content verbatim without execution or stripping', async () => {
@@ -220,14 +220,14 @@ describe('Notes & Linking Integration Tests', () => {
         });
 
       expect(createRes.status).toBe(201);
-      const noteId = createRes.body.note.id;
+      const noteId = createRes.body.data.note.id;
 
       const getRes = await request(app)
         .get(`/api/v1/notes/${noteId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(getRes.status).toBe(200);
-      expect(getRes.body.note.body).toBe(scriptPayload);
+      expect(getRes.body.data.note.body).toBe(scriptPayload);
     });
   });
 
@@ -242,7 +242,7 @@ describe('Notes & Linking Integration Tests', () => {
         .send({
           title: 'Implement database layer'
         });
-      const taskId = taskRes.body.task.id;
+      const taskId = taskRes.body.data.task.id;
 
       // 2. Create a goal
       const goalRes = await request(app)
@@ -252,7 +252,7 @@ describe('Notes & Linking Integration Tests', () => {
           title: 'Complete Phase P8',
           progressType: 'milestones'
         });
-      const goalId = goalRes.body.goal.id;
+      const goalId = goalRes.body.data.goal.id;
 
       // 3. Create note with task link
       const noteRes = await request(app)
@@ -265,10 +265,10 @@ describe('Notes & Linking Integration Tests', () => {
         });
 
       expect(noteRes.status).toBe(201);
-      expect(noteRes.body.note.links).toHaveLength(1);
-      expect(noteRes.body.note.links[0].entityType).toBe('task');
-      expect(noteRes.body.note.links[0].entityId).toBe(taskId);
-      const noteId = noteRes.body.note.id;
+      expect(noteRes.body.data.note.links).toHaveLength(1);
+      expect(noteRes.body.data.note.links[0].entityType).toBe('task');
+      expect(noteRes.body.data.note.links[0].entityId).toBe(taskId);
+      const noteId = noteRes.body.data.note.id;
 
       // 4. Add a second link to goal via POST /notes/:id/links
       const addLinkRes = await request(app)
@@ -280,9 +280,9 @@ describe('Notes & Linking Integration Tests', () => {
         });
 
       expect(addLinkRes.status).toBe(201);
-      expect(addLinkRes.body.link.entityType).toBe('goal');
-      expect(addLinkRes.body.link.entityId).toBe(goalId);
-      const goalLinkId = addLinkRes.body.link.id;
+      expect(addLinkRes.body.data.link.entityType).toBe('goal');
+      expect(addLinkRes.body.data.link.entityId).toBe(goalId);
+      const goalLinkId = addLinkRes.body.data.link.id;
 
       // 5. Get note - returns both links
       const getNoteRes = await request(app)
@@ -290,7 +290,7 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(getNoteRes.status).toBe(200);
-      expect(getNoteRes.body.note.links).toHaveLength(2);
+      expect(getNoteRes.body.data.note.links).toHaveLength(2);
 
       // 6. List note links via sub-resource GET /notes/:id/links
       const linksRes = await request(app)
@@ -298,7 +298,7 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(linksRes.status).toBe(200);
-      expect(linksRes.body.links).toHaveLength(2);
+      expect(linksRes.body.data.links).toHaveLength(2);
 
       // 7. Filter notes by taskId
       const filterTaskRes = await request(app)
@@ -306,8 +306,8 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(filterTaskRes.status).toBe(200);
-      expect(filterTaskRes.body.notes).toHaveLength(1);
-      expect(filterTaskRes.body.notes[0].id).toBe(noteId);
+      expect(filterTaskRes.body.data.notes).toHaveLength(1);
+      expect(filterTaskRes.body.data.notes[0].id).toBe(noteId);
 
       // 8. Filter notes by goalId
       const filterGoalRes = await request(app)
@@ -315,7 +315,7 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(filterGoalRes.status).toBe(200);
-      expect(filterGoalRes.body.notes).toHaveLength(1);
+      expect(filterGoalRes.body.data.notes).toHaveLength(1);
 
       // 9. Delete link
       const delLinkRes = await request(app)
@@ -330,8 +330,8 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(postDelRes.status).toBe(200);
-      expect(postDelRes.body.links).toHaveLength(1);
-      expect(postDelRes.body.links[0].entityType).toBe('task');
+      expect(postDelRes.body.data.links).toHaveLength(1);
+      expect(postDelRes.body.data.links[0].entityType).toBe('task');
     });
 
     it('Replaces all links atomically via PATCH /notes/:id', async () => {
@@ -352,22 +352,22 @@ describe('Notes & Linking Integration Tests', () => {
         .send({
           title: 'Atomic Replace Note',
           body: 'Replacing links.',
-          links: [{ taskId: task1Res.body.task.id }]
+          links: [{ taskId: task1Res.body.data.task.id }]
         });
 
-      const noteId = noteRes.body.note.id;
+      const noteId = noteRes.body.data.note.id;
 
       // Replace link with task 2
       const patchRes = await request(app)
         .patch(`/api/v1/notes/${noteId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({
-          links: [{ taskId: task2Res.body.task.id }]
+          links: [{ taskId: task2Res.body.data.task.id }]
         });
 
       expect(patchRes.status).toBe(200);
-      expect(patchRes.body.note.links).toHaveLength(1);
-      expect(patchRes.body.note.links[0].taskId).toBe(task2Res.body.task.id);
+      expect(patchRes.body.data.note.links).toHaveLength(1);
+      expect(patchRes.body.data.note.links[0].taskId).toBe(task2Res.body.data.task.id);
     });
 
     it('Rejects linking to a non-existent entity with 404', async () => {
@@ -383,7 +383,7 @@ describe('Notes & Linking Integration Tests', () => {
 
       const randomUuid = '00000000-0000-0000-0000-000000000000';
       const linkRes = await request(app)
-        .post(`/api/v1/notes/${noteRes.body.note.id}/links`)
+        .post(`/api/v1/notes/${noteRes.body.data.note.id}/links`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({
           taskId: randomUuid
@@ -408,9 +408,9 @@ describe('Notes & Linking Integration Tests', () => {
         .send({
           title: 'Note to soft delete',
           body: 'Will be restored.',
-          links: [{ taskId: taskRes.body.task.id }]
+          links: [{ taskId: taskRes.body.data.task.id }]
         });
-      const noteId = noteRes.body.note.id;
+      const noteId = noteRes.body.data.note.id;
 
       // Soft delete
       const delRes = await request(app)
@@ -422,7 +422,7 @@ describe('Notes & Linking Integration Tests', () => {
       const listRes = await request(app)
         .get('/api/v1/notes')
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(listRes.body.notes).toHaveLength(0);
+      expect(listRes.body.data.notes).toHaveLength(0);
 
       // Verify GET returns 404
       const getRes = await request(app)
@@ -440,9 +440,9 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(restoreRes.status).toBe(200);
-      expect(restoreRes.body.note.id).toBe(noteId);
-      expect(restoreRes.body.note.deletedAt).toBeNull();
-      expect(restoreRes.body.note.links).toHaveLength(1);
+      expect(restoreRes.body.data.note.id).toBe(noteId);
+      expect(restoreRes.body.data.note.deletedAt).toBeNull();
+      expect(restoreRes.body.data.note.links).toHaveLength(1);
 
       // Attempting to restore active note returns 409 NOT_DELETED
       const repeatRestore = await request(app)
@@ -462,7 +462,7 @@ describe('Notes & Linking Integration Tests', () => {
           title: 'Expired Note',
           body: 'Deleted long ago.'
         });
-      const noteId = noteRes.body.note.id;
+      const noteId = noteRes.body.data.note.id;
 
       // Soft delete
       await request(app)
@@ -493,7 +493,7 @@ describe('Notes & Linking Integration Tests', () => {
           title: 'Concurrent note',
           body: 'Version check.'
         });
-      const noteId = noteRes.body.note.id;
+      const noteId = noteRes.body.data.note.id;
 
       // Update with matching version (1)
       const update1 = await request(app)
@@ -504,7 +504,7 @@ describe('Notes & Linking Integration Tests', () => {
           version: 1
         });
       expect(update1.status).toBe(200);
-      expect(update1.body.note.version).toBe(2);
+      expect(update1.body.data.note.version).toBe(2);
 
       // Attempt update with stale version 1
       const updateStale = await request(app)
@@ -536,7 +536,7 @@ describe('Notes & Linking Integration Tests', () => {
           body: 'Confidential thoughts.',
           tags: ['private']
         });
-      const noteAId = noteARes.body.note.id;
+      const noteAId = noteARes.body.data.note.id;
 
       // User B cannot read User A note
       const getB = await request(app)
@@ -548,7 +548,7 @@ describe('Notes & Linking Integration Tests', () => {
       const listB = await request(app)
         .get('/api/v1/notes')
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
-      expect(listB.body.notes).toHaveLength(0);
+      expect(listB.body.data.notes).toHaveLength(0);
 
       // User B cannot update User A note
       const patchB = await request(app)
@@ -567,7 +567,7 @@ describe('Notes & Linking Integration Tests', () => {
       const linkB = await request(app)
         .post(`/api/v1/notes/${noteAId}/links`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`)
-        .send({ taskId: taskARes.body.task.id });
+        .send({ taskId: taskARes.body.data.task.id });
       expect(linkB.status).toBe(404);
 
       // User B creates their own note, but tries to link User A's task
@@ -580,9 +580,9 @@ describe('Notes & Linking Integration Tests', () => {
         });
 
       const foreignLinkRes = await request(app)
-        .post(`/api/v1/notes/${noteBRes.body.note.id}/links`)
+        .post(`/api/v1/notes/${noteBRes.body.data.note.id}/links`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`)
-        .send({ taskId: taskARes.body.task.id });
+        .send({ taskId: taskARes.body.data.task.id });
       expect(foreignLinkRes.status).toBe(404);
     });
   });
@@ -621,7 +621,7 @@ describe('Notes & Linking Integration Tests', () => {
           tags: ['rust', 'legacy']
         });
       await request(app)
-        .delete(`/api/v1/notes/${note3.body.note.id}`)
+        .delete(`/api/v1/notes/${note3.body.data.note.id}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       const tagsRes = await request(app)
@@ -629,14 +629,14 @@ describe('Notes & Linking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(tagsRes.status).toBe(200);
-      expect(tagsRes.body.tags).toBeDefined();
+      expect(tagsRes.body.data.tags).toBeDefined();
 
       // 'rust' has 2 active notes, 'backend' has 1, 'frontend' has 1, 'legacy' has 0
-      const rustTag = tagsRes.body.tags.find((t: { tag: string }) => t.tag === 'rust');
+      const rustTag = tagsRes.body.data.tags.find((t: { tag: string }) => t.tag === 'rust');
       expect(rustTag).toBeDefined();
       expect(rustTag.count).toBe(2);
 
-      const legacyTag = tagsRes.body.tags.find((t: { tag: string }) => t.tag === 'legacy');
+      const legacyTag = tagsRes.body.data.tags.find((t: { tag: string }) => t.tag === 'legacy');
       expect(legacyTag).toBeUndefined();
     });
   });

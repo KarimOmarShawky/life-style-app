@@ -113,7 +113,7 @@ export const createTransactionSchema = z
     amount: monetaryAmountSchema,
     currency: currencyCodeSchema,
     occurredOn: dateStringSchema,
-    categoryId: z.string().uuid('Invalid categoryId format').nullable().optional(),
+    categoryId: z.guid('Invalid categoryId format').nullable().optional(),
     description: z
       .string()
       .trim()
@@ -126,17 +126,19 @@ export const createTransactionSchema = z
       .max(150, 'Merchant cannot exceed 150 characters')
       .nullable()
       .optional(),
-    subscriptionId: z.string().uuid('Invalid subscriptionId format').nullable().optional(),
+    subscriptionId: z.guid('Invalid subscriptionId format').nullable().optional(),
     billingDate: dateStringSchema.nullable().optional()
   })
   .strict()
-  .refine(
-    (data) => validateMonetaryString(data.amount, data.currency),
-    (data) => ({
-      message: `Amount scale exceeds maximum allowed for currency ${data.currency} (${getCurrencyExponent(data.currency)} decimals)`,
-      path: ['amount']
-    })
-  )
+  .superRefine((data, ctx) => {
+    if (!validateMonetaryString(data.amount, data.currency)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Amount scale exceeds maximum allowed for currency ${data.currency} (${getCurrencyExponent(data.currency)} decimals)`,
+        path: ['amount']
+      });
+    }
+  })
   .refine(
     (data) => {
       if (data.subscriptionId) {
@@ -156,7 +158,7 @@ export const updateTransactionSchema = z
     amount: monetaryAmountSchema.optional(),
     currency: currencyCodeSchema.optional(),
     occurredOn: dateStringSchema.optional(),
-    categoryId: z.string().uuid('Invalid categoryId format').nullable().optional(),
+    categoryId: z.guid('Invalid categoryId format').nullable().optional(),
     description: z
       .string()
       .trim()
@@ -172,23 +174,24 @@ export const updateTransactionSchema = z
     version: z.number().int().positive().optional()
   })
   .strict()
-  .refine(
-    (data) => {
-      if (data.amount !== undefined && data.currency !== undefined) {
-        return validateMonetaryString(data.amount, data.currency);
-      }
-      return true;
-    },
-    (data) => ({
-      message: `Amount scale exceeds maximum allowed for currency ${data.currency ?? ''}`,
-      path: ['amount']
-    })
-  );
+  .superRefine((data, ctx) => {
+    if (
+      data.amount !== undefined &&
+      data.currency !== undefined &&
+      !validateMonetaryString(data.amount, data.currency)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Amount scale exceeds maximum allowed for currency ${data.currency}`,
+        path: ['amount']
+      });
+    }
+  });
 
 export const listTransactionsQuerySchema = z
   .object({
     kind: z.enum(['expense', 'income']).optional(),
-    categoryId: z.string().uuid('Invalid categoryId format').optional(),
+    categoryId: z.guid('Invalid categoryId format').optional(),
     from: dateStringSchema.optional(),
     to: dateStringSchema.optional(),
     currency: currencyCodeSchema.optional(),
@@ -213,18 +216,20 @@ export const createSubscriptionSchema = z
     billingInterval: z.number().int().min(1).max(12).default(1).optional(),
     anchorDate: dateStringSchema,
     nextBillingDate: dateStringSchema.optional(),
-    categoryId: z.string().uuid('Invalid categoryId format').nullable().optional(),
+    categoryId: z.guid('Invalid categoryId format').nullable().optional(),
     reminderDaysBefore: z.number().int().min(0).max(30).nullable().optional(),
     notes: z.string().trim().max(1000, 'Notes cannot exceed 1000 characters').nullable().optional()
   })
   .strict()
-  .refine(
-    (data) => validateMonetaryString(data.amount, data.currency),
-    (data) => ({
-      message: `Amount scale exceeds maximum allowed for currency ${data.currency} (${getCurrencyExponent(data.currency)} decimals)`,
-      path: ['amount']
-    })
-  );
+  .superRefine((data, ctx) => {
+    if (!validateMonetaryString(data.amount, data.currency)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Amount scale exceeds maximum allowed for currency ${data.currency} (${getCurrencyExponent(data.currency)} decimals)`,
+        path: ['amount']
+      });
+    }
+  });
 
 export const updateSubscriptionSchema = z
   .object({
@@ -237,24 +242,25 @@ export const updateSubscriptionSchema = z
     nextBillingDate: dateStringSchema.optional(),
     status: z.enum(['active', 'paused', 'cancelled']).optional(),
     cancelledOn: dateStringSchema.nullable().optional(),
-    categoryId: z.string().uuid('Invalid categoryId format').nullable().optional(),
+    categoryId: z.guid('Invalid categoryId format').nullable().optional(),
     reminderDaysBefore: z.number().int().min(0).max(30).nullable().optional(),
     notes: z.string().trim().max(1000).nullable().optional(),
     version: z.number().int().positive().optional()
   })
   .strict()
-  .refine(
-    (data) => {
-      if (data.amount !== undefined && data.currency !== undefined) {
-        return validateMonetaryString(data.amount, data.currency);
-      }
-      return true;
-    },
-    (data) => ({
-      message: `Amount scale exceeds maximum allowed for currency ${data.currency ?? ''}`,
-      path: ['amount']
-    })
-  );
+  .superRefine((data, ctx) => {
+    if (
+      data.amount !== undefined &&
+      data.currency !== undefined &&
+      !validateMonetaryString(data.amount, data.currency)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Amount scale exceeds maximum allowed for currency ${data.currency}`,
+        path: ['amount']
+      });
+    }
+  });
 
 export const listSubscriptionsQuerySchema = z
   .object({
@@ -273,19 +279,21 @@ export const paySubscriptionSchema = z
 
 export const createBudgetSchema = z
   .object({
-    categoryId: z.string().uuid('Invalid categoryId format').nullable().optional(),
+    categoryId: z.guid('Invalid categoryId format').nullable().optional(),
     amountLimit: monetaryAmountSchema,
     currency: currencyCodeSchema,
     period: z.enum(['monthly']).optional().default('monthly')
   })
   .strict()
-  .refine(
-    (data) => validateMonetaryString(data.amountLimit, data.currency),
-    (data) => ({
-      message: `Amount limit scale exceeds maximum allowed for currency ${data.currency} (${getCurrencyExponent(data.currency)} decimals)`,
-      path: ['amountLimit']
-    })
-  );
+  .superRefine((data, ctx) => {
+    if (!validateMonetaryString(data.amountLimit, data.currency)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Amount limit scale exceeds maximum allowed for currency ${data.currency} (${getCurrencyExponent(data.currency)} decimals)`,
+        path: ['amountLimit']
+      });
+    }
+  });
 
 export const updateBudgetSchema = z
   .object({
@@ -318,24 +326,24 @@ export const reportSummaryQuerySchema = z
 
 export const categoryIdParamSchema = z
   .object({
-    id: z.string().uuid('Invalid category ID format')
+    id: z.guid('Invalid category ID format')
   })
   .strict();
 
 export const transactionIdParamSchema = z
   .object({
-    id: z.string().uuid('Invalid transaction ID format')
+    id: z.guid('Invalid transaction ID format')
   })
   .strict();
 
 export const subscriptionIdParamSchema = z
   .object({
-    id: z.string().uuid('Invalid subscription ID format')
+    id: z.guid('Invalid subscription ID format')
   })
   .strict();
 
 export const budgetIdParamSchema = z
   .object({
-    id: z.string().uuid('Invalid budget ID format')
+    id: z.guid('Invalid budget ID format')
   })
   .strict();

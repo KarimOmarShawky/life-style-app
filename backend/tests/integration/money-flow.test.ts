@@ -58,7 +58,7 @@ describe('Money Integration Tests', () => {
       timezone,
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   describe('AC-MON-01: Exact Monetary Arithmetic & Scale Invariants', () => {
@@ -74,7 +74,7 @@ describe('Money Integration Tests', () => {
           currency: 'USD'
         });
       expect(budgetRes.status).toBe(201);
-      const budgetId = budgetRes.body.budget.id;
+      const budgetId = budgetRes.body.data.budget.id;
 
       // Create transaction 1: 0.10
       const tx1 = await request(app)
@@ -108,8 +108,8 @@ describe('Money Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(budgetCheck.status).toBe(200);
-      expect(budgetCheck.body.budget.usage.spent).toBe('0.30');
-      expect(budgetCheck.body.budget.usage.remaining).toBe('9.70');
+      expect(budgetCheck.body.data.budget.usage.spent).toBe('0.30');
+      expect(budgetCheck.body.data.budget.usage.remaining).toBe('9.70');
     });
 
     it('Rejects JSON numbers and scale exceeding currency exponent', async () => {
@@ -166,7 +166,7 @@ describe('Money Integration Tests', () => {
         .send(payload);
 
       expect(res1.status).toBe(201);
-      const originalId = res1.body.transaction.id;
+      const originalId = res1.body.data.transaction.id;
 
       // Second call with same key and body -> 200 OK
       const res2 = await request(app)
@@ -176,7 +176,7 @@ describe('Money Integration Tests', () => {
         .send(payload);
 
       expect(res2.status).toBe(200);
-      expect(res2.body.transaction.id).toBe(originalId);
+      expect(res2.body.data.transaction.id).toBe(originalId);
 
       // Verify exactly one row in DB
       const dbRows = await pool.query('SELECT * FROM transactions WHERE idempotency_key = $1', [
@@ -230,7 +230,7 @@ describe('Money Integration Tests', () => {
           name: 'Consulting Work'
         });
       expect(catRes.status).toBe(201);
-      const incomeCatId = catRes.body.category.id;
+      const incomeCatId = catRes.body.data.category.id;
 
       // Attempt to link to expense transaction
       const txRes = await request(app)
@@ -290,7 +290,7 @@ describe('Money Integration Tests', () => {
           occurredOn: '2026-09-20',
           description: 'Lunch'
         });
-      const txId = createRes.body.transaction.id;
+      const txId = createRes.body.data.transaction.id;
 
       // 2. Update transaction
       await request(app)
@@ -337,8 +337,8 @@ describe('Money Integration Tests', () => {
         });
 
       expect(subRes.status).toBe(201);
-      const subId = subRes.body.subscription.id;
-      expect(subRes.body.subscription.nextBillingDate).toBe('2026-01-31');
+      const subId = subRes.body.data.subscription.id;
+      expect(subRes.body.data.subscription.nextBillingDate).toBe('2026-01-31');
 
       // Pay subscription
       const payRes = await request(app)
@@ -350,12 +350,12 @@ describe('Money Integration Tests', () => {
         });
 
       expect(payRes.status).toBe(201);
-      expect(payRes.body.transaction).toBeDefined();
-      expect(payRes.body.transaction.subscriptionId).toBe(subId);
-      expect(payRes.body.transaction.billingDate).toBe('2026-01-31');
+      expect(payRes.body.data.transaction).toBeDefined();
+      expect(payRes.body.data.transaction.subscriptionId).toBe(subId);
+      expect(payRes.body.data.transaction.billingDate).toBe('2026-01-31');
 
       // Month-end clamp: Jan 31st -> Feb 28th (non-leap year 2026)
-      expect(payRes.body.subscription.nextBillingDate).toBe('2026-02-28');
+      expect(payRes.body.data.subscription.nextBillingDate).toBe('2026-02-28');
 
       // Attempting to pay again for the same period triggers ALREADY_PAID_FOR_PERIOD
       const repeatPayRes = await request(app)
@@ -368,7 +368,7 @@ describe('Money Integration Tests', () => {
 
       // Second pay advances from 2026-02-28 to 2026-03-31
       expect(repeatPayRes.status).toBe(201);
-      expect(repeatPayRes.body.subscription.nextBillingDate).toBe('2026-03-31');
+      expect(repeatPayRes.body.data.subscription.nextBillingDate).toBe('2026-03-31');
 
       // If we attempt to create a transaction directly for the same subscription_id and billing_date, it is rejected by UNIQUE constraint
       const dupBillingTx = await request(app)
@@ -402,7 +402,7 @@ describe('Money Integration Tests', () => {
           name: 'Custom Hobby'
         });
       expect(catRes.status).toBe(201);
-      const catId = catRes.body.category.id;
+      const catId = catRes.body.data.category.id;
 
       // 2. Create budget for category
       const budgetRes = await request(app)
@@ -415,7 +415,7 @@ describe('Money Integration Tests', () => {
         });
 
       expect(budgetRes.status).toBe(201);
-      const budgetId = budgetRes.body.budget.id;
+      const budgetId = budgetRes.body.data.budget.id;
 
       // 3. Attempt to create duplicate budget for same category and currency -> 409 BUDGET_ALREADY_EXISTS
       const dupBudgetRes = await request(app)
@@ -458,19 +458,19 @@ describe('Money Integration Tests', () => {
         .get(`/api/v1/money/budgets/${budgetId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
-      expect(catBudget.body.budget.usage.spent).toBe('75.00');
-      expect(catBudget.body.budget.usage.remaining).toBe('75.00');
-      expect(catBudget.body.budget.usage.percentUsed).toBe(50.0);
-      expect(catBudget.body.budget.usage.overspent).toBe(false);
+      expect(catBudget.body.data.budget.usage.spent).toBe('75.00');
+      expect(catBudget.body.data.budget.usage.remaining).toBe('75.00');
+      expect(catBudget.body.data.budget.usage.percentUsed).toBe(50.0);
+      expect(catBudget.body.data.budget.usage.overspent).toBe(false);
 
       // Check overall budget usage
       const overallBudget = await request(app)
-        .get(`/api/v1/money/budgets/${overallRes.body.budget.id}`)
+        .get(`/api/v1/money/budgets/${overallRes.body.data.budget.id}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
-      expect(overallBudget.body.budget.usage.spent).toBe('75.00');
-      expect(overallBudget.body.budget.usage.remaining).toBe('925.00');
-      expect(overallBudget.body.budget.usage.percentUsed).toBe(7.5);
+      expect(overallBudget.body.data.budget.usage.spent).toBe('75.00');
+      expect(overallBudget.body.data.budget.usage.remaining).toBe('925.00');
+      expect(overallBudget.body.data.budget.usage.percentUsed).toBe(7.5);
     });
   });
 
@@ -508,20 +508,20 @@ describe('Money Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(reportRes.status).toBe(200);
-      expect(reportRes.body.totals.income).toBe('3000.00');
-      expect(reportRes.body.totals.expense).toBe('50.00');
-      expect(reportRes.body.totals.net).toBe('2950.00');
+      expect(reportRes.body.data.totals.income).toBe('3000.00');
+      expect(reportRes.body.data.totals.expense).toBe('50.00');
+      expect(reportRes.body.data.totals.net).toBe('2950.00');
 
       // Uncategorized check
-      const uncat = reportRes.body.byCategory.find(
+      const uncat = reportRes.body.data.byCategory.find(
         (c: { categoryId: string | null }) => c.categoryId === null
       );
       expect(uncat).toBeDefined();
       expect(uncat.name).toBe('Uncategorized');
 
       // Time series check
-      expect(reportRes.body.series).toBeDefined();
-      expect(Array.isArray(reportRes.body.series)).toBe(true);
+      expect(reportRes.body.data.series).toBeDefined();
+      expect(Array.isArray(reportRes.body.data.series)).toBe(true);
 
       // Span > 366 days rejected
       const spanRes = await request(app)
@@ -558,13 +558,13 @@ describe('Money Integration Tests', () => {
 
       // User B cannot read User A category
       const getCatB = await request(app)
-        .get(`/api/v1/money/categories/${catA.body.category.id}`)
+        .get(`/api/v1/money/categories/${catA.body.data.category.id}`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
       expect(getCatB.status).toBe(404);
 
       // User B cannot read User A subscription
       const getSubB = await request(app)
-        .get(`/api/v1/money/subscriptions/${subA.body.subscription.id}`)
+        .get(`/api/v1/money/subscriptions/${subA.body.data.subscription.id}`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
       expect(getSubB.status).toBe(404);
 
@@ -578,7 +578,7 @@ describe('Money Integration Tests', () => {
           amount: '10.00',
           currency: 'USD',
           occurredOn: '2026-09-15',
-          categoryId: catA.body.category.id
+          categoryId: catA.body.data.category.id
         });
       expect(txB.status).toBe(404);
     });

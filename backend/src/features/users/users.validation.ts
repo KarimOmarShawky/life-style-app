@@ -37,7 +37,7 @@ export type RegisterDeviceInput = z.infer<typeof registerDeviceSchema>;
 
 export const deviceIdParamSchema = z
   .object({
-    deviceId: z.string().uuid({ message: 'Device ID must be a valid UUID' })
+    deviceId: z.guid({ message: 'Device ID must be a valid UUID' })
   })
   .strict();
 

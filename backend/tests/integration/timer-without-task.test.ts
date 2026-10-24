@@ -34,7 +34,7 @@ describe('Timer sessions without a task', () => {
       timezone: 'UTC',
       defaultCurrency: 'EGP'
     });
-    return res.body;
+    return res.body.data;
   }
 
   it('starts and stops a session with no taskId, returning taskId as null', async () => {
@@ -45,13 +45,13 @@ describe('Timer sessions without a task', () => {
       .set('Authorization', `Bearer ${tokens.accessToken}`)
       .send({ mode: 'stopwatch' });
     expect(started.status).toBe(201);
-    expect(started.body.timerSession.taskId).toBeNull();
+    expect(started.body.data.timerSession.taskId).toBeNull();
 
     const stopped = await request(app)
-      .post(`/api/v1/timer-sessions/${started.body.timerSession.id}/stop`)
+      .post(`/api/v1/timer-sessions/${started.body.data.timerSession.id}/stop`)
       .set('Authorization', `Bearer ${tokens.accessToken}`);
     expect(stopped.status).toBe(200);
-    expect(stopped.body.timerSession.endReason).toBe('stopped');
+    expect(stopped.body.data.timerSession.endReason).toBe('stopped');
   });
 
   it('accepts an explicit null taskId', async () => {
@@ -62,7 +62,7 @@ describe('Timer sessions without a task', () => {
       .set('Authorization', `Bearer ${tokens.accessToken}`)
       .send({ taskId: null, mode: 'stopwatch' });
     expect(started.status).toBe(201);
-    expect(started.body.timerSession.taskId).toBeNull();
+    expect(started.body.data.timerSession.taskId).toBeNull();
   });
 
   it('still rejects a taskId that does not exist for this user', async () => {

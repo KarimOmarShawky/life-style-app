@@ -10,7 +10,9 @@
 import type {
   ReminderEntity,
   CreateReminderRepoInput,
-  ListRemindersFilter
+  ListRemindersFilter,
+  UpdateReminderRepoInput,
+  ReminderParentKind
 } from './reminders.types.js';
 import type { ReminderCancellationPort } from './reminder-cancellation.port.js';
 
@@ -18,5 +20,16 @@ export interface RemindersRepository extends ReminderCancellationPort {
   create(input: CreateReminderRepoInput): Promise<ReminderEntity>;
   list(userId: string, filter: ListRemindersFilter): Promise<ReminderEntity[]>;
   find(userId: string, reminderId: string): Promise<ReminderEntity | null>;
+  update(
+    userId: string,
+    reminderId: string,
+    changes: UpdateReminderRepoInput
+  ): Promise<ReminderEntity | null>;
+  getParentAnchor(
+    userId: string,
+    parentKind: ReminderParentKind,
+    parentId: string,
+    timeZone: string
+  ): Promise<Date | null>;
   delete(userId: string, reminderId: string): Promise<boolean>;
 }

@@ -44,7 +44,7 @@ if (ROOT / 'docs/api/openapi.yaml').read_bytes() != before:
 run('C10', 'node scripts/check-forbidden.mjs', 'Owner-authorized local-only audio declaration/consumer exception; no global file_picker allowlist, server upload dependencies remain forbidden. Actual guard result, not native/network certification.')
 run('C11', 'cd backend && ./node_modules/.bin/vitest run tests/integration/health.test.ts',
     'Expected nonzero refusal before integration file import/cleanup; NOT an integration test success.', True)
-module = '/home/user/tooling/node_modules/@wasm-fmt/dart_fmt/dart_fmt_node.js'
+module = os.environ.get('DART_FMT_MODULE', '/home/user/tooling/node_modules/@wasm-fmt/dart_fmt/dart_fmt_node.js')
 if Path(module).is_file():
     run('C12', f'node scripts/check-dart-syntax.mjs {module}', 'Scratch npm @wasm-fmt/dart_fmt@0.4.0. Syntax only; Flutter SDK absent.')
 else:

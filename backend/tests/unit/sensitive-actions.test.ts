@@ -67,7 +67,7 @@ describe('B-18 sensitive action reauthentication', () => {
       const response = await request(app)
         .post(`/users/me/${action}`)
         .send({ currentPassword: 'Correct!12345' });
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(action === 'deletion' ? 202 : 200);
       expect(response.headers['cache-control']).toBe('no-store');
       expect(repo.getUserProfile).toHaveBeenCalledWith('user-a');
       expect(hasher.verify).toHaveBeenCalledWith('Correct!12345', 'hash-a');

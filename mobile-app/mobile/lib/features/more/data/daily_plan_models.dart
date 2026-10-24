@@ -294,7 +294,7 @@ class DailyPlanRepository {
 
   Future<DashboardOverview> getDashboardOverview() async {
     final response = jsonObject(
-      await _api.get('dashboard/overview'),
+      await _api.get('dashboard'),
       'dashboard',
     );
     return DashboardOverview.fromJson(
@@ -303,7 +303,7 @@ class DailyPlanRepository {
   }
 
   Future<DayPlanView> getDayPlan({String? date}) async {
-    final path = (date == null || date.isEmpty) ? 'days/today' : 'days/$date';
+    final path = (date == null || date.isEmpty) ? 'day/today' : 'day/$date';
     final response = jsonObject(await _api.get(path), 'day');
     return DayPlanView.fromJson(jsonObject(response['day'], 'day'));
   }

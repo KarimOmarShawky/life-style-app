@@ -41,7 +41,7 @@ describe('Query Surface Integration Tests (P1-05)', () => {
       defaultCurrency: 'USD'
     });
     expect(res.status).toBe(201);
-    return res.body;
+    return res.body.data;
   }
 
   async function seed(accessToken: string, taskDueDate = '2026-12-01') {
@@ -77,66 +77,68 @@ describe('Query Surface Integration Tests (P1-05)', () => {
     expect(subscription.status).toBe(201);
 
     return {
-      task: task.body.task,
-      habit: habit.body.habit,
-      subscription: subscription.body.subscription
+      task: task.body.data.task,
+      habit: habit.body.data.habit,
+      subscription: subscription.body.data.subscription
     };
   }
 
-  it('GET /days/today composes tasks, habits, and active timer from readers', async () => {
+  it('GET /day/today composes tasks, habits, and active timer from readers', async () => {
     const auth = await registerUser();
     await seed(auth.tokens.accessToken);
 
     const res = await request(app)
-      .get('/api/v1/days/today')
+      .get('/api/v1/day/today')
       .set('Authorization', `Bearer ${auth.tokens.accessToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.day).toMatchObject({ timezone: 'UTC' });
-    expect(typeof res.body.day.date).toBe('string');
-    expect(Array.isArray(res.body.day.tasks)).toBe(true);
-    expect(Array.isArray(res.body.day.habits)).toBe(true);
-    expect(res.body.day.activeTimer).toBeNull();
+    expect(res.body.data.day).toMatchObject({ timezone: 'UTC' });
+    expect(typeof res.body.data.day.date).toBe('string');
+    expect(Array.isArray(res.body.data.day.tasks)).toBe(true);
+    expect(Array.isArray(res.body.data.day.habits)).toBe(true);
+    expect(res.body.data.day.activeTimer).toBeNull();
     // The seeded habit is daily and due every day.
-    expect(res.body.day.habits.some((h: { name: string }) => h.name === 'Morning stretch')).toBe(
-      true
-    );
+    expect(
+      res.body.data.day.habits.some((h: { name: string }) => h.name === 'Morning stretch')
+    ).toBe(true);
   });
 
-  it('GET /days/{date} returns the plan for that date and rejects bad dates', async () => {
+  it('GET /day/{date} returns the plan for that date and rejects bad dates', async () => {
     const auth = await registerUser();
     await seed(auth.tokens.accessToken, '2026-11-30');
 
     const ok = await request(app)
-      .get('/api/v1/days/2026-11-30')
+      .get('/api/v1/day/2026-11-30')
       .set('Authorization', `Bearer ${auth.tokens.accessToken}`);
     expect(ok.status).toBe(200);
-    expect(ok.body.day.date).toBe('2026-11-30');
+    expect(ok.body.data.day.date).toBe('2026-11-30');
     // Task due 2026-11-30 appears on that date's plan.
     expect(
-      ok.body.day.tasks.some((t: { title: string }) => t.title === 'Searchable quarterly report')
+      ok.body.data.day.tasks.some(
+        (t: { title: string }) => t.title === 'Searchable quarterly report'
+      )
     ).toBe(true);
-    expect(Array.isArray(ok.body.day.subscriptionsDue)).toBe(true);
+    expect(Array.isArray(ok.body.data.day.subscriptionsDue)).toBe(true);
 
     const bad = await request(app)
-      .get('/api/v1/days/30-11-2026')
+      .get('/api/v1/day/30-11-2026')
       .set('Authorization', `Bearer ${auth.tokens.accessToken}`);
     expect(bad.status).toBe(400);
   });
 
-  it('GET /dashboard/overview aggregates the day', async () => {
+  it('GET /dashboard aggregates the day', async () => {
     const auth = await registerUser();
     await seed(auth.tokens.accessToken);
 
     const res = await request(app)
-      .get('/api/v1/dashboard/overview')
+      .get('/api/v1/dashboard')
       .set('Authorization', `Bearer ${auth.tokens.accessToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.overview).toMatchObject({
+    expect(res.body.data.overview).toMatchObject({
       timezone: 'UTC',
       habits: { dueToday: 1, completedToday: 0 },
       activeSubscriptions: 1
     });
-    expect(res.body.overview.subscriptionsDueNext7Days.totalMinorByCurrency.USD).toBe('4999');
+    expect(res.body.data.overview.subscriptionsDueNext7Days.totalMinorByCurrency.USD).toBe('4999');
   });
 
   it('GET /search finds items across features and enforces q', async () => {
@@ -148,14 +150,16 @@ describe('Query Surface Integration Tests (P1-05)', () => {
       .query({ q: 'quarterly' })
       .set('Authorization', `Bearer ${auth.tokens.accessToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.tasks.some((t: { title: string }) => t.title.includes('quarterly'))).toBe(true);
+    expect(res.body.data.tasks.some((t: { title: string }) => t.title.includes('quarterly'))).toBe(
+      true
+    );
 
     const habitSearch = await request(app)
       .get('/api/v1/search')
       .query({ q: 'stretch' })
       .set('Authorization', `Bearer ${auth.tokens.accessToken}`);
     expect(habitSearch.status).toBe(200);
-    expect(habitSearch.body.habits).toHaveLength(1);
+    expect(habitSearch.body.data.habits).toHaveLength(1);
 
     const missing = await request(app)
       .get('/api/v1/search')
@@ -164,7 +168,7 @@ describe('Query Surface Integration Tests (P1-05)', () => {
   });
 
   it('query endpoints require authentication', async () => {
-    for (const path of ['/api/v1/days/today', '/api/v1/dashboard/overview', '/api/v1/search?q=x']) {
+    for (const path of ['/api/v1/day/today', '/api/v1/dashboard', '/api/v1/search?q=x']) {
       const res = await request(app).get(path);
       expect(res.status).toBe(401);
     }

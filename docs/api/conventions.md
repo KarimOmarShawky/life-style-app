@@ -13,14 +13,24 @@
 
 ## 2. Response contracts
 
-Existing v1 contracts are preserved (no blanket wrapper migration):
-- Single resources use named raw DTOs, e.g. `{ "task": { "id": "uuid" } }`.
-- Dashboard: `GET /api/v1/dashboard/overview` returns `{ "overview": { ... } }`.
-- Day plan: `GET /api/v1/days/today` and `/days/{date}` return `{ "day": { ... } }`.
-- Lists use `{ "data": [...], "meta": { "limit": 25, "hasMore": false, "nextCursor": null } }`.
-- Some actions return status DTOs or 204 (no JSON). Refer to OpenAPI per operation.
-- Success responses do not acquire `success: true`. The optional helper in
-  `core/http/envelope.ts` does not describe all controller success responses.
+Ordinary JSON success responses under `/api/v1` use the locked contract
+`{ "success": true, "data": ... }`; the HTTP boundary applies the envelope so
+controllers can continue returning their domain DTOs. Existing DTO shapes are
+preserved inside `data`, including named resources such as
+`{ "data": { "task": { "id": "uuid" } } }`. The Flutter transport unwraps `data`
+for existing feature code and tolerates raw JSON during rolling upgrades.
+
+- `GET /api/v1/dashboard` returns `data.overview`.
+- `GET /api/v1/day/today` and `/api/v1/day/{date}` return `data.day`.
+- Paginated lists use `{ "success": true, "data": [...], "meta": { ... } }`;
+  `meta` remains a sibling of `data` as required by §15.1. The Flutter client
+  reconstructs the legacy `{ data, meta }` object for existing feature code.
+- 204 responses have no body. Health probes and account exports are documented
+  exceptions; the NDJSON domain archive remains streamed and unwrapped.
+- Canonical top-level reminder writes: `POST /api/v1/reminders`,
+  `PATCH /api/v1/reminders/{id}` and `DELETE /api/v1/reminders/{id}`.
+  Parent-scoped reminder routes remain for existing clients.
+- Errors continue using `{ "success": false, "error": ... }`.
 - Monetary dashboard/day minor units are integer **strings**, never JSON numbers;
   day subscriptions include `currencyExponent`. Round HALF_UP per currency at
   display conversion, preserving historical ledger values. JPY=0, USD=2, KWD=3.

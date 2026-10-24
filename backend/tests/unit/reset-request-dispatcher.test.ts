@@ -215,7 +215,7 @@ describe('Password reset acceptance is not delivery', () => {
           .send({ email: 'private@example.com' })
           .timeout({ deadline: 1500 });
         expect(res.status).toBe(202);
-        expect(res.body).toEqual({});
+        expect(res.body).toEqual({ success: true, data: {} });
         await entered.promise;
         let drained = false;
         const drain = f.service.waitForResetRequests().then(() => {

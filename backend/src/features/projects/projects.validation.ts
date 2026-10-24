@@ -29,7 +29,7 @@ export const createProjectSchema = z
       .regex(COLOR_REGEX, { message: 'Color must be a valid hex code (#RRGGBB)' })
       .optional()
       .nullable(),
-    goalId: z.string().uuid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
+    goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
     dueDate: z
       .string()
       .regex(DATE_REGEX, { message: 'dueDate must be in YYYY-MM-DD format' })
@@ -59,7 +59,7 @@ export const updateProjectSchema = z
       .regex(COLOR_REGEX, { message: 'Color must be a valid hex code (#RRGGBB)' })
       .optional()
       .nullable(),
-    goalId: z.string().uuid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
+    goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
     dueDate: z
       .string()
       .regex(DATE_REGEX, { message: 'dueDate must be in YYYY-MM-DD format' })
@@ -78,7 +78,7 @@ export const listProjectsQuerySchema = z
       .string()
       .transform((val) => parseInt(val, 10))
       .pipe(z.number().min(1).max(100))
-      .default('25'),
+      .default(25),
     cursor: z.string().optional()
   })
   .strict();
@@ -96,6 +96,6 @@ export const deleteProjectQuerySchema = z
 
 export const projectIdParamSchema = z
   .object({
-    id: z.string().uuid({ message: 'Project ID must be a valid UUID' })
+    id: z.guid({ message: 'Project ID must be a valid UUID' })
   })
   .strict();

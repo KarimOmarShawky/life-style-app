@@ -41,7 +41,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
       timezone,
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   describe('AC-CAL-01: Event CRUD & Date Range Queries', () => {
@@ -63,10 +63,10 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         });
 
       expect(createRes.status).toBe(201);
-      expect(createRes.body.event).toBeDefined();
-      expect(createRes.body.event.title).toBe('Deep Work Block');
-      expect(createRes.body.event.version).toBe(1);
-      const eventId = createRes.body.event.id;
+      expect(createRes.body.data.event).toBeDefined();
+      expect(createRes.body.data.event.title).toBe('Deep Work Block');
+      expect(createRes.body.data.event.version).toBe(1);
+      const eventId = createRes.body.data.event.id;
 
       // 2. Retrieve by ID
       const getRes = await request(app)
@@ -74,8 +74,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(getRes.status).toBe(200);
-      expect(getRes.body.event.id).toBe(eventId);
-      expect(getRes.body.event.description).toBe('Focus on LifeStyle architecture');
+      expect(getRes.body.data.event.id).toBe(eventId);
+      expect(getRes.body.data.event.description).toBe('Focus on LifeStyle architecture');
 
       // 3. List with matching range
       const listRes = await request(app)
@@ -87,8 +87,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(listRes.status).toBe(200);
-      expect(listRes.body.events).toHaveLength(1);
-      expect(listRes.body.events[0].id).toBe(eventId);
+      expect(listRes.body.data.events).toHaveLength(1);
+      expect(listRes.body.data.events[0].id).toBe(eventId);
 
       // 4. List with non-matching range
       const listEmptyRes = await request(app)
@@ -100,7 +100,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(listEmptyRes.status).toBe(200);
-      expect(listEmptyRes.body.events).toHaveLength(0);
+      expect(listEmptyRes.body.data.events).toHaveLength(0);
     });
 
     it('Rejects event creation when endAt is earlier than startAt', async () => {
@@ -135,7 +135,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
           endAt: '2026-10-01T12:00:00.000Z',
           timezone: 'UTC'
         });
-      const event1Id = e1Res.body.event.id;
+      const event1Id = e1Res.body.data.event.id;
 
       // 1. Conflict query overlapping: 11:00 to 13:00 -> Conflict
       const conflictRes1 = await request(app)
@@ -147,9 +147,9 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(conflictRes1.status).toBe(200);
-      expect(conflictRes1.body.hasConflict).toBe(true);
-      expect(conflictRes1.body.conflicts).toHaveLength(1);
-      expect(conflictRes1.body.conflicts[0].id).toBe(event1Id);
+      expect(conflictRes1.body.data.hasConflict).toBe(true);
+      expect(conflictRes1.body.data.conflicts).toHaveLength(1);
+      expect(conflictRes1.body.data.conflicts[0].id).toBe(event1Id);
 
       // 2. Conflict query non-overlapping: 12:00 to 14:00 (adjacent) -> No conflict
       const nonConflictRes = await request(app)
@@ -161,8 +161,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(nonConflictRes.status).toBe(200);
-      expect(nonConflictRes.body.hasConflict).toBe(false);
-      expect(nonConflictRes.body.conflicts).toHaveLength(0);
+      expect(nonConflictRes.body.data.hasConflict).toBe(false);
+      expect(nonConflictRes.body.data.conflicts).toHaveLength(0);
 
       // 3. Conflict query overlapping but excluding event1Id -> No conflict
       const excludeRes = await request(app)
@@ -175,8 +175,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(excludeRes.status).toBe(200);
-      expect(excludeRes.body.hasConflict).toBe(false);
-      expect(excludeRes.body.conflicts).toHaveLength(0);
+      expect(excludeRes.body.data.hasConflict).toBe(false);
+      expect(excludeRes.body.data.conflicts).toHaveLength(0);
     });
   });
 
@@ -200,7 +200,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
             }
           ]
         });
-      const eventId = createRes.body.event.id;
+      const eventId = createRes.body.data.event.id;
 
       // Verify reminder exists in database with status pending
       const remCheck = await pool.query(`SELECT status FROM reminders WHERE event_id = $1`, [
@@ -233,8 +233,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(restoreRes.status).toBe(200);
-      expect(restoreRes.body.event.id).toBe(eventId);
-      expect(restoreRes.body.event.deletedAt).toBeNull();
+      expect(restoreRes.body.data.event.id).toBe(eventId);
+      expect(restoreRes.body.data.event.deletedAt).toBeNull();
     });
 
     it('Rejects restoration when soft-deleted more than 30 days ago (410 Gone)', async () => {
@@ -249,7 +249,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
           endAt: '2026-08-01T11:00:00.000Z',
           timezone: 'UTC'
         });
-      const eventId = createRes.body.event.id;
+      const eventId = createRes.body.data.event.id;
 
       // Soft delete
       await request(app)
@@ -284,8 +284,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
           timezone: 'UTC'
         });
 
-      const eventId = createRes.body.event.id;
-      expect(createRes.body.event.version).toBe(1);
+      const eventId = createRes.body.data.event.id;
+      expect(createRes.body.data.event.version).toBe(1);
 
       // 1. Successful update matching version 1
       const updateRes1 = await request(app)
@@ -297,8 +297,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         });
 
       expect(updateRes1.status).toBe(200);
-      expect(updateRes1.body.event.title).toBe('Updated Event Title');
-      expect(updateRes1.body.event.version).toBe(2);
+      expect(updateRes1.body.data.event.title).toBe('Updated Event Title');
+      expect(updateRes1.body.data.event.version).toBe(2);
 
       // 2. Stale update attempting with old version 1 -> 409
       const updateRes2 = await request(app)
@@ -329,7 +329,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
           endAt: '2026-10-01T11:00:00.000Z',
           timezone: 'UTC'
         });
-      const eventId = createRes.body.event.id;
+      const eventId = createRes.body.data.event.id;
 
       // User B attempts GET -> 404
       const getRes = await request(app)
@@ -360,8 +360,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
 
       expect(conflictRes.status).toBe(200);
-      expect(conflictRes.body.hasConflict).toBe(false);
-      expect(conflictRes.body.conflicts).toHaveLength(0);
+      expect(conflictRes.body.data.hasConflict).toBe(false);
+      expect(conflictRes.body.data.conflicts).toHaveLength(0);
     });
   });
 
@@ -379,7 +379,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
           endAt: '2026-10-01T16:00:00.000Z',
           timezone: 'UTC'
         });
-      const eventId = createRes.body.event.id;
+      const eventId = createRes.body.data.event.id;
 
       // 2. Add reminder to event
       const addRemRes = await request(app)
@@ -391,9 +391,9 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         });
 
       expect(addRemRes.status).toBe(201);
-      expect(addRemRes.body.reminder).toBeDefined();
-      expect(addRemRes.body.reminder.channel).toBe('in_app');
-      const reminderId = addRemRes.body.reminder.id;
+      expect(addRemRes.body.data.reminder).toBeDefined();
+      expect(addRemRes.body.data.reminder.channel).toBe('in_app');
+      const reminderId = addRemRes.body.data.reminder.id;
 
       // 3. List reminders
       const listRemRes = await request(app)
@@ -401,7 +401,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(listRemRes.status).toBe(200);
-      expect(listRemRes.body.reminders).toHaveLength(1);
+      expect(listRemRes.body.data.reminders).toHaveLength(1);
 
       // 4. Delete reminder
       const delRemRes = await request(app)
@@ -417,8 +417,8 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(agendaRes.status).toBe(200);
-      expect(agendaRes.body.totalEvents).toBe(1);
-      expect(agendaRes.body.events[0].id).toBe(eventId);
+      expect(agendaRes.body.data.totalEvents).toBe(1);
+      expect(agendaRes.body.data.events[0].id).toBe(eventId);
 
       // 6. Query Agenda for 2026-10-02 -> 0 events
       const nextDayRes = await request(app)
@@ -427,7 +427,7 @@ describe('Calendar & Time Blocking Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(nextDayRes.status).toBe(200);
-      expect(nextDayRes.body.totalEvents).toBe(0);
+      expect(nextDayRes.body.data.totalEvents).toBe(0);
     });
   });
 });

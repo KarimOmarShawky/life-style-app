@@ -61,7 +61,7 @@ export const createRecurringTaskSchema = z
       .max(10000, { message: 'Description must not exceed 10000 characters' })
       .optional()
       .nullable(),
-    projectId: z.string().uuid({ message: 'projectId must be a valid UUID' }).optional().nullable(),
+    projectId: z.guid({ message: 'projectId must be a valid UUID' }).optional().nullable(),
     priority: taskPrioritySchema.default('none'),
     estimateMinutes: z.number().int().min(1).max(1440).optional().nullable(),
     dueTime: z
@@ -90,7 +90,7 @@ export const updateRecurringTaskSchema = z
       .max(10000, { message: 'Description must not exceed 10000 characters' })
       .optional()
       .nullable(),
-    projectId: z.string().uuid({ message: 'projectId must be a valid UUID' }).optional().nullable(),
+    projectId: z.guid({ message: 'projectId must be a valid UUID' }).optional().nullable(),
     priority: taskPrioritySchema.optional(),
     estimateMinutes: z.number().int().min(1).max(1440).optional().nullable(),
     dueTime: z
@@ -114,7 +114,7 @@ export const listRecurringTasksQuerySchema = z
       .string()
       .transform((val) => parseInt(val, 10))
       .pipe(z.number().min(1).max(100))
-      .default('25'),
+      .default(25),
     cursor: z.string().optional()
   })
   .strict();
@@ -123,6 +123,6 @@ export type ListRecurringTasksQuery = z.infer<typeof listRecurringTasksQuerySche
 
 export const recurringTaskIdParamSchema = z
   .object({
-    id: z.string().uuid({ message: 'Recurring task ID must be a valid UUID' })
+    id: z.guid({ message: 'Recurring task ID must be a valid UUID' })
   })
   .strict();

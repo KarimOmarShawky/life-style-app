@@ -37,7 +37,7 @@ describe('Unified Reminders Integration Tests', () => {
       timezone: 'UTC',
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   async function createTask(accessToken: string, title = 'Pay the bills') {
@@ -46,7 +46,7 @@ describe('Unified Reminders Integration Tests', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ title, dueDate: '2026-12-01', dueTime: '09:00' });
     expect(res.status).toBe(201);
-    return res.body.task;
+    return res.body.data.task;
   }
 
   async function createHabit(accessToken: string, name = 'Drink water') {
@@ -60,7 +60,22 @@ describe('Unified Reminders Integration Tests', () => {
         recurrence: { freq: 'daily' }
       });
     expect(res.status).toBe(201);
-    return res.body.habit;
+    return res.body.data.habit;
+  }
+
+  async function createEvent(accessToken: string) {
+    const res = await request(app)
+      .post('/api/v1/events')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        title: 'Planning review',
+        startAt: '2026-12-01T10:00:00.000Z',
+        endAt: '2026-12-01T11:00:00.000Z',
+        allDay: false,
+        timezone: 'UTC'
+      });
+    expect(res.status).toBe(201);
+    return res.body.data.event;
   }
 
   async function createSubscription(accessToken: string) {
@@ -76,7 +91,7 @@ describe('Unified Reminders Integration Tests', () => {
         anchorDate: '2026-12-01'
       });
     expect(res.status).toBe(201);
-    return res.body.subscription;
+    return res.body.data.subscription;
   }
 
   describe('FR-REM-01..03: reminders on tasks, habits, and subscriptions', () => {
@@ -89,7 +104,7 @@ describe('Unified Reminders Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ remindAt: '2026-11-30T09:00:00.000Z', channel: 'in_app' });
       expect(createRes.status).toBe(201);
-      expect(createRes.body.reminder).toMatchObject({
+      expect(createRes.body.data.reminder).toMatchObject({
         entityType: 'task',
         entityId: task.id,
         status: 'pending',
@@ -97,23 +112,23 @@ describe('Unified Reminders Integration Tests', () => {
         source: 'user'
       });
       // Dispatcher invariant: a pending reminder always has a next_attempt_at.
-      expect(createRes.body.reminder.nextAttemptAt).toBe('2026-11-30T09:00:00.000Z');
+      expect(createRes.body.data.reminder.nextAttemptAt).toBe('2026-11-30T09:00:00.000Z');
 
       const listRes = await request(app)
         .get(`/api/v1/tasks/${task.id}/reminders`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(listRes.status).toBe(200);
-      expect(listRes.body.reminders).toHaveLength(1);
+      expect(listRes.body.data.reminders).toHaveLength(1);
 
       const delRes = await request(app)
-        .delete(`/api/v1/tasks/${task.id}/reminders/${createRes.body.reminder.id}`)
+        .delete(`/api/v1/tasks/${task.id}/reminders/${createRes.body.data.reminder.id}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(delRes.status).toBe(204);
 
       const afterRes = await request(app)
         .get(`/api/v1/tasks/${task.id}/reminders`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(afterRes.body.reminders).toHaveLength(0);
+      expect(afterRes.body.data.reminders).toHaveLength(0);
     });
 
     it('creates habit and subscription reminders with the same API', async () => {
@@ -126,15 +141,15 @@ describe('Unified Reminders Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ remindAt: '2026-11-30T08:00:00.000Z', channel: 'email' });
       expect(habitReminder.status).toBe(201);
-      expect(habitReminder.body.reminder.entityType).toBe('habit');
+      expect(habitReminder.body.data.reminder.entityType).toBe('habit');
 
       const subReminder = await request(app)
         .post(`/api/v1/subscriptions/${subscription.id}/reminders`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ remindAt: '2026-11-25T12:00:00.000Z', offsetMinutes: 60 });
       expect(subReminder.status).toBe(201);
-      expect(subReminder.body.reminder.entityType).toBe('subscription');
-      expect(subReminder.body.reminder.offsetMinutes).toBe(60);
+      expect(subReminder.body.data.reminder.entityType).toBe('subscription');
+      expect(subReminder.body.data.reminder.offsetMinutes).toBe(60);
     });
   });
 
@@ -157,19 +172,148 @@ describe('Unified Reminders Integration Tests', () => {
         .get('/api/v1/reminders')
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(allRes.status).toBe(200);
-      expect(allRes.body.reminders).toHaveLength(2);
+      expect(allRes.body.data.reminders).toHaveLength(2);
 
       const taskOnly = await request(app)
         .get('/api/v1/reminders?entityType=task')
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(taskOnly.body.reminders).toHaveLength(1);
-      expect(taskOnly.body.reminders[0].entityType).toBe('task');
+      expect(taskOnly.body.data.reminders).toHaveLength(1);
+      expect(taskOnly.body.data.reminders[0].entityType).toBe('task');
 
       const windowed = await request(app)
         .get('/api/v1/reminders?from=2026-11-30T08:30:00.000Z')
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(windowed.body.reminders).toHaveLength(1);
-      expect(windowed.body.reminders[0].entityType).toBe('task');
+      expect(windowed.body.data.reminders).toHaveLength(1);
+      expect(windowed.body.data.reminders[0].entityType).toBe('task');
+    });
+  });
+
+  describe('Specification §14.13 canonical top-level reminders', () => {
+    it('creates, patches and deletes a user reminder on the top-level route', async () => {
+      const { tokens } = await registerUser();
+      const task = await createTask(tokens.accessToken);
+
+      const created = await request(app)
+        .post('/api/v1/reminders')
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .send({
+          entityType: 'task',
+          entityId: task.id,
+          remindAt: '2026-12-01T09:00:00.000Z',
+          channel: 'push'
+        });
+      expect(created.status).toBe(201);
+      expect(created.body.data).toMatchObject({
+        entityType: 'task',
+        entityId: task.id,
+        source: 'user',
+        channel: 'push',
+        status: 'pending',
+        attemptCount: 0
+      });
+
+      const patched = await request(app)
+        .patch(`/api/v1/reminders/${created.body.data.id}`)
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .send({ channel: 'in_app', remindAt: '2026-12-01T09:15:00.000Z' });
+      expect(patched.status).toBe(200);
+      expect(patched.body.data.channel).toBe('in_app');
+      expect(patched.body.data.remindAt).toBe('2026-12-01T09:15:00.000Z');
+      expect(patched.body.data.nextAttemptAt).toBe('2026-12-01T09:15:00.000Z');
+
+      const deleted = await request(app)
+        .delete(`/api/v1/reminders/${created.body.data.id}`)
+        .set('Authorization', `Bearer ${tokens.accessToken}`);
+      expect(deleted.status).toBe(204);
+
+      const missingPatch = await request(app)
+        .patch(`/api/v1/reminders/${created.body.data.id}`)
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .send({ channel: 'push' });
+      expect(missingPatch.status).toBe(404);
+    });
+
+    it('resolves offsetMinutes against an owned event start', async () => {
+      const { tokens } = await registerUser();
+      const event = await createEvent(tokens.accessToken);
+
+      const created = await request(app)
+        .post('/api/v1/reminders')
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .send({ entityType: 'event', entityId: event.id, offsetMinutes: 60 });
+      expect(created.status).toBe(201);
+      expect(created.body.data.offsetMinutes).toBe(60);
+      expect(created.body.data.remindAt).toBe('2026-12-01T09:00:00.000Z');
+      expect(created.body.data.nextAttemptAt).toBe('2026-12-01T09:00:00.000Z');
+    });
+
+    it('rejects invalid schedule modes, channels, foreign parents and old times', async () => {
+      const alice = await registerUser('alice-top@example.com');
+      const bob = await registerUser('bob-top@example.com');
+      const task = await createTask(alice.tokens.accessToken);
+
+      const badSchedule = await request(app)
+        .post('/api/v1/reminders')
+        .set('Authorization', `Bearer ${alice.tokens.accessToken}`)
+        .send({ entityType: 'task', entityId: task.id });
+      expect(badSchedule.status).toBe(400);
+
+      const badChannel = await request(app)
+        .post('/api/v1/reminders')
+        .set('Authorization', `Bearer ${alice.tokens.accessToken}`)
+        .send({
+          entityType: 'task',
+          entityId: task.id,
+          remindAt: '2026-12-01T09:00:00.000Z',
+          channel: 'email'
+        });
+      expect(badChannel.status).toBe(400);
+
+      const foreign = await request(app)
+        .post('/api/v1/reminders')
+        .set('Authorization', `Bearer ${bob.tokens.accessToken}`)
+        .send({
+          entityType: 'task',
+          entityId: task.id,
+          remindAt: '2026-12-01T09:00:00.000Z'
+        });
+      expect(foreign.status).toBe(400);
+
+      const old = await request(app)
+        .post('/api/v1/reminders')
+        .set('Authorization', `Bearer ${alice.tokens.accessToken}`)
+        .send({
+          entityType: 'task',
+          entityId: task.id,
+          remindAt: '2020-01-01T00:00:00.000Z'
+        });
+      expect(old.status).toBe(400);
+    });
+
+    it('refuses edits and deletes for system-generated reminders', async () => {
+      const auth = await registerUser();
+      const event = await createEvent(auth.tokens.accessToken);
+      const inserted = await pool.query<{ id: string }>(
+        `INSERT INTO reminders (user_id, event_id, source, remind_at, next_attempt_at, channel, status)
+         VALUES ($1, $2, 'system', '2026-12-01T09:00:00.000Z', '2026-12-01T09:00:00.000Z', 'push', 'pending')
+         RETURNING id`,
+        [auth.user.id, event.id]
+      );
+      const reminderId = inserted.rows[0]?.id;
+      expect(reminderId).toBeDefined();
+
+      const patched = await request(app)
+        .patch(`/api/v1/reminders/${reminderId}`)
+        .set('Authorization', `Bearer ${auth.tokens.accessToken}`)
+        .send({ channel: 'in_app' });
+      expect(patched.status).toBe(409);
+      expect(patched.body.error.code).toBe('REMINDER_NOT_EDITABLE');
+
+      const deleted = await request(app)
+        .delete(`/api/v1/reminders/${reminderId}`)
+        .set('Authorization', `Bearer ${auth.tokens.accessToken}`);
+      expect(deleted.status).toBe(409);
+      expect(deleted.body.error.code).toBe('REMINDER_NOT_EDITABLE');
     });
   });
 
@@ -198,7 +342,7 @@ describe('Unified Reminders Integration Tests', () => {
       expect(created.status).toBe(201);
 
       const wrongParent = await request(app)
-        .delete(`/api/v1/tasks/${taskB.id}/reminders/${created.body.reminder.id}`)
+        .delete(`/api/v1/tasks/${taskB.id}/reminders/${created.body.data.reminder.id}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(wrongParent.status).toBe(404);
     });
@@ -245,9 +389,9 @@ describe('Unified Reminders Integration Tests', () => {
         .get(`/api/v1/tasks/${task.id}/reminders`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(listRes.status).toBe(200);
-      expect(listRes.body.reminders).toHaveLength(1);
-      expect(listRes.body.reminders[0].status).toBe('cancelled');
-      expect(listRes.body.reminders[0].nextAttemptAt).toBeNull();
+      expect(listRes.body.data.reminders).toHaveLength(1);
+      expect(listRes.body.data.reminders[0].status).toBe('cancelled');
+      expect(listRes.body.data.reminders[0].nextAttemptAt).toBeNull();
     });
   });
 });

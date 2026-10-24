@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse, stringify } from 'yaml';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -206,7 +207,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ChangePasswordRequest'
       responses:
-        '200':
+        '204':
           description: Password updated successfully
   /users/me:
     get:
@@ -288,7 +289,7 @@ paths:
               properties:
                 currentPassword: { type: string, minLength: 1, maxLength: 1024, writeOnly: true }
       responses:
-        '200':
+        '202':
           description: Account deletion scheduled
         '400':
           description: Missing or invalid current-password proof
@@ -304,7 +305,7 @@ paths:
         - BearerAuth: []
       description: Cancels scheduled account deletion within the 14-day grace window.
       responses:
-        '200':
+        '204':
           description: Deletion cancelled
   /users/me/export:
     post:
@@ -1069,6 +1070,80 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/UnifiedReminder'
+    post:
+      summary: Create Reminder (Specification Canonical)
+      security:
+        - BearerAuth: []
+      description: Creates a user-authored reminder for an owned, non-deleted task or event. Exactly one of remindAt or offsetMinutes is required; email is reserved for system reminders in the MVP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserReminderRequest'
+      responses:
+        '201':
+          description: Reminder created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedReminder'
+        '400':
+          description: Invalid parent, channel, schedule or reminder time
+        '409':
+          description: Reminder quota exceeded
+
+  /reminders/{id}:
+    patch:
+      summary: Update Reminder
+      security:
+        - BearerAuth: []
+      description: Updates a pending user-authored reminder. System reminders and non-pending rows return 409 REMINDER_NOT_EDITABLE.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserReminderRequest'
+      responses:
+        '200':
+          description: Reminder updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedReminder'
+        '400':
+          description: Validation error
+        '404':
+          description: Reminder not found
+        '409':
+          description: REMINDER_NOT_EDITABLE
+    delete:
+      summary: Delete Reminder
+      security:
+        - BearerAuth: []
+      description: Hard-deletes a user-authored reminder. System-generated reminders cannot be deleted.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Reminder deleted
+        '404':
+          description: Reminder not found
+        '409':
+          description: REMINDER_NOT_EDITABLE
 
   /tasks/{id}/reminders:
     get:
@@ -1328,12 +1403,12 @@ paths:
         '404':
           description: Subscription or reminder not found
 
-  /days/today:
+  /day/today:
     get:
-      summary: Daily Plan - Today
+      summary: Daily Plan - Today (Specification Path)
       security:
         - BearerAuth: []
-      description: Returns today's plan (user timezone) composed from read-only readers: tasks, habits, events, subscriptions due, and the active timer.
+      description: Canonical singular specification path for today's plan in the user's timezone.
       responses:
         '200':
           description: Day view
@@ -1344,19 +1419,19 @@ paths:
                 properties:
                   day:
                     $ref: '#/components/schemas/DayView'
-  /days/{date}:
+  /day/{date}:
     get:
-      summary: Daily Plan - Specific Date
+      summary: Daily Plan - Specific Date (Specification Path)
       security:
         - BearerAuth: []
-      description: Returns the plan for the given date in the user's timezone.
+      description: Canonical singular specification path for a given date in the user's timezone.
       parameters:
         - name: date
           in: path
           required: true
           schema:
             type: string
-            pattern: '^\d{4}-\d{2}-\d{2}$'
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
       responses:
         '200':
           description: Day view
@@ -1370,12 +1445,12 @@ paths:
         '400':
           description: Invalid date
 
-  /dashboard/overview:
+  /dashboard:
     get:
-      summary: Dashboard Overview
+      summary: Dashboard Overview (Specification Path)
       security:
         - BearerAuth: []
-      description: Aggregated counts for the dashboard: tasks today/overdue, habits today, events today, subscriptions due in the next 7 days, and the active timer.
+      description: Canonical specification path for aggregated dashboard counts.
       responses:
         '200':
           description: Dashboard overview
@@ -4554,9 +4629,19 @@ components:
           type: string
           format: date-time
           nullable: true
+        attemptCount:
+          type: integer
+          minimum: 0
         sentAt:
           type: string
           format: date-time
+          nullable: true
+        failedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastErrorCode:
+          type: string
           nullable: true
         dedupeKey:
           type: string
@@ -4573,6 +4658,45 @@ components:
         - channel
         - status
         - createdAt
+    CreateUserReminderRequest:
+      type: object
+      description: Canonical top-level reminder input. User reminders target an owned task or event; exactly one schedule mode is accepted.
+      properties:
+        entityType:
+          type: string
+          enum: [task, event]
+        entityId:
+          type: string
+          format: uuid
+        remindAt:
+          type: string
+          format: date-time
+        offsetMinutes:
+          type: integer
+          minimum: 0
+          maximum: 43200
+          nullable: true
+        channel:
+          type: string
+          enum: [push, in_app]
+          default: in_app
+      required:
+        - entityType
+        - entityId
+    UpdateUserReminderRequest:
+      type: object
+      description: Editable fields for a pending user-authored reminder. At least one field is required; remindAt and offsetMinutes are mutually exclusive.
+      properties:
+        remindAt:
+          type: string
+          format: date-time
+        offsetMinutes:
+          type: integer
+          minimum: 0
+          maximum: 43200
+        channel:
+          type: string
+          enum: [push, in_app]
     CreateUnifiedReminderRequest:
       type: object
       description: Manual reminder input. Exactly one of remindAt or offsetMinutes must be provided (FR-REM-02).
@@ -6303,7 +6427,51 @@ components:
             $ref: '#/components/schemas/ApiErrorEnvelope'
 `;
 
-  return doc;
+  const parsed = parse(doc) as {
+    paths: Record<
+      string,
+      Record<
+        string,
+        {
+          responses?: Record<
+            string,
+            { content?: Record<string, { schema?: Record<string, unknown> }> }
+          >;
+        }
+      >
+    >;
+  };
+  for (const [route, pathItem] of Object.entries(parsed.paths)) {
+    if (route.startsWith('/health/') || route.startsWith('/users/me/export')) continue;
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!['get', 'post', 'put', 'patch', 'delete'].includes(method)) continue;
+      for (const [status, response] of Object.entries(operation.responses ?? {})) {
+        if (!/^2\d\d$/.test(status) || status === '204') continue;
+        response.content ??= {};
+        const json =
+          response.content['application/json'] ??
+          (response.content['application/json'] = { schema: {} });
+        const payload = json.schema ?? {};
+        const props = payload.properties as Record<string, unknown> | undefined;
+        if (props?.success && props.data) continue;
+        const listPayload =
+          typeof props?.data === 'object' &&
+          props.data !== null &&
+          (props.data as Record<string, unknown>).type === 'array';
+        const hasMeta = listPayload && props?.meta !== undefined;
+        json.schema = {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', const: true },
+            data: listPayload ? props.data : payload,
+            ...(hasMeta ? { meta: props?.meta } : {})
+          },
+          required: hasMeta ? ['success', 'data', 'meta'] : ['success', 'data']
+        };
+      }
+    }
+  }
+  return stringify(parsed);
 }
 
 export function writeOpenApiDocument(): void {

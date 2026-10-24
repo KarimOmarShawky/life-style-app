@@ -60,6 +60,9 @@ export function createUnifiedRemindersRouter(options: {
 
   router.use(authenticate, userRateLimiter);
   router.get('/', controller.listAll);
+  router.post('/', controller.create);
+  router.patch('/:id', controller.update);
+  router.delete('/:id', controller.remove);
 
   return router;
 }

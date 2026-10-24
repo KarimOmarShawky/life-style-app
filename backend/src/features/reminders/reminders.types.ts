@@ -25,6 +25,7 @@ export interface ReminderEntity {
   attemptCount: number;
   sentAt: Date | null;
   failedAt: Date | null;
+  lastErrorCode: string | null;
   dedupeKey: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -48,4 +49,10 @@ export interface ListRemindersFilter {
   from?: Date | undefined;
   to?: Date | undefined;
   limit: number;
+}
+
+export interface UpdateReminderRepoInput {
+  remindAt?: Date | undefined;
+  offsetMinutes?: number | null | undefined;
+  channel?: ReminderChannel | undefined;
 }

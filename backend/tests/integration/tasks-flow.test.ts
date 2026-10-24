@@ -43,7 +43,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
       timezone,
       defaultCurrency: 'USD'
     });
-    return res.body;
+    return res.body.data;
   }
 
   describe('Tasks Feature', () => {
@@ -60,9 +60,9 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         });
 
       expect(createRes.status).toBe(201);
-      const taskId = createRes.body.task.id;
-      expect(createRes.body.task.completedAt).toBeNull();
-      expect(createRes.body.task.status).toBe('todo');
+      const taskId = createRes.body.data.task.id;
+      expect(createRes.body.data.task.completedAt).toBeNull();
+      expect(createRes.body.data.task.status).toBe('todo');
 
       // 2. Mark task as done
       const doneRes = await request(app)
@@ -73,9 +73,9 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         });
 
       expect(doneRes.status).toBe(200);
-      expect(doneRes.body.task.status).toBe('done');
-      expect(doneRes.body.task.completedAt).not.toBeNull();
-      expect(Number.isNaN(Date.parse(doneRes.body.task.completedAt))).toBe(false);
+      expect(doneRes.body.data.task.status).toBe('done');
+      expect(doneRes.body.data.task.completedAt).not.toBeNull();
+      expect(Number.isNaN(Date.parse(doneRes.body.data.task.completedAt))).toBe(false);
 
       // 3. Reopen task
       const reopenRes = await request(app)
@@ -86,8 +86,8 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         });
 
       expect(reopenRes.status).toBe(200);
-      expect(reopenRes.body.task.status).toBe('in_progress');
-      expect(reopenRes.body.task.completedAt).toBeNull();
+      expect(reopenRes.body.data.task.status).toBe('in_progress');
+      expect(reopenRes.body.data.task.completedAt).toBeNull();
 
       // 4. Mark done directly on create
       const directDoneRes = await request(app)
@@ -99,7 +99,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         });
 
       expect(directDoneRes.status).toBe(201);
-      expect(directDoneRes.body.task.completedAt).not.toBeNull();
+      expect(directDoneRes.body.data.task.completedAt).not.toBeNull();
     });
 
     it('AC-TASK-02: Marking task as focus unpins any existing focus task on same date in same transaction', async () => {
@@ -117,8 +117,8 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         });
 
       expect(task1Res.status).toBe(201);
-      const task1Id = task1Res.body.task.id;
-      expect(task1Res.body.task.isFocus).toBe(true);
+      const task1Id = task1Res.body.data.task.id;
+      expect(task1Res.body.data.task.isFocus).toBe(true);
 
       // 2. Create task 2 on same plannedDate without focus
       const task2Res = await request(app)
@@ -129,7 +129,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           plannedDate,
           isFocus: false
         });
-      const task2Id = task2Res.body.task.id;
+      const task2Id = task2Res.body.data.task.id;
 
       // 3. Update task 2 to become focus
       const updateTask2 = await request(app)
@@ -140,7 +140,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         });
 
       expect(updateTask2.status).toBe(200);
-      expect(updateTask2.body.task.isFocus).toBe(true);
+      expect(updateTask2.body.data.task.isFocus).toBe(true);
 
       // Verify task 1 is now automatically unfocused
       const getTask1 = await request(app)
@@ -148,7 +148,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(getTask1.status).toBe(200);
-      expect(getTask1.body.task.isFocus).toBe(false);
+      expect(getTask1.body.data.task.isFocus).toBe(false);
 
       // 4. Create task 3 directly as focus on that date -> task 2 must be unfocused
       const task3Res = await request(app)
@@ -160,12 +160,12 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           isFocus: true
         });
       expect(task3Res.status).toBe(201);
-      expect(task3Res.body.task.isFocus).toBe(true);
+      expect(task3Res.body.data.task.isFocus).toBe(true);
 
       const getTask2 = await request(app)
         .get(`/api/v1/tasks/${task2Id}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
-      expect(getTask2.body.task.isFocus).toBe(false);
+      expect(getTask2.body.data.task.isFocus).toBe(false);
     });
 
     it('AC-TASK-03: Overdue filter includes tasks where due_date < user_today AND status NOT IN (done, cancelled)', async () => {
@@ -219,7 +219,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].id).toBe(overdueTask.body.task.id);
+      expect(res.body.data[0].id).toBe(overdueTask.body.data.task.id);
       expect(res.body.data[0].title).toBe('Old Overdue Task');
     });
 
@@ -232,7 +232,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .send({
           title: 'Task with Reminders'
         });
-      const taskId = taskRes.body.task.id;
+      const taskId = taskRes.body.data.task.id;
 
       // Seed a pending reminder for this task in the DB
       const reminderIdRes = await pool.query(
@@ -266,7 +266,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(restoreRes.status).toBe(200);
-      expect(restoreRes.body.task.id).toBe(taskId);
+      expect(restoreRes.body.data.task.id).toBe(taskId);
 
       // Active GET now works again
       const getAfterRestore = await request(app)
@@ -301,8 +301,8 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({ title: 'Concurrent Task' });
 
-      const taskId = taskRes.body.task.id;
-      const initialVersion = taskRes.body.task.version;
+      const taskId = taskRes.body.data.task.id;
+      const initialVersion = taskRes.body.data.task.version;
 
       // Update with correct version
       const update1 = await request(app)
@@ -313,7 +313,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           version: initialVersion
         });
       expect(update1.status).toBe(200);
-      expect(update1.body.task.version).toBe(initialVersion + 1);
+      expect(update1.body.data.task.version).toBe(initialVersion + 1);
 
       // Stale update using old initialVersion fails with 409 VERSION_CONFLICT
       const staleUpdate = await request(app)
@@ -365,7 +365,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           name: 'Project Detach Test',
           color: '#336699'
         });
-      const proj1Id = proj1Res.body.project.id;
+      const proj1Id = proj1Res.body.data.project.id;
 
       // Attach task to project 1
       const task1Res = await request(app)
@@ -375,7 +375,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           title: 'Detachable Task',
           projectId: proj1Id
         });
-      const task1Id = task1Res.body.task.id;
+      const task1Id = task1Res.body.data.task.id;
 
       // Delete project 1 with default cascade=false
       const delProj1 = await request(app)
@@ -388,7 +388,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .get(`/api/v1/tasks/${task1Id}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(checkTask1.status).toBe(200);
-      expect(checkTask1.body.task.projectId).toBeNull();
+      expect(checkTask1.body.data.task.projectId).toBeNull();
 
       // 2. Create project 2
       const proj2Res = await request(app)
@@ -397,7 +397,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .send({
           name: 'Project Cascade Test'
         });
-      const proj2Id = proj2Res.body.project.id;
+      const proj2Id = proj2Res.body.data.project.id;
 
       // Attach task to project 2
       const task2Res = await request(app)
@@ -407,7 +407,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           title: 'Cascaded Task',
           projectId: proj2Id
         });
-      const task2Id = task2Res.body.task.id;
+      const task2Id = task2Res.body.data.task.id;
 
       // Delete project 2 with cascade=true
       const delProj2 = await request(app)
@@ -431,7 +431,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .send({
           name: 'Task Counts Project'
         });
-      const projId = projRes.body.project.id;
+      const projId = projRes.body.data.project.id;
 
       // Add 2 open tasks (todo, in_progress)
       await request(app)
@@ -456,7 +456,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .set('Authorization', `Bearer ${tokens.accessToken}`);
 
       expect(detailRes.status).toBe(200);
-      expect(detailRes.body.project.taskCounts).toEqual({
+      expect(detailRes.body.data.project.taskCounts).toEqual({
         open: 2,
         done: 1
       });
@@ -481,7 +481,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           name: 'Original Project Name',
           description: 'A great project'
         });
-      const projId = projRes.body.project.id;
+      const projId = projRes.body.data.project.id;
 
       // Update project
       const patchRes = await request(app)
@@ -490,11 +490,11 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .send({
           name: 'Renamed Project',
           color: '#112233',
-          version: projRes.body.project.version
+          version: projRes.body.data.project.version
         });
       expect(patchRes.status).toBe(200);
-      expect(patchRes.body.project.name).toBe('Renamed Project');
-      expect(patchRes.body.project.color).toBe('#112233');
+      expect(patchRes.body.data.project.name).toBe('Renamed Project');
+      expect(patchRes.body.data.project.color).toBe('#112233');
 
       // Soft delete project
       const delRes = await request(app)
@@ -513,8 +513,8 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .post(`/api/v1/projects/${projId}/restore`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(restoreRes.status).toBe(200);
-      expect(restoreRes.body.project.id).toBe(projId);
-      expect(restoreRes.body.project.name).toBe('Renamed Project');
+      expect(restoreRes.body.data.project.id).toBe(projId);
+      expect(restoreRes.body.data.project.name).toBe('Renamed Project');
     });
   });
 
@@ -540,8 +540,8 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         });
 
       expect(createRes.status).toBe(201);
-      const recTaskId = createRes.body.recurringTask.id;
-      expect(createRes.body.recurringTask.recurrence.freq).toBe('daily');
+      const recTaskId = createRes.body.data.recurringTask.id;
+      expect(createRes.body.data.recurringTask.recurrence.freq).toBe('daily');
 
       // Check instances created in tasks table
       const tasksRes = await pool.query(
@@ -574,7 +574,7 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
           }
         });
 
-      const recTaskId = createRes.body.recurringTask.id;
+      const recTaskId = createRes.body.data.recurringTask.id;
 
       // Find future generated instances
       const instances = await pool.query(
@@ -676,15 +676,15 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
             startDate: today
           }
         });
-      const recId = createRes.body.recurringTask.id;
+      const recId = createRes.body.data.recurringTask.id;
 
       // GET by ID
       const getRes = await request(app)
         .get(`/api/v1/recurring-tasks/${recId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
       expect(getRes.status).toBe(200);
-      expect(getRes.body.recurringTask.title).toBe('Recurring List Test');
-      expect(getRes.body.recurringTask.recurrence.byWeekday).toEqual([1, 3]);
+      expect(getRes.body.data.recurringTask.title).toBe('Recurring List Test');
+      expect(getRes.body.data.recurringTask.recurrence.byWeekday).toEqual([1, 3]);
 
       // List recurring tasks
       const listRes = await request(app)
@@ -725,26 +725,26 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
 
       // User B tries to read User A's task -> 404
       const getTaskB = await request(app)
-        .get(`/api/v1/tasks/${taskA.body.task.id}`)
+        .get(`/api/v1/tasks/${taskA.body.data.task.id}`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
       expect(getTaskB.status).toBe(404);
 
       // User B tries to patch User A's task -> 404
       const patchTaskB = await request(app)
-        .patch(`/api/v1/tasks/${taskA.body.task.id}`)
+        .patch(`/api/v1/tasks/${taskA.body.data.task.id}`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`)
         .send({ title: 'Hacked Title' });
       expect(patchTaskB.status).toBe(404);
 
       // User B tries to delete User A's task -> 404
       const delTaskB = await request(app)
-        .delete(`/api/v1/tasks/${taskA.body.task.id}`)
+        .delete(`/api/v1/tasks/${taskA.body.data.task.id}`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
       expect(delTaskB.status).toBe(404);
 
       // User B tries to read User A's project -> 404
       const getProjB = await request(app)
-        .get(`/api/v1/projects/${projA.body.project.id}`)
+        .get(`/api/v1/projects/${projA.body.data.project.id}`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
       expect(getProjB.status).toBe(404);
 
@@ -754,13 +754,13 @@ describe('Tasks, Projects & Recurring Tasks Integration Tests', () => {
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`)
         .send({
           title: 'Sneaky Task',
-          projectId: projA.body.project.id
+          projectId: projA.body.data.project.id
         });
       expect(attachB.status).toBe(404);
 
       // User B tries to read User A's recurring task -> 404
       const getRecB = await request(app)
-        .get(`/api/v1/recurring-tasks/${recA.body.recurringTask.id}`)
+        .get(`/api/v1/recurring-tasks/${recA.body.data.recurringTask.id}`)
         .set('Authorization', `Bearer ${userB.tokens.accessToken}`);
       expect(getRecB.status).toBe(404);
     });

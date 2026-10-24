@@ -57,16 +57,16 @@ describe('Auth Flow Integration Tests', () => {
     const res = await request(app).post('/api/v1/auth/register').send(registerPayload);
 
     expect(res.status).toBe(201);
-    expect(res.body.user).toBeDefined();
-    expect(res.body.user.email).toBe('alice.smith@example.com'); // Lowercased
-    expect(res.body.user.displayName).toBe('Alice Smith');
-    expect(res.body.user.password_hash).toBeUndefined(); // Never leaked
-    expect(res.body.tokens.accessToken).toBeDefined();
-    expect(res.body.tokens.refreshToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(res.body.data.user).toBeDefined();
+    expect(res.body.data.user.email).toBe('alice.smith@example.com'); // Lowercased
+    expect(res.body.data.user.displayName).toBe('Alice Smith');
+    expect(res.body.data.user.password_hash).toBeUndefined(); // Never leaked
+    expect(res.body.data.tokens.accessToken).toBeDefined();
+    expect(res.body.data.tokens.refreshToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
     // Verify default categories were seeded
     const catRes = await pool.query('SELECT * FROM categories WHERE user_id = $1', [
-      res.body.user.id
+      res.body.data.user.id
     ]);
     expect(catRes.rows.length).toBeGreaterThanOrEqual(11);
 
@@ -99,9 +99,9 @@ describe('Auth Flow Integration Tests', () => {
     });
 
     expect(validLogin.status).toBe(200);
-    expect(validLogin.body.user.email).toBe('bob@example.com');
-    expect(validLogin.body.tokens.accessToken).toBeDefined();
-    expect(validLogin.body.tokens.refreshToken).toBeDefined();
+    expect(validLogin.body.data.user.email).toBe('bob@example.com');
+    expect(validLogin.body.data.tokens.accessToken).toBeDefined();
+    expect(validLogin.body.data.tokens.refreshToken).toBeDefined();
 
     // 3. Login with wrong password
     const wrongPass = await request(app).post('/api/v1/auth/login').send({
@@ -132,8 +132,8 @@ describe('Auth Flow Integration Tests', () => {
       defaultCurrency: 'USD'
     });
 
-    const initialRefreshToken = regRes.body.tokens.refreshToken;
-    const initialAccessToken = regRes.body.tokens.accessToken;
+    const initialRefreshToken = regRes.body.data.tokens.refreshToken;
+    const initialAccessToken = regRes.body.data.tokens.accessToken;
 
     // Register a push device to test device deletion on reuse
     await request(app)
@@ -146,7 +146,7 @@ describe('Auth Flow Integration Tests', () => {
 
     // Verify push device exists
     const deviceBefore = await pool.query('SELECT * FROM push_devices WHERE user_id = $1', [
-      regRes.body.user.id
+      regRes.body.data.user.id
     ]);
     expect(deviceBefore.rows.length).toBe(1);
 
@@ -156,11 +156,11 @@ describe('Auth Flow Integration Tests', () => {
       .send({ refreshToken: initialRefreshToken });
 
     expect(refreshRes.status).toBe(200);
-    expect(refreshRes.body.accessToken).toBeDefined();
-    expect(refreshRes.body.refreshToken).toBeDefined();
-    expect(refreshRes.body.refreshToken).not.toBe(initialRefreshToken);
+    expect(refreshRes.body.data.accessToken).toBeDefined();
+    expect(refreshRes.body.data.refreshToken).toBeDefined();
+    expect(refreshRes.body.data.refreshToken).not.toBe(initialRefreshToken);
 
-    const newRefreshToken = refreshRes.body.refreshToken;
+    const newRefreshToken = refreshRes.body.data.refreshToken;
 
     // 3. AC-AUTH-07: Attempt REUSE of initialRefreshToken (ADR-041)
     const reuseRes = await request(app)
@@ -172,13 +172,13 @@ describe('Auth Flow Integration Tests', () => {
 
     // Verify that reuse revoked the entire session and deleted push devices
     const sessionRes = await pool.query('SELECT * FROM auth_sessions WHERE user_id = $1', [
-      regRes.body.user.id
+      regRes.body.data.user.id
     ]);
     expect(sessionRes.rows[0].revoked_at).not.toBeNull();
     expect(sessionRes.rows[0].revoked_reason).toBe('reuse_detected');
 
     const devicesAfter = await pool.query('SELECT * FROM push_devices WHERE user_id = $1', [
-      regRes.body.user.id
+      regRes.body.data.user.id
     ]);
     expect(devicesAfter.rows.length).toBe(0);
 
@@ -210,33 +210,33 @@ describe('Auth Flow Integration Tests', () => {
     // We have 2 active sessions
     let sessions = await pool.query(
       'SELECT * FROM auth_sessions WHERE user_id = $1 AND revoked_at IS NULL',
-      [regRes.body.user.id]
+      [regRes.body.data.user.id]
     );
     expect(sessions.rows.length).toBe(2);
 
     // 3. Logout session 1 via refresh token
     const logoutRes = await request(app)
       .post('/api/v1/auth/logout')
-      .send({ refreshToken: regRes.body.tokens.refreshToken });
+      .send({ refreshToken: regRes.body.data.tokens.refreshToken });
 
     expect(logoutRes.status).toBe(204);
 
     sessions = await pool.query(
       'SELECT * FROM auth_sessions WHERE user_id = $1 AND revoked_at IS NULL',
-      [regRes.body.user.id]
+      [regRes.body.data.user.id]
     );
     expect(sessions.rows.length).toBe(1);
 
     // 4. Logout-all using session 2 access token
     const logoutAllRes = await request(app)
       .post('/api/v1/auth/logout-all')
-      .set('Authorization', `Bearer ${loginRes.body.tokens.accessToken}`);
+      .set('Authorization', `Bearer ${loginRes.body.data.tokens.accessToken}`);
 
     expect(logoutAllRes.status).toBe(204);
 
     sessions = await pool.query(
       'SELECT * FROM auth_sessions WHERE user_id = $1 AND revoked_at IS NULL',
-      [regRes.body.user.id]
+      [regRes.body.data.user.id]
     );
     expect(sessions.rows.length).toBe(0);
   });
@@ -251,7 +251,7 @@ describe('Auth Flow Integration Tests', () => {
       defaultCurrency: 'GBP'
     });
 
-    const oldAccessToken = regRes.body.tokens.accessToken;
+    const oldAccessToken = regRes.body.data.tokens.accessToken;
 
     // 2. Forgot password request (indistinguishable response 202)
     const forgotRes = await request(app)
@@ -272,7 +272,7 @@ describe('Auth Flow Integration Tests', () => {
 
     // 3. Retrieve code from Redis (for test assertion)
     // Note: In production code is delivered via email; here we verify Redis state
-    const rawStored = await redis.get(`pwreset:${regRes.body.user.id}`);
+    const rawStored = await redis.get(`pwreset:${regRes.body.data.user.id}`);
     expect(rawStored).toMatch(/^[0-9a-f]{64}$/);
     const resetAudit = await pool.query(
       `SELECT outcome, metadata FROM audit_logs
@@ -288,7 +288,7 @@ describe('Auth Flow Integration Tests', () => {
     // Let's create an OTP for emma to complete reset
     const { buildContainer } = await import('../../src/container.js');
     const container = buildContainer();
-    const testCode = await container.otpStore.generateAndStoreCode(regRes.body.user.id);
+    const testCode = await container.otpStore.generateAndStoreCode(regRes.body.data.user.id);
 
     // 4. Reset password
     const resetRes = await request(app).post('/api/v1/auth/reset-password').send({
@@ -334,7 +334,7 @@ describe('Auth Flow Integration Tests', () => {
     // 3. Change password from session 1
     const changeRes = await request(app)
       .post('/api/v1/auth/change-password')
-      .set('Authorization', `Bearer ${regRes.body.tokens.accessToken}`)
+      .set('Authorization', `Bearer ${regRes.body.data.tokens.accessToken}`)
       .send({
         currentPassword: 'FrankPassword123!',
         newPassword: 'FrankNewPassword789!'
@@ -345,13 +345,13 @@ describe('Auth Flow Integration Tests', () => {
     // 4. Session 1 should still be valid
     const session1Check = await request(app)
       .get('/api/v1/users/me')
-      .set('Authorization', `Bearer ${regRes.body.tokens.accessToken}`);
+      .set('Authorization', `Bearer ${regRes.body.data.tokens.accessToken}`);
     expect(session1Check.status).toBe(200);
 
     // 5. Session 2 should now be revoked
     const session2Check = await request(app)
       .get('/api/v1/users/me')
-      .set('Authorization', `Bearer ${session2.body.tokens.accessToken}`);
+      .set('Authorization', `Bearer ${session2.body.data.tokens.accessToken}`);
     expect(session2Check.status).toBe(401);
   });
 });

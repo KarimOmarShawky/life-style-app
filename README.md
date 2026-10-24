@@ -37,7 +37,7 @@ lifestyle/
 │   │   ├── server.ts         # API entry point & graceful shutdown
 │   │   └── worker.ts         # Background worker entry point
 │   └── tests/                # Unit, integration, and security test suites
-├── mobile/                   # Flutter native client package (Riverpod, secure tokens, API integration)
+├── mobile-app/mobile/        # Flutter native client package (Riverpod, secure tokens, API integration)
 ├── docs/                     # Authoritative engineering documentation
 │   ├── architecture/         # System diagrams, layer rules, ADR log, non-goals
 │   ├── database/             # PostgreSQL schema, database roles, migrations, Redis

@@ -50,6 +50,16 @@ export class IngestController {
       const input = analyzeSmsRequestSchema.parse(req.body);
       const result = await this.ingestService.analyzeCandidate(input);
       res.setHeader('Cache-Control', 'no-store');
+      // SMS fallback result contract (shared by the Android receiver and the
+      // Dart review queue):
+      //   200 + status 'recognized'   -> terminal, save or queue for review
+      //   200 + status 'unrecognized' -> terminal, drop the candidate
+      //   503 + SMS_FALLBACK_UNAVAILABLE -> retryable: keep the candidate
+      // "unavailable" is therefore never returned as a successful 2xx result,
+      // so a client can treat every 2xx body as a final semantic answer.
+      if (result.status === 'unavailable') {
+        throw new SmsFallbackUnavailableError();
+      }
       res.status(200).json({
         status: result.status,
         transaction: result.transaction,

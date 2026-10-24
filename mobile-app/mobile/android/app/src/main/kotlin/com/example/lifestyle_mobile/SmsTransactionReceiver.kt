@@ -62,6 +62,16 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         // Candidates are dropped after this many failed delivery attempts.
         private const val MAX_CANDIDATE_ATTEMPTS = 5
 
+        // Candidates keep sanitized SMS text: never retain them longer than this.
+        private const val CANDIDATE_RETENTION_MS = 7L * 24 * 60 * 60 * 1000L
+        // Retryable states back off between attempts instead of hammering the API.
+        private const val CANDIDATE_BACKOFF_MS = 5L * 60 * 1000L
+        // 503: the fallback provider is absent or down. Retryable, never a
+        // semantic "this is not a transaction" (F-02).
+        private const val ANALYZE_UNAVAILABLE_STATUS = 503
+        // User-visible state: the fallback could not analyze one or more messages.
+        const val KEY_FALLBACK_UNAVAILABLE = "flutter.wallet_sms_fallback_unavailable"
+
         // 400 and 422: the payload is invalid. 409: the idempotency key was reused with other data.
         // Retrying cannot succeed for these, so the queued entry is dropped.
         private val PERMANENT_REJECTIONS = setOf(400, 409, 422)
@@ -262,9 +272,17 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             .put("description", tx.description)
             .put("merchant", tx.sender)
             .put("createdAt", System.currentTimeMillis())
+        val stored = try {
+            WalletQueueCipher().encrypt(item.toString())
+        } catch (e: Exception) {
+            // No plaintext fallback: an unencrypted queue entry is worse than a
+            // loudly logged capture failure. The user still sees the notification.
+            Log.e(TAG, "Wallet transaction could not be stored securely", e)
+            return
+        }
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putString(PENDING_PREFIX + id, item.toString())
+            .putString(PENDING_PREFIX + id, stored)
             .commit()
     }
 
@@ -290,9 +308,12 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      * issues a new one on its next start.
      */
     private fun flushQueue(context: Context, prefs: SharedPreferences, url: String, token: String, isIngest: Boolean) {
+        val cipher = WalletQueueCipher()
         val pendingKeys = prefs.all.keys.filter { it.startsWith(PENDING_PREFIX) }.sorted()
         for (key in pendingKeys) {
-            val raw = prefs.getString(key, null) ?: continue
+            val stored = prefs.getString(key, null) ?: continue
+            // v2 entries are Keystore-encrypted; v1 entries migrate as-is.
+            val raw = cipher.decrypt(stored) ?: continue
             val status = postTransaction(url, token, raw)
             if (status in 200..299 || status in PERMANENT_REJECTIONS) {
                 prefs.edit().remove(key).commit()
@@ -353,9 +374,15 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             .put("sender", SmsSanitizer.sanitizeSender(sender))
             .put("receivedAtMs", receivedAtMs)
             .put("attempts", 0)
+        val stored = try {
+            WalletQueueCipher().encrypt(item.toString())
+        } catch (e: Exception) {
+            Log.e(TAG, "Wallet SMS candidate could not be stored securely", e)
+            return
+        }
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putString(CANDIDATE_PREFIX + id, item.toString())
+            .putString(CANDIDATE_PREFIX + id, stored)
             .commit()
     }
 
@@ -364,7 +391,15 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      * there; the key is server-side only). A high-confidence parse is saved at
      * once with the candidate id as the Idempotency-Key, so retries can never
      * duplicate it. A low-confidence parse becomes a review entry the user must
-     * confirm in the Money screen. Anything unrecognized is dropped.
+     * confirm in the Money screen.
+     *
+     * Result semantics (F-01/F-02):
+     *  - 2xx + status "recognized"   -> save or queue for review, then remove
+     *  - 2xx + status "unrecognized" -> final answer, remove
+     *  - 503 (or "unavailable")      -> retryable: keep the candidate, back off
+     *  - permanent rejection         -> remove
+     *
+     * The candidate is never deleted before its result has been handled.
      */
     private fun flushCandidates(
         context: Context,
@@ -374,9 +409,17 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         token: String,
         isIngest: Boolean
     ) {
+        val cipher = WalletQueueCipher()
+        dropExpiredCandidates(prefs)
         val candidateKeys = prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }.sorted()
         for (key in candidateKeys) {
-            val raw = prefs.getString(key, null) ?: continue
+            val stored = prefs.getString(key, null) ?: continue
+            val raw = cipher.decrypt(stored)
+            if (raw == null) {
+                // Unreadable and unrecoverable: drop instead of retrying forever.
+                prefs.edit().remove(key).commit()
+                continue
+            }
             val item = try {
                 JSONObject(raw)
             } catch (e: Exception) {
@@ -384,16 +427,31 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 continue
             }
             val attempts = item.optInt("attempts", 0)
-            if (attempts >= MAX_CANDIDATE_ATTEMPTS) {
-                prefs.edit().remove(key).commit()
-                continue
-            }
+            if (item.optBoolean("blocked", false)) continue
+            if (item.optLong("nextAttemptAtMs", 0L) > System.currentTimeMillis()) continue
 
             val (status, body) = postAnalyze(analyzeUrl, token, item)
             when {
                 status in 200..299 && body != null -> {
-                    prefs.edit().remove(key).commit()
-                    handleAnalysisResult(context, prefs, saveUrl, token, item, body)
+                    // Handle first, delete after: a recognized result is saved or
+                    // queued for review before the candidate disappears (F-01).
+                    when (handleAnalysisResult(context, prefs, saveUrl, token, item, body)) {
+                        CandidateOutcome.HANDLED -> {
+                            prefs.edit().remove(key).commit()
+                            // The fallback answered: clear any stalled state.
+                            if (prefs.contains(KEY_FALLBACK_UNAVAILABLE)) {
+                                prefs.edit().remove(KEY_FALLBACK_UNAVAILABLE).commit()
+                            }
+                        }
+                        CandidateOutcome.RETRY -> {
+                            if (!retryCandidate(prefs, key, item, attempts, unavailable = true)) return
+                        }
+                    }
+                }
+                // The fallback is not configured or is down. This says nothing
+                // about the message, so the candidate must survive (F-02).
+                status == ANALYZE_UNAVAILABLE_STATUS -> {
+                    if (!retryCandidate(prefs, key, item, attempts, unavailable = true)) return
                 }
                 status in PERMANENT_REJECTIONS -> {
                     prefs.edit().remove(key).commit()
@@ -404,15 +462,92 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 }
                 else -> {
                     // Network, server, or upstream problem: retry later.
-                    item.put("attempts", attempts + 1)
-                    prefs.edit().putString(key, item.toString()).commit()
-                    return
+                    if (!retryCandidate(prefs, key, item, attempts, unavailable = false)) return
                 }
             }
         }
     }
 
-    /** Applies one analyze response: auto-save, queue for review, or drop. */
+    private enum class CandidateOutcome { HANDLED, RETRY }
+
+    /**
+     * Applies bounded backoff to one candidate. Returns true when the flush loop
+     * can continue with the next candidate, false when this round must stop.
+     * Once the attempt budget is spent the candidate is blocked (not deleted) and
+     * the state is published for the UI, so a stalled fallback is visible instead
+     * of silently losing the message (F-02).
+     */
+    private fun retryCandidate(
+        prefs: SharedPreferences,
+        key: String,
+        item: JSONObject,
+        attempts: Int,
+        unavailable: Boolean
+    ): Boolean {
+        val next = attempts + 1
+        if (next >= MAX_CANDIDATE_ATTEMPTS) {
+            item.put("attempts", next)
+            item.put("blocked", true)
+            writeCandidate(prefs, key, item)
+            if (unavailable) publishFallbackUnavailable(prefs)
+            return true
+        }
+        item.put("attempts", next)
+        item.put("nextAttemptAtMs", System.currentTimeMillis() + CANDIDATE_BACKOFF_MS * next)
+        writeCandidate(prefs, key, item)
+        if (unavailable) publishFallbackUnavailable(prefs)
+        // Backing off: stop this round so a burst of SMS cannot hammer the API.
+        return false
+    }
+
+    /** Stores one candidate entry. Never writes plaintext (F-05). */
+    private fun writeCandidate(prefs: SharedPreferences, key: String, item: JSONObject) {
+        val stored = try {
+            WalletQueueCipher().encrypt(item.toString())
+        } catch (e: Exception) {
+            Log.e(TAG, "Wallet SMS candidate could not be stored securely", e)
+            return
+        }
+        prefs.edit().putString(key, stored).commit()
+    }
+
+    /** Counts how many messages the fallback could not analyze, for the UI. */
+    private fun publishFallbackUnavailable(prefs: SharedPreferences) {
+        val previous = prefs.getString(KEY_FALLBACK_UNAVAILABLE, null)
+        val count = try {
+            if (previous == null) 0 else JSONObject(previous).optInt("count", 0)
+        } catch (e: Exception) {
+            0
+        }
+        val state = JSONObject()
+            .put("count", count + 1)
+            .put("lastAtMs", System.currentTimeMillis())
+        prefs.edit().putString(KEY_FALLBACK_UNAVAILABLE, state.toString()).commit()
+    }
+
+    /** Retention: raw SMS text is never kept longer than the window (F-05). */
+    private fun dropExpiredCandidates(prefs: SharedPreferences) {
+        val cipher = WalletQueueCipher()
+        val cutoff = System.currentTimeMillis() - CANDIDATE_RETENTION_MS
+        for (key in prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }) {
+            val raw = prefs.getString(key, null)?.let { cipher.decrypt(it) } ?: continue
+            val receivedAt = try {
+                JSONObject(raw).optLong("receivedAtMs", 0L)
+            } catch (e: Exception) {
+                0L
+            }
+            if (receivedAt <= 0L || receivedAt < cutoff) {
+                prefs.edit().remove(key).commit()
+            }
+        }
+    }
+
+    /**
+     * Applies one analyze response and reports whether the candidate may be
+     * removed. The API answers with the v1 success envelope
+     * `{success, data}`, so the result is read from `data` — reading it from the
+     * JSON root silently discarded every recognized candidate (F-01).
+     */
     private fun handleAnalysisResult(
         context: Context,
         prefs: SharedPreferences,
@@ -420,19 +555,18 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         token: String,
         candidate: JSONObject,
         body: String
-    ) {
-        val result = try {
-            JSONObject(body)
-        } catch (e: Exception) {
-            return
-        }
+    ): CandidateOutcome {
+        val result = unwrapAnalyzeResult(body) ?: return CandidateOutcome.RETRY
+        if (!result.has("status")) return CandidateOutcome.RETRY
         val status = result.optString("status")
+        // "unavailable" means the fallback could not run; it says nothing about
+        // the message, so it must never be treated as "not a transaction" (F-02).
+        if (status == "unavailable") return CandidateOutcome.RETRY
+        if (status != "recognized") return CandidateOutcome.HANDLED
+
         val transaction = result.optJSONObject("transaction")
+            ?: return CandidateOutcome.RETRY
         val confidence = result.optString("confidence")
-        if (status != "recognized" || transaction == null) {
-            // "unrecognized" or "unavailable": not a transaction we can log.
-            return
-        }
 
         // optString() on a JSON null returns the literal string "null" on Android,
         // so map absent/null/empty description and merchant to null explicitly.
@@ -467,15 +601,41 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             if (merchant != null) saveItem.put("merchant", merchant)
             val saved = postTransaction(saveUrl, token, saveItem.toString())
             if (saved in 200..299 || saved in PERMANENT_REJECTIONS) {
-                return
+                return CandidateOutcome.HANDLED
             }
             // Could not save now: keep it as a review entry so nothing is lost.
         }
 
         // Low confidence requires user confirmation in the Money review flow.
         val id = reviewItem.optString("id")
-        prefs.edit().putString(REVIEW_PREFIX + id, reviewItem.toString()).commit()
+        val stored = try {
+            WalletQueueCipher().encrypt(reviewItem.toString())
+        } catch (e: Exception) {
+            // Without encryption the entry must not be written; keep the
+            // candidate so another attempt can still save it.
+            Log.e(TAG, "Wallet review item could not be stored securely", e)
+            return CandidateOutcome.RETRY
+        }
+        prefs.edit().putString(REVIEW_PREFIX + id, stored).commit()
         showReviewNotification(context)
+        return CandidateOutcome.HANDLED
+    }
+
+    /**
+     * Accepts the current `{success, data}` envelope and a bare result object,
+     * so an older or differently wrapped response cannot be misread as an empty
+     * result (F-01).
+     */
+    internal fun unwrapAnalyzeResult(body: String): JSONObject? {
+        val root = try {
+            JSONObject(body)
+        } catch (e: Exception) {
+            return null
+        }
+        if (root.optBoolean("success", false) && !root.isNull("data")) {
+            return root.optJSONObject("data") ?: root
+        }
+        return root
     }
 
     /** Returns the HTTP status code and response body for an analyze request. */

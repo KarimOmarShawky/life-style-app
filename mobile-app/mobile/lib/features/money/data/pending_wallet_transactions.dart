@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 
 /// Wallet and bank transactions that the Android SMS receiver stored while the
 /// app was not running.
@@ -13,12 +14,14 @@ import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 /// so token refresh is handled by [ApiClient]. The entry id is used as the
 /// Idempotency-Key, so a retry after a lost response cannot create a duplicate.
 class PendingWalletTransactions {
-  PendingWalletTransactions(this._repository);
+  PendingWalletTransactions(this._repository, {WalletQueueCodec? codec})
+      : _codec = codec ?? PlatformWalletQueueCodec();
 
   static const String keyPrefix = 'pending_wallet_tx.';
   static const String _flutterPrefix = 'flutter.';
 
   final MoneyRepository _repository;
+  final WalletQueueCodec _codec;
 
   /// Sends every queued transaction that the API accepts or permanently rejects.
   /// Returns how many transactions were stored.
@@ -36,7 +39,15 @@ class PendingWalletTransactions {
 
     var stored = 0;
     for (final key in keys) {
-      final item = PendingWalletTransaction.tryParse(prefs.getString(key));
+      // The native receiver stores this entry sealed with the device key.
+      final String? entry;
+      try {
+        entry = await _codec.read(prefs, key);
+      } on WalletQueueSecurityException {
+        // Unreadable right now: keep the entry instead of deleting it.
+        continue;
+      }
+      final item = PendingWalletTransaction.tryParse(entry);
       if (item == null) {
         await prefs.remove(key);
         continue;

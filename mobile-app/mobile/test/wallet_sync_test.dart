@@ -9,6 +9,7 @@ import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/habits/data/habits_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MemoryTokenStore implements TokenStore {
@@ -107,6 +108,7 @@ void main() {
               }),
             ),
           ),
+          codec: const PlainWalletQueueCodec(),
         );
 
         final stored = await queue.flush();
@@ -133,6 +135,7 @@ void main() {
             ),
           ),
         ),
+        codec: const PlainWalletQueueCodec(),
       );
 
       expect(await queue.flush(), 0);
@@ -155,6 +158,7 @@ void main() {
             ),
           ),
         ),
+        codec: const PlainWalletQueueCodec(),
       );
 
       expect(await queue.flush(), 0);

@@ -365,6 +365,23 @@ export interface AuditLogsTable {
   metadata: Generated<Record<string, unknown>>;
 }
 
+export interface PasswordResetRequestsTable {
+  id: Generated<string>;
+  email: string;
+  status: Generated<'pending' | 'processing' | 'sent' | 'failed' | 'dead_letter'>;
+  attempts: Generated<number>;
+  next_attempt_at: Generated<Date>;
+  last_error_code: string | null;
+  request_id: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  processing_started_at: Date | null;
+  lease_expires_at: Date | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  completed_at: Date | null;
+}
+
 export interface DatabaseSchema {
   users: UsersTable;
   auth_sessions: AuthSessionsTable;
@@ -388,6 +405,7 @@ export interface DatabaseSchema {
   budgets: BudgetsTable;
   reminders: RemindersTable;
   audit_logs: AuditLogsTable;
+  password_reset_requests: PasswordResetRequestsTable;
 }
 
 let kyselyDb: Kysely<DatabaseSchema> | null = null;

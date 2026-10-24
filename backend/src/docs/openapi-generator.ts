@@ -1467,7 +1467,7 @@ paths:
       summary: Global Search
       security:
         - BearerAuth: []
-      description: Searches tasks, notes, habits, projects, and events (title/full-text) and merges the results.
+      description: Searches tasks, notes, habits, projects, events, goals, and subscriptions (title/full-text) and merges the results. Financial transactions are excluded by design because Money exposes no transaction-history surface.
       parameters:
         - name: q
           in: query
@@ -4590,6 +4590,23 @@ components:
             properties:
               id: { type: string, format: uuid }
               title: { type: string }
+        goals:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              status: { type: string }
+        subscriptions:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              status: { type: string }
+              nextBillingDate: { type: string, format: date }
       required:
         - query
         - tasks
@@ -4597,6 +4614,8 @@ components:
         - habits
         - projects
         - events
+        - goals
+        - subscriptions
     UnifiedReminder:
       type: object
       description: Unified reminder attached to a task, habit, event, or subscription parent (FR-REM-01..06).

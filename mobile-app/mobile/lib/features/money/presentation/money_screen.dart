@@ -870,6 +870,10 @@ class _NeedsReviewCard extends ConsumerStatefulWidget {
 class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
   List<WalletReviewItem> _items = <WalletReviewItem>[];
   bool _loading = true;
+  // True while the fallback analyzer cannot be reached: the affected messages
+  // are kept for a later retry, so the queue can be empty *because* it is
+  // stalled. That state is shown instead of "nothing to review".
+  bool _fallbackUnavailable = false;
 
   @override
   void initState() {
@@ -881,9 +885,11 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
     final items = await PendingWalletReviews(
       ref.read(moneyRepositoryProvider),
     ).load();
+    final unavailable = await WalletSmsFallbackStatus.isUnavailable();
     if (!mounted) return;
     setState(() {
       _items = items;
+      _fallbackUnavailable = unavailable;
       _loading = false;
     });
   }
@@ -891,7 +897,30 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    if (_loading || _items.isEmpty) return const SizedBox.shrink();
+    if (_loading) return const SizedBox.shrink();
+    if (_items.isEmpty) {
+      // Nothing to review, but the fallback analyzer is unreachable: the
+      // messages are queued on the native side waiting for a retry, so the
+      // state is reported rather than hidden.
+      if (!_fallbackUnavailable) return const SizedBox.shrink();
+      return Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          leading: Icon(
+            Icons.cloud_off_outlined,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          title: Text(
+            l10n.smsFallbackUnavailableTitle,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(l10n.smsFallbackUnavailableDesc),
+          ),
+        ),
+      );
+    }
     return Card(
       margin: EdgeInsets.zero,
       child: ListTile(

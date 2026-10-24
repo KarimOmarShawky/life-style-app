@@ -55,19 +55,19 @@ describe('Bounded volatile reset request dispatcher', () => {
       await blocked.promise;
     });
     const queue = new ResetRequestDispatcher(work, { capacity: 3, concurrency: 1 });
-    expect(queue.admit({ email: 'one@example.com' })).toBe(true);
+    await expect(queue.admit({ email: 'one@example.com' })).resolves.toBe(true);
     expect(work).not.toHaveBeenCalled();
     await tick();
     expect(work).toHaveBeenCalledTimes(1);
-    expect(queue.admit({ email: 'two@example.com' })).toBe(true);
-    expect(queue.admit({ email: 'three@example.com' })).toBe(true);
-    expect(queue.admit({ email: 'four@example.com' })).toBe(false);
+    await expect(queue.admit({ email: 'two@example.com' })).resolves.toBe(true);
+    await expect(queue.admit({ email: 'three@example.com' })).resolves.toBe(true);
+    await expect(queue.admit({ email: 'four@example.com' })).resolves.toBe(false);
     await tick();
     expect(queue.snapshot()).toEqual({ active: 1, waiting: 2, accepting: true });
     const drain = queue.waitForIdle();
     expect(queue.waitForIdle()).toBe(drain);
     queue.stopAccepting();
-    expect(queue.admit({ email: 'five@example.com' })).toBe(false);
+    await expect(queue.admit({ email: 'five@example.com' })).resolves.toBe(false);
     blocked.release();
     await drain;
     expect(work).toHaveBeenCalledTimes(3);
@@ -88,7 +88,7 @@ describe('Bounded volatile reset request dispatcher', () => {
         code: '123456'
       }
     };
-    queue.admit(payload);
+    await queue.admit(payload);
     payload.email = 'changed@example.com';
     payload.meta.requestId = 'changed';
     await queue.waitForIdle();
@@ -118,9 +118,9 @@ describe('Bounded volatile reset request dispatcher', () => {
         concurrency: 1,
         now: () => now
       });
-      queue.admit({ email: 'first@example.com' });
+      await queue.admit({ email: 'first@example.com' });
       await tick();
-      queue.admit({ email: 'second@example.com' });
+      await queue.admit({ email: 'second@example.com' });
       now = 60_000;
       blocked.release();
       await queue.waitForIdle();
@@ -128,7 +128,7 @@ describe('Bounded volatile reset request dispatcher', () => {
       expect(log).toHaveBeenCalledWith(expect.any(String), { reason: 'processing' });
       expect(log).toHaveBeenCalledWith(expect.any(String), { reason: 'expired' });
       expect(JSON.stringify(log.mock.calls)).not.toMatch(/123456|private@example.com/);
-      queue.admit({ email: 'third@example.com' });
+      await queue.admit({ email: 'third@example.com' });
       await queue.waitForIdle();
       expect(work).toHaveBeenCalledTimes(2);
     } finally {
@@ -143,8 +143,10 @@ describe('Bounded volatile reset request dispatcher', () => {
     });
     const queue = new ResetRequestDispatcher(work);
     requestContextStore.run({ requestId: 'first-request', userId: 'first-user' }, () => {
-      queue.admit({ email: 'one@example.com' });
-      queue.admit({ email: 'two@example.com' });
+      // No store: admission completes synchronously, so the caller context is
+      // still active when the background job is scheduled.
+      void queue.admit({ email: 'one@example.com' });
+      void queue.admit({ email: 'two@example.com' });
     });
     await queue.waitForIdle();
     expect(work).toHaveBeenCalledTimes(2);
@@ -160,7 +162,7 @@ describe('Bounded volatile reset request dispatcher', () => {
       const queue = new ResetRequestDispatcher(async () => {
         throw new Error('123456');
       });
-      queue.admit({ email: 'one@example.com' });
+      await queue.admit({ email: 'one@example.com' });
       queue.stopAccepting();
       await queue.waitForIdle();
       expect(warning).toHaveBeenCalledWith('Password reset diagnostic reporting failed');

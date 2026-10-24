@@ -29,6 +29,7 @@ import type {
 } from './auth.validation.js';
 import type { AuthResponseDto, TokensDto } from './auth.types.js';
 import { AppError } from '../../core/errors/app-error.js';
+import { PasswordResetProcessor, type ResetRequestMeta } from './password-reset.processor.js';
 
 export interface RequestMeta {
   ip?: string | undefined;
@@ -38,16 +39,20 @@ export interface RequestMeta {
 
 export class AuthService {
   private readonly resetRequests: ResetRequestDispatcher;
+  private readonly resetProcessor: PasswordResetProcessor;
   constructor(
     private readonly repo: AuthRepository,
     private readonly pool: pg.Pool,
     private readonly passwordHasher: PasswordHasher,
     private readonly tokenService: TokenService,
     private readonly otpStore: OtpStore,
-    private readonly emailSender: EmailSender,
+    emailSender: EmailSender,
     private readonly auditLogger: AuditLogger,
-    resetOptions?: ResetDispatcherOptions
+    resetOptions?: ResetDispatcherOptions,
+    resetProcessor?: PasswordResetProcessor
   ) {
+    this.resetProcessor =
+      resetProcessor ?? new PasswordResetProcessor(repo, otpStore, emailSender, auditLogger);
     this.resetRequests = new ResetRequestDispatcher(
       ({ email, meta }) => this.processPasswordResetRequest(email, meta),
       resetOptions
@@ -536,7 +541,10 @@ export class AuthService {
   }
 
   public async forgotPassword(email: string, meta?: RequestMeta): Promise<void> {
-    if (!this.resetRequests.admit({ email, meta })) {
+    // admit() persists the request first when a durable store is configured,
+    // so a 202 is only returned once the work has durable ownership (F-06).
+    const admitted = await this.resetRequests.admit({ email, meta });
+    if (!admitted) {
       // Admission is process-wide for this service, before any account-dependent work.
       throw AppError.serviceUnavailable('Password reset requests temporarily unavailable');
     }
@@ -544,6 +552,14 @@ export class AuthService {
 
   public stopResetRequests(): void {
     this.resetRequests.stopAccepting();
+  }
+  /** Releases durable rows abandoned by a crashed or restarted process. */
+  public recoverResetRequests(): Promise<number> {
+    return this.resetRequests.recoverStale();
+  }
+  /** Pulls due durable rows (previous process or earlier failure) into this one. */
+  public drainResetRequests(): Promise<number> {
+    return this.resetRequests.drainDue();
   }
   public waitForResetRequests(): Promise<void> {
     return this.resetRequests.waitForIdle();
@@ -553,33 +569,7 @@ export class AuthService {
   }
 
   private async processPasswordResetRequest(email: string, meta?: RequestMeta): Promise<void> {
-    const user = await this.repo.findUserByEmail(email);
-
-    if (user && user.status !== 'disabled') {
-      const allowed = await this.otpStore.checkCooldown(user.id);
-      if (allowed) {
-        const code = await this.otpStore.generateAndStoreCode(user.id);
-        let deliveryOutcome: 'success' | 'failure' = 'success';
-        try {
-          await this.emailSender.sendPasswordResetEmail(user.email, code);
-        } catch {
-          deliveryOutcome = 'failure';
-          // This endpoint accepts requests without revealing account existence.
-          // SMTP failure is observable, not a claimed successful delivery.
-          logger.error('Password reset delivery failed', { requestId: meta?.requestId });
-        }
-
-        await this.auditLogger.log({
-          actorType: 'user',
-          actorUserId: user.id,
-          eventType: 'auth.password.reset.requested',
-          outcome: deliveryOutcome,
-          requestId: meta?.requestId,
-          ip: meta?.ip,
-          userAgent: meta?.userAgent
-        });
-      }
-    }
+    await this.resetProcessor.process(email, meta as ResetRequestMeta | undefined);
   }
 
   public async resetPassword(input: ResetPasswordInput, meta?: RequestMeta): Promise<void> {

@@ -407,4 +407,7 @@ const Map<String, String> enCatalog = {
   'smsReviewAmountLabel': 'Amount',
   'smsReviewOriginalLabel': 'Sanitized message',
   'smsReviewInvalidAmount': 'Enter a valid amount',
+  'smsFallbackUnavailableTitle': 'Wallet SMS analysis paused',
+  'smsFallbackUnavailableDesc':
+      'Some messages could not be analyzed right now. They are kept and retried automatically, so nothing is lost.',
 };

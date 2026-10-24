@@ -1,5 +1,11 @@
 # LifeStyle App remediation report — 2026-10-16
 
+> **Historical snapshot (2026-10-16).** This document describes the artifact
+> that was delivered at the time: an explicit patch set. It is not a
+> description of the current repository, which is a standalone source tree.
+> Route, package and scope statements below may be stale; prefer
+> `README.md`, `docs/architecture/` and `docs/reports/` for current facts.
+
 
 
 ## Executive decision and delivery scope
@@ -10,7 +16,7 @@ Primary source: LifeStyle_App_Independent_Post_Remediation_Review_2026-10-13.pdf
 
 Base revision: 47cf1fd09540e7bcc8b291d6d9a1559cf0c5f855. Working branch: arena/3f871eac-life-style-app. No branch switch, reset, clean, main/production deployment or existing user database cleanup was performed. The owner separately authorized a NEW isolated temporary backend; its local tests passed but public HTTPS ingress returned403 and the connected phone pilot stays BLOCKED. The owner later authorized commits/push and CI on the fixed session branch; see hosted-build.md for exact execution scope.
 
-This ZIP is an explicit patch set: changed/new repository-relative paths, no unchanged files or dependencies. Use apply-patch.md and deletions.json; do not treat it as a standalone repository.
+At delivery time the artifact was an explicit patch set: changed/new repository-relative paths, no unchanged files or dependencies, applied with apply-patch.md and deletions.json. The current repository is a standalone source tree, so that wording no longer describes the tree you are reading.
 
 File dispositions: {'M': 131, 'A': 142, 'D': 4}. Source record dispositions: {'fixed_verified': 12, 'partial': 24, 'code_unverified': 19, 'unclear': 2}. Conservative overlap-group dispositions: {'fixed_verified': 7, 'partial': 18, 'code_unverified': 11, 'unclear': 1}.
 

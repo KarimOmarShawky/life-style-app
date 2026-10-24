@@ -315,6 +315,21 @@ void main() {
                   },
                 ],
                 'events': <Map<String, dynamic>>[],
+                'goals': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'id': 'g-1',
+                    'title': 'Run a sprint',
+                    'status': 'active',
+                  },
+                ],
+                'subscriptions': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'id': 's-1',
+                    'name': 'Sprint Music',
+                    'status': 'active',
+                    'nextBillingDate': '2026-11-01',
+                  },
+                ],
               }),
               200,
               headers: <String, String>{'content-type': 'application/json'},
@@ -343,6 +358,24 @@ void main() {
       expect(search.tasks.single.title, 'Prepare sprint demo');
       expect(search.notes.single.title, 'Sprint retro notes');
       expect(search.projects.single.name, 'Q4 Sprint');
+      // F-07: goals and money (subscriptions) are searchable too.
+      expect(search.goals.single.title, 'Run a sprint');
+      expect(search.goals.single.status, 'active');
+      expect(search.subscriptions.single.name, 'Sprint Music');
+      expect(search.subscriptions.single.nextBillingDate, '2026-11-01');
+    });
+
+    test('global search tolerates a payload without the newer groups', () {
+      final legacy = GlobalSearchResult.fromJson(<String, dynamic>{
+        'query': 'sprint',
+        'tasks': <Map<String, dynamic>>[],
+        'notes': <Map<String, dynamic>>[],
+        'habits': <Map<String, dynamic>>[],
+        'projects': <Map<String, dynamic>>[],
+        'events': <Map<String, dynamic>>[],
+      });
+      expect(legacy.goals, isEmpty);
+      expect(legacy.subscriptions, isEmpty);
     });
   });
 }

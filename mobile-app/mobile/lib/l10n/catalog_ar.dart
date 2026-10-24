@@ -370,4 +370,7 @@ const Map<String, String> arCatalog = {
   'smsReviewAmountLabel': 'المبلغ',
   'smsReviewOriginalLabel': 'الرسالة بعد التنظيف',
   'smsReviewInvalidAmount': 'أدخل مبلغًا صحيحًا',
+  'smsFallbackUnavailableTitle': 'تحليل رسائل المحفظة متوقف مؤقتًا',
+  'smsFallbackUnavailableDesc':
+      'تعذّر تحليل بعض الرسائل الآن. تم الاحتفاظ بها وستُعاد المحاولة تلقائيًا دون فقد أي شيء.',
 };

@@ -15,10 +15,11 @@ class GlobalSearchDelegate extends SearchDelegate<void> {
   String _lastServerQuery = '';
   Future<GlobalSearchResult>? _serverFuture;
 
+  // F-07: goals and money (subscriptions) are part of the searchable scope.
   @override
   String get searchFieldLabel => isArabic
-      ? 'بحث شامل في المهام، الملاحظات، والاشتراكات...'
-      : 'Search tasks, notes, subscriptions...';
+      ? 'بحث شامل في المهام، الملاحظات، الأهداف، والاشتراكات...'
+      : 'Search tasks, notes, goals, subscriptions...';
 
   @override
   List<Widget>? buildActions(BuildContext context) {
@@ -132,13 +133,31 @@ class GlobalSearchDelegate extends SearchDelegate<void> {
         final serverHabits = server?.habits ?? const <DayPlanHabitItem>[];
         final serverProjects = server?.projects ?? const <SearchProjectItem>[];
         final serverEvents = server?.events ?? const <DayPlanEventItem>[];
+        final serverGoals = server?.goals ?? const <SearchGoalItem>[];
+        final serverSubscriptions =
+            server?.subscriptions ?? const <SearchSubscriptionItem>[];
+
+        // Local subscriptions already come from the same backend list, so a
+        // server-side hit on the same row is merged by id instead of being
+        // rendered twice.
+        final subscriptionById = <String, ({String name, String detail})>{
+          for (final sub in matchingSubs)
+            sub.id: (
+              name: sub.name,
+              detail: '${sub.amount} ${sub.currency} - ${sub.billingUnit}',
+            ),
+          for (final sub in serverSubscriptions)
+            if (!matchingSubs.any((local) => local.id == sub.id))
+              sub.id: (name: sub.name, detail: sub.nextBillingDate),
+        };
 
         final totalFound = taskById.length +
             noteById.length +
-            matchingSubs.length +
+            subscriptionById.length +
             serverHabits.length +
             serverProjects.length +
-            serverEvents.length;
+            serverEvents.length +
+            serverGoals.length;
 
         if (totalFound == 0) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -250,18 +269,31 @@ class GlobalSearchDelegate extends SearchDelegate<void> {
               ),
               const Divider(height: 24),
             ],
-            if (matchingSubs.isNotEmpty) ...[
+            if (serverGoals.isNotEmpty) ...[
               _buildSectionHeader(
                 context,
-                '${l10n.subscriptionsTitle} (${matchingSubs.length})',
+                '${l10n.goalsTitle} (${serverGoals.length})',
+                Icons.flag_outlined,
+              ),
+              ...serverGoals.map(
+                (goal) => ListTile(
+                  title: Text(goal.title),
+                  subtitle: goal.status.isNotEmpty ? Text(goal.status) : null,
+                  onTap: () => close(context, null),
+                ),
+              ),
+              const Divider(height: 24),
+            ],
+            if (subscriptionById.isNotEmpty) ...[
+              _buildSectionHeader(
+                context,
+                '${l10n.subscriptionsTitle} (${subscriptionById.length})',
                 Icons.account_balance_wallet_outlined,
               ),
-              ...matchingSubs.map(
+              ...subscriptionById.values.map(
                 (sub) => ListTile(
                   title: Text(sub.name),
-                  subtitle: Text(
-                    '${sub.amount} ${sub.currency} - ${sub.billingUnit}',
-                  ),
+                  subtitle: sub.detail.isNotEmpty ? Text(sub.detail) : null,
                   onTap: () => close(context, null),
                 ),
               ),

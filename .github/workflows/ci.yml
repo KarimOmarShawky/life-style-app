@@ -61,7 +61,7 @@ jobs:
           npm --prefix tools/security ci --ignore-scripts --no-audit --no-fund
           node scripts/scan-secrets.mjs
 
-      - name: Repository config/dependency scan (advisory until image baseline exists)
+      - name: Repository config/dependency scan (enforced baseline)
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
@@ -69,9 +69,12 @@ jobs:
           scan-target: .
           ignore-unfixed: true
           severity: HIGH,CRITICAL
-          exit-code: '0'
-        continue-on-error: true
-        # TODO: flip exit-code to '1' after the first clean baseline is recorded.
+          exit-code: '1'
+          trivyignores: .trivyignore
+        # Enforced since the clean baseline recorded on 2026-10-24 (F-09): a
+        # HIGH/CRITICAL filesystem finding now fails the workflow. Suppressions
+        # are reviewed exceptions with an owner and an expiry, recorded in
+        # .trivyignore; this step must never be blanket-disabled.
 
       - name: Setup Node.js runtime
         uses: actions/setup-node@v4
@@ -92,6 +95,9 @@ jobs:
 
       - name: Android build-preparation helper and source regressions (not a native build)
         run: node --test scripts/android-build-preparation.test.mjs
+
+      - name: Wallet SMS fallback and local queue contract regressions (source only)
+        run: node --test scripts/wallet-sms-contract.test.mjs
 
       - name: Code style & lint
         working-directory: backend

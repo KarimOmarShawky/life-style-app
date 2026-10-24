@@ -14,6 +14,7 @@ import type {
   SmsTransactionAnalyzer
 } from '../../src/features/ingest/sms-fallback-analyzer.js';
 import type { IngestTokenRepository } from '../../src/features/ingest/ingest.repository.js';
+import { IngestController } from '../../src/features/ingest/ingest.controller.js';
 
 const unusedIngestRepository: IngestTokenRepository = {
   replaceForSession: vi.fn(),
@@ -125,5 +126,80 @@ describe('analyzeSmsRequestSchema', () => {
     for (const body of cases) {
       expect(() => analyzeSmsRequestSchema.parse(body), JSON.stringify(body)).toThrow();
     }
+  });
+});
+
+describe('Analyze route result contract for SMS clients (F-01/F-02)', () => {
+  /** Minimal express-like doubles: only what analyzeSms touches. */
+  function call(status: SmsAnalysisResult['status']) {
+    const service = {
+      analyzeCandidate: vi.fn(async (): Promise<SmsAnalysisResult> => ({
+        status,
+        transaction:
+          status === 'recognized'
+            ? {
+                kind: 'expense',
+                amount: '250.00',
+                currency: 'EGP',
+                occurredOn: '2026-10-08',
+                description: null,
+                merchant: null
+              }
+            : null,
+        confidence: status === 'recognized' ? 'high' : null
+      }))
+    };
+    const controller = new IngestController(service as never);
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn(() => res),
+      json: vi.fn(() => res)
+    };
+    const next = vi.fn();
+    return { controller, res, next, service };
+  }
+
+  it('returns a terminal 200 body for recognized results', async () => {
+    const { controller, res, next } = call('recognized');
+    await controller.analyzeSms(
+      { body: { text: 'paid 250 EGP', receivedAt: '2026-10-08' } } as never,
+      res as never,
+      next as never
+    );
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'recognized', confidence: 'high' })
+    );
+  });
+
+  it('returns a terminal 200 body for unrecognized results', async () => {
+    const { controller, res, next } = call('unrecognized');
+    await controller.analyzeSms(
+      { body: { text: 'hello', receivedAt: '2026-10-08' } } as never,
+      res as never,
+      next as never
+    );
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'unrecognized',
+      transaction: null,
+      confidence: null
+    });
+  });
+
+  it('reports an unavailable fallback as retryable 503, never as a 200 result', async () => {
+    const { controller, res, next } = call('unavailable');
+    await controller.analyzeSms(
+      { body: { text: 'paid 250 EGP', receivedAt: '2026-10-08' } } as never,
+      res as never,
+      next as never
+    );
+    expect(res.status).not.toHaveBeenCalled();
+    const error = next.mock.calls[0]?.[0] as { httpStatus: number; code: string };
+    expect(error.httpStatus).toBe(503);
+    // Same stable code the clients key their retry policy on.
+    expect(error.code).toBe('SMS_FALLBACK_UNAVAILABLE');
   });
 });

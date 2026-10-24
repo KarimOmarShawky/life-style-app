@@ -2,8 +2,8 @@ import '../infrastructure-safety.js';
 /**
  * TEMPORARY diagnostic suite — remove before merge.
  *
- * Wraps the reset processor with a spy so the HTTP-path error is reported in
- * the CI annotation instead of the coarse DELIVERY_FAILED code.
+ * Spies on the durable claim and on the service step so the CI annotation shows
+ * which link in the chain fails instead of the coarse DELIVERY_FAILED code.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -12,6 +12,11 @@ import { getContainer } from '../../src/container.js';
 import { createApp } from '../../src/app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
+
+const errText = (error: unknown): string => {
+  const err = error as Error;
+  return `${err?.name ?? 'unknown'}: ${err?.message ?? String(error)}`;
+};
 
 describe('TEMP reset diagnostics', () => {
   const app = createApp();
@@ -28,7 +33,7 @@ describe('TEMP reset diagnostics', () => {
     await getContainer().authService.waitForResetRequests();
   });
 
-  it('DIAG: error thrown on the HTTP reset path', async () => {
+  it('DIAG: which link fails on the HTTP reset path', async () => {
     const regRes = await request(app).post('/api/v1/auth/register').send({
       email: 'diag@example.com',
       password: 'DiagPassword123!',
@@ -40,29 +45,64 @@ describe('TEMP reset diagnostics', () => {
     const service = getContainer().authService as unknown as Record<string, any>;
     const diag: Record<string, unknown> = { userId };
 
-    const processor = service.resetProcessor;
-    const original = processor.process.bind(processor);
-    processor.process = async (email: string, meta: unknown) => {
-      diag.processCalled = true;
-      diag.processMeta = JSON.stringify(meta);
+    const dispatcher = service.resetRequests as Record<string, any>;
+    diag.hasStore = Boolean(dispatcher?.store);
+    if (dispatcher?.store) {
+      const store = dispatcher.store as Record<string, any>;
+      const originalClaim = store.claimById.bind(store);
+      store.claimById = async (...args: unknown[]) => {
+        diag.claimCalled = true;
+        try {
+          const claimed = await originalClaim(...(args as []));
+          diag.claimResult = claimed ? 'claimed' : 'null';
+          return claimed;
+        } catch (error) {
+          diag.claimError = errText(error);
+          throw error;
+        }
+      };
+      const originalClaimDue = store.claimDue.bind(store);
+      store.claimDue = async (...args: unknown[]) => {
+        diag.claimDueCalled = true;
+        try {
+          const claimed = await originalClaimDue(...(args as []));
+          diag.claimDueCount = Array.isArray(claimed) ? claimed.length : 'not-array';
+          return claimed;
+        } catch (error) {
+          diag.claimDueError = errText(error);
+          throw error;
+        }
+      };
+    }
+
+    const processor = service.resetProcessor as Record<string, any>;
+    if (processor) {
+      const originalProcess = processor.process.bind(processor);
+      processor.process = async (...args: unknown[]) => {
+        diag.processCalled = true;
+        try {
+          return await originalProcess(...(args as []));
+        } catch (error) {
+          diag.processError = errText(error);
+          throw error;
+        }
+      };
+    } else {
+      diag.processor = 'MISSING';
+    }
+
+    const originalStep = service.processPasswordResetRequest.bind(service);
+    service.processPasswordResetRequest = async (...args: unknown[]) => {
+      diag.stepCalled = true;
       try {
-        const result = await original(email, meta as never);
-        diag.processResult = 'resolved';
-        return result;
+        return await originalStep(...(args as []));
       } catch (error) {
-        const err = error as Error;
-        diag.processError = `${err?.name}: ${err?.message}`;
-        diag.processStack = String(err?.stack ?? '').split('\n').slice(1, 5).join(' | ');
+        diag.stepError = errText(error);
         throw error;
       }
     };
 
-    const forgotRes = await request(app)
-      .post('/api/v1/auth/forgot-password')
-      .send({ email: 'diag@example.com' });
-    diag.forgotStatus = forgotRes.status;
-    diag.requestId = forgotRes.headers['x-request-id'];
-
+    await request(app).post('/api/v1/auth/forgot-password').send({ email: 'diag@example.com' });
     await getContainer().authService.waitForResetRequests();
     diag.redisKeys = await redis.keys('pwreset*');
     diag.redisValue = (await redis.get(`pwreset:${userId}`)) ?? 'NULL';

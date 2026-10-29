@@ -14,9 +14,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ResetRequestDispatcher } from '../../src/core/security/reset-request-dispatcher.js';
 import type {
+  ResetRequestClaim,
   ResetRequestRecord,
   ResetRequestStore,
-  ResetRequestEnqueueInput
+  ResetRequestEnqueueInput,
+  ResetRetentionWindows
 } from '../../src/core/security/reset-request-store.js';
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
@@ -25,6 +27,7 @@ class MemoryResetStore implements ResetRequestStore {
   public readonly rows: ResetRequestRecord[] = [];
   public failEnqueue = false;
   private seq = 0;
+  private token = 0;
 
   public async enqueue(input: ResetRequestEnqueueInput): Promise<ResetRequestRecord> {
     if (this.failEnqueue) throw new Error('DATABASE_UNAVAILABLE');
@@ -40,10 +43,12 @@ class MemoryResetStore implements ResetRequestStore {
       requestId: input.meta?.requestId ?? null,
       ip: input.meta?.ip ?? null,
       userAgent: input.meta?.userAgent ?? null,
+      userId: input.userId ?? null,
       createdAt: now,
       updatedAt: now,
       completedAt: null,
-      leaseExpiresAt: null
+      leaseExpiresAt: null,
+      leaseToken: null
     };
     this.rows.push(record);
     return { ...record };
@@ -52,13 +57,21 @@ class MemoryResetStore implements ResetRequestStore {
   private claim(rows: ResetRequestRecord[], now: Date, leaseMs: number): ResetRequestRecord[] {
     const claimed: ResetRequestRecord[] = [];
     for (const row of rows) {
+      this.token += 1;
       row.status = 'processing';
       row.attempts += 1;
       row.leaseExpiresAt = new Date(now.getTime() + leaseMs);
+      // Fresh fencing token per claim, exactly like the PostgreSQL store.
+      row.leaseToken = `lease-${this.token}`;
       row.updatedAt = now;
       claimed.push({ ...row });
     }
     return claimed;
+  }
+
+  public async attachOwner(id: string, userId: string): Promise<void> {
+    const row = this.rows.find((r) => r.id === id);
+    if (row && row.userId === null) row.userId = userId;
   }
 
   public async claimById(id: string, now: Date, leaseMs: number) {
@@ -74,48 +87,59 @@ class MemoryResetStore implements ResetRequestStore {
     return this.claim(due, now, leaseMs);
   }
 
-  public async markSent(id: string, now: Date): Promise<void> {
-    const row = this.rows.find((r) => r.id === id);
-    if (row) {
-      row.status = 'sent';
-      row.completedAt = now;
-      row.leaseExpiresAt = null;
-    }
+  /** Same predicate as completeOwned() in the PostgreSQL store. */
+  private owned(claim: ResetRequestClaim): ResetRequestRecord | undefined {
+    return this.rows.find(
+      (r) =>
+        r.id === claim.id &&
+        r.status === 'processing' &&
+        r.leaseToken === claim.leaseToken &&
+        r.attempts === claim.attempts
+    );
+  }
+
+  public async markSent(claim: ResetRequestClaim, now: Date): Promise<boolean> {
+    const row = this.owned(claim);
+    if (!row) return false;
+    row.status = 'sent';
+    row.completedAt = now;
+    row.leaseExpiresAt = null;
+    row.leaseToken = null;
+    row.updatedAt = now;
+    return true;
   }
 
   public async markRetry(
-    id: string,
+    claim: ResetRequestClaim,
     now: Date,
     nextAttemptAt: Date,
-    errorCode: string,
-    attempts: number
-  ): Promise<void> {
-    const row = this.rows.find((r) => r.id === id);
-    if (row) {
-      row.status = 'failed';
-      row.attempts = attempts;
-      row.nextAttemptAt = nextAttemptAt;
-      row.lastErrorCode = errorCode;
-      row.leaseExpiresAt = null;
-      row.updatedAt = now;
-    }
+    errorCode: string
+  ): Promise<boolean> {
+    const row = this.owned(claim);
+    if (!row) return false;
+    row.status = 'failed';
+    row.nextAttemptAt = nextAttemptAt;
+    row.lastErrorCode = errorCode;
+    row.leaseExpiresAt = null;
+    row.leaseToken = null;
+    row.updatedAt = now;
+    return true;
   }
 
   public async markDeadLetter(
-    id: string,
+    claim: ResetRequestClaim,
     now: Date,
-    errorCode: string,
-    attempts: number
-  ): Promise<void> {
-    const row = this.rows.find((r) => r.id === id);
-    if (row) {
-      row.status = 'dead_letter';
-      row.attempts = attempts;
-      row.lastErrorCode = errorCode;
-      row.completedAt = now;
-      row.leaseExpiresAt = null;
-      row.updatedAt = now;
-    }
+    errorCode: string
+  ): Promise<boolean> {
+    const row = this.owned(claim);
+    if (!row) return false;
+    row.status = 'dead_letter';
+    row.lastErrorCode = errorCode;
+    row.completedAt = now;
+    row.leaseExpiresAt = null;
+    row.leaseToken = null;
+    row.updatedAt = now;
+    return true;
   }
 
   public async recoverStale(now: Date): Promise<number> {
@@ -124,6 +148,7 @@ class MemoryResetStore implements ResetRequestStore {
       if (row.status === 'processing' && row.leaseExpiresAt && row.leaseExpiresAt <= now) {
         row.status = 'pending';
         row.leaseExpiresAt = null;
+        row.leaseToken = null;
         count += 1;
       }
     }
@@ -136,14 +161,22 @@ class MemoryResetStore implements ResetRequestStore {
     ).length;
   }
 
-  public async purgeOlderThan(cutoff: Date, limit: number): Promise<number> {
+  public async purgeOlderThan(windows: ResetRetentionWindows, limit: number): Promise<number> {
     let purged = 0;
     for (const row of this.rows) {
       if (purged >= limit) break;
-      if (
+      if (row.status === 'purged') continue;
+      const terminal =
         (row.status === 'sent' || row.status === 'dead_letter') &&
-        (row.completedAt ?? row.updatedAt) <= cutoff
-      ) {
+        (row.completedAt ?? row.updatedAt) <= windows.terminalCutoff;
+      const abandonedPending =
+        (row.status === 'pending' || row.status === 'failed') &&
+        row.updatedAt <= windows.abandonedCutoff;
+      const abandonedProcessing =
+        row.status === 'processing' &&
+        row.leaseExpiresAt !== null &&
+        row.leaseExpiresAt <= windows.abandonedCutoff;
+      if (terminal || abandonedPending || abandonedProcessing) {
         row.status = 'purged' as ResetRequestRecord['status'];
         purged += 1;
       }
@@ -320,5 +353,170 @@ describe('Durable password-reset delivery (F-06)', () => {
     expect(row.userAgent!.length).toBeLessThanOrEqual(512);
     expect(Object.keys(row)).not.toContain('code');
     expect(JSON.stringify(row)).not.toContain('password');
+  });
+  it('rejects a stale completion after another claimant recovered the lease (V-04)', async () => {
+    const store = new MemoryResetStore();
+    const base = Date.now();
+    let now = base;
+    let releaseOld = () => undefined as void;
+    const oldGate = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+
+    // Claimant A holds the lease but its SMTP call hangs past the lease.
+    const first = new ResetRequestDispatcher(
+      async () => {
+        await oldGate;
+      },
+      { store, now: () => now, leaseMs: 1_000 }
+    );
+    await first.admit({ email: 'fenced@example.com' });
+    await tick();
+    const row = store.rows[0]!;
+    expect(row.status).toBe('processing');
+    const staleToken = row.leaseToken;
+
+    // Lease expires; the recovery pass releases the row and claimant B takes it.
+    now = base + 60_000;
+    const second = new ResetRequestDispatcher(
+      async () => undefined,
+      { store, now: () => now, leaseMs: 1_000 }
+    );
+    await second.recoverStale();
+    await second.drainDue();
+    await second.waitForIdle();
+    expect(row.status).toBe('sent');
+    expect(row.leaseToken).toBeNull();
+    expect(row.leaseToken).not.toBe(staleToken);
+    const completedAt = row.completedAt;
+
+    // A now finishes too. Its completion must not overwrite B's state.
+    releaseOld();
+    await first.waitForIdle();
+    expect(row.status).toBe('sent');
+    expect(row.completedAt).toBe(completedAt);
+    expect(row.leaseToken).toBeNull();
+  });
+
+  it('claims only free capacity so rows are never left processing without a worker (V-05)', async () => {
+    const store = new MemoryResetStore();
+    for (let index = 0; index < 5; index += 1) {
+      await store.enqueue({ email: `capacity-${index}@example.com` });
+    }
+    const blocked = new Promise<void>(() => undefined);
+    const queue = new ResetRequestDispatcher(
+      async () => {
+        await blocked;
+      },
+      { store, capacity: 2, concurrency: 1, claimLimit: 10 }
+    );
+
+    expect(await queue.drainDue()).toBe(2);
+    // No free capacity: a second pass must claim nothing rather than stranding
+    // rows in `processing` until their lease expires.
+    expect(await queue.drainDue()).toBe(0);
+    const processing = store.rows.filter((r) => r.status === 'processing');
+    expect(processing).toHaveLength(2);
+    expect(store.rows.filter((r) => r.status === 'pending')).toHaveLength(3);
+  });
+
+  it('awaits its own delivery work during a scheduled recovery cycle (V-05)', async () => {
+    const store = new MemoryResetStore();
+    const delivered: string[] = [];
+    let release = () => undefined as void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const queue = new ResetRequestDispatcher(
+      async ({ email }) => {
+        await gate;
+        delivered.push(email);
+      },
+      { store, concurrency: 1 }
+    );
+    await store.enqueue({ email: 'cycle@example.com' });
+
+    const cycle = queue.runRecoveryCycle(5_000);
+    await tick();
+    expect(delivered).toEqual([]);
+    release();
+    await expect(cycle).resolves.toEqual({ claimed: 1, drained: true });
+    expect(delivered).toEqual(['cycle@example.com']);
+    expect(store.rows[0]!.status).toBe('sent');
+  });
+
+  it('stops admission and drains active work during shutdown (V-05)', async () => {
+    const queue = new ResetRequestDispatcher(
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      },
+      { concurrency: 1 }
+    );
+    await queue.admit({ email: 'drain@example.com' });
+
+    await expect(queue.shutdown(1_000)).resolves.toBe(true);
+    expect(queue.snapshot()).toMatchObject({ active: 0, waiting: 0, accepting: false });
+    // Admission after shutdown is refused instead of being silently dropped.
+    await expect(queue.admit({ email: 'late@example.com' })).resolves.toBe(false);
+  });
+
+  it('attaches the owning account in the background for erasure (V-06)', async () => {
+    const store = new MemoryResetStore();
+    const queue = new ResetRequestDispatcher(vi.fn(async () => undefined), { store });
+    await queue.admit({ email: 'owned@example.com' });
+
+    const row = store.rows[0]!;
+    // Admission itself never stores or reveals an owner.
+    expect(row.userId).toBeNull();
+
+    await queue.attachOwner(row.id, '11111111-1111-1111-1111-111111111111');
+    expect(store.rows[0]!.userId).toBe('11111111-1111-1111-1111-111111111111');
+    // An existing owner is never overwritten.
+    await queue.attachOwner(row.id, '22222222-2222-2222-2222-222222222222');
+    expect(store.rows[0]!.userId).toBe('11111111-1111-1111-1111-111111111111');
+  });
+
+  it('retains every status within a bounded window, sparing active leases (V-06)', async () => {
+    const store = new MemoryResetStore();
+    const base = Date.now();
+    const old = new Date(base - 30 * 24 * 60 * 60 * 1000);
+
+    // A sent row, an abandoned failed row and an abandoned processing row.
+    const sent = await store.enqueue({ email: 'sent@example.com' });
+    const live = store.rows.find((r) => r.id === sent.id)!;
+    live.status = 'sent';
+    live.completedAt = old;
+    live.updatedAt = old;
+
+    const failed = await store.enqueue({ email: 'failed@example.com' });
+    const failedRow = store.rows.find((r) => r.id === failed.id)!;
+    failedRow.status = 'failed';
+    failedRow.updatedAt = old;
+
+    const stuck = await store.enqueue({ email: 'stuck@example.com' });
+    const stuckRow = store.rows.find((r) => r.id === stuck.id)!;
+    stuckRow.status = 'processing';
+    stuckRow.leaseExpiresAt = old;
+    stuckRow.updatedAt = old;
+
+    // An active lease and a recent pending row must survive.
+    const active = await store.enqueue({ email: 'active@example.com' });
+    const activeRow = store.rows.find((r) => r.id === active.id)!;
+    activeRow.status = 'processing';
+    activeRow.leaseExpiresAt = new Date(Date.now() + 60_000);
+    const recent = await store.enqueue({ email: 'recent@example.com' });
+
+    const purged = await store.purgeOlderThan(
+      {
+        terminalCutoff: new Date(base - 24 * 60 * 60 * 1000),
+        abandonedCutoff: new Date(base - 7 * 24 * 60 * 60 * 1000)
+      },
+      100
+    );
+
+    expect(purged).toBe(3);
+    const survivors = store.rows.filter((r) => r.status !== 'purged').map((r) => r.email);
+    expect(survivors).toEqual(['active@example.com', 'recent@example.com']);
+    expect(recent.email).toBe('recent@example.com');
   });
 });

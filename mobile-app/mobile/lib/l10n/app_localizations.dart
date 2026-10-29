@@ -350,6 +350,12 @@ class AppLocalizations {
   String get smsReviewInvalidAmount => _s('smsReviewInvalidAmount');
   String get smsFallbackUnavailableTitle => _s('smsFallbackUnavailableTitle');
   String get smsFallbackUnavailableDesc => _s('smsFallbackUnavailableDesc');
+  String get smsQuarantineTitle => _s('smsQuarantineTitle');
+  String get smsQuarantineDesc => _s('smsQuarantineDesc');
+  String get smsStorageFaultTitle => _s('smsStorageFaultTitle');
+  String get smsStorageFaultDesc => _s('smsStorageFaultDesc');
+  String get smsNotificationDetailsTitle => _s('smsNotificationDetailsTitle');
+  String get smsNotificationDetailsDesc => _s('smsNotificationDetailsDesc');
 
   // ---- Parameterized strings -------------------------------------------
 

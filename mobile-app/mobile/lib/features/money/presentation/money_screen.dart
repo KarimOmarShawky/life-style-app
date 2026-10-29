@@ -126,6 +126,10 @@ class MoneyScreen extends ConsumerWidget {
             const _NeedsReviewCard(),
             const SizedBox(height: 16),
 
+            // Messages the receiver kept but could not process (V-01/V-02)
+            const _WalletCaptureNoticeCard(),
+            const SizedBox(height: 16),
+
             // Financial Overview Card
             budgetsAsync.when(
               loading: () => const SizedBox.shrink(),
@@ -835,19 +839,115 @@ class _SmsSyncCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final bool enabled = ref.watch(settingsProvider).smsSyncEnabled;
+    final SettingsState settings = ref.watch(settingsProvider);
     return Card(
       margin: EdgeInsets.zero,
-      child: SwitchListTile.adaptive(
-        secondary: const Icon(Icons.sms_outlined),
-        title: Text(l10n.smsSyncTitle,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+      child: Column(
+        children: [
+          SwitchListTile.adaptive(
+            secondary: const Icon(Icons.sms_outlined),
+            title: Text(l10n.smsSyncTitle,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(l10n.smsSyncDesc),
+            ),
+            value: settings.smsSyncEnabled,
+            onChanged: (bool value) => _toggle(context, ref, value),
+          ),
+          // Only meaningful when capture is on. Default off: lock-screen and
+          // notification-shade content never shows financial values unless the
+          // user opts in here (V-03).
+          if (settings.smsSyncEnabled) ...[
+            const Divider(height: 1),
+            SwitchListTile.adaptive(
+              secondary: const Icon(Icons.receipt_long_outlined),
+              title: Text(
+                l10n.smsNotificationDetailsTitle,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(l10n.smsNotificationDetailsDesc),
+              ),
+              value: settings.walletNotificationDetails,
+              onChanged: (bool value) async {
+                await ref
+                    .read(settingsProvider.notifier)
+                    .setWalletNotificationDetails(value);
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Reports wallet messages and queue writes that failed on this device.
+///
+/// The receiver quarantines instead of deleting, and clears the published state
+/// once nothing is left (V-01/V-02). Nothing here is actionable: entries are
+/// retried automatically and expire with the 7-day retention window, so the card
+/// only has to make the condition visible instead of leaving it silent.
+class _WalletCaptureNoticeCard extends ConsumerStatefulWidget {
+  const _WalletCaptureNoticeCard();
+
+  @override
+  ConsumerState<_WalletCaptureNoticeCard> createState() =>
+      _WalletCaptureNoticeCardState();
+}
+
+class _WalletCaptureNoticeCardState
+    extends ConsumerState<_WalletCaptureNoticeCard> {
+  bool _loading = true;
+  bool _quarantined = false;
+  bool _storageFault = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final quarantined = await WalletSmsQuarantineStatus.isQuarantined();
+    final fault = await WalletSmsQuarantineStatus.hasStorageFault();
+    if (!mounted) return;
+    setState(() {
+      _quarantined = quarantined;
+      _storageFault = fault;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    if (_loading) return const SizedBox.shrink();
+    if (!_quarantined && !_storageFault) return const SizedBox.shrink();
+    final Color color = Theme.of(context).colorScheme.error;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(
+          Icons.report_gmailerrorred_outlined,
+          color: color,
+        ),
+        title: Text(
+          _quarantined
+              ? l10n.smsQuarantineTitle
+              : l10n.smsStorageFaultTitle,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(l10n.smsSyncDesc),
+          child: Text(
+            _quarantined
+                ? l10n.smsQuarantineDesc
+                : l10n.smsStorageFaultDesc,
+          ),
         ),
-        value: enabled,
-        onChanged: (bool value) => _toggle(context, ref, value),
       ),
     );
   }

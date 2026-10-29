@@ -9,7 +9,11 @@ import {
   ACCOUNT_ARCHIVE_LIMITS,
   streamAccountArchive
 } from '../../src/features/users/account-archive.js';
-import { ACCOUNT_ARCHIVE_SOURCES } from '../../src/features/users/account-archive.sources.js';
+import {
+  ACCOUNT_ARCHIVE_EXCLUSIONS,
+  ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS,
+  ACCOUNT_ARCHIVE_SOURCES
+} from '../../src/features/users/account-archive.sources.js';
 import { USER_OWNED_TABLES_IN_DELETE_ORDER } from '../../src/features/users/users.repository.pg.js';
 import { UsersController } from '../../src/features/users/users.controller.js';
 import { UsersService } from '../../src/features/users/users.service.js';
@@ -94,18 +98,39 @@ function httpFixture(
 describe('Bounded domain archive (SQL harness, not PostgreSQL execution)', () => {
   it('covers every currently owned domain table plus profile/session metadata with explicit safe columns', () => {
     const tables = ACCOUNT_ARCHIVE_SOURCES.map((s) => s.table);
+    // Owned tables kept out of the versioned v1 archive on purpose (V-06). They
+    // are still erased with the account; see the deletion-order assertion below.
+    const archiveExcluded = new Set<string>([...ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS]);
     expect(new Set(tables)).toEqual(
-      new Set(['users', 'auth_sessions', ...USER_OWNED_TABLES_IN_DELETE_ORDER])
+      new Set([
+        'users',
+        'auth_sessions',
+        ...[...USER_OWNED_TABLES_IN_DELETE_ORDER].filter((table) => !archiveExcluded.has(table))
+      ])
     );
+    for (const table of archiveExcluded) {
+      expect(USER_OWNED_TABLES_IN_DELETE_ORDER).toContain(table);
+      const documented = ACCOUNT_ARCHIVE_EXCLUSIONS.join(' ').toLowerCase();
+      expect(documented).toContain(table.replace(/_/g, ' ').replace('password reset requests', 'password-reset request records'));
+    }
     const migrations = readdirSync('src/infrastructure/database/postgres/migrations')
       .map((name) =>
         readFileSync(`src/infrastructure/database/postgres/migrations/${name}`, 'utf8')
       )
       .join('\n');
-    const ownedInMigrations = [...migrations.matchAll(/CREATE TABLE (\w+) \(([\s\S]*?)\n    \);/g)]
+    const createdOwned = [...migrations.matchAll(/CREATE TABLE (\w+) \(([\s\S]*?)\n    \);/g)]
       .filter((match) => /\buser_id\s+UUID/.test(match[2]!) && match[1] !== 'refresh_tokens')
-      .map((match) => match[1]);
-    expect(new Set(tables)).toEqual(new Set(['users', ...ownedInMigrations]));
+      .map((match) => match[1]!);
+    // A table can also gain its ownership key later (for example
+    // password_reset_requests, whose user_id was added with ALTER TABLE for
+    // V-06); ownership is what matters, not when the column was declared.
+    const alteredOwned = [...migrations.matchAll(/ALTER TABLE (\w+)([\s\S]*?);/g)]
+      .filter((match) => /ADD COLUMN[^;]*\buser_id\b/i.test(match[2]!))
+      .map((match) => match[1]!);
+    const ownedInMigrations = [...new Set([...createdOwned, ...alteredOwned])];
+    expect(new Set(tables)).toEqual(
+      new Set(['users', ...ownedInMigrations.filter((table) => !archiveExcluded.has(table))])
+    );
     for (const source of ACCOUNT_ARCHIVE_SOURCES) {
       const start = migrations.indexOf(`CREATE TABLE ${source.table} (`);
       expect(start).toBeGreaterThan(-1);

@@ -5,9 +5,9 @@
  */
 
 import { z } from 'zod';
+import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 
 const COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export const projectStatusSchema = z.enum(['active', 'on_hold', 'completed', 'archived']);
 
@@ -30,9 +30,7 @@ export const createProjectSchema = z
       .optional()
       .nullable(),
     goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
-    dueDate: z
-      .string()
-      .regex(DATE_REGEX, { message: 'dueDate must be in YYYY-MM-DD format' })
+    dueDate: calendarDaySchemaFor('dueDate')
       .optional()
       .nullable()
   })
@@ -60,9 +58,7 @@ export const updateProjectSchema = z
       .optional()
       .nullable(),
     goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
-    dueDate: z
-      .string()
-      .regex(DATE_REGEX, { message: 'dueDate must be in YYYY-MM-DD format' })
+    dueDate: calendarDaySchemaFor('dueDate')
       .optional()
       .nullable(),
     version: z.number().int().min(1).optional()

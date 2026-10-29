@@ -187,11 +187,20 @@ export class MoneyController {
       }
       const { id } = transactionIdParamSchema.parse(req.params);
       const input = updateTransactionSchema.parse(req.body);
-      const transaction = await this.moneyService.updateTransaction(req.user.id, id, input, {
-        requestId: req.id,
-        ip: req.ip,
-        userAgent: req.headers['user-agent']
-      });
+      // The update validates the effective record, which needs the user's
+      // "today" for the future-date boundary (V-08).
+      const userTimezone = req.user.timezone || 'UTC';
+      const transaction = await this.moneyService.updateTransaction(
+        req.user.id,
+        id,
+        input,
+        {
+          requestId: req.id,
+          ip: req.ip,
+          userAgent: req.headers['user-agent']
+        },
+        userTimezone
+      );
       res.status(200).json({ transaction });
     } catch (err) {
       next(err);

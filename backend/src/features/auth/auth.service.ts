@@ -52,7 +52,11 @@ export class AuthService {
     resetProcessor?: PasswordResetProcessor
   ) {
     this.resetProcessor =
-      resetProcessor ?? new PasswordResetProcessor(repo, otpStore, emailSender, auditLogger);
+      resetProcessor ??
+      new PasswordResetProcessor(repo, otpStore, emailSender, auditLogger, {
+        // Ownership key written from the background delivery step (V-06).
+        attachOwner: (recordId, userId) => this.resetRequests.attachOwner(recordId, userId)
+      });
     this.resetRequests = new ResetRequestDispatcher(
       ({ email, meta }) => this.processPasswordResetRequest(email, meta),
       resetOptions
@@ -541,8 +545,10 @@ export class AuthService {
   }
 
   public async forgotPassword(email: string, meta?: RequestMeta): Promise<void> {
-    // admit() persists the request first when a durable store is configured,
-    // so a 202 is only returned once the work has durable ownership (F-06).
+    // No account lookup happens before admission: the endpoint must not become
+    // an existence oracle, and the 202 must not wait on the database (F-06).
+    // admit() persists the request first when a durable store is configured, so
+    // a 202 is only returned once the work has durable ownership.
     const admitted = await this.resetRequests.admit({ email, meta });
     if (!admitted) {
       // Admission is process-wide for this service, before any account-dependent work.

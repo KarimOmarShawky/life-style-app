@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 
 export const createReminderSchema = z
   .object({
@@ -109,10 +110,7 @@ export const conflictQuerySchema = z
 
 export const agendaQuerySchema = z
   .object({
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD')
-      .optional()
+    date: calendarDaySchemaFor('date').optional()
   })
   .strict();
 

@@ -7,9 +7,14 @@
 import crypto from 'node:crypto';
 import { Decimal } from 'decimal.js';
 import { AppError } from '../../core/errors/app-error.js';
-import { getUserTodayDate, addDaysToDateString } from '../../core/time/date-utils.js';
+import { getUserTodayDate } from '../../core/time/date-utils.js';
 import type { MoneyRepository } from './money.repository.js';
 import type { ReminderCancellationPort } from '../reminders/reminder-cancellation.port.js';
+import {
+  assertSubscriptionPaymentInvariants,
+  assertTransactionInvariants,
+  type EffectiveCategory
+} from './money.invariants.js';
 import type {
   CreateCategoryInput,
   UpdateCategoryInput,
@@ -222,42 +227,27 @@ export class MoneyService {
       );
     }
 
-    // 3. Validate occurredOn <= userToday + 1 day
+    // 3. Validate the complete record (occurredOn window, amount scale, category)
+    //    through the same invariant function the update and payment paths use.
     const userToday = getUserTodayDate(userTimezone);
-    const tomorrowDate = addDaysToDateString(userToday, 1);
-
-    if (input.occurredOn > tomorrowDate) {
-      throw AppError.validation([
-        {
-          field: 'occurredOn',
-          message: 'occurredOn cannot be more than 1 day in the future'
-        }
-      ]);
-    }
-
-    // 4. Validate category
+    let category: EffectiveCategory | null = null;
     if (input.categoryId) {
-      const category = await this.moneyRepository.findCategoryById(userId, input.categoryId);
-      if (!category) {
+      const found = await this.moneyRepository.findCategoryById(userId, input.categoryId);
+      if (!found) {
         throw AppError.notFound('Category not found');
       }
-      if (category.kind !== input.kind) {
-        throw AppError.validation([
-          {
-            field: 'categoryId',
-            message: `Category kind "${category.kind}" does not match transaction kind "${input.kind}"`
-          }
-        ]);
-      }
-      if (category.archivedAt !== null) {
-        throw AppError.validation([
-          {
-            field: 'categoryId',
-            message: 'Category is archived'
-          }
-        ]);
-      }
+      category = { id: found.id, kind: found.kind, archivedAt: found.archivedAt };
     }
+    assertTransactionInvariants(
+      {
+        kind: input.kind,
+        amount: input.amount,
+        currency: input.currency,
+        occurredOn: input.occurredOn,
+        category
+      },
+      userToday
+    );
 
     // 5. Create transaction and write audit row in same DB transaction
     try {
@@ -334,36 +324,47 @@ export class MoneyService {
     userId: string,
     transactionId: string,
     input: UpdateTransactionInput,
-    context: RequestContext
+    context: RequestContext,
+    userTimezone: string
   ): Promise<TransactionDto> {
     const existing = await this.moneyRepository.findTransactionById(userId, transactionId);
     if (!existing) {
       throw AppError.notFound('Transaction not found');
     }
 
+    // Validate the effective record: stored values merged with the request.
+    // A partial update (amount only, currency only, kind only) can therefore
+    // never leave scale, date or category invariants broken (V-08).
     const effectiveKind = input.kind ?? existing.kind;
-    if (input.categoryId) {
-      const category = await this.moneyRepository.findCategoryById(userId, input.categoryId);
-      if (!category) {
-        throw AppError.notFound('Category not found');
-      }
-      if (category.kind !== effectiveKind) {
+    const effectiveCategoryId =
+      input.categoryId !== undefined ? input.categoryId : existing.categoryId;
+
+    let category: EffectiveCategory | null = null;
+    if (effectiveCategoryId) {
+      const found = await this.moneyRepository.findCategoryById(userId, effectiveCategoryId);
+      if (!found) {
+        // Only a newly supplied category can be "not found"; a stored one that
+        // vanished must not silently drop the check.
+        if (input.categoryId !== undefined) {
+          throw AppError.notFound('Category not found');
+        }
         throw AppError.validation([
-          {
-            field: 'categoryId',
-            message: `Category kind "${category.kind}" does not match transaction kind "${effectiveKind}"`
-          }
+          { field: 'categoryId', message: 'The stored category no longer exists' }
         ]);
       }
-      if (category.archivedAt !== null) {
-        throw AppError.validation([
-          {
-            field: 'categoryId',
-            message: 'Category is archived'
-          }
-        ]);
-      }
+      category = { id: found.id, kind: found.kind, archivedAt: found.archivedAt };
     }
+
+    assertTransactionInvariants(
+      {
+        kind: effectiveKind,
+        amount: input.amount ?? existing.amount,
+        currency: input.currency ?? existing.currency,
+        occurredOn: input.occurredOn ?? existing.occurredOn,
+        category
+      },
+      getUserTodayDate(userTimezone)
+    );
 
     const updated = await this.moneyRepository.updateTransaction(
       userId,
@@ -610,6 +611,17 @@ export class MoneyService {
     );
 
     const userToday = getUserToday(userTimezone);
+
+    // The payment path is an alternate create path and must enforce the same
+    // currency scale and future-date rules as a manual transaction (V-08).
+    assertSubscriptionPaymentInvariants(
+      {
+        amount: input.amount ?? sub.amount,
+        currency: sub.currency,
+        occurredOn: input.occurredOn ?? sub.nextBillingDate
+      },
+      getUserTodayDate(userTimezone)
+    );
 
     const result = await this.moneyRepository.paySubscription(
       userId,

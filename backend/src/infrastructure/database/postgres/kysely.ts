@@ -375,8 +375,12 @@ export interface PasswordResetRequestsTable {
   request_id: string | null;
   ip: string | null;
   user_agent: string | null;
+  /** Ownership/erasure key (V-06); null when the email matched no account. */
+  user_id: string | null;
   processing_started_at: Date | null;
   lease_expires_at: Date | null;
+  /** Fencing token issued by the claim that currently owns the row (V-04). */
+  lease_token: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   completed_at: Date | null;

@@ -19,6 +19,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { Redis } from 'ioredis';
 import { AppError } from '../errors/app-error.js';
 import { logger } from '../logger/logger.js';
+import { correlationId } from '../logger/log-minimization.js';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -256,8 +257,13 @@ export function createRateLimitMiddleware(options: RateLimitOptions) {
       }
 
       if (!result.allowed) {
-        logger.warn(`Rate limit exceeded for key: ${key}`, {
+        // Never log the raw key: login keys embed the normalized email/IP (V-10).
+        // A keyed correlation id still lets one throttled client be followed.
+        logger.warn('Rate limit exceeded', {
           path: req.path,
+          policy: options.limit,
+          backend: degraded ? 'memory-fallback' : 'primary',
+          keyCorrelation: correlationId(key),
           limit: options.limit,
           resetSeconds: result.resetSeconds
         });

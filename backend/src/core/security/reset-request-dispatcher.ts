@@ -1,11 +1,15 @@
 /** Password-reset admission: durable when a store is supplied, volatile otherwise. */
 import { logger, requestContextStore } from '../logger/logger.js';
-import type { ResetRequestStore } from './reset-request-store.js';
+import type { ResetRequestClaim, ResetRequestStore } from './reset-request-store.js';
 
 export interface ResetRequestMeta {
   requestId?: string | undefined;
+  /** Durable row id, so the delivery step can attach ownership (V-06). */
+  recordId?: string | undefined;
   ip?: string | undefined;
   userAgent?: string | undefined;
+  /** Ownership key for erasure/retention (V-06); never echoed to the caller. */
+  userId?: string | undefined;
 }
 export interface ResetRequest {
   email: string;
@@ -36,6 +40,8 @@ export const DEFAULT_RESET_MAX_ATTEMPTS = 5;
 export const DEFAULT_RESET_RETRY_BACKOFF_MS = 30_000;
 export const DEFAULT_RESET_LEASE_MS = 120_000;
 export const DEFAULT_RESET_CLAIM_LIMIT = 10;
+/** Upper bound for a scheduled recovery cycle to wait for its own work. */
+export const DEFAULT_RESET_DRAIN_TIMEOUT_MS = 30_000;
 
 interface WaitingItem {
   request: ResetRequest;
@@ -45,6 +51,8 @@ interface WaitingItem {
   claimed?: boolean;
   /** Attempt count observed at claim time (already incremented by the store). */
   attempts?: number;
+  /** Fencing token observed at claim time; every completion must present it. */
+  leaseToken?: string | undefined;
   admittedAt: number;
 }
 
@@ -117,7 +125,8 @@ export class ResetRequestDispatcher {
         ? {
             requestId: meta.requestId?.slice(0, 128),
             ip: meta.ip?.slice(0, 64),
-            userAgent: meta.userAgent?.slice(0, 512)
+            userAgent: meta.userAgent?.slice(0, 512),
+            userId: meta.userId
           }
         : undefined
     };
@@ -127,6 +136,7 @@ export class ResetRequestDispatcher {
       try {
         const record = await this.store.enqueue({
           email: projected.email,
+          userId: projected.meta?.userId ?? null,
           meta: projected.meta ? { ...projected.meta } : undefined
         });
         recordId = record.id;
@@ -162,8 +172,18 @@ export class ResetRequestDispatcher {
     if (this.draining) return 0;
     this.draining = true;
     try {
+      // Claim only the capacity this process can actually admit. Claiming the
+      // configured total while the in-process queue is already full left rows
+      // in `processing` that nobody was working on, delaying them until lease
+      // recovery (V-05).
+      const free = this.capacity - (this.waiting.length + this.active);
+      if (free <= 0) return 0;
       const now = new Date(this.now());
-      const claimed = await this.store.claimDue(now, this.claimLimit, this.leaseMs);
+      const claimed = await this.store.claimDue(
+        now,
+        Math.min(this.claimLimit, free),
+        this.leaseMs
+      );
       for (const record of claimed) {
         if (this.waiting.length + this.active >= this.capacity) break;
         this.waiting.push({
@@ -172,13 +192,15 @@ export class ResetRequestDispatcher {
             meta: {
               requestId: record.requestId ?? undefined,
               ip: record.ip ?? undefined,
-              userAgent: record.userAgent ?? undefined
+              userAgent: record.userAgent ?? undefined,
+              userId: record.userId ?? undefined
             }
           },
           recordId: record.id,
           // claimDue() already owns and incremented the row.
           claimed: true,
           attempts: record.attempts,
+          leaseToken: record.leaseToken ?? undefined,
           admittedAt: this.now()
         });
       }
@@ -191,6 +213,73 @@ export class ResetRequestDispatcher {
       return 0;
     } finally {
       this.draining = false;
+    }
+  }
+
+  /**
+   * One bounded recovery cycle: claim due work, then wait (up to
+   * `idleTimeoutMs`) for the work this cycle scheduled to finish. Scheduled
+   * recovery used to return as soon as delivery was started, so a job that
+   * reported success could still be interrupted by the next tick or by
+   * shutdown (V-05).
+   */
+  async runRecoveryCycle(
+    idleTimeoutMs: number = DEFAULT_RESET_DRAIN_TIMEOUT_MS
+  ): Promise<{ claimed: number; drained: boolean }> {
+    const claimed = await this.drainDue();
+    if (this.waiting.length + this.active === 0) return { claimed, drained: true };
+    const drained = await this.waitForIdleWithin(idleTimeoutMs);
+    return { claimed, drained };
+  }
+
+  /**
+   * Resolves `true` when this process has no in-flight reset work, or `false`
+   * when the deadline expired first. Work that is still durable is recovered by
+   * the next process, so a timeout is a warning, never a loss.
+   */
+  async waitForIdleWithin(timeoutMs: number): Promise<boolean> {
+    if (this.waiting.length + this.active === 0) return true;
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), Math.max(1, timeoutMs));
+      timer.unref?.();
+    });
+    try {
+      return await Promise.race([this.waitForIdle().then(() => true), timeout]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Stops admission and drains in-flight reset work before the caller closes
+   * SMTP, Redis or PostgreSQL (V-05).
+   */
+  async shutdown(deadlineMs: number = DEFAULT_RESET_DRAIN_TIMEOUT_MS): Promise<boolean> {
+    this.stopAccepting();
+    const drained = await this.waitForIdleWithin(deadlineMs);
+    if (!drained) {
+      logger.warn('Password reset work did not drain before the shutdown deadline', {
+        waiting: this.waiting.length,
+        active: this.active
+      });
+    }
+    return drained;
+  }
+
+  /**
+   * Attaches the owning account to a durable row after the background delivery
+   * step resolved it (V-06). Admission performs no lookup, so this is the only
+   * place the link can be made without changing the endpoint's response.
+   */
+  async attachOwner(recordId: string, userId: string): Promise<void> {
+    if (!this.store) return;
+    try {
+      await this.store.attachOwner(recordId, userId);
+    } catch (err) {
+      logger.warn('Password reset ownership link could not be recorded', {
+        reason: err instanceof Error ? err.name : 'unknown'
+      });
     }
   }
 
@@ -263,7 +352,9 @@ export class ResetRequestDispatcher {
     }
   }
 
-  private report(reason: 'expired' | 'processing' | 'dead_letter'): void {
+  private report(
+    reason: 'expired' | 'processing' | 'dead_letter' | 'stale_completion'
+  ): void {
     try {
       logger.error('Password reset background request did not complete', { reason });
     } catch {
@@ -313,43 +404,66 @@ export class ResetRequestDispatcher {
 
   private async run(item: WaitingItem): Promise<void> {
     const now = new Date(this.now());
-    let attempts = 0;
+    let claim: ResetRequestClaim | undefined;
     try {
       if (item.recordId && this.store) {
-        if (item.claimed) {
-          attempts = item.attempts ?? 1;
+        if (item.claimed && item.leaseToken) {
+          claim = {
+            id: item.recordId,
+            leaseToken: item.leaseToken,
+            attempts: item.attempts ?? 1
+          };
         } else {
           const claimed = await this.store.claimById(item.recordId, now, this.leaseMs);
-          if (!claimed) {
+          if (!claimed || !claimed.leaseToken) {
             // Another process (or an earlier recovery pass) already owns this
             // row: skip it here instead of delivering twice.
             return;
           }
-          attempts = claimed.attempts;
+          claim = {
+            id: claimed.id,
+            leaseToken: claimed.leaseToken,
+            attempts: claimed.attempts
+          };
         }
       }
-      await this.processRequest(item.request);
-      if (item.recordId && this.store) {
-        await this.store.markSent(item.recordId, new Date(this.now()));
+      await this.processRequest(
+        item.recordId
+          ? {
+              email: item.request.email,
+              meta: { ...item.request.meta, recordId: item.recordId }
+            }
+          : item.request
+      );
+      if (claim && this.store) {
+        // Fenced completion (V-04): if the lease expired and another claimant
+        // took the row, this returns false and writes nothing.
+        const applied = await this.store.markSent(claim, new Date(this.now()));
+        if (!applied) this.report('stale_completion');
       }
     } catch {
       // Coarse code only: never persist provider text or account details.
       const errorCode = 'DELIVERY_FAILED';
-      if (item.recordId && this.store) {
-        const used = attempts > 0 ? attempts : 1;
+      if (claim && this.store) {
+        const used = claim.attempts;
         try {
           if (used >= this.maxAttempts) {
-            await this.store.markDeadLetter(item.recordId, new Date(this.now()), errorCode, used);
-            this.report('dead_letter');
+            const applied = await this.store.markDeadLetter(
+              claim,
+              new Date(this.now()),
+              errorCode
+            );
+            if (applied) this.report('dead_letter');
+            else this.report('stale_completion');
           } else {
             const backoff = this.retryBackoffMs * used;
-            await this.store.markRetry(
-              item.recordId,
+            const applied = await this.store.markRetry(
+              claim,
               new Date(this.now()),
               new Date(this.now() + backoff),
-              errorCode,
-              used
+              errorCode
             );
+            if (!applied) this.report('stale_completion');
           }
         } catch (storeErr) {
           logger.error('Password reset delivery state could not be recorded', {

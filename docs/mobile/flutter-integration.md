@@ -95,10 +95,35 @@ The response follows a strict transaction schema. **High confidence may
 auto-save** (the candidate id is the `Idempotency-Key`); **low confidence is
 never saved automatically** — it is parked as `pending_wallet_review.<uuid>`
 and waits for the user in the Money review flow (direction and amount can be
-edited before confirming, or the item can be discarded). Money has no full
-transaction-history list, so that card is the only place fallback results are
-reviewed. The Flutter app retries queued candidates on start and on resume
+edited before confirming, or the item can be discarded). The mobile app has no
+dedicated transaction-history screen (the backend does expose
+`GET /money/transactions`), so that card is the only place fallback results are
+reviewed on the device. The Flutter app retries queued candidates on start and on resume
 (`PendingWalletCandidates`), so offline attempts are not lost.
+
+Result handling is exhaustive on both sides (`SmsTransactionReceiver`,
+`PendingWalletCandidates`). Only `recognized` and `unrecognized` are final
+answers: `recognized` saves or parks a review item, `unrecognized` drops the
+candidate. `unavailable` (and HTTP `503`) means the fallback could not run, so
+the candidate is kept with backoff and Money shows the *Wallet SMS analysis
+paused* card. Any other, missing or non-string status is a contract violation:
+it is retried within the attempt budget rather than deleted, and the state is
+published as `wallet_sms_quarantined`.
+
+Entries whose content cannot be read (invalidated Keystore key, damaged
+ciphertext) or cannot be parsed are **not deleted**. They move to
+`pending_wallet_quarantine.<uuid>` inside a sealed envelope that keeps the
+original value and its queue, and Money shows the *Wallet messages kept for
+review* card. Only unreadable entries are restored — at most twice, and only
+once the value decrypts again; a malformed payload stays parked instead of
+bouncing between queues. Quarantined entries expire with the same seven-day
+retention window, and every queue write or removal is verified against disk
+(a failure publishes `wallet_storage_fault` instead of pretending success).
+
+Notifications show no SMS content at all. The channel is `VISIBILITY_PRIVATE`,
+the lock-screen (public) version is a generic line, and the unlocked content
+only adds direction, amount and currency when the user turns on *Show amount and
+merchant in notifications* (`wallet_notification_details`, off by default).
 
 ## Planning modules
 

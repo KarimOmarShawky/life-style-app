@@ -131,9 +131,25 @@ export const ACCOUNT_ARCHIVE_SOURCES = [
   }
 ] as const;
 
+/**
+ * Owned tables that are deliberately outside the versioned v1 archive contract
+ * (V-06).
+ *
+ * `password_reset_requests` is erased with the account and bounded by its own
+ * retention window, but adding a section to `archiveSectionsV1` would make every
+ * already-installed client reject the export (the verifier pins the section
+ * order). Reset records are therefore a documented exclusion, not an oversight:
+ * `tests/unit/account-archive.test.ts` asserts that they are owned and purged.
+ */
+export const ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS = ['password_reset_requests'] as const;
+
 export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
   'password hashes and authentication/refresh/ingest/push token material',
   'audit logs, infrastructure queues/caches, derived search vectors',
   'internal delivery diagnostics and idempotency fingerprints',
+  // Password-reset request records are erased with the account (V-06) and the
+  // bounded retention window, but they are not part of the versioned v1 archive
+  // contract: adding a section would make older clients reject the export.
+  'password-reset request records and their network metadata (IP address and user agent)',
   'device-only data, external-provider data and already purged records'
 ] as const;

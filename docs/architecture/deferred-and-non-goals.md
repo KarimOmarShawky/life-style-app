@@ -15,7 +15,7 @@ The following capabilities are **explicitly excluded** from the MVP (Release Pha
 | **Synchronization**| Offline-First Sync Engines | Local offline databases (Drift, SQLite, Hive) are deferred to R4. MVP provides bounded client caching with live REST updates. |
 | **Client Platforms**| Web Client & Desktop | MVP targets native iOS and Android. Web interfaces are non-goals. |
 | **UI** | Web/desktop UI chrome | Native mobile UI only. Multi-language localization (`en`, `ar`, `de`, `es`, `fr`, `tr`) and RTL are approved scope per ADR-044. |
-| **Search scope** | Financial transactions in global search | `GET /search` covers tasks, notes, habits, projects, events, goals and subscriptions. Transactions stay out: Money deliberately exposes no transaction-history surface anywhere in the product, and search must not create one. |
+| **Search scope** | Financial transactions in global search | `GET /search` covers tasks, notes, habits, projects, events, goals and subscriptions. Transactions stay out of **global search** by product decision. This is a search-scope boundary, not a claim about Money: the Money API does expose `GET /money/transactions` and `GET /money/transactions/{id}`, and the mobile app has no dedicated transaction-history screen. Search must not become a second transaction-history surface. |
 
 ## Scope amendments (approved 2026-10-11 — ADR-044)
 

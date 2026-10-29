@@ -11,10 +11,12 @@
 import { sql, type Kysely } from 'kysely';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
 import type {
+  ResetRequestClaim,
   ResetRequestRecord,
   ResetRequestEnqueueInput,
   ResetRequestStore,
-  ResetRequestStatus
+  ResetRequestStatus,
+  ResetRetentionWindows
 } from '../../core/security/reset-request-store.js';
 
 interface ResetRequestRow {
@@ -27,10 +29,12 @@ interface ResetRequestRow {
   request_id: string | null;
   ip: string | null;
   user_agent: string | null;
+  user_id: string | null;
   created_at: Date;
   updated_at: Date;
   completed_at: Date | null;
   lease_expires_at: Date | null;
+  lease_token: string | null;
 }
 
 // Every column is qualified with the UPDATE target alias: with UPDATE ... FROM
@@ -38,8 +42,8 @@ interface ResetRequestRow {
 // joined sub-select, which fails at execution time (caught by the real-DB gate,
 // never by an in-memory fake).
 const RETURNING = sql`RETURNING r.id, r.email, r.status, r.attempts,
-  r.next_attempt_at, r.last_error_code, r.request_id, r.ip, r.user_agent,
-  r.created_at, r.updated_at, r.completed_at, r.lease_expires_at`;
+  r.next_attempt_at, r.last_error_code, r.request_id, r.ip, r.user_agent, r.user_id,
+  r.created_at, r.updated_at, r.completed_at, r.lease_expires_at, r.lease_token`;
 
 function toRecord(row: ResetRequestRow): ResetRequestRecord {
   return {
@@ -52,10 +56,12 @@ function toRecord(row: ResetRequestRow): ResetRequestRecord {
     requestId: row.request_id,
     ip: row.ip,
     userAgent: row.user_agent,
+    userId: row.user_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
-    leaseExpiresAt: row.lease_expires_at
+    leaseExpiresAt: row.lease_expires_at,
+    leaseToken: row.lease_token
   };
 }
 
@@ -71,7 +77,10 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
         email: input.email,
         request_id: input.meta?.requestId?.slice(0, 128) ?? null,
         ip: input.meta?.ip?.slice(0, 64) ?? null,
-        user_agent: input.meta?.userAgent?.slice(0, 512) ?? null
+        user_agent: input.meta?.userAgent?.slice(0, 512) ?? null,
+        // Ownership/erasure key (V-06). Null when the email has no account,
+        // which also keeps the endpoint non-enumerating.
+        user_id: input.userId ?? null
       })
       .returning([
         'id',
@@ -83,14 +92,29 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
         'request_id',
         'ip',
         'user_agent',
+        'user_id',
         'created_at',
         'updated_at',
         'completed_at',
-        'lease_expires_at'
+        'lease_expires_at',
+        'lease_token'
       ])
       .executeTakeFirstOrThrow();
 
     return toRecord(row as unknown as ResetRequestRow);
+  }
+
+  /**
+   * Ownership link written after the background lookup resolved the account
+   * (V-06). Only fills the key in, never overwrites a different owner.
+   */
+  public async attachOwner(id: string, userId: string): Promise<void> {
+    await this.db
+      .updateTable('password_reset_requests')
+      .set({ user_id: userId, updated_at: new Date() })
+      .where('id', '=', id)
+      .where('user_id', 'is', null)
+      .execute();
   }
 
   public async claimById(
@@ -105,6 +129,9 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
              attempts = (r.attempts + 1)::smallint,
              processing_started_at = ${now},
              lease_expires_at = ${lease},
+             -- Fresh fencing token per claim (V-04): a recovering claimant or a
+             -- stale processor can never complete this attempt.
+             lease_token = gen_random_uuid(),
              updated_at = ${now}
         FROM (
           SELECT id FROM password_reset_requests
@@ -126,6 +153,8 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
              attempts = (r.attempts + 1)::smallint,
              processing_started_at = ${now},
              lease_expires_at = ${lease},
+             -- Fresh fencing token per claim (V-04).
+             lease_token = gen_random_uuid(),
              updated_at = ${now}
         FROM (
           SELECT id FROM password_reset_requests
@@ -141,59 +170,67 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
     return result.rows.map(toRecord);
   }
 
-  public async markSent(id: string, now: Date): Promise<void> {
-    await this.db
+  /**
+   * Fenced completion (V-04). The update only applies while this caller still
+   * owns the row: same id, still `processing`, same lease token and same
+   * attempt number. Returns false when a newer claimant owns the row, so the
+   * caller can distinguish "delivered" from "someone else is delivering now".
+   */
+  private async completeOwned(
+    claim: ResetRequestClaim,
+    values: Record<string, unknown>
+  ): Promise<boolean> {
+    const result = await this.db
       .updateTable('password_reset_requests')
-      .set({
-        status: 'sent',
-        completed_at: now,
-        lease_expires_at: null,
-        last_error_code: null,
-        updated_at: now
-      })
-      .where('id', '=', id)
-      .execute();
+      .set(values)
+      .where('id', '=', claim.id)
+      .where('status', '=', 'processing')
+      .where('lease_token', '=', claim.leaseToken)
+      .where('attempts', '=', claim.attempts)
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows ?? 0) > 0;
+  }
+
+  public async markSent(claim: ResetRequestClaim, now: Date): Promise<boolean> {
+    return this.completeOwned(claim, {
+      status: 'sent',
+      completed_at: now,
+      lease_expires_at: null,
+      lease_token: null,
+      last_error_code: null,
+      updated_at: now
+    });
   }
 
   public async markRetry(
-    id: string,
+    claim: ResetRequestClaim,
     now: Date,
     nextAttemptAt: Date,
-    errorCode: string,
-    attempts: number
-  ): Promise<void> {
-    await this.db
-      .updateTable('password_reset_requests')
-      .set({
-        status: 'failed',
-        attempts,
-        next_attempt_at: nextAttemptAt,
-        last_error_code: errorCode.slice(0, 50),
-        lease_expires_at: null,
-        updated_at: now
-      })
-      .where('id', '=', id)
-      .execute();
+    errorCode: string
+  ): Promise<boolean> {
+    return this.completeOwned(claim, {
+      status: 'failed',
+      next_attempt_at: nextAttemptAt,
+      last_error_code: errorCode.slice(0, 50),
+      lease_expires_at: null,
+      lease_token: null,
+      updated_at: now
+    });
   }
 
   public async markDeadLetter(
-    id: string,
+    claim: ResetRequestClaim,
     now: Date,
-    errorCode: string,
-    attempts: number
-  ): Promise<void> {
-    await this.db
-      .updateTable('password_reset_requests')
-      .set({
-        status: 'dead_letter',
-        attempts,
-        last_error_code: errorCode.slice(0, 50),
-        completed_at: now,
-        lease_expires_at: null,
-        updated_at: now
-      })
-      .where('id', '=', id)
-      .execute();
+    errorCode: string
+  ): Promise<boolean> {
+    return this.completeOwned(claim, {
+      status: 'dead_letter',
+      last_error_code: errorCode.slice(0, 50),
+      completed_at: now,
+      lease_expires_at: null,
+      lease_token: null,
+      updated_at: now
+    });
   }
 
   public async recoverStale(now: Date): Promise<number> {
@@ -201,7 +238,8 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
     // rows whose lease simply expired while SMTP hung, go back to `pending`.
     const result = await this.db
       .updateTable('password_reset_requests')
-      .set({ status: 'pending', lease_expires_at: null, updated_at: now })
+      // Clearing the token fences out the abandoned processor (V-04).
+      .set({ status: 'pending', lease_expires_at: null, lease_token: null, updated_at: now })
       .where('status', '=', 'processing')
       .where('lease_expires_at', '<=', now)
       .executeTakeFirst();
@@ -223,13 +261,31 @@ export class PgPasswordResetRequestStore implements ResetRequestStore {
     return Number(row?.count ?? 0);
   }
 
-  public async purgeOlderThan(cutoff: Date, limit: number): Promise<number> {
+  /**
+   * Retention across every status (V-06). Terminal rows keep their short
+   * window; abandoned non-terminal rows (pending, failed, or processing with a
+   * long-expired lease) are deleted after the longer abandoned window, so a
+   * request that will never complete cannot keep email/IP/user-agent metadata
+   * forever. Active leases are always spared.
+   */
+  public async purgeOlderThan(windows: ResetRetentionWindows, limit: number): Promise<number> {
     const result = await sql<{ id: string }>`
       DELETE FROM password_reset_requests
        WHERE id IN (
          SELECT id FROM password_reset_requests
-          WHERE status IN ('sent', 'dead_letter')
-            AND COALESCE(completed_at, updated_at) <= ${cutoff}
+          WHERE (
+                  status IN ('sent', 'dead_letter')
+                  AND COALESCE(completed_at, updated_at) <= ${windows.terminalCutoff}
+                )
+             OR (
+                  status IN ('pending', 'failed')
+                  AND updated_at <= ${windows.abandonedCutoff}
+                )
+             OR (
+                  status = 'processing'
+                  AND lease_expires_at IS NOT NULL
+                  AND lease_expires_at <= ${windows.abandonedCutoff}
+                )
           LIMIT ${limit}
        )
     `.execute(this.db);

@@ -20,7 +20,7 @@ const CANONICAL_DEFERRED = `# Deferred Features & Non-Goals
 
 | Category | Excluded Feature / Technology | Justification & Architectural Policy |
 | :--- | :--- | :--- |
-| **Search scope** | Financial transactions in global search | \`GET /search\` covers tasks, notes, habits, projects, events, goals and subscriptions. Transactions stay out: Money deliberately exposes no transaction-history surface anywhere in the product, and search must not create one. |
+| **Search scope** | Financial transactions in global search | \`GET /search\` covers tasks, notes, habits, projects, events, goals and subscriptions. Transactions stay out of global search by product decision; the Money API does expose \`GET /money/transactions\` and \`GET /money/transactions/{id}\`, and search must not become a second transaction-history surface. |
 | Backend query surfaces (\`/search\`, canonical \`/dashboard\`, \`/day/today\`, \`/day/{date}\`) | Mobile-first parity assumption | Active and tested in backend API. The older \`/dashboard/overview\` and \`/days/:date\` aliases were removed in favour of the canonical routes - do not reintroduce them |
 `;
 
@@ -29,6 +29,8 @@ const BASE_FILES = {
   'README.md': '# LifeStyle\n\n```\n├── mobile-app/mobile/\n```\n',
   'mobile-app/mobile/pubspec.yaml': 'name: lifestyle_mobile\n',
   'docs/architecture/deferred-and-non-goals.md': CANONICAL_DEFERRED,
+  'docs/api/openapi.yaml':
+    'paths:\n  /money/transactions:\n    get:\n      operationId: listTransactions\n  /money/transactions/{id}:\n    get:\n      operationId: getTransaction\n',
   'backend/src/features/search/search.types.ts':
     'export interface SearchResults {\n  goals: GoalSearchItem[];\n  subscriptions: SubscriptionSearchItem[];\n}\n',
   'docs/mobile/flutter-integration.md':
@@ -118,10 +120,48 @@ test('search code that drops goals/subscriptions or adds transactions fails the 
   );
   assert.ok(
     rulesFor({
-      'backend/src/features/search/search.types.ts':
+      'docs/api/openapi.yaml':
+    'paths:\n  /money/transactions:\n    get:\n      operationId: listTransactions\n  /money/transactions/{id}:\n    get:\n      operationId: getTransaction\n',
+  'backend/src/features/search/search.types.ts':
         'export interface SearchResults {\n  goals: GoalSearchItem[];\n  subscriptions: SubscriptionSearchItem[];\n  transactions: TransactionItem[];\n}\n'
     }).includes('search-scope')
   );
+});
+
+test('claiming the product has no transaction history fails against the OpenAPI contract (V-11)', () => {
+  const falseClaim = CANONICAL_DEFERRED.replace(
+    'Transactions stay out of global search by product decision; the Money API does expose `GET /money/transactions` and `GET /money/transactions/{id}`, and search must not become a second transaction-history surface.',
+    'Transactions stay out: Money deliberately exposes no transaction-history surface anywhere in the product, and search must not create one.'
+  );
+  const findings = rulesFor({ 'docs/architecture/deferred-and-non-goals.md': falseClaim });
+  assert.ok(findings.includes('transaction-history'), 'the false claim must fail the guard');
+
+  // The same sentence inside a dated, explicitly corrected historical note is not a live claim.
+  const corrected = `# Deferred\n\n> **Correction:** the earlier wording said Money exposes no transaction-history surface anywhere in the product; that was false.\n`;
+  assert.ok(
+    !rulesFor({ 'docs/architecture/deferred-and-non-goals.md': CANONICAL_DEFERRED + corrected }).includes(
+      'transaction-history'
+    )
+  );
+});
+
+test('the scope row must record the real boundary and the contract must exist', () => {
+  const vague = CANONICAL_DEFERRED.replaceAll('/money/transactions/{id}', '/money/x').replaceAll(
+    '`GET /money/transactions`',
+    '`GET /money/x`'
+  );
+  assert.ok(
+    rulesFor({ 'docs/architecture/deferred-and-non-goals.md': vague }).includes('transaction-history')
+  );
+
+  const dir = fixture({ ...BASE_FILES });
+  rmSync(join(dir, 'docs/api/openapi.yaml'));
+  try {
+    const findings = checkDocsConsistency(dir).map((f) => f.rule);
+    assert.ok(findings.includes('transaction-history'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('describing the wallet queues as plaintext is rejected', () => {

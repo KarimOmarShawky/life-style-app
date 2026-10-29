@@ -243,4 +243,16 @@ const Map<String, String> deCatalog = {
       'Liest Bank- und Wallet-SMS (InstaPay, Vodafone Cash ...) und bucht Transaktionen automatisch.',
   'smsPermissionDenied':
       'SMS-Berechtigung ist für die automatische Erfassung erforderlich.',
+  'smsQuarantineTitle':
+      'Wallet-Nachrichten zur Prüfung aufbewahrt',
+  'smsQuarantineDesc':
+      'Einige Wallet-Nachrichten konnten nicht verarbeitet werden. Sie wurden aufbewahrt, nicht gelöscht, und werden automatisch erneut versucht. Sie verfallen nach 7 Tagen.',
+  'smsStorageFaultTitle':
+      'Problem beim Speichern der Wallet-Daten',
+  'smsStorageFaultDesc':
+      'Eine Wallet-Nachricht konnte auf diesem Gerät nicht gespeichert werden. Es wurde nichts verworfen; die App versucht es im Hintergrund weiter.',
+  'smsNotificationDetailsTitle':
+      'Betrag und Händler in Benachrichtigungen anzeigen',
+  'smsNotificationDetailsDesc':
+      'Standardmäßig aus: Benachrichtigungen melden nur, dass eine Wallet-Nachricht eingegangen ist. Wenn dies aktiviert ist, werden Betrag und Händler angezeigt, was auf dem Sperrbildschirm sichtbar sein kann.',
 };

@@ -9,21 +9,28 @@ class SettingsState {
     this.themeMode = ThemeMode.system,
     this.locale = const Locale('ar'),
     this.smsSyncEnabled = false,
+    this.walletNotificationDetails = false,
   });
 
   final ThemeMode themeMode;
   final Locale locale;
   final bool smsSyncEnabled;
 
+  /// Opt-in for amount/merchant in wallet notification content (V-03).
+  final bool walletNotificationDetails;
+
   SettingsState copyWith({
     ThemeMode? themeMode,
     Locale? locale,
     bool? smsSyncEnabled,
+    bool? walletNotificationDetails,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
       locale: locale ?? this.locale,
       smsSyncEnabled: smsSyncEnabled ?? this.smsSyncEnabled,
+      walletNotificationDetails:
+          walletNotificationDetails ?? this.walletNotificationDetails,
     );
   }
 }
@@ -36,6 +43,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   static const _themeKey = 'app_theme_mode';
   static const _localeKey = 'app_locale';
   static const _smsSyncKey = 'sms_sync_enabled';
+  static const _walletNotificationDetailsKey = 'wallet_notification_details';
 
   /// Android's SharedPreferences store every Flutter key under a `flutter.`
   /// prefix, so the native side reads these as:
@@ -67,11 +75,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     }
 
     final bool smsSync = prefs.getBool(_smsSyncKey) ?? false;
+    final bool notificationDetails =
+        prefs.getBool(_walletNotificationDetailsKey) ?? false;
 
     state = SettingsState(
       themeMode: mode,
       locale: loc,
       smsSyncEnabled: smsSync,
+      walletNotificationDetails: notificationDetails,
     );
   }
 
@@ -100,6 +111,16 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(smsSyncEnabled: enabled);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_smsSyncKey, enabled);
+  }
+
+  /// Opts in to amount/merchant details inside wallet notifications. Written to
+  /// `flutter.wallet_notification_details`, which the native receiver reads as
+  /// its notification-detail switch (V-03). Off means the notification never
+  /// shows financial values.
+  Future<void> setWalletNotificationDetails(bool enabled) async {
+    state = state.copyWith(walletNotificationDetails: enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_walletNotificationDetailsKey, enabled);
   }
 }
 

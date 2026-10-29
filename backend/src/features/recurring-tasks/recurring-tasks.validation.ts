@@ -5,9 +5,9 @@
  */
 
 import { z } from 'zod';
+import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 import { taskPrioritySchema } from '../tasks/tasks.validation.js';
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const recurringTaskStatusSchema = z.enum(['active', 'paused', 'ended']);
@@ -27,10 +27,8 @@ export const recurrenceDefinitionSchema = z
       .optional()
       .nullable(),
     byMonth: z.number().int().min(1).max(12).optional().nullable(),
-    startDate: z.string().regex(DATE_REGEX, { message: 'startDate must be in YYYY-MM-DD format' }),
-    endDate: z
-      .string()
-      .regex(DATE_REGEX, { message: 'endDate must be in YYYY-MM-DD format' })
+    startDate: calendarDaySchemaFor('startDate'),
+    endDate: calendarDaySchemaFor('endDate')
       .optional()
       .nullable(),
     occurrenceLimit: z.number().int().min(1).optional().nullable()

@@ -5,8 +5,9 @@
  */
 
 import { z } from 'zod';
+import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const taskStatusSchema = z.enum(['todo', 'in_progress', 'done', 'cancelled']);
@@ -26,21 +27,13 @@ export const createTaskSchema = z
       .nullable(),
     status: taskStatusSchema.default('todo'),
     priority: taskPrioritySchema.default('none'),
-    dueDate: z
-      .string()
-      .regex(DATE_REGEX, { message: 'dueDate must be in YYYY-MM-DD format' })
-      .optional()
-      .nullable(),
+    dueDate: calendarDaySchemaFor('dueDate').optional().nullable(),
     dueTime: z
       .string()
       .regex(TIME_REGEX, { message: 'dueTime must be in HH:mm format' })
       .optional()
       .nullable(),
-    plannedDate: z
-      .string()
-      .regex(DATE_REGEX, { message: 'plannedDate must be in YYYY-MM-DD format' })
-      .optional()
-      .nullable(),
+    plannedDate: calendarDaySchemaFor('plannedDate').optional().nullable(),
     isFocus: z.boolean().default(false),
     estimateMinutes: z.number().int().min(1).max(1440).optional().nullable(),
     projectId: z.guid({ message: 'projectId must be a valid UUID' }).optional().nullable()
@@ -72,21 +65,13 @@ export const updateTaskSchema = z
       .nullable(),
     status: taskStatusSchema.optional(),
     priority: taskPrioritySchema.optional(),
-    dueDate: z
-      .string()
-      .regex(DATE_REGEX, { message: 'dueDate must be in YYYY-MM-DD format' })
-      .optional()
-      .nullable(),
+    dueDate: calendarDaySchemaFor('dueDate').optional().nullable(),
     dueTime: z
       .string()
       .regex(TIME_REGEX, { message: 'dueTime must be in HH:mm format' })
       .optional()
       .nullable(),
-    plannedDate: z
-      .string()
-      .regex(DATE_REGEX, { message: 'plannedDate must be in YYYY-MM-DD format' })
-      .optional()
-      .nullable(),
+    plannedDate: calendarDaySchemaFor('plannedDate').optional().nullable(),
     isFocus: z.boolean().optional(),
     estimateMinutes: z.number().int().min(1).max(1440).optional().nullable(),
     projectId: z.guid({ message: 'projectId must be a valid UUID' }).optional().nullable(),
@@ -101,9 +86,9 @@ export const listTasksQuerySchema = z
     status: z.string().optional(),
     priority: z.string().optional(),
     projectId: z.string().optional(),
-    dueFrom: z.string().regex(DATE_REGEX).optional(),
-    dueTo: z.string().regex(DATE_REGEX).optional(),
-    plannedDate: z.string().regex(DATE_REGEX).optional(),
+    dueFrom: calendarDaySchemaFor('dueFrom').optional(),
+    dueTo: calendarDaySchemaFor('dueTo').optional(),
+    plannedDate: calendarDaySchemaFor('plannedDate').optional(),
     overdue: z
       .string()
       .transform((val) => val === 'true')

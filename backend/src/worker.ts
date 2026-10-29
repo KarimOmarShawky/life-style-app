@@ -107,7 +107,14 @@ const resetDispatcher = new ResetRequestDispatcher(
 );
 // Completed and dead-lettered rows hold an email address; do not keep them.
 const RESET_RETENTION_MS = 24 * 60 * 60 * 1000;
+// Abandoned non-terminal rows (pending / failed / a long-expired lease) hold
+// the same metadata and must not survive indefinitely either (V-06).
+const RESET_ABANDONED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const RESET_RETENTION_BATCH = 500;
+// Upper bound for one scheduled recovery cycle to finish its own work, and for
+// the shutdown drain, before infrastructure is closed (V-05).
+const RESET_CYCLE_TIMEOUT_MS = 20_000;
+const RESET_SHUTDOWN_DRAIN_MS = 15_000;
 
 const MAINTENANCE_QUEUE = 'maintenance';
 
@@ -163,12 +170,20 @@ const maintenanceWorker = new Worker(
       }
       case 'reset-request-recovery': {
         const recovered = await resetDispatcher.recoverStale();
-        const claimed = await resetDispatcher.drainDue();
+        // Await the cycle's own delivery work instead of returning as soon as it
+        // is started (V-05).
+        const { claimed, drained } = await resetDispatcher.runRecoveryCycle(
+          RESET_CYCLE_TIMEOUT_MS
+        );
+        const nowMs = clock.now().getTime();
         const purged = await resetRequestStore.purgeOlderThan(
-          new Date(clock.now().getTime() - RESET_RETENTION_MS),
+          {
+            terminalCutoff: new Date(nowMs - RESET_RETENTION_MS),
+            abandonedCutoff: new Date(nowMs - RESET_ABANDONED_RETENTION_MS)
+          },
           RESET_RETENTION_BATCH
         );
-        logger.info('Password reset recovery tick', { recovered, claimed, purged });
+        logger.info('Password reset recovery tick', { recovered, claimed, drained, purged });
         break;
       }
       case 'audit-retention': {
@@ -251,6 +266,11 @@ async function handleWorkerShutdown(signal: string, exitCode = 0): Promise<void>
     await maintenanceWorker.close();
     await maintenanceQueue.close();
     await bullConnection.quit();
+
+    // Stop admitting reset work and drain what is in flight before closing
+    // SMTP/Redis/PostgreSQL, so a shutdown cannot interrupt a delivery and
+    // leave its outcome uncertain (V-05). Durable rows survive a timeout.
+    await resetDispatcher.shutdown(RESET_SHUTDOWN_DRAIN_MS);
 
     await closeRedisClient(getRedisClient());
     await closePgPool();

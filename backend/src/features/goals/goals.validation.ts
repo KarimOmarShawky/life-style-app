@@ -5,9 +5,10 @@
  */
 
 import { z } from 'zod';
+import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 
 const decimalRegex = /^\d+(\.\d{1,4})?$/;
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
 
 export const createGoalSchema = z
   .object({
@@ -41,14 +42,10 @@ export const createGoalSchema = z
       .nullable()
       .optional(),
     unit: z.string().trim().max(30, 'Unit cannot exceed 30 characters').nullable().optional(),
-    startDate: z
-      .string()
-      .regex(dateRegex, 'startDate must be formatted as YYYY-MM-DD')
+    startDate: calendarDaySchemaFor('startDate')
       .nullable()
       .optional(),
-    targetDate: z
-      .string()
-      .regex(dateRegex, 'targetDate must be formatted as YYYY-MM-DD')
+    targetDate: calendarDaySchemaFor('targetDate')
       .nullable()
       .optional()
   })
@@ -120,14 +117,10 @@ export const updateGoalSchema = z
       .nullable()
       .optional(),
     unit: z.string().trim().max(30, 'Unit cannot exceed 30 characters').nullable().optional(),
-    startDate: z
-      .string()
-      .regex(dateRegex, 'startDate must be formatted as YYYY-MM-DD')
+    startDate: calendarDaySchemaFor('startDate')
       .nullable()
       .optional(),
-    targetDate: z
-      .string()
-      .regex(dateRegex, 'targetDate must be formatted as YYYY-MM-DD')
+    targetDate: calendarDaySchemaFor('targetDate')
       .nullable()
       .optional(),
     version: z.number().int().positive().optional()
@@ -164,9 +157,7 @@ export const createMilestoneSchema = z.object({
     .trim()
     .min(1, 'Title must be at least 1 character long')
     .max(200, 'Title cannot exceed 200 characters'),
-  dueDate: z
-    .string()
-    .regex(dateRegex, 'dueDate must be formatted as YYYY-MM-DD')
+  dueDate: calendarDaySchemaFor('dueDate')
     .nullable()
     .optional(),
   sortOrder: z.number().int().optional()
@@ -179,9 +170,7 @@ export const updateMilestoneSchema = z.object({
     .min(1, 'Title must be at least 1 character long')
     .max(200, 'Title cannot exceed 200 characters')
     .optional(),
-  dueDate: z
-    .string()
-    .regex(dateRegex, 'dueDate must be formatted as YYYY-MM-DD')
+  dueDate: calendarDaySchemaFor('dueDate')
     .nullable()
     .optional(),
   completed: z.boolean().optional(),

@@ -168,9 +168,14 @@ On a physical phone, `adb emu` does not work. Send the messages from a second ph
 
 These cover likely transactions the **local parser cannot recognize**. The phone
 queues a sanitized candidate and the backend fallback (Gemini behind the API)
-analyzes it; the raw SMS never leaves the phone. **Note:** Money has no full
-transaction-history list — check saved results in the budgets overview or the
+analyzes it; the raw SMS never leaves the phone. **Note:** the mobile app has no
+dedicated transaction-history screen (the backend exposes
+`GET /money/transactions`) — check saved results in the budgets overview or the
 exported report, and check pending ones in the "Needs review" card.
+
+Notifications from the receiver never contain the SMS body. By default they
+also hide the amount and merchant (lock-screen and shade alike); the opt-in
+switch is covered by SMS-F-10.
 
 Setup: SMS auto-capture is on, and the backend it talks to has
 `SMS_FALLBACK_GEMINI_KEY` set (ask whoever runs the backend; the key is never in
@@ -214,6 +219,26 @@ adb -s emulator-5554 emu sms send BANKX "Money movement: EGP 320.00 to UNKNOWN S
   analysis paused* card, and the log shows retry attempts instead of a delete.
   Restore the key, reopen the app, and the queued candidate is analyzed and
   becomes a saved transaction or a review item.
+- [ ] **SMS-F-9** With the phone **locked**, send a candidate message. The
+  lock-screen notification says only that there is an item to review
+  ("LifeStyle — You have an item to review") and never shows the amount,
+  the merchant or the message. Unlock and check the same notification in the
+  shade: no message text, and the amount/merchant appear only after SMS-F-10.
+- [ ] **SMS-F-10** In Money, with capture on, turn on **Show amount and merchant
+  in notifications** (`smsNotificationDetailsTitle`). Send a candidate again:
+  the unlocked notification now includes direction, amount and currency, while
+  the lock-screen version stays redacted. Turn it back off and confirm the next
+  notification is generic again.
+- [ ] **SMS-F-11** Capture a candidate, then simulate a status the app does not
+  know (point the app at a stub backend that answers `200` with
+  `{"status":"partially_recognized"}`). The candidate is **retried**, not
+  deleted: `adb logcat -s SmsTransactionReceiver` shows a retry, and Money shows
+  the *Wallet messages kept for review* card (`smsQuarantineTitle`) once the
+  attempt budget is spent. Nothing is lost and no transaction is invented.
+- [ ] **SMS-F-12** After SMS-F-11, clear the shared preferences entry that holds
+  the candidate key (or wait for the 7-day retention window). The card clears by
+  itself once the quarantine queue is empty; the entry never reappears as a
+  review item.
 
 ### AI assistant (AI tab). Needs Option B or C
 
@@ -245,7 +270,7 @@ These are not bugs in the test. Report them only if they behave differently from
 6. **Voice transcription has the same 15-minute token limit.** It is not fixed.
 7. **Other languages show English text for the new screens.** Only English and Arabic have translations for the new strings.
 8. **The Gemini key is in previously built APKs and in git history.** It must be rotated. The SMS fallback key is a *different* key and lives only in backend configuration (`SMS_FALLBACK_GEMINI_KEY`); it is never compiled into the APK.
-9. **Money has no full transaction-history list.** Auto-saved SMS transactions show up in budget totals and the exported report; fallback results wait in the "Needs review" card until confirmed.
+9. **The mobile app has no dedicated transaction-history screen.** The backend exposes `GET /money/transactions`, but the app shows auto-saved SMS transactions in budget totals and the exported report; fallback results wait in the "Needs review" card until confirmed.
 
 ---
 

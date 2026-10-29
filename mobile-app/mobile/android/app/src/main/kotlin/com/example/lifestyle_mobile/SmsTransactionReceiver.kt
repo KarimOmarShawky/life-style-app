@@ -54,13 +54,26 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         const val PENDING_PREFIX = "flutter.pending_wallet_tx."
         const val CANDIDATE_PREFIX = "flutter.pending_wallet_candidate."
         const val REVIEW_PREFIX = "flutter.pending_wallet_review."
+        // Entries that must not be retried or silently dropped live here, still
+        // in their original (sealed) form, until the user resolves them (V-02).
+        const val QUARANTINE_PREFIX = "flutter.pending_wallet_quarantine."
         private const val DEFAULT_API_BASE = "https://life-style-app-production.up.railway.app/api/v1"
         private const val CONNECT_TIMEOUT_MS = 8_000
         private const val READ_TIMEOUT_MS = 8_000
         private const val REVIEW_NOTIFICATION_ID = 998
+        // Detailed (amount/merchant) notifications are an informed opt-in; the
+        // default is a generic prompt (V-03).
+        private const val KEY_NOTIFICATION_DETAILS = "flutter.wallet_notification_details"
 
         // Candidates are dropped after this many failed delivery attempts.
         private const val MAX_CANDIDATE_ATTEMPTS = 5
+        // A quarantined entry is retried this many times before it stays parked
+        // for the user to discard (bounded recovery, never an infinite loop).
+        private const val MAX_QUARANTINE_ATTEMPTS = 2
+        // Quarantine reasons. Only an unreadable payload can heal; a malformed
+        // one is proven unparseable and is never restored to its queue.
+        private const val QUARANTINE_UNREADABLE = "UNREADABLE"
+        private const val QUARANTINE_MALFORMED = "MALFORMED"
 
         // Candidates keep sanitized SMS text: never retain them longer than this.
         private const val CANDIDATE_RETENTION_MS = 7L * 24 * 60 * 60 * 1000L
@@ -69,8 +82,20 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         // 503: the fallback provider is absent or down. Retryable, never a
         // semantic "this is not a transaction" (F-02).
         private const val ANALYZE_UNAVAILABLE_STATUS = 503
+
+        // Exhaustive analysis statuses (V-01). The API contract is exactly
+        // these three; anything else is a contract violation that must never be
+        // treated as "handled" (which deleted the candidate).
+        private const val STATUS_RECOGNIZED = "recognized"
+        private const val STATUS_UNRECOGNIZED = "unrecognized"
+        private const val STATUS_UNAVAILABLE = "unavailable"
+
         // User-visible state: the fallback could not analyze one or more messages.
         const val KEY_FALLBACK_UNAVAILABLE = "flutter.wallet_sms_fallback_unavailable"
+        // User-visible state: entries that cannot be delivered or read.
+        const val KEY_QUARANTINE = "flutter.wallet_sms_quarantined"
+        // User-visible state: a local write did not reach disk.
+        const val KEY_STORAGE_FAULT = "flutter.wallet_storage_fault"
 
         // 400 and 422: the payload is invalid. 409: the idempotency key was reused with other data.
         // Retrying cannot succeed for these, so the queued entry is dropped.
@@ -185,8 +210,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val currency: String,
         val type: String, // "expense" or "income"
         val sender: String,
-        val description: String,
-        val rawMessage: String
+        val description: String
     )
 
     private fun parseSmsTransaction(sender: String, body: String): DetectedTransaction? {
@@ -228,8 +252,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             currency = "EGP",
             type = type,
             sender = cleanMerchant,
-            description = description,
-            rawMessage = body
+            description = description
         )
     }
 
@@ -280,10 +303,12 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             Log.e(TAG, "Wallet transaction could not be stored securely", e)
             return
         }
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(PENDING_PREFIX + id, stored)
-            .commit()
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        // The transaction is only queued once the write reached disk; a failed
+        // commit is surfaced instead of being reported as stored (V-02).
+        if (!commitEntry(prefs, PENDING_PREFIX + id, stored)) {
+            Log.e(TAG, "Wallet transaction did not reach disk")
+        }
     }
 
     /**
@@ -313,10 +338,20 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         for (key in pendingKeys) {
             val stored = prefs.getString(key, null) ?: continue
             // v2 entries are Keystore-encrypted; v1 entries migrate as-is.
-            val raw = cipher.decrypt(stored) ?: continue
+            val raw = cipher.decrypt(stored)
+            if (raw == null) {
+                // Unreadable (invalidated key or damaged ciphertext): park it
+                // instead of retrying forever or deleting it (V-02).
+                quarantine(prefs, key, stored, QUARANTINE_UNREADABLE, PENDING_PREFIX)
+                continue
+            }
             val status = postTransaction(url, token, raw)
             if (status in 200..299 || status in PERMANENT_REJECTIONS) {
-                prefs.edit().remove(key).commit()
+                // Remove only after the server answer is final; a failed commit
+                // leaves the entry queued (idempotency prevents a duplicate).
+                if (!removeEntry(prefs, key)) {
+                    Log.e(TAG, "Delivered wallet transaction could not be dequeued")
+                }
             } else {
                 if (isIngest && (status == 401 || status == 403)) {
                     // Remove only the token that was rejected, in case the app has just replaced it.
@@ -380,10 +415,10 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             Log.e(TAG, "Wallet SMS candidate could not be stored securely", e)
             return
         }
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(CANDIDATE_PREFIX + id, stored)
-            .commit()
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!commitEntry(prefs, CANDIDATE_PREFIX + id, stored)) {
+            Log.e(TAG, "Wallet SMS candidate did not reach disk")
+        }
     }
 
     /**
@@ -411,19 +446,22 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     ) {
         val cipher = WalletQueueCipher()
         dropExpiredCandidates(prefs)
+        retryQuarantined(prefs)
         val candidateKeys = prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }.sorted()
         for (key in candidateKeys) {
             val stored = prefs.getString(key, null) ?: continue
             val raw = cipher.decrypt(stored)
             if (raw == null) {
-                // Unreadable and unrecoverable: drop instead of retrying forever.
-                prefs.edit().remove(key).commit()
+                // Unreadable and not proven corrupt: quarantine, never delete (V-02).
+                quarantine(prefs, key, stored, QUARANTINE_UNREADABLE, CANDIDATE_PREFIX)
                 continue
             }
             val item = try {
                 JSONObject(raw)
             } catch (e: Exception) {
-                prefs.edit().remove(key).commit()
+                // Malformed content is unrecoverable, but it is still not a
+                // reason to lose the message silently: park it for the user.
+                quarantine(prefs, key, stored, QUARANTINE_MALFORMED, CANDIDATE_PREFIX)
                 continue
             }
             val attempts = item.optInt("attempts", 0)
@@ -435,26 +473,36 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 status in 200..299 && body != null -> {
                     // Handle first, delete after: a recognized result is saved or
                     // queued for review before the candidate disappears (F-01).
-                    when (handleAnalysisResult(context, prefs, saveUrl, token, item, body)) {
+                    val outcome = handleAnalysisResult(context, prefs, saveUrl, token, item, body)
+                    when (outcome) {
                         CandidateOutcome.HANDLED -> {
-                            prefs.edit().remove(key).commit()
-                            // The fallback answered: clear any stalled state.
-                            if (prefs.contains(KEY_FALLBACK_UNAVAILABLE)) {
-                                prefs.edit().remove(KEY_FALLBACK_UNAVAILABLE).commit()
+                            // Delete only once the replacement record (saved
+                            // transaction or review item) is confirmed durable.
+                            if (removeEntry(prefs, key)) {
+                                // The fallback answered: clear any stalled state.
+                                clearFallbackState(prefs)
+                            } else {
+                                Log.e(TAG, "Handled wallet candidate could not be dequeued")
                             }
                         }
-                        CandidateOutcome.RETRY -> {
-                            if (!retryCandidate(prefs, key, item, attempts, unavailable = true)) return
+                        CandidateOutcome.RETRY_UNAVAILABLE -> {
+                            if (!retryCandidate(prefs, key, item, attempts, RetryReason.UNAVAILABLE)) return
+                        }
+                        CandidateOutcome.RETRY_UNKNOWN_STATUS -> {
+                            if (!retryCandidate(prefs, key, item, attempts, RetryReason.UNKNOWN_STATUS)) return
+                        }
+                        CandidateOutcome.RETRY_NOT_FINAL -> {
+                            if (!retryCandidate(prefs, key, item, attempts, RetryReason.NOT_FINAL)) return
                         }
                     }
                 }
                 // The fallback is not configured or is down. This says nothing
                 // about the message, so the candidate must survive (F-02).
                 status == ANALYZE_UNAVAILABLE_STATUS -> {
-                    if (!retryCandidate(prefs, key, item, attempts, unavailable = true)) return
+                    if (!retryCandidate(prefs, key, item, attempts, RetryReason.UNAVAILABLE)) return
                 }
                 status in PERMANENT_REJECTIONS -> {
-                    prefs.edit().remove(key).commit()
+                    removeEntry(prefs, key)
                 }
                 status == 401 || status == 403 -> {
                     if (isIngest) WalletCredentialStore(context).clear(expected = token)
@@ -462,58 +510,98 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 }
                 else -> {
                     // Network, server, or upstream problem: retry later.
-                    if (!retryCandidate(prefs, key, item, attempts, unavailable = false)) return
+                    if (!retryCandidate(prefs, key, item, attempts, RetryReason.NOT_FINAL)) return
                 }
             }
         }
     }
 
-    private enum class CandidateOutcome { HANDLED, RETRY }
+    /**
+     * Why a candidate must be kept (V-01/V-02). Every non-final outcome carries
+     * its own reason so the retry state and the user-visible diagnostic match
+     * what actually happened; none of them delete the candidate.
+     */
+    private enum class CandidateOutcome {
+        HANDLED,
+        RETRY_UNAVAILABLE,
+        RETRY_UNKNOWN_STATUS,
+        RETRY_NOT_FINAL
+    }
+
+    /** Why an entry was retried; drives the user-visible diagnostic (V-01). */
+    private enum class RetryReason { UNAVAILABLE, NOT_FINAL, UNKNOWN_STATUS }
 
     /**
      * Applies bounded backoff to one candidate. Returns true when the flush loop
      * can continue with the next candidate, false when this round must stop.
-     * Once the attempt budget is spent the candidate is blocked (not deleted) and
-     * the state is published for the UI, so a stalled fallback is visible instead
-     * of silently losing the message (F-02).
+     *
+     * Once the attempt budget is spent the candidate is blocked (not deleted)
+     * and the matching state is published for the UI, so a stalled fallback or
+     * an unexpected status is visible instead of silently losing the message
+     * (F-02, V-01).
      */
     private fun retryCandidate(
         prefs: SharedPreferences,
         key: String,
         item: JSONObject,
         attempts: Int,
-        unavailable: Boolean
+        reason: RetryReason
     ): Boolean {
         val next = attempts + 1
         if (next >= MAX_CANDIDATE_ATTEMPTS) {
             item.put("attempts", next)
             item.put("blocked", true)
-            writeCandidate(prefs, key, item)
-            if (unavailable) publishFallbackUnavailable(prefs)
+            item.put("retryReason", reason.name)
+            if (!writeCandidate(prefs, key, item)) return true
+            publishReason(prefs, reason)
             return true
         }
         item.put("attempts", next)
+        item.put("retryReason", reason.name)
         item.put("nextAttemptAtMs", System.currentTimeMillis() + CANDIDATE_BACKOFF_MS * next)
-        writeCandidate(prefs, key, item)
-        if (unavailable) publishFallbackUnavailable(prefs)
+        if (!writeCandidate(prefs, key, item)) return true
+        if (reason != RetryReason.NOT_FINAL) publishReason(prefs, reason)
         // Backing off: stop this round so a burst of SMS cannot hammer the API.
         return false
     }
 
-    /** Stores one candidate entry. Never writes plaintext (F-05). */
-    private fun writeCandidate(prefs: SharedPreferences, key: String, item: JSONObject) {
+    /** Publishes the user-visible state that matches [reason]. */
+    private fun publishReason(prefs: SharedPreferences, reason: RetryReason) {
+        when (reason) {
+            RetryReason.UNAVAILABLE -> publishFallbackUnavailable(prefs)
+            RetryReason.UNKNOWN_STATUS -> publishQuarantineState(prefs, "UNKNOWN_STATUS")
+            RetryReason.NOT_FINAL -> Unit
+        }
+    }
+
+    /**
+     * Stores one candidate entry. Never writes plaintext (F-05) and reports
+     * whether the entry actually reached disk (V-02).
+     */
+    private fun writeCandidate(prefs: SharedPreferences, key: String, item: JSONObject): Boolean {
         val stored = try {
             WalletQueueCipher().encrypt(item.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Wallet SMS candidate could not be stored securely", e)
-            return
+            publishStorageFault(prefs)
+            return false
         }
-        prefs.edit().putString(key, stored).commit()
+        return commitEntry(prefs, key, stored)
     }
 
     /** Counts how many messages the fallback could not analyze, for the UI. */
     private fun publishFallbackUnavailable(prefs: SharedPreferences) {
-        val previous = prefs.getString(KEY_FALLBACK_UNAVAILABLE, null)
+        publishCounter(prefs, KEY_FALLBACK_UNAVAILABLE, null)
+    }
+
+    /** Counts quarantined entries so the UI can ask the user to resolve them. */
+    private fun publishQuarantineState(prefs: SharedPreferences, reason: String) {
+        publishCounter(prefs, KEY_QUARANTINE, reason)
+    }
+
+    /** Best-effort counter write; a failing diagnostic must never block capture. */
+    private fun publishCounter(prefs: SharedPreferences, key: String, reason: String?) {
+        val previous = prefs.getString(key, null)
         val count = try {
             if (previous == null) 0 else JSONObject(previous).optInt("count", 0)
         } catch (e: Exception) {
@@ -522,10 +610,147 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val state = JSONObject()
             .put("count", count + 1)
             .put("lastAtMs", System.currentTimeMillis())
-        prefs.edit().putString(KEY_FALLBACK_UNAVAILABLE, state.toString()).commit()
+        if (reason != null) state.put("reason", reason)
+        if (!prefs.edit().putString(key, state.toString()).commit()) {
+            Log.w(TAG, "Wallet queue diagnostic could not be published")
+        }
     }
 
-    /** Retention: raw SMS text is never kept longer than the window (F-05). */
+    /** Publishes a storage fault so a failed write is visible, not silent. */
+    private fun publishStorageFault(prefs: SharedPreferences) {
+        if (!prefs.edit().putString(KEY_STORAGE_FAULT, System.currentTimeMillis().toString()).commit()) {
+            Log.w(TAG, "Wallet storage fault could not be published")
+        }
+    }
+
+    /** Commits one entry and verifies the write reached disk. */
+    private fun commitEntry(prefs: SharedPreferences, key: String, stored: String): Boolean {
+        val committed = prefs.edit().putString(key, stored).commit()
+        if (!committed) {
+            Log.e(TAG, "Wallet queue write did not reach disk")
+            publishStorageFault(prefs)
+        }
+        return committed
+    }
+
+    /** Removes one entry and verifies the removal reached disk. */
+    private fun removeEntry(prefs: SharedPreferences, key: String): Boolean {
+        val removed = prefs.edit().remove(key).commit()
+        if (!removed) {
+            Log.e(TAG, "Wallet queue removal did not reach disk")
+            publishStorageFault(prefs)
+        }
+        return removed
+    }
+
+    /** Clears the stalled-fallback and quarantine counters after a success. */
+    private fun clearFallbackState(prefs: SharedPreferences) {
+        if (prefs.contains(KEY_FALLBACK_UNAVAILABLE)) {
+            prefs.edit().remove(KEY_FALLBACK_UNAVAILABLE).commit()
+        }
+        if (prefs.contains(KEY_QUARANTINE)) {
+            val remaining = prefs.all.keys.count { it.startsWith(QUARANTINE_PREFIX) }
+            if (remaining == 0) prefs.edit().remove(KEY_QUARANTINE).commit()
+        }
+    }
+
+    /**
+     * Parks one entry instead of retrying it forever or deleting it (V-02).
+     * The original (already sealed) value is preserved, so a transient key
+     * problem can still be resolved later, and the user sees that something
+     * needs attention.
+     */
+    private fun quarantine(
+        prefs: SharedPreferences,
+        key: String,
+        stored: String,
+        reason: String,
+        origin: String
+    ) {
+        val id = key.removePrefix(origin)
+        val target = QUARANTINE_PREFIX + id
+        val entry = JSONObject()
+            .put("origin", origin)
+            .put("reason", reason)
+            .put("attempts", 0)
+            .put("payload", stored)
+            .put("quarantinedAtMs", System.currentTimeMillis())
+        val sealed = try {
+            WalletQueueCipher().encrypt(entry.toString())
+        } catch (e: Exception) {
+            // The value cannot be re-sealed (Keystore unusable). Leave the
+            // original untouched rather than losing data: retry next round.
+            Log.e(TAG, "Wallet queue entry could not be quarantined", e)
+            publishStorageFault(prefs)
+            return
+        }
+        // Write the quarantine record first, then remove the source (V-02).
+        if (!commitEntry(prefs, target, sealed)) return
+        if (!removeEntry(prefs, key)) {
+            // Both copies exist; the duplicate is harmless and the next flush
+            // re-reads the source. Never report success without the write.
+            Log.e(TAG, "Quarantined wallet entry could not be dequeued")
+        }
+        publishQuarantineState(prefs, reason)
+        Log.w(TAG, "Wallet queue entry quarantined: $reason")
+    }
+
+    /**
+     * Bounded recovery for quarantined entries: a transient Keystore failure can
+     * clear up, and a recovered entry goes back to its origin queue exactly
+     * once. Entries beyond the attempt budget stay parked for the user.
+     *
+     * Only entries quarantined as `UNREADABLE` are candidates for restoration.
+     * A `MALFORMED` payload is proven unparseable, so returning it to its queue
+     * would loop forever (parse failure -> quarantine -> restore -> parse
+     * failure); it stays parked until retention expires or the user acts.
+     */
+    private fun retryQuarantined(prefs: SharedPreferences) {
+        val cipher = WalletQueueCipher()
+        val keys = prefs.all.keys.filter { it.startsWith(QUARANTINE_PREFIX) }
+        if (keys.isEmpty()) return
+        for (key in keys) {
+            val stored = prefs.getString(key, null) ?: continue
+            val raw = cipher.decrypt(stored) ?: continue
+            val entry = try {
+                JSONObject(raw)
+            } catch (e: Exception) {
+                continue
+            }
+            if (entry.optString("reason") != QUARANTINE_UNREADABLE) continue
+            val attempts = entry.optInt("attempts", 0)
+            if (attempts >= MAX_QUARANTINE_ATTEMPTS) continue
+            val payload = entry.optString("payload")
+            if (payload.isEmpty() || cipher.decrypt(payload) == null) {
+                entry.put("attempts", attempts + 1)
+                val resealed = try {
+                    WalletQueueCipher().encrypt(entry.toString())
+                } catch (e: Exception) {
+                    continue
+                }
+                commitEntry(prefs, key, resealed)
+                continue
+            }
+            // Readable again: restore it to its origin queue with a fresh budget.
+            val origin = entry.optString("origin", CANDIDATE_PREFIX)
+            val restored = payload
+            val target = origin + key.removePrefix(QUARANTINE_PREFIX)
+            if (!commitEntry(prefs, target, restored)) continue
+            if (!removeEntry(prefs, key)) continue
+            Log.i(TAG, "Quarantined wallet entry restored")
+        }
+        if (prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) }) {
+            prefs.edit().remove(KEY_QUARANTINE).commit()
+        }
+    }
+
+    /**
+     * Retention: raw SMS text is never kept longer than the window (F-05).
+     *
+     * Quarantined entries still contain the sanitized message, so they expire on
+     * the same window (timestamped by `quarantinedAtMs`); otherwise a parked
+     * entry would defeat the retention guarantee.
+     */
     private fun dropExpiredCandidates(prefs: SharedPreferences) {
         val cipher = WalletQueueCipher()
         val cutoff = System.currentTimeMillis() - CANDIDATE_RETENTION_MS
@@ -537,8 +762,24 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 0L
             }
             if (receivedAt <= 0L || receivedAt < cutoff) {
-                prefs.edit().remove(key).commit()
+                removeEntry(prefs, key)
             }
+        }
+        var droppedQuarantine = 0
+        for (key in prefs.all.keys.filter { it.startsWith(QUARANTINE_PREFIX) }) {
+            val raw = prefs.getString(key, null)?.let { cipher.decrypt(it) } ?: continue
+            val quarantinedAt = try {
+                JSONObject(raw).optLong("quarantinedAtMs", 0L)
+            } catch (e: Exception) {
+                0L
+            }
+            if (quarantinedAt <= 0L || quarantinedAt < cutoff) {
+                removeEntry(prefs, key)
+                droppedQuarantine++
+            }
+        }
+        if (droppedQuarantine > 0 && prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) }) {
+            prefs.edit().remove(KEY_QUARANTINE).commit()
         }
     }
 
@@ -547,6 +788,12 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      * removed. The API answers with the v1 success envelope
      * `{success, data}`, so the result is read from `data` — reading it from the
      * JSON root silently discarded every recognized candidate (F-01).
+     *
+     * Status handling is exhaustive (V-01). Only `recognized` (handled above)
+     * and `unrecognized` are final answers; `unavailable` is retryable, and any
+     * other, missing or non-string status is a contract violation that is
+     * retried within the budget and then quarantined. It is never treated as
+     * "handled", which previously deleted the candidate.
      */
     private fun handleAnalysisResult(
         context: Context,
@@ -556,16 +803,28 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         candidate: JSONObject,
         body: String
     ): CandidateOutcome {
-        val result = unwrapAnalyzeResult(body) ?: return CandidateOutcome.RETRY
-        if (!result.has("status")) return CandidateOutcome.RETRY
-        val status = result.optString("status")
-        // "unavailable" means the fallback could not run; it says nothing about
-        // the message, so it must never be treated as "not a transaction" (F-02).
-        if (status == "unavailable") return CandidateOutcome.RETRY
-        if (status != "recognized") return CandidateOutcome.HANDLED
+        val result = unwrapAnalyzeResult(body) ?: return CandidateOutcome.RETRY_NOT_FINAL
+        if (!result.has("status") || result.isNull("status")) {
+            return CandidateOutcome.RETRY_UNKNOWN_STATUS
+        }
+        val status = result.opt("status")
+        if (status !is String) return CandidateOutcome.RETRY_UNKNOWN_STATUS
+
+        when (status) {
+            // The fallback could not run; it says nothing about the message (F-02).
+            STATUS_UNAVAILABLE -> return CandidateOutcome.RETRY_UNAVAILABLE
+            // A final answer: the message is not a transaction.
+            STATUS_UNRECOGNIZED -> return CandidateOutcome.HANDLED
+            STATUS_RECOGNIZED -> Unit
+            // Unknown/future status: never consume the candidate (V-01).
+            else -> {
+                Log.w(TAG, "Wallet SMS analysis returned an unrecognized status")
+                return CandidateOutcome.RETRY_UNKNOWN_STATUS
+            }
+        }
 
         val transaction = result.optJSONObject("transaction")
-            ?: return CandidateOutcome.RETRY
+            ?: return CandidateOutcome.RETRY_NOT_FINAL
         val confidence = result.optString("confidence")
 
         // optString() on a JSON null returns the literal string "null" on Android,
@@ -614,9 +873,11 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             // Without encryption the entry must not be written; keep the
             // candidate so another attempt can still save it.
             Log.e(TAG, "Wallet review item could not be stored securely", e)
-            return CandidateOutcome.RETRY
+            publishStorageFault(prefs)
+            return CandidateOutcome.RETRY_NOT_FINAL
         }
-        prefs.edit().putString(REVIEW_PREFIX + id, stored).commit()
+        // The candidate may only disappear once the review item is on disk (V-02).
+        if (!commitEntry(prefs, REVIEW_PREFIX + id, stored)) return CandidateOutcome.RETRY_NOT_FINAL
         showReviewNotification(context)
         return CandidateOutcome.HANDLED
     }
@@ -705,18 +966,33 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         }
     }
 
+    /**
+     * Local notification for a detected transaction (V-03).
+     *
+     * The raw SMS body is never rendered: it can contain balances,
+     * counterparties and references that must not appear on a lock screen or in
+     * notification history. The default content is a generic prompt; amount and
+     * merchant are only shown when the user opts in
+     * (`flutter.wallet_notification_details`). The public (lock-screen) version
+     * is always redacted to a generic line, and the notification is marked
+     * private so the OS does not expand it outside the unlocked app.
+     */
     private fun showTransactionNotification(context: Context, tx: DetectedTransaction) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val detailsEnabled = prefs.getBoolean(KEY_NOTIFICATION_DETAILS, false)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "LifeStyle Wallet Transactions",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Automatic notifications for InstaPay and Wallet transactions"
+                description = "Prompts to review a detected transaction"
                 enableVibration(true)
                 setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null)
+                // The channel itself never exposes details on the lock screen.
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
             }
             manager.createNotificationChannel(channel)
         }
@@ -734,21 +1010,37 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         )
 
         val isArabic = Locale.getDefault().language.startsWith("ar")
-        val title = if (isArabic) "تم رصد معاملة جديدة (${tx.sender})" else "New Transaction Detected (${tx.sender})"
-        val typeLabel = if (tx.type == "income") {
-            if (isArabic) "إيداع +" else "Income +"
+        val title = if (isArabic) "معاملة جديدة تحتاج مراجعة" else "New transaction to review"
+        val genericText = if (isArabic) {
+            "افتح تطبيق LifeStyle للمراجعة والحفظ"
         } else {
-            if (isArabic) "خصم -" else "Expense -"
+            "Open LifeStyle to review and save it"
+        }
+        val detailText = if (detailsEnabled) {
+            val typeLabel = if (tx.type == "income") {
+                if (isArabic) "إيداع +" else "Income +"
+            } else {
+                if (isArabic) "خصم -" else "Expense -"
+            }
+            "$genericText · $typeLabel ${tx.amount} ${tx.currency}"
+        } else {
+            genericText
         }
 
-        val text = "$typeLabel ${tx.amount} ${tx.currency} • ${tx.sender}"
+        // Redacted public version: shown on a locked device when the OS allows it.
+        val publicVersion = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(if (isArabic) "LifeStyle" else "LifeStyle")
+            .setContentText(if (isArabic) "لديك عنصر بانتظار المراجعة" else "You have an item to review")
+            .build()
 
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$text\n${tx.rawMessage}"))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentText(detailText)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()

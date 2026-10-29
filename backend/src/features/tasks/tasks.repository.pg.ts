@@ -8,6 +8,84 @@ import { sql, type Kysely } from 'kysely';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
 import type { TasksRepository, CreateTaskDbInput, UpdateTaskDbInput } from './tasks.repository.js';
 import type { TaskRow, ListTasksFilter } from './tasks.types.js';
+import {
+  cursorValueFor,
+  decodeTaskCursor,
+  encodeTaskCursor,
+  type SortDirection,
+  type TaskSortField
+} from './tasks.cursor.js';
+
+/**
+ * Column backing each supported sort. The cursor predicate and the ORDER BY
+ * must always agree on this mapping (V-07).
+ */
+const SORT_COLUMNS: Record<TaskSortField, 'due_date' | 'priority' | 'created_at' | 'updated_at'> = {
+  dueDate: 'due_date',
+  priority: 'priority',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
+};
+
+/**
+ * Lexicographic keyset predicate for the selected sort column plus `id`.
+ *
+ * NULL placement mirrors PostgreSQL's ORDER BY default, which is exactly what
+ * the repository emits: `ASC` puts NULLs last, `DESC` puts NULLs first. The
+ * predicate therefore depends on the direction *and* on whether the cursor row
+ * itself had a value (V-07):
+ *
+ *  - `ASC`, cursor on a non-NULL row: the remaining rows are every NULL row
+ *    (they sort last) plus larger values.
+ *  - `ASC`, cursor on a NULL row: only the rest of the NULL block remains.
+ *  - `DESC`, cursor on a non-NULL row: the NULL block already came back first,
+ *    so only smaller values remain — re-selecting NULLs here would repeat rows.
+ *  - `DESC`, cursor on a NULL row: the rest of the NULL block plus every
+ *    non-NULL row.
+ */
+export function keysetPredicate(
+  sort: TaskSortField,
+  order: SortDirection,
+  value: string | number | null,
+  id: string
+) {
+  const column = sql.ref(`tasks.${SORT_COLUMNS[sort]}`);
+  const idRef = sql.ref('tasks.id');
+  const idOperator = order === 'asc' ? '>' : '<';
+  const valueOperator = order === 'asc' ? '>' : '<';
+
+  if (value === null) {
+    if (order === 'asc') {
+      // NULLs sort last: only the remainder of the NULL block follows.
+      return sql<boolean>`(${column} IS NULL AND ${idRef} ${sql.raw(idOperator)} ${id}::uuid)`;
+    }
+    // NULLs sort first: the rest of the NULL block, then every non-NULL row.
+    return sql<boolean>`(
+      (${column} IS NULL AND ${idRef} ${sql.raw(idOperator)} ${id}::uuid)
+      OR ${column} IS NOT NULL
+    )`;
+  }
+
+  const bound =
+    sort === 'priority'
+      ? sql`${value}::int`
+      : sort === 'dueDate'
+        ? sql`${value}::date`
+        : sql`${value}::timestamptz`;
+
+  if (order === 'asc') {
+    return sql<boolean>`(
+      ${column} IS NULL
+      OR ${column} ${sql.raw(valueOperator)} ${bound}
+      OR ((${column} = ${bound}) AND ${idRef} ${sql.raw(idOperator)} ${id}::uuid)
+    )`;
+  }
+
+  return sql<boolean>`(
+    (${column} ${sql.raw(valueOperator)} ${bound})
+    OR ((${column} = ${bound}) AND ${idRef} ${sql.raw(idOperator)} ${id}::uuid)
+  )`;
+}
 
 export class PgTasksRepository implements TasksRepository {
   constructor(private readonly db: Kysely<DatabaseSchema>) {}
@@ -194,7 +272,8 @@ export class PgTasksRepository implements TasksRepository {
     }
 
     // Sort order
-    const orderDirection = filter.order === 'desc' ? 'desc' : 'asc';
+    const orderDirection: SortDirection = filter.order === 'desc' ? 'desc' : 'asc';
+    const sortField: TaskSortField = filter.sort ?? 'createdAt';
     switch (filter.sort) {
       case 'dueDate':
         query = query.orderBy('due_date', orderDirection).orderBy('id', orderDirection);
@@ -211,40 +290,12 @@ export class PgTasksRepository implements TasksRepository {
         break;
     }
 
-    // Cursor pagination (keyset pagination base64)
+    // Cursor pagination: the cursor is versioned and carries the sort it was
+    // issued for. A malformed or sort-mismatched cursor is rejected (400) rather
+    // than ignored, because ignoring it silently replays the first page.
     if (filter.cursor) {
-      try {
-        const decoded = Buffer.from(filter.cursor, 'base64').toString('utf8');
-        const { id, createdAt } = JSON.parse(decoded);
-        if (id) {
-          if (filter.sort === 'dueDate') {
-            if (orderDirection === 'desc') {
-              query = query.where('id', '<', id);
-            } else {
-              query = query.where('id', '>', id);
-            }
-          } else {
-            const cursorDate = new Date(createdAt);
-            if (orderDirection === 'desc') {
-              query = query.where((eb) =>
-                eb.or([
-                  eb('created_at', '<', cursorDate),
-                  eb.and([eb('created_at', '=', cursorDate), eb('id', '<', id)])
-                ])
-              );
-            } else {
-              query = query.where((eb) =>
-                eb.or([
-                  eb('created_at', '>', cursorDate),
-                  eb.and([eb('created_at', '=', cursorDate), eb('id', '>', id)])
-                ])
-              );
-            }
-          }
-        }
-      } catch {
-        // ignore invalid cursor
-      }
+      const cursor = decodeTaskCursor(filter.cursor, sortField, orderDirection);
+      query = query.where(keysetPredicate(sortField, orderDirection, cursor.value, cursor.id));
     }
 
     const rows = await query.limit(limit + 1).execute();
@@ -254,11 +305,13 @@ export class PgTasksRepository implements TasksRepository {
     let nextCursor: string | null = null;
     const lastItem = items.length > 0 ? items[items.length - 1] : undefined;
     if (hasMore && lastItem) {
-      const payload = {
-        id: lastItem.id,
-        createdAt: (lastItem.created_at as Date).toISOString()
-      };
-      nextCursor = Buffer.from(JSON.stringify(payload)).toString('base64');
+      nextCursor = encodeTaskCursor({
+        v: 2,
+        sort: sortField,
+        order: orderDirection,
+        value: cursorValueFor(lastItem, sortField),
+        id: lastItem.id
+      });
     }
 
     return {

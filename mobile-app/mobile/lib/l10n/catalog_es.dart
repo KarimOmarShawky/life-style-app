@@ -241,4 +241,16 @@ const Map<String, String> esCatalog = {
       'Lee los SMS de banca y billeteras (InstaPay, Vodafone Cash...) y registra las transacciones automáticamente.',
   'smsPermissionDenied':
       'Se necesita el permiso de SMS para activar la captura automática.',
+  'smsQuarantineTitle':
+      'Mensajes de billetera guardados para revisión',
+  'smsQuarantineDesc':
+      'No se pudieron procesar algunos mensajes de billetera. Se conservaron, no se eliminaron, y se reintentarán automáticamente. Caducan a los 7 días.',
+  'smsStorageFaultTitle':
+      'Problema de almacenamiento de la billetera',
+  'smsStorageFaultDesc':
+      'Un mensaje de billetera no se pudo guardar en este dispositivo. No se descartó nada; la aplicación sigue reintentando en segundo plano.',
+  'smsNotificationDetailsTitle':
+      'Mostrar importe y comercio en las notificaciones',
+  'smsNotificationDetailsDesc':
+      'Desactivado por defecto: las notificaciones solo indican que llegó un mensaje de billetera. Al activarlo se muestran el importe y el comercio, que podrían verse en la pantalla de bloqueo.',
 };

@@ -12,6 +12,7 @@ import { ZodError } from 'zod';
 import { AppError, type FieldError } from '../errors/app-error.js';
 import { errorResponse } from '../http/envelope.js';
 import { logger } from '../logger/logger.js';
+import { summarizeErrorForLog } from '../logger/log-minimization.js';
 
 interface PostgresDatabaseError extends Error {
   code?: string;
@@ -128,10 +129,12 @@ export function globalErrorHandler(
   // 4. PostgreSQL database errors
   const pgErr = err as PostgresDatabaseError;
   if (pgErr.code) {
-    logger.error(`PostgreSQL error [${pgErr.code}]: ${pgErr.message}`, pgErr, {
-      code: pgErr.code,
-      constraint: pgErr.constraint,
-      table: pgErr.table
+    // Structural fields only: a driver message can embed row values, SQL
+    // literals or connection details (V-10). The client response is masked too.
+    logger.error('PostgreSQL error', {
+      ...summarizeErrorForLog(err),
+      path: req.path,
+      method: req.method
     });
 
     switch (pgErr.code) {
@@ -198,7 +201,10 @@ export function globalErrorHandler(
   }
 
   // 5. Catch-all: unexpected internal errors
-  logger.error('Unhandled internal server error', err, {
+  // Summary only — an unexpected message may still contain user or provider
+  // values, and the request context already makes the event traceable.
+  logger.error('Unhandled internal server error', {
+    ...summarizeErrorForLog(err),
     path: req.path,
     method: req.method
   });

@@ -194,12 +194,20 @@ twice; a deployment that omits the new groups degrades to “no extra results”
 instead of throwing.
 
 **Scope decision, now documented.** Financial **transactions** remain
-deliberately out of search. Money exposes no transaction-history surface
-anywhere in the product (the wallet review queue exists precisely because there
-is no such list), and search must not create one. This is recorded in
+deliberately out of **global search**, and search must not become a second
+transaction-history surface. This is recorded in
 `docs/architecture/deferred-and-non-goals.md` — the audit's alternative
-“narrow the product wording and UI scope” was taken for transactions, and the
-code now matches the wording.
+“narrow the product wording and UI scope” was taken for transactions.
+
+> **Correction (2026-10-29, V-11).** The earlier wording of this paragraph said
+> Money "exposes no transaction-history surface anywhere in the product". That
+> was false: the API implements `GET /money/transactions` and
+> `GET /money/transactions/{id}` (`money.service.ts` list/get), which the
+> OpenAPI contract publishes. What is true, and what the product decision
+> actually covers, is that transactions are excluded from global search and the
+> mobile app has no dedicated transaction-history screen. The
+> documentation-consistency guard now compares this kind of claim with the
+> OpenAPI paths, so the contradiction cannot recur silently.
 
 **Verification.** `backend/tests/unit/search-scope.test.ts` PASS; the
 `daily_plan_and_lifecycle_test.dart` fixture was extended to assert goals and

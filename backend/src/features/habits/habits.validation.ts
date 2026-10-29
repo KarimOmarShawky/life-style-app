@@ -5,8 +5,8 @@
  */
 
 import { z } from 'zod';
+import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 const COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
@@ -45,7 +45,7 @@ export const createHabitSchema = z
       .max(5000, { message: 'Description must not exceed 5000 characters' })
       .optional()
       .nullable(),
-    startDate: z.string().regex(DATE_REGEX, { message: 'startDate must be in YYYY-MM-DD format' }),
+    startDate: calendarDaySchemaFor('startDate'),
     reminderTime: z
       .string()
       .regex(TIME_REGEX, { message: 'reminderTime must be in HH:mm format' })
@@ -110,8 +110,8 @@ export type PutCheckinInput = z.infer<typeof putCheckinSchema>;
 
 export const getCheckinsQuerySchema = z
   .object({
-    from: z.string().regex(DATE_REGEX, { message: 'from must be in YYYY-MM-DD format' }),
-    to: z.string().regex(DATE_REGEX, { message: 'to must be in YYYY-MM-DD format' })
+    from: calendarDaySchemaFor('from'),
+    to: calendarDaySchemaFor('to')
   })
   .strict()
   .refine(
@@ -152,6 +152,6 @@ export const habitIdParamSchema = z
 export const checkinDateParamSchema = z
   .object({
     id: z.guid({ message: 'Habit ID must be a valid UUID' }),
-    date: z.string().regex(DATE_REGEX, { message: 'Date must be in YYYY-MM-DD format' })
+    date: calendarDaySchemaFor('Date')
   })
   .strict();

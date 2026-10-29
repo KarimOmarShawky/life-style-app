@@ -239,4 +239,16 @@ const Map<String, String> trCatalog = {
       'Banka ve cüzdan SMS\'lerini okur (InstaPay, Vodafone Cash...) ve işlemleri otomatik kaydeder.',
   'smsPermissionDenied':
       'Otomatik yakalamayı etkinleştirmek için SMS izni gereklidir.',
+  'smsQuarantineTitle':
+      'İncelenmek üzere saklanan cüzdan mesajları',
+  'smsQuarantineDesc':
+      'Bazı cüzdan mesajları işlenemedi. Silinmedi, saklandı ve otomatik olarak yeniden denenecek. 7 gün sonra sona erer.',
+  'smsStorageFaultTitle':
+      'Cüzdan depolama sorunu',
+  'smsStorageFaultDesc':
+      'Bir cüzdan mesajı bu cihaza kaydedilemedi. Hiçbir şey atılmadı; uygulama arka planda yeniden denemeye devam ediyor.',
+  'smsNotificationDetailsTitle':
+      'Bildirimlerde tutarı ve satıcıyı göster',
+  'smsNotificationDetailsDesc':
+      'Varsayılan olarak kapalı: bildirimler yalnızca bir cüzdan mesajı geldiğini söyler. Bu açıldığında tutar ve satıcı gösterilir ve kilit ekranında görülebilir.',
 };

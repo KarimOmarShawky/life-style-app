@@ -13,7 +13,16 @@ abstract class WalletQueueCodec {
   /// Reads and decodes one stored entry. Version 1 values are returned as-is.
   Future<String?> read(SharedPreferences prefs, String key);
 
-  /// Encodes and writes one entry. Fails closed when no platform cipher exists.
+  /// Decodes one already-stored value without touching the store.
+  ///
+  /// Returns null when the value cannot be authenticated (invalidated key or
+  /// damaged ciphertext), which is how a quarantined entry is re-checked
+  /// without first moving it back into a live queue. Throws
+  /// [WalletQueueSecurityException] when the platform cipher is unavailable.
+  Future<String?> unseal(String stored);
+
+  /// Encodes and writes one entry. Fails closed when no platform cipher exists
+  /// or when the write does not reach disk.
   Future<void> write(SharedPreferences prefs, String key, String value);
 }
 
@@ -51,6 +60,11 @@ class PlatformWalletQueueCodec implements WalletQueueCodec {
   Future<String?> read(SharedPreferences prefs, String key) async {
     final stored = prefs.getString(key);
     if (stored == null) return null;
+    return unseal(stored);
+  }
+
+  @override
+  Future<String?> unseal(String stored) async {
     if (!_isEnvelope(stored)) return stored; // version 1: migrate on next write
     try {
       return await _channel
@@ -59,10 +73,10 @@ class PlatformWalletQueueCodec implements WalletQueueCodec {
       throw WalletQueueSecurityException(
         'Wallet queue entries are encrypted and cannot be read on this platform',
       );
-    } on PlatformException catch (error) {
-      throw WalletQueueSecurityException(
-        'Wallet queue entry could not be decrypted (${error.code})',
-      );
+    } on PlatformException {
+      // Authenticated decryption failed: the key rotated or the bytes are
+      // damaged. The caller quarantines the entry instead of dropping it.
+      return null;
     }
   }
 
@@ -81,7 +95,13 @@ class PlatformWalletQueueCodec implements WalletQueueCodec {
         'Wallet queue entry could not be encrypted (${error.code})',
       );
     }
-    await prefs.setString(key, sealed);
+    // A write that did not reach disk must never look like a stored review (V-02).
+    final bool committed = await prefs.setString(key, sealed);
+    if (!committed) {
+      throw WalletQueueSecurityException(
+        'Wallet queue entry could not be written to disk',
+      );
+    }
   }
 }
 
@@ -95,7 +115,15 @@ class PlainWalletQueueCodec implements WalletQueueCodec {
       prefs.getString(key);
 
   @override
+  Future<String?> unseal(String stored) async => stored;
+
+  @override
   Future<void> write(SharedPreferences prefs, String key, String value) async {
-    await prefs.setString(key, value);
+    final bool committed = await prefs.setString(key, value);
+    if (!committed) {
+      throw WalletQueueSecurityException(
+        'Wallet queue entry could not be written to disk',
+      );
+    }
   }
 }

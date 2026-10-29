@@ -23,6 +23,9 @@ import { AppError } from '../../core/errors/app-error.js';
 export const LEGACY_METADATA_ROW_LIMIT = 1000;
 
 export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
+  // Accepted password-reset metadata is user-owned security data: it must not
+  // outlive the account (V-06). It has no incoming FKs, so it is safe first.
+  'password_reset_requests',
   'ingest_tokens',
   'push_devices',
   'reminders',
@@ -240,9 +243,13 @@ export class PgUsersRepository implements UsersRepository {
 
       const userRes = await client.query<{
         id: string;
+        email: string;
         status: 'active' | 'disabled' | 'pending_deletion';
         deletion_scheduled_for: Date | null;
-      }>(`SELECT id, status, deletion_scheduled_for FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+      }>(
+        `SELECT id, email, status, deletion_scheduled_for FROM users WHERE id = $1 FOR UPDATE`,
+        [userId]
+      );
 
       const user = userRes.rows[0];
       if (!user) {
@@ -278,6 +285,14 @@ export class PgUsersRepository implements UsersRepository {
       for (const table of USER_OWNED_TABLES_IN_DELETE_ORDER) {
         await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
       }
+
+      // 2b. Reset metadata recorded before the account link existed (or for a
+      // request made while the account was in flight) has no user_id, so it is
+      // erased by the account's email address instead (V-06).
+      await client.query(
+        `DELETE FROM password_reset_requests WHERE user_id = $1 OR email = $2`,
+        [userId, user.email]
+      );
 
       // 3. Delete the user row (audit_logs.actor_user_id is ON DELETE SET NULL).
       await client.query(`DELETE FROM users WHERE id = $1`, [userId]);

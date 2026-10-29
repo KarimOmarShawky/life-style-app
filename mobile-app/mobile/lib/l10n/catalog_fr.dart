@@ -245,4 +245,16 @@ const Map<String, String> frCatalog = {
       'Lit les SMS bancaires et portefeuille (InstaPay, Vodafone Cash...) et enregistre automatiquement les transactions.',
   'smsPermissionDenied':
       'L\'autorisation SMS est requise pour activer la capture automatique.',
+  'smsQuarantineTitle':
+      'Messages de portefeuille conservés pour vérification',
+  'smsQuarantineDesc':
+      'Certains messages de portefeuille n\'ont pas pu être traités. Ils ont été conservés, et non supprimés, et sont réessayés automatiquement. Ils expirent après 7 jours.',
+  'smsStorageFaultTitle':
+      'Problème de stockage du portefeuille',
+  'smsStorageFaultDesc':
+      'Un message de portefeuille n\'a pas pu être enregistré sur cet appareil. Rien n\'a été supprimé ; l\'application continue de réessayer en arrière-plan.',
+  'smsNotificationDetailsTitle':
+      'Afficher le montant et le commerçant dans les notifications',
+  'smsNotificationDetailsDesc':
+      'Désactivé par défaut : les notifications indiquent seulement qu\'un message de portefeuille est arrivé. En activant ceci, le montant et le commerçant s\'affichent, et peuvent être visibles sur l\'écran verrouillé.',
 };

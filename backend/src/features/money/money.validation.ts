@@ -8,6 +8,7 @@ import { currencySchema } from '../../core/security/profile-validation.js';
 import { z } from 'zod';
 import { Decimal } from 'decimal.js';
 import { getCurrencyExponent } from './money.dto.js';
+import { calendarDaySchema } from '../../core/validation/date-only.js';
 
 /**
  * Validates that an amount is a decimal string > 0 with scale <= currency exponent.
@@ -54,10 +55,11 @@ export const monetaryAmountSchema = z
 
 export const currencyCodeSchema = currencySchema;
 
-export const dateStringSchema = z
-  .string()
-  .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD');
+/**
+ * Date-only values are semantic calendar days, not just `YYYY-MM-DD`-shaped
+ * strings (V-09): `2026-02-30` is rejected here, not deep inside a query.
+ */
+export const dateStringSchema = calendarDaySchema;
 
 export const createCategorySchema = z
   .object({

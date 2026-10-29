@@ -25,6 +25,17 @@ export interface ResetRequestMeta {
   requestId?: string | undefined;
   ip?: string | undefined;
   userAgent?: string | undefined;
+  /** Durable row id, used only to attach the ownership key (V-06). */
+  recordId?: string | undefined;
+}
+
+/**
+ * Optional ownership-link port: the durable row gains its owning account as
+ * soon as delivery resolves it, so erasure and retention can reach the
+ * metadata without an admission-time lookup (V-06).
+ */
+export interface ResetOwnerLink {
+  attachOwner(recordId: string, userId: string): Promise<void>;
 }
 
 export interface PasswordResetUserLookup {
@@ -38,7 +49,8 @@ export class PasswordResetProcessor {
     private readonly repo: PasswordResetUserLookup,
     private readonly otpStore: OtpStore,
     private readonly emailSender: EmailSender,
-    private readonly auditLogger: AuditLogger
+    private readonly auditLogger: AuditLogger,
+    private readonly ownerLink?: ResetOwnerLink | undefined
   ) {}
 
   /**
@@ -48,6 +60,18 @@ export class PasswordResetProcessor {
   public async process(email: string, meta?: ResetRequestMeta): Promise<void> {
     const user = await this.repo.findUserByEmail(email);
     if (!user || user.status === 'disabled') return;
+
+    // Ownership key for erasure/retention (V-06). Failure here must not block
+    // delivery: account purge also erases reset metadata by email address.
+    if (meta?.recordId && this.ownerLink) {
+      try {
+        await this.ownerLink.attachOwner(meta.recordId, user.id);
+      } catch (err) {
+        logger.warn('Password reset ownership link failed', {
+          reason: err instanceof Error ? err.name : 'unknown'
+        });
+      }
+    }
 
     const allowed = await this.otpStore.checkCooldown(user.id);
     if (!allowed) return;

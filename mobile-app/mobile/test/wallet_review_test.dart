@@ -99,6 +99,29 @@ const Map<String, Object?> _strictTransaction = {
   'merchant': 'Some Shop',
 };
 
+/// Simulates a Keystore-backed codec where one stored value cannot be
+/// authenticated (invalidated key or damaged ciphertext) while the rest of the
+/// queue keeps working.
+class _FlakyCodec implements WalletQueueCodec {
+  final Set<String> unreadableKeys = <String>{};
+
+  @override
+  Future<String?> read(SharedPreferences prefs, String key) async {
+    if (unreadableKeys.contains(key)) {
+      throw WalletQueueSecurityException('value cannot be authenticated');
+    }
+    return prefs.getString(key);
+  }
+
+  @override
+  Future<String?> unseal(String stored) async => stored;
+
+  @override
+  Future<void> write(SharedPreferences prefs, String key, String value) async {
+    await prefs.setString(key, value);
+  }
+}
+
 void main() {
   group('WalletReviewItem.tryParse', () {
     test('rejects missing, malformed and invalid entries', () {
@@ -133,7 +156,7 @@ void main() {
   });
 
   group('PendingWalletReviews', () {
-    test('loads queued reviews oldest first and drops malformed entries',
+    test('loads queued reviews oldest first and keeps malformed entries parked',
         () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_review.later':
@@ -151,6 +174,11 @@ void main() {
       final items = await reviews.load();
 
       expect(items.map((item) => item.id).toList(), ['earlier', 'later']);
+      // The unparseable entry is not listed, but it is also not deleted: it is
+      // the only copy of that message, so the state is published instead (V-02).
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_review.bad'), isNotNull);
+      expect(prefs.getString('wallet_sms_quarantined'), isNotNull);
     });
 
     test(
@@ -292,6 +320,11 @@ void main() {
       expect(reviews, hasLength(1));
       expect(reviews.single.id, 'low');
       expect(reviews.single.amount, '450.00');
+      final prefs = await SharedPreferences.getInstance();
+      // The review item is written to the review queue, never back into the
+      // candidate queue (that key would be analyzed again on the next flush).
+      expect(prefs.getString('pending_wallet_review.low'), isNotNull);
+      expect(prefs.getString('pending_wallet_candidate.low'), isNull);
     });
 
     test('unrecognized results drop the candidate', () async {
@@ -339,7 +372,8 @@ void main() {
       expect(jsonDecode(stored!)['attempts'], 1);
     });
 
-    test('permanent rejections and malformed entries are dropped', () async {
+    test('a permanent rejection is dropped but an unreadable entry is kept',
+        () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.bad': _candidateItem('bad'),
         'flutter.pending_wallet_candidate.junk': 'not json',
@@ -360,8 +394,14 @@ void main() {
 
       expect(await candidates.flush(), 1);
       final prefs = await SharedPreferences.getInstance();
+      // The server rejected this specific payload: retrying cannot help.
       expect(prefs.getString('pending_wallet_candidate.bad'), isNull);
+
+      // Malformed content is not deleted any more: it is quarantined, still
+      // present, and the state is published for the UI (V-02).
       expect(prefs.getString('pending_wallet_candidate.junk'), isNull);
+      expect(prefs.getString('pending_wallet_quarantine.junk'), isNotNull);
+      expect(prefs.getString('wallet_sms_quarantined'), isNotNull);
     });
 
     test(
@@ -390,7 +430,123 @@ void main() {
       final stored = prefs.getString('pending_wallet_candidate.old');
       expect(stored, isNotNull);
       expect(jsonDecode(stored!)['blocked'], isTrue);
-      expect(prefs.getString('wallet_sms_fallback_unavailable'), isNotNull);
+      // A spent retry budget is an interpretation problem, not a stalled
+      // provider: the quarantine state is published instead (V-01).
+      expect(prefs.getString('wallet_sms_quarantined'), isNotNull);
+    });
+
+    test('an unknown analyze status is retried, never treated as handled',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.future': _candidateItem('future'),
+      });
+      var calls = 0;
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async {
+          calls++;
+          return http.Response(
+            _analyzeResponse(status: 'partially_recognized'),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+
+      // Nothing is resolved: the message is neither recognized nor rejected.
+      expect(await candidates.flush(), 0);
+      expect(calls, 1);
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('pending_wallet_candidate.future');
+      expect(stored, isNotNull, reason: 'an unknown status must not delete it');
+      final decoded = jsonDecode(stored!) as Map<String, dynamic>;
+      expect(decoded['attempts'], 1);
+      expect(decoded['retryReason'], 'unknownStatus');
+      expect(prefs.getString('wallet_sms_quarantined'), isNotNull);
+    });
+
+    test('an unreadable entry is quarantined and restored once it can be read',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.sealed': _candidateItem('sealed'),
+      });
+      final codec = _FlakyCodec();
+      codec.unreadableKeys.add('pending_wallet_candidate.sealed');
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async => http.Response(
+              _analyzeResponse(status: 'unrecognized'),
+              200,
+              headers: {'content-type': 'application/json'},
+            ))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: codec,
+      );
+
+      await candidates.flush();
+      final prefs = await SharedPreferences.getInstance();
+      // Parked, not deleted, and the state is visible.
+      expect(prefs.getString('pending_wallet_candidate.sealed'), isNull);
+      expect(prefs.getString('pending_wallet_quarantine.sealed'), isNotNull);
+      expect(prefs.getString('wallet_sms_quarantined'), isNotNull);
+
+      // The value can be authenticated again: it goes back to its own queue
+      // exactly once, and the published state is cleared.
+      codec.unreadableKeys.clear();
+      await candidates.flush();
+      expect(prefs.getString('pending_wallet_quarantine.sealed'), isNull);
+      expect(prefs.getString('pending_wallet_candidate.sealed'), isNotNull);
+      expect(prefs.getString('wallet_sms_quarantined'), isNull);
+
+      // The next round analyzes it normally.
+      expect(await candidates.flush(), 1);
+      expect(prefs.getString('pending_wallet_candidate.sealed'), isNull);
+    });
+
+    test('a malformed entry is never restored into a parse loop', () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.junk': 'not json',
+      });
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async => http.Response('', 200))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+
+      await candidates.flush();
+      await candidates.flush();
+      final prefs = await SharedPreferences.getInstance();
+      // Parked exactly once: restoring it would bounce between the two queues.
+      expect(prefs.getString('pending_wallet_quarantine.junk'), isNotNull);
+      expect(prefs.getString('pending_wallet_candidate.junk'), isNull);
+    });
+
+    test('quarantined entries expire with the retention window', () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_quarantine.stale': jsonEncode({
+          'origin': PendingWalletCandidates.keyPrefix,
+          'reason': 'MALFORMED',
+          'attempts': 0,
+          'payload': 'not json',
+          'quarantinedAtMs': DateTime.now().millisecondsSinceEpoch -
+              const Duration(days: 8).inMilliseconds,
+        }),
+        'flutter.wallet_sms_quarantined': '{"count":1,"lastAtMs":1}',
+      });
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async => http.Response('', 200))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+
+      await candidates.flush();
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_quarantine.stale'), isNull);
+      expect(prefs.getString('wallet_sms_quarantined'), isNull);
     });
 
     test('an unavailable fallback keeps the candidate for a later attempt',

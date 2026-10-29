@@ -25,6 +25,7 @@ interface RecordedQuery {
 function createTransactionalPoolMock(options?: {
   userRow?: {
     id: string;
+    email?: string;
     status: 'active' | 'disabled' | 'pending_deletion';
     deletion_scheduled_for: Date | null;
   } | null;
@@ -41,6 +42,7 @@ function createTransactionalPoolMock(options?: {
       ? options.userRow
       : {
           id: '11111111-1111-4111-8111-111111111111',
+          email: 'private@example.com',
           status: 'active' as const,
           deletion_scheduled_for: null
         };
@@ -196,6 +198,7 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
     const { pool, queries, released } = createTransactionalPoolMock({
       userRow: {
         id: userA,
+        email: 'private@example.com',
         status: 'pending_deletion',
         deletion_scheduled_for: pastSchedule
       }
@@ -220,6 +223,15 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
     );
     expect(dmlQueries.length).toBeGreaterThan(20);
     for (const q of dmlQueries) {
+      // Reset metadata recorded before the ownership link existed is erased by
+      // the account's email as well as its id (V-06); every other statement is
+      // strictly id-scoped.
+      if (q.params.length === 2) {
+        expect(q.params[0]).toBe(userA);
+        expect(q.params[1]).toBe('private@example.com');
+        expect(q.sql).toContain('password_reset_requests');
+        continue;
+      }
       expect(q.params).toEqual([userA]);
     }
 
@@ -266,6 +278,7 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
     const { pool, queries, released } = createTransactionalPoolMock({
       userRow: {
         id: userA,
+        email: 'private@example.com',
         status: 'pending_deletion',
         deletion_scheduled_for: pastSchedule
       },

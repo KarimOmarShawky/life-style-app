@@ -29,6 +29,9 @@ export function isValidCalendarDate(value: unknown): value is string {
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
+  // PostgreSQL DATE supports years 0001..9999; year 0000 is not a real
+  // calendar date and must be rejected (AUD-08).
+  if (year < 1 || year > 9999) return false;
   if (month < 1 || month > 12 || day < 1 || day > 31) return false;
 
   // Date.UTC() maps years 0..99 to 1900..1999, so build the date explicitly.

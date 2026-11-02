@@ -9,10 +9,10 @@ abstract final class AppConfig {
   static const _devGeminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
   static String get geminiApiKey => kReleaseMode ? '' : _devGeminiApiKey;
 
-  static const apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://life-style-app-production.up.railway.app/api/v1',
-  );
+  // AUD-10: no production default — an unset API_BASE_URL must fail the
+  // launch (see apiBaseUri) instead of silently sending dev/validation
+  // traffic to the production host.
+  static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   static Uri get apiBaseUri {
     final configured = apiBaseUrl.trim();

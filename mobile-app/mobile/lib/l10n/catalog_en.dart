@@ -246,6 +246,10 @@ const Map<String, String> enCatalog = {
   'aiSuggestion2': 'How do I balance work and study?',
   'aiSuggestion3': 'Suggest healthy morning habits',
   'aiSuggestion4': 'Tips to reduce monthly expenses',
+  'aiSuggestionAnalyzeTasks': 'Prioritise my tasks',
+  'aiSuggestionHabitInsights': 'Analyze my habits',
+  'aiSuggestionPlanGoal': 'Break down my goal',
+  'aiSuggestionSummarizeNote': 'Summarise a note',
   'aiClearChatTooltip': 'Clear conversation',
   'aiClearedResetMessage':
       'Welcome back! How can I help you organize your day now?',
@@ -422,4 +426,14 @@ const Map<String, String> enCatalog = {
       'Show amount and merchant in notifications',
   'smsNotificationDetailsDesc':
       'Off by default: notifications only say that a wallet message arrived. Turning this on shows the amount and merchant, which may be visible on your lock screen.',
-};
+  'analyticsTitle': 'Analytics & Insights',
+  'analyticsTimeRange': 'Time range',
+  'analyticsCumulative': 'Cumulative analysis',
+  'analyticsDashboard': 'Performance dashboard',
+  'analyticsBalance': 'Life balance score',
+  'analyticsEmpty': 'Run an analysis to see your insights.',
+  'aiSpeakTooltip': 'Speak this response',
+  'aiSpeaking': 'Speaking...',
+  'aiVoiceListening': 'Listening...',
+  'aiErrorMessage': 'An error occurred while processing your request. Please try again.',
+}

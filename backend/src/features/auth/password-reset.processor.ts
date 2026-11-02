@@ -44,6 +44,21 @@ export interface PasswordResetUserLookup {
   ): Promise<{ id: string; email: string; status: string } | null | undefined>;
 }
 
+/**
+ * Throttling is a distinct, non-success outcome. It is never a delivered
+ * reset code: throwing (rather than returning) is what lets the durable
+ * dispatcher record a retry or dead-letter instead of marking the row `sent`
+ * (AUD-01). The code is carried so the dispatcher can persist a distinguishable
+ * error code without leaking provider or account detail.
+ */
+export class PasswordResetThrottledError extends Error {
+  public readonly code = 'PASSWORD_RESET_THROTTLED';
+  constructor() {
+    super('PASSWORD_RESET_THROTTLED');
+    this.name = 'PasswordResetThrottledError';
+  }
+}
+
 export class PasswordResetProcessor {
   constructor(
     private readonly repo: PasswordResetUserLookup,
@@ -74,7 +89,24 @@ export class PasswordResetProcessor {
     }
 
     const allowed = await this.otpStore.checkCooldown(user.id);
-    if (!allowed) return;
+    if (!allowed) {
+      // The 60-second cooldown throttles request admission, not delivery. A
+      // retry that lands while the cooldown is still active must never be
+      // reported as a delivered code, so this is a distinct failure outcome:
+      // the durable dispatcher records a retry (or dead-letters) instead of
+      // marking the row `sent` (AUD-01).
+      await this.auditLogger.log({
+        actorType: 'user',
+        actorUserId: user.id,
+        eventType: 'auth.password.reset.requested',
+        outcome: 'failure',
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+        metadata: { reason: 'throttled' }
+      });
+      throw new PasswordResetThrottledError();
+    }
 
     const code = await this.otpStore.generateAndStoreCode(user.id);
     let deliveryOutcome: 'success' | 'failure' = 'success';

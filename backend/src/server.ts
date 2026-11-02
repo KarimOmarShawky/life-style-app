@@ -93,10 +93,11 @@ server.listen(env.PORT, '0.0.0.0', () => {
   logger.info(`LifeStyle API server listening on port ${env.PORT} [NODE_ENV=${env.NODE_ENV}]`);
 });
 
-// Dual listener ensures both Railway standard port (8080) and custom port (3000) respond.
-// Intentional for the deployment target (audit P2-02, 2026-10): documented here and in
-// docs/deployment/environment-variables.md; closed on graceful shutdown via auxiliaryServers.
-const secondaryPorts = [3000, 8080].filter((p) => p !== env.PORT);
+// AUD-17: auxiliary listeners are opt-in. They were previously always bound
+// (Railway workaround), which exposed extra ports on 0.0.0.0 unconditionally.
+// Set AUXILIARY_PORTS="3000,8080" to restore the old behaviour. Closed on
+// graceful shutdown via auxiliaryServers.
+const secondaryPorts = env.AUXILIARY_PORTS.filter((p) => p !== env.PORT);
 for (const p of secondaryPorts) {
   try {
     const fallbackServer = http.createServer(app);

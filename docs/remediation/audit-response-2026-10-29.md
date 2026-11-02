@@ -3,7 +3,7 @@
 Engineering response to the *LifeStyle App — Final Independent Verification
 READ-ONLY AUDIT* (30 pages, dated 2026-10-29, snapshot
 `life-style-app-main (5).zip`, 634 files) whose verdict was **NOT READY**
-(Critical 0 · High 0 · Medium 6 · Low 5), with eleven confirmed findings
+(Critical 0 · High 0 · Medium 7 · Low 4), with eleven confirmed findings
 **V-01 … V-11**.
 
 This is a remediation record, **not** a release certificate. Every entry below

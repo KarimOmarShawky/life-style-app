@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 import { checkDocsConsistency } from './check-docs-consistency.mjs';
 
-const REPO_ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+const REPO_ROOT = new URL('..', import.meta.url).pathname.replace(/[\\/]$/, '');
 
 const CANONICAL_DEFERRED = `# Deferred Features & Non-Goals
 

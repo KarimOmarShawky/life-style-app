@@ -215,6 +215,10 @@ const Map<String, String> deCatalog = {
   'aiSuggestion2': 'Wie balanciere ich Arbeit und Studium?',
   'aiSuggestion3': 'Schlage gesunde Morgengewohnheiten vor',
   'aiSuggestion4': 'Tipps zur Senkung meiner Monatsausgaben',
+  'aiSuggestionAnalyzeTasks': 'Meine Aufgaben priorisieren',
+  'aiSuggestionHabitInsights': 'Meine Gewohnheiten analysieren',
+  'aiSuggestionPlanGoal': 'Mein Ziel in Schritte zerlegen',
+  'aiSuggestionSummarizeNote': 'Eine Notiz zusammenfassen',
   'aiClearChatTooltip': 'Unterhaltung löschen',
   'aiClearedResetMessage':
       'Willkommen zurück! Wie kann ich dir jetzt helfen, deinen Tag zu organisieren?',
@@ -255,4 +259,14 @@ const Map<String, String> deCatalog = {
       'Betrag und Händler in Benachrichtigungen anzeigen',
   'smsNotificationDetailsDesc':
       'Standardmäßig aus: Benachrichtigungen melden nur, dass eine Wallet-Nachricht eingegangen ist. Wenn dies aktiviert ist, werden Betrag und Händler angezeigt, was auf dem Sperrbildschirm sichtbar sein kann.',
-};
+  'analyticsTitle': 'Analysen & Erkenntnisse',
+  'analyticsTimeRange': 'Zeitraum',
+  'analyticsCumulative': 'Kumulierte Analyse',
+  'analyticsDashboard': 'Performance-Dashboard',
+  'analyticsBalance': 'Lebensbalance-Score',
+  'analyticsEmpty': 'Führen Sie eine Analyse aus, um Ihre Erkenntnisse zu sehen.',
+  'aiSpeakTooltip': 'Diese Antwort vorlesen',
+  'aiSpeaking': 'Wird vorgetragen...',
+  'aiVoiceListening': 'Höre zu...',
+  'aiErrorMessage': 'Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
+}

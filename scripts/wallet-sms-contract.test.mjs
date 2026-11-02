@@ -226,8 +226,12 @@ test('V-01/V-02 quarantined entries are kept, bounded and never revived forever'
 
 test('V-03 notifications never carry message content unless the user opts in', () => {
   const notification = receiver.split('private fun showTransactionNotification(')[1].split('private fun ')[0];
-  // Private lock-screen visibility and a redacted public version.
-  assert.ok(notification.includes('lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE'));
+  // The channel (created by the shared helper) is private on the lock screen.
+  const helper = receiver
+    .split('private fun ensureNotificationChannel(context: Context)')[1]
+    .split('private fun showReviewNotification')[0];
+  assert.ok(helper.includes('lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE'));
+  // The notification itself is also marked private and redacted publicly.
   assert.ok(notification.includes('.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)'));
   assert.ok(notification.includes('.setPublicVersion(publicVersion)'));
   // The raw SMS body is not part of the model any more, so it cannot be
@@ -269,4 +273,69 @@ test('F-07 the client renders the full search scope, not five of seven groups', 
   const types = read('backend/src/features/search/search.types.ts');
   assert.ok(types.includes('goals: GoalSearchItem[];'));
   assert.ok(types.includes('subscriptions: SubscriptionSearchItem[];'));
+});
+
+test('AUD-05 wallet SMS auto-save requires a trusted sender; fallback results always require review', () => {
+  // Native: a trusted-sender allow-list gate exists and defaults to empty.
+  assert.ok(receiver.includes('private const val KEY_TRUSTED_SENDERS = "flutter.wallet_trusted_senders"'));
+  assert.ok(receiver.includes('private fun isTrustedSender(context: Context, sender: String): Boolean'));
+  assert.ok(receiver.includes('private fun normalizePhone(phone: String): String'));
+  // An absent/empty list trusts no sender (default deny).
+  assert.ok(receiver.includes('prefs.getString(KEY_TRUSTED_SENDERS, null) ?: return false'));
+  // Auto-save is gated on the trusted sender, never on a body match alone.
+  const onReceive = receiver
+    .split('val transaction = parseSmsTransaction(sender, body)')[1]
+    .split('flushPending(context)')[0];
+  assert.ok(/transaction != null && isTrustedSender\(context, sender\)/.test(onReceive));
+  assert.ok(onReceive.includes('else if (looksLikeCandidate(body))'));
+  // handleAnalysisResult no longer auto-saves a high-confidence parse.
+  const handler = receiver.split('private fun handleAnalysisResult(')[1].split('\n    }')[0];
+  assert.ok(!/confidence == "high"/.test(handler));
+  assert.ok(!/postTransaction\(/.test(handler));
+  // Dart mirrors: no high-confidence auto-save in the candidate result handler.
+  const dartHandler = dartReviews
+    .split('Future<CandidateDecision> _applyResult(')[1]
+    .split('Future<bool> _retryCandidate(')[0];
+  assert.ok(!dartHandler.includes("response['confidence'] == 'high'"));
+  assert.ok(!dartHandler.includes('_repository.createTransaction('));
+});
+
+test('AUD-12: review removal verifies disk and shares one permanent-rejection policy with native', () => {
+  // Dart: the review-item removal checks the SharedPreferences result and
+  // publishes a storage fault on failure instead of swallowing it.
+  const removeBlock = dartReviews.split('Future<bool> _remove(String id)')[1].split('\n  }')[0];
+  assert.ok(removeBlock.includes('const removed = await prefs.remove(key)'));
+  assert.ok(removeBlock.includes('if (!removed)'));
+  assert.ok(removeBlock.includes('WalletSmsQuarantineStatus.storageFaultKey'));
+
+  // Dart: the quarantine-flag counter verifies its write.
+  const flagBlock = dartReviews.split('Future<void> _publishQuarantineFlag')[1].split('\n  }')[0];
+  assert.ok(flagBlock.includes('const wrote = await prefs.setString'));
+  assert.ok(flagBlock.includes('if (!wrote)'));
+
+  // Dart: permanent rejections match the native set {400, 409, 422}.
+  const policy = dartReviews.split('bool _isPermanentRejection')[1].split('\n  }')[0];
+  assert.ok(policy.includes('error.statusCode == 400'));
+  assert.ok(policy.includes('error.statusCode == 409'));
+  assert.ok(policy.includes('error.statusCode == 422'));
+
+  // Native: the same set is declared once and used by the removal path.
+  assert.ok(receiver.includes('private val PERMANENT_REJECTIONS = setOf(400, 409, 422)'));
+});
+
+test('AUD-13: review notification creates its channel through a shared helper', () => {
+  // A shared helper creates the channel before any notify() path.
+  assert.ok(receiver.includes('private fun ensureNotificationChannel(context: Context)'));
+  assert.ok(receiver.includes('manager.createNotificationChannel(channel)'));
+  // showReviewNotification calls the helper before building/notifying.
+  const reviewBlock = receiver.split('private fun showReviewNotification(context: Context)')[1]
+    .split('private fun parseIsoMillis')[0];
+  assert.ok(reviewBlock.includes('ensureNotificationChannel(context)'));
+  assert.ok(reviewBlock.includes('notificationManager.notify(REVIEW_NOTIFICATION_ID, notif)'));
+  // showTransactionNotification also uses the helper (no inline channel construction).
+  const txBlock = receiver.split('private fun showTransactionNotification(context: Context, tx: DetectedTransaction)')[1]
+    .split('val openAppIntent')[0];
+  assert.ok(txBlock.includes('ensureNotificationChannel(context)'));
+  // No inline `NotificationChannel(` construction (the helper owns it).
+  assert.ok(!/NotificationChannel\(\s*\n/.test(txBlock));
 });

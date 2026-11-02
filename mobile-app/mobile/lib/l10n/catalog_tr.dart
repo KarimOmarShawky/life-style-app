@@ -212,6 +212,10 @@ const Map<String, String> trCatalog = {
   'aiSuggestion2': 'İş ve ders dengemi nasıl kurarım?',
   'aiSuggestion3': 'Sağlıklı sabah alışkanlıkları öner',
   'aiSuggestion4': 'Aylık giderlerimi azaltma ipuçları',
+  'aiSuggestionAnalyzeTasks': 'Görevlerimi önceliklendir',
+  'aiSuggestionHabitInsights': 'Alıntılarımı analiz et',
+  'aiSuggestionPlanGoal': 'Hedefimi adımlara bölün',
+  'aiSuggestionSummarizeNote': 'Bir notu özetle',
   'aiClearChatTooltip': 'Sohbeti temizle',
   'aiClearedResetMessage':
       'Tekrar hoş geldin! Gününü düzenlemene şimdi nasıl yardım edebilirim?',
@@ -251,4 +255,14 @@ const Map<String, String> trCatalog = {
       'Bildirimlerde tutarı ve satıcıyı göster',
   'smsNotificationDetailsDesc':
       'Varsayılan olarak kapalı: bildirimler yalnızca bir cüzdan mesajı geldiğini söyler. Bu açıldığında tutar ve satıcı gösterilir ve kilit ekranında görülebilir.',
-};
+  'analyticsTitle': 'Analitik ve içgörüler',
+  'analyticsTimeRange': 'Zaman dilimi',
+  'analyticsCumulative': 'Kümülatif analiz',
+  'analyticsDashboard': 'Performans paneli',
+  'analyticsBalance': 'Yaşam denge puanı',
+  'analyticsEmpty': 'İçgörüleri görmek için bir analiz çalıştırın.',
+  'aiSpeakTooltip': 'Bu yanıtı sesli oku',
+  'aiSpeaking': 'Okunuyor...',
+  'aiVoiceListening': 'Dinleniyor...',
+  'aiErrorMessage': 'İsteğiniz işlenirken bir hata oluştu. Lütfen tekrar deneyin.',
+}

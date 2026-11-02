@@ -157,6 +157,9 @@ class AppLocalizations {
   String get aiAssistant => _s('aiAssistant');
   String get aiDailyBriefing => _s('aiDailyBriefing');
   String get voiceMicPrompt => _s('voiceMicPrompt');
+  String get aiVoiceListening => _s('aiVoiceListening');
+  String get aiSpeaking => _s('aiSpeaking');
+  String get aiSpeakTooltip => _s('aiSpeakTooltip');
   String get searchPlaceholder => _s('searchPlaceholder');
   String get userLevel => _s('userLevel');
   String get xpPoints => _s('xpPoints');
@@ -326,6 +329,10 @@ class AppLocalizations {
   String get aiSuggestion2 => _s('aiSuggestion2');
   String get aiSuggestion3 => _s('aiSuggestion3');
   String get aiSuggestion4 => _s('aiSuggestion4');
+  String get aiSuggestionAnalyzeTasks => _s('aiSuggestionAnalyzeTasks');
+  String get aiSuggestionHabitInsights => _s('aiSuggestionHabitInsights');
+  String get aiSuggestionPlanGoal => _s('aiSuggestionPlanGoal');
+  String get aiSuggestionSummarizeNote => _s('aiSuggestionSummarizeNote');
   String get aiClearChatTooltip => _s('aiClearChatTooltip');
   String get aiClearedResetMessage => _s('aiClearedResetMessage');
   String get aiThinkingMessage => _s('aiThinkingMessage');
@@ -334,6 +341,7 @@ class AppLocalizations {
   String get searchPromptEmpty => _s('searchPromptEmpty');
 
   String get noSpeechDetected => _s('noSpeechDetected');
+  String get aiErrorMessage => _s('aiErrorMessage');
   String get smsSyncTitle => _s('smsSyncTitle');
   String get smsSyncDesc => _s('smsSyncDesc');
   String get smsPermissionDenied => _s('smsPermissionDenied');
@@ -446,6 +454,12 @@ class AppLocalizations {
   String get milestoneTitleLabel => _s('milestoneTitleLabel');
   String get milestonesTitle => _s('milestonesTitle');
   String get moreTitle => _s('moreTitle');
+  String get analyticsTitle => _s('analyticsTitle');
+  String get analyticsTimeRange => _s('analyticsTimeRange');
+  String get analyticsCumulative => _s('analyticsCumulative');
+  String get analyticsDashboard => _s('analyticsDashboard');
+  String get analyticsBalance => _s('analyticsBalance');
+  String get analyticsEmpty => _s('analyticsEmpty');
   String get nextDay => _s('nextDay');
   String get noEndDate => _s('noEndDate');
   String get noEventsForDay => _s('noEventsForDay');

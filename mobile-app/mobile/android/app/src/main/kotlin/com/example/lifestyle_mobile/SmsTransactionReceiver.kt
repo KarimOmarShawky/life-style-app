@@ -15,6 +15,7 @@ import android.provider.Telephony
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -57,13 +58,19 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         // Entries that must not be retried or silently dropped live here, still
         // in their original (sealed) form, until the user resolves them (V-02).
         const val QUARANTINE_PREFIX = "flutter.pending_wallet_quarantine."
-        private const val DEFAULT_API_BASE = "https://life-style-app-production.up.railway.app/api/v1"
+        // AUD-10: no hard-coded production fallback — the API base must come
+        // from SharedPreferences (published by the Flutter app). An unset
+        // value skips the native flush instead of sending to a default host.
         private const val CONNECT_TIMEOUT_MS = 8_000
         private const val READ_TIMEOUT_MS = 8_000
         private const val REVIEW_NOTIFICATION_ID = 998
         // Detailed (amount/merchant) notifications are an informed opt-in; the
         // default is a generic prompt (V-03).
         private const val KEY_NOTIFICATION_DETAILS = "flutter.wallet_notification_details"
+        // Trusted-sender allow-list (JSON array of normalized phone numbers).
+        // Auto-save is only allowed for senders on this list; an empty or absent
+        // list means no sender is trusted (AUD-05).
+        private const val KEY_TRUSTED_SENDERS = "flutter.wallet_trusted_senders"
 
         // Candidates are dropped after this many failed delivery attempts.
         private const val MAX_CANDIDATE_ATTEMPTS = 5
@@ -174,13 +181,17 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         Thread {
             try {
                 val transaction = parseSmsTransaction(sender, body)
-                if (transaction != null) {
+                if (transaction != null && isTrustedSender(context, sender)) {
+                    // Auto-save only when the sender is on the trusted allow-list.
+                    // A body match alone never grants trust: an untrusted sender
+                    // goes to the review flow instead (AUD-05).
                     showTransactionNotification(context, transaction)
                     enqueueTransaction(context, transaction, receivedAtMs)
                 } else if (looksLikeCandidate(body)) {
-                    // Likely transaction the local parser cannot recognize: queue a
-                    // sanitized candidate for the backend SMS fallback (Gemini behind
-                    // the API). The raw text never leaves the phone.
+                    // A transaction the local parser cannot fully recognize, or a
+                    // parsed transaction from an untrusted sender: queue a
+                    // sanitized candidate for the backend SMS fallback (Gemini
+                    // behind the API). The raw text never leaves the phone.
                     enqueueCandidate(context, sender, body, receivedAtMs)
                 }
                 flushPending(context)
@@ -212,6 +223,39 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val sender: String,
         val description: String
     )
+
+    /**
+     * Keeps only the digits of a phone number so "+20 100 000 0000", "01000000000"
+     * and "201000000000" normalize to the same value. Used to match a sender against
+     * the trusted allow-list and to normalize the values stored there (AUD-05).
+     */
+    private fun normalizePhone(phone: String): String {
+        return phone.replace(Regex("[^0-9]"), "")
+    }
+
+    /**
+     * True only when the sender is on the trusted allow-list stored under
+     * [KEY_TRUSTED_SENDERS] (a JSON array of normalized phone numbers). An absent
+     * or empty list trusts no sender, so auto-save is off until the user adds one
+     * (AUD-05). A malformed list is treated as empty, never as "trust everyone".
+     */
+    private fun isTrustedSender(context: Context, sender: String): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_TRUSTED_SENDERS, null) ?: return false
+        val normalizedSender = normalizePhone(sender)
+        if (normalizedSender.isEmpty()) return false
+        return try {
+            val list = JSONArray(raw)
+            for (i in 0 until list.length()) {
+                if (normalizePhone(list.optString(i)) == normalizedSender) return true
+            }
+            false
+        } catch (e: Exception) {
+            // A malformed allow-list must not silently trust every sender.
+            Log.w(TAG, "Wallet trusted-sender list is not valid JSON", e)
+            false
+        }
+    }
 
     private fun parseSmsTransaction(sender: String, body: String): DetectedTransaction? {
         if (OTP_PATTERN.containsMatchIn(body)) return null
@@ -318,12 +362,18 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      */
     private fun flushPending(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val apiBase = prefs.getString(KEY_API_BASE, null)?.trimEnd('/') ?: DEFAULT_API_BASE
+        val apiBase = prefs.getString(KEY_API_BASE, null)?.trimEnd('/').orEmpty()
+        if (apiBase.isEmpty()) {
+            // AUD-10: no production fallback. Leave the queue in place; the
+            // Flutter app flushes it once API_BASE_URL is configured.
+            Log.w(TAG, "flushPending skipped: API_BASE_URL not configured")
+            return
+        }
 
         val ingestToken = WalletCredentialStore(context).read()
         if (!ingestToken.isNullOrEmpty()) {
             flushQueue(context, prefs, "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
-            flushCandidates(context, prefs, "$apiBase$ANALYZE_PATH", "$apiBase$INGEST_PATH", ingestToken, isIngest = true)
+            flushCandidates(context, prefs, "$apiBase$ANALYZE_PATH", ingestToken, isIngest = true)
         }
     }
 
@@ -423,13 +473,12 @@ class SmsTransactionReceiver : BroadcastReceiver() {
 
     /**
      * Asks the backend to analyze queued candidates (the Gemini fallback runs
-     * there; the key is server-side only). A high-confidence parse is saved at
-     * once with the candidate id as the Idempotency-Key, so retries can never
-     * duplicate it. A low-confidence parse becomes a review entry the user must
-     * confirm in the Money screen.
+     * there; the key is server-side only). Every recognized result becomes a
+     * review entry the user must confirm in the Money screen; nothing is
+     * auto-saved (AUD-05). The candidate id is preserved as the review item id.
      *
      * Result semantics (F-01/F-02):
-     *  - 2xx + status "recognized"   -> save or queue for review, then remove
+     *  - 2xx + status "recognized"   -> queue for review, then remove
      *  - 2xx + status "unrecognized" -> final answer, remove
      *  - 503 (or "unavailable")      -> retryable: keep the candidate, back off
      *  - permanent rejection         -> remove
@@ -440,7 +489,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         context: Context,
         prefs: SharedPreferences,
         analyzeUrl: String,
-        saveUrl: String,
         token: String,
         isIngest: Boolean
     ) {
@@ -471,9 +519,9 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             val (status, body) = postAnalyze(analyzeUrl, token, item)
             when {
                 status in 200..299 && body != null -> {
-                    // Handle first, delete after: a recognized result is saved or
-                    // queued for review before the candidate disappears (F-01).
-                    val outcome = handleAnalysisResult(context, prefs, saveUrl, token, item, body)
+                    // Handle first, delete after: a recognized result is queued
+                    // for review before the candidate disappears (F-01).
+                    val outcome = handleAnalysisResult(context, prefs, item, body)
                     when (outcome) {
                         CandidateOutcome.HANDLED -> {
                             // Delete only once the replacement record (saved
@@ -798,8 +846,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     private fun handleAnalysisResult(
         context: Context,
         prefs: SharedPreferences,
-        saveUrl: String,
-        token: String,
         candidate: JSONObject,
         body: String
     ): CandidateOutcome {
@@ -825,7 +871,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
 
         val transaction = result.optJSONObject("transaction")
             ?: return CandidateOutcome.RETRY_NOT_FINAL
-        val confidence = result.optString("confidence")
 
         // optString() on a JSON null returns the literal string "null" on Android,
         // so map absent/null/empty description and merchant to null explicitly.
@@ -848,24 +893,10 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         if (description != null) reviewItem.put("description", description)
         if (merchant != null) reviewItem.put("merchant", merchant)
 
-        if (confidence == "high") {
-            // High confidence may auto-save. The candidate id is the Idempotency-Key.
-            val saveItem = JSONObject()
-                .put("id", candidate.optString("id"))
-                .put("kind", reviewItem.optString("kind"))
-                .put("amount", reviewItem.optString("amount"))
-                .put("currency", reviewItem.optString("currency"))
-                .put("occurredOn", reviewItem.optString("occurredOn"))
-            if (description != null) saveItem.put("description", description)
-            if (merchant != null) saveItem.put("merchant", merchant)
-            val saved = postTransaction(saveUrl, token, saveItem.toString())
-            if (saved in 200..299 || saved in PERMANENT_REJECTIONS) {
-                return CandidateOutcome.HANDLED
-            }
-            // Could not save now: keep it as a review entry so nothing is lost.
-        }
-
-        // Low confidence requires user confirmation in the Money review flow.
+        // Every recognized fallback result requires user confirmation in the Money
+        // review flow. Even a "high"-confidence parse is not auto-saved: the
+        // fallback model must not write money records without the user reviewing
+        // the parse (AUD-05). The candidate id is preserved as the review item id.
         val id = reviewItem.optString("id")
         val stored = try {
             WalletQueueCipher().encrypt(reviewItem.toString())
@@ -933,8 +964,35 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         }
     }
 
+    /**
+     * Creates the wallet transaction notification channel if it does not exist
+     * yet (AUD-13). Every notify() path must call this first: on Android 8+ a
+     * notification posted to a channel that does not exist yet is silently
+     * dropped, so the review notification (which never creates the channel
+     * itself) would be lost until a direct-parse notification ran.
+     */
+    private fun ensureNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "LifeStyle Wallet Transactions",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Prompts to review a detected transaction"
+            enableVibration(true)
+            setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null)
+            // The channel itself never exposes details on the lock screen.
+            lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
+        }
+        manager.createNotificationChannel(channel)
+    }
+
     /** Prompts the user to confirm a pending review item. The item itself is never shown here. */
     private fun showReviewNotification(context: Context) {
+        ensureNotificationChannel(context)
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val isArabic = Locale.getDefault().language.startsWith("ar")
@@ -978,24 +1036,10 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      * private so the OS does not expand it outside the unlocked app.
      */
     private fun showTransactionNotification(context: Context, tx: DetectedTransaction) {
+        ensureNotificationChannel(context)
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val detailsEnabled = prefs.getBoolean(KEY_NOTIFICATION_DETAILS, false)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "LifeStyle Wallet Transactions",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Prompts to review a detected transaction"
-                enableVibration(true)
-                setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null)
-                // The channel itself never exposes details on the lock screen.
-                lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
-            }
-            manager.createNotificationChannel(channel)
-        }
 
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

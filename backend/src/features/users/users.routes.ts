@@ -7,6 +7,7 @@
 import { Router, type RequestHandler } from 'express';
 import type { UsersController } from './users.controller.js';
 import { type RateLimiter, createRateLimitMiddleware } from '../../core/middleware/rate-limiter.js';
+import { createReauthenticationLimiter } from '../../core/middleware/reauthentication.js';
 
 export interface UsersRouterOptions {
   controller: UsersController;
@@ -30,13 +31,13 @@ export function createUsersRouter(options: {
     keyGenerator: (req) => `user:${req.user?.id || 'anon'}`
   });
 
-  // Expensive password checks share a bounded per-user budget across sensitive actions.
-  const reauthenticationLimiter = createRateLimitMiddleware({
-    limiter: rateLimiter,
-    failClosed: true,
-    limit: 5,
-    windowSeconds: 900,
-    keyGenerator: (req) => `reauth:user:${req.user?.id || 'anon'}`
+  // Expensive password checks share a bounded per-user budget across sensitive
+  // actions. The shared reauthentication factory also covers the change-password
+  // endpoint so both identity changes share one budget and key namespace
+  // (AUD-04). It is fail-closed: an identity change never loses its bound when
+  // the shared limiter is unavailable.
+  const reauthenticationLimiter = createReauthenticationLimiter({
+    limiter: rateLimiter
   });
 
   // Profile/export data must not be retained by shared or browser caches.

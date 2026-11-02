@@ -222,8 +222,10 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const tokenService = overrides?.tokenService ?? new JoseTokenService();
   const sessionValidator = overrides?.sessionValidator ?? new PgSessionValidator(pgPool);
   const otpStore = overrides?.otpStore ?? new RedisOtpStore(redis);
-  // Reset codes stay in worker-local memory, never in a persistent email queue.
-  // Request admission uses AuthService's bounded, volatile in-process dispatcher.
+  // Reset codes are persisted in the durable password-reset request store (F-06)
+  // before delivery is attempted, so a crash or restart never loses accepted work.
+  // Request admission uses AuthService's bounded, volatile in-process dispatcher;
+  // the durable dispatcher (reset-request-dispatcher) drains what the API left behind.
   const emailSender = overrides?.emailSender ?? new SmtpEmailSender();
   const auditLogger = overrides?.auditLogger ?? new PgAuditLogger(pgPool);
 

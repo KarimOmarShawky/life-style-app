@@ -2,12 +2,23 @@
  * src/core/security/otp-service.ts
  *
  * Implements Section 8.5 & ADR-024: Password reset OTP generation, HMAC storage, and verification.
- * Stores HMAC-SHA256 codes in Redis with 15-minute TTL, 5-attempt limit, and 60-second cooldown.
+ * Stores HMAC-SHA256 codes in Redis with 15-minute TTL, 5-attempt limit, 60-second cooldown,
+ * and a cross-code per-account attempt budget (AUD-03).
  */
 
 import { randomInt, createHmac, timingSafeEqual } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import { getEnv } from '../../config/env.js';
+
+/**
+ * Cross-code per-account verification budget (AUD-03). The per-code 5-attempt
+ * counter is reset whenever a new code is issued, so without a budget that
+ * survives code rotation an attacker burning codes from rotating IPs could
+ * guess indefinitely. Each verification attempt (correct or not) consumes this
+ * account budget, which is deliberately NOT reset on a new code.
+ */
+const MAX_ACCOUNT_ATTEMPTS = 20;
+const ACCOUNT_ATTEMPT_WINDOW_SECONDS = 3600;
 
 export interface OtpStore {
   generateAndStoreCode(userId: string): Promise<string>;
@@ -17,6 +28,8 @@ export interface OtpStore {
 
 export class RedisOtpStore implements OtpStore {
   private readonly hmacSecret: string;
+  private readonly maxAccountAttempts: number = MAX_ACCOUNT_ATTEMPTS;
+  private readonly accountAttemptWindowSeconds: number = ACCOUNT_ATTEMPT_WINDOW_SECONDS;
 
   constructor(private readonly redis: Redis) {
     this.hmacSecret = getEnv().OTP_HMAC_SECRET;
@@ -51,6 +64,16 @@ export class RedisOtpStore implements OtpStore {
     const storedHmac = await this.redis.get(redisKey);
 
     if (!storedHmac) {
+      return false;
+    }
+
+    // Cross-code per-account budget (AUD-03): consume it before the per-code
+    // counter. Each verification attempt (correct or not) counts toward a
+    // one-hour account budget that is NOT reset when a new code is issued, so
+    // rotating reset codes cannot mint a fresh guess budget. When the budget is
+    // exhausted the code is invalidated so the caller must request a new one.
+    if (!(await this.consumeAccountAttempt(userId))) {
+      await this.redis.del(redisKey);
       return false;
     }
 
@@ -96,5 +119,24 @@ export class RedisOtpStore implements OtpStore {
 
   private attemptsKey(userId: string): string {
     return `pwreset-attempts:${userId}`;
+  }
+
+  private accountAttemptsKey(userId: string): string {
+    return `pwreset-acct-attempts:${userId}`;
+  }
+
+  /**
+   * Atomically consumes one unit of the per-account verification budget and
+   * reports whether the caller may proceed. The counter's TTL is set on the
+   * first increment so it expires with the window; the budget is intentionally
+   * never reset when a new code is issued (AUD-03).
+   */
+  private async consumeAccountAttempt(userId: string): Promise<boolean> {
+    const key = this.accountAttemptsKey(userId);
+    const count = await this.redis.incr(key);
+    if (count === 1) {
+      await this.redis.expire(key, this.accountAttemptWindowSeconds);
+    }
+    return count <= this.maxAccountAttempts;
   }
 }

@@ -105,7 +105,8 @@ describe('RedisOtpStore', () => {
     await redis.del(
       `pwreset:${testUserId}`,
       `pwreset-cd:${testUserId}`,
-      `pwreset-attempts:${testUserId}`
+      `pwreset-attempts:${testUserId}`,
+      `pwreset-acct-attempts:${testUserId}`
     );
   });
 
@@ -209,5 +210,51 @@ describe('RedisOtpStore', () => {
 
     // 6th attempt is refused even with the correct code.
     expect(await otpStore.verifyAndConsumeCode(testUserId, code)).toBe(false);
+  });
+
+  it('does not reset the per-account budget when a new code is issued (AUD-03)', async () => {
+    const code = await otpStore.generateAndStoreCode(testUserId);
+    const wrong = (Number(code) + 1) % 1_000_000;
+    const wrongStr = wrong.toString().padStart(6, '0');
+
+    // Burn the per-code budget on the first code.
+    for (let i = 0; i < 5; i += 1) {
+      expect(await otpStore.verifyAndConsumeCode(testUserId, wrongStr)).toBe(false);
+    }
+    expect(await redis.get(`pwreset-acct-attempts:${testUserId}`)).toBe('5');
+
+    // Issuing a new code resets the per-code counter but MUST NOT reset the
+    // cross-code per-account budget (AUD-03).
+    await otpStore.generateAndStoreCode(testUserId);
+    expect(await redis.get(`pwreset-acct-attempts:${testUserId}`)).toBe('5');
+  });
+
+  it('bounds total verification attempts across code rotation (AUD-03)', async () => {
+    // The per-code counter resets on each new code, so without the per-account
+    // budget an attacker rotating reset codes could guess indefinitely. Burn
+    // the per-code budget across 4 rotations (20 attempts), then confirm the
+    // 21st attempt is refused even with a freshly issued code.
+    for (let rotation = 0; rotation < 4; rotation += 1) {
+      const code = await otpStore.generateAndStoreCode(testUserId);
+      const wrong = (Number(code) + 1) % 1_000_000;
+      const wrongStr = wrong.toString().padStart(6, '0');
+      for (let i = 0; i < 5; i += 1) {
+        expect(await otpStore.verifyAndConsumeCode(testUserId, wrongStr)).toBe(false);
+      }
+      expect(await redis.exists(`pwreset:${testUserId}`)).toBe(0);
+    }
+
+    // Account budget is now exhausted; a fresh code is immediately invalidated.
+    await otpStore.generateAndStoreCode(testUserId);
+    expect(await otpStore.verifyAndConsumeCode(testUserId, '000000')).toBe(false);
+    expect(await redis.exists(`pwreset:${testUserId}`)).toBe(0);
+    expect(await redis.get(`pwreset-acct-attempts:${testUserId}`)).toBe('21');
+  });
+
+  it('counts a correct guess toward the per-account budget', async () => {
+    const code = await otpStore.generateAndStoreCode(testUserId);
+    expect(await otpStore.verifyAndConsumeCode(testUserId, code)).toBe(true);
+    // The successful verification consumed one unit of the account budget.
+    expect(await redis.get(`pwreset-acct-attempts:${testUserId}`)).toBe('1');
   });
 });

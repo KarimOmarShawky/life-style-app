@@ -191,3 +191,23 @@ test('blocked public pilot defaults offline and any explicit connected build req
   assert.match(source, /Temporary endpoint approval expired/);
   assert.doesNotMatch(source, /unverified_context|CERT_NONE|check_hostname\s*=\s*False/);
 });
+
+test('AUD-10: mobile builds never silently default to the production API host', () => {
+  // Dart config: no production defaultValue on API_BASE_URL.
+  const appConfig = readFileSync('mobile-app/mobile/lib/config/app_config.dart', 'utf8');
+  assert.doesNotMatch(appConfig, /defaultValue:\s*'https:/);
+  assert.match(appConfig, /String\.fromEnvironment\('API_BASE_URL'\)/);
+
+  // Native receiver: no hard-coded production fallback.
+  const receiver = readFileSync(
+    'mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/SmsTransactionReceiver.kt',
+    'utf8'
+  );
+  assert.doesNotMatch(receiver, /DEFAULT_API_BASE/);
+  assert.doesNotMatch(receiver, /life-style-app-production\.up\.railway\.app/);
+
+  // build_apk.bat: requires API_BASE_URL and passes it to the build.
+  const bat = readFileSync('build_apk.bat', 'utf8');
+  assert.match(bat, /if "%API_BASE_URL%"==""/);
+  assert.match(bat, /--dart-define=API_BASE_URL=%API_BASE_URL%/);
+});

@@ -210,6 +210,10 @@ const Map<String, String> arCatalog = {
   'aiSuggestion2': 'كيف أنظم وقتي بين الشغل والمذاكرة؟',
   'aiSuggestion3': 'اقترح علي عادات صحية صباحية',
   'aiSuggestion4': 'نصائح لتقليل المصاريف الشهرية',
+  'aiSuggestionAnalyzeTasks': 'رتب أولويات مهامي',
+  'aiSuggestionHabitInsights': 'حلل عاداتي',
+  'aiSuggestionPlanGoal': 'فكّك هدفي لخطوات',
+  'aiSuggestionSummarizeNote': 'لخّص ملاحظة',
   'aiClearChatTooltip': 'مسح المحادثة',
   'aiClearedResetMessage':
       'مرحباً بك مجدداً! كيف يمكنني مساعدتك في تنظيم يومك الآن؟',
@@ -385,4 +389,14 @@ const Map<String, String> arCatalog = {
       'إظهار المبلغ والتاجر في الإشعارات',
   'smsNotificationDetailsDesc':
       'معطّل افتراضيًا: الإشعارات تذكر فقط وصول رسالة محفظة. عند التفعيل يظهر المبلغ والتاجر وقد يكون ذلك مرئيًا على شاشة القفل.',
-};
+  'analyticsTitle': 'التحليلات والرؤى',
+  'analyticsTimeRange': 'النطاق الزمني',
+  'analyticsCumulative': 'تحليل تراكمي',
+  'analyticsDashboard': 'داش بورد الأداء',
+  'analyticsBalance': 'نقاط توازن الحياة',
+  'analyticsEmpty': 'شغل تحليل لرؤية الرؤى الخاصة بك.',
+  'aiSpeakTooltip': 'قراءة هذا الرد بصوت',
+  'aiSpeaking': 'جارٍ القراءة...',
+  'aiVoiceListening': 'جارٍ الاستماع...',
+  'aiErrorMessage': 'حدث خطأ أثناء معالجة الطلب. يرجى المحاولة مرة أخرى.',
+}

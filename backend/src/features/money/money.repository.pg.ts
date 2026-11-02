@@ -30,6 +30,7 @@ import type {
   BudgetPeriod
 } from './money.types.js';
 import { AppError } from '../../core/errors/app-error.js';
+import { assertTransactionInvariants, type EffectiveCategory } from './money.invariants.js';
 
 interface CategoryDbRow {
   id: string;
@@ -523,9 +524,66 @@ export class PgMoneyRepository implements MoneyRepository {
     transactionId: string,
     input: UpdateTransactionInput,
     auditData: AuditLogData,
-    expectedVersion?: number | undefined
+    expectedVersion?: number | undefined,
+    userToday?: string
   ): Promise<TransactionEntity | null> {
     return await this.db.transaction().execute(async (trx) => {
+      // Lock the row so concurrent partial updates serialize (AUD-07).
+      const locked = (
+        await sql<TransactionDbRow>`
+          SELECT * FROM transactions
+          WHERE id = ${transactionId}::uuid AND user_id = ${userId}::uuid AND deleted_at IS NULL
+          FOR UPDATE
+        `.execute(trx)
+      ).rows[0];
+      if (!locked) return null;
+
+      // Re-validate the effective record from the locked row (AUD-07): a
+      // partial update merged with values that changed since the service's
+      // pre-read must not leave scale, date or category invariants broken.
+      if (userToday !== undefined) {
+        const effectiveCategoryId =
+          input.categoryId !== undefined ? input.categoryId : locked.category_id;
+        let category: EffectiveCategory | null = null;
+        if (effectiveCategoryId) {
+          const categoryRow = (await trx
+            .selectFrom('categories')
+            .selectAll()
+            .where('id', '=', effectiveCategoryId)
+            .where('user_id', '=', userId)
+            .executeTakeFirst()) as unknown as CategoryDbRow | undefined;
+          if (categoryRow) {
+            category = {
+              id: categoryRow.id,
+              kind: categoryRow.kind,
+              archivedAt:
+                categoryRow.archived_at instanceof Date
+                  ? categoryRow.archived_at
+                  : categoryRow.archived_at
+                    ? new Date(categoryRow.archived_at)
+                    : null
+            };
+          } else if (input.categoryId !== undefined) {
+            throw AppError.notFound('Category not found');
+          } else {
+            throw AppError.validation([
+              { field: 'categoryId', message: 'The stored category no longer exists' }
+            ]);
+          }
+        }
+
+        assertTransactionInvariants(
+          {
+            kind: input.kind ?? locked.kind,
+            amount: input.amount ?? locked.amount,
+            currency: input.currency ?? locked.currency,
+            occurredOn: input.occurredOn ?? locked.occurred_on,
+            category
+          },
+          userToday
+        );
+      }
+
       let query = trx
         .updateTable('transactions')
         .set({

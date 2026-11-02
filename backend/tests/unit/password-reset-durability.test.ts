@@ -20,6 +20,11 @@ import type {
   ResetRequestEnqueueInput,
   ResetRetentionWindows
 } from '../../src/core/security/reset-request-store.js';
+import {
+  PasswordResetProcessor,
+  PasswordResetThrottledError
+} from '../../src/features/auth/password-reset.processor.js';
+import type { OtpStore } from '../../src/core/security/otp-service.js';
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -518,5 +523,169 @@ describe('Durable password-reset delivery (F-06)', () => {
     const survivors = store.rows.filter((r) => r.status !== 'purged').map((r) => r.email);
     expect(survivors).toEqual(['active@example.com', 'recent@example.com']);
     expect(recent.email).toBe('recent@example.com');
+  });
+});
+
+// --- AUD-01: throttling is admission control, never a delivered code ---------
+
+class FakeOtpStore implements OtpStore {
+  private cooldown = false;
+  public codeRequests = 0;
+  async checkCooldown(_userId: string): Promise<boolean> {
+    if (this.cooldown) return false;
+    this.cooldown = true;
+    return true;
+  }
+  async generateAndStoreCode(_userId: string): Promise<string> {
+    this.codeRequests += 1;
+    return '123456';
+  }
+  async verifyAndConsumeCode(_userId: string, _code: string): Promise<boolean> {
+    return false;
+  }
+  expireCooldown(): void {
+    this.cooldown = false;
+  }
+}
+
+class FakeEmailSender {
+  public calls = 0;
+  constructor(private failFirst = 1) {}
+  async sendPasswordResetEmail(): Promise<void> {
+    this.calls += 1;
+    if (this.calls <= this.failFirst) throw new Error('smtp down');
+  }
+}
+
+function makeProcessor(otp: FakeOtpStore, sender: FakeEmailSender) {
+  const repo = {
+    async findUserByEmail(email: string) {
+      return email === 'user@example.com'
+        ? { id: 'user-1', email, status: 'active' }
+        : null;
+    }
+  };
+  const auditLogger = { async log() {} };
+  const ownerLink = { async attachOwner() {} };
+  return new PasswordResetProcessor(
+    repo as never,
+    otp,
+    sender,
+    auditLogger as never,
+    ownerLink
+  );
+}
+
+describe('V-08 password-reset throttling is never a delivered code (AUD-01)', () => {
+  it('records a retry (not a sent code) when a retry lands inside the cooldown', async () => {
+    const store = new MemoryResetStore();
+    const otp = new FakeOtpStore();
+    const sender = new FakeEmailSender(1);
+    const processor = makeProcessor(otp, sender);
+    let now = 1_000_000;
+    const dispatcher = new ResetRequestDispatcher(
+      ({ email, meta }) => processor.process(email, meta),
+      { store, retryBackoffMs: 30_000, maxAttempts: 5, now: () => now }
+    );
+
+    await dispatcher.admit({ email: 'user@example.com' });
+    await dispatcher.waitForIdle();
+
+    // Attempt 1 failed at the mail provider; the cooldown is now active.
+    const row = store.rows.find((r) => r.email === 'user@example.com')!;
+    expect(row.status).toBe('failed');
+    expect(row.attempts).toBe(1);
+    expect(sender.calls).toBe(1);
+    expect(otp.codeRequests).toBe(1);
+
+    // Retry claimed while the cooldown is still active: must NOT be sent and
+    // must not even request a code or contact the mail provider.
+    now = 1_030_000;
+    await dispatcher.drainDue();
+    await dispatcher.waitForIdle();
+    expect(row.status).toBe('failed');
+    expect(row.attempts).toBe(2);
+    expect(row.lastErrorCode).toBe('THROTTLED');
+    expect(sender.calls).toBe(1);
+    expect(otp.codeRequests).toBe(1);
+
+    // After the cooldown window elapses, the next attempt delivers and marks sent.
+    otp.expireCooldown();
+    now = 1_090_000;
+    await dispatcher.drainDue();
+    await dispatcher.waitForIdle();
+    expect(row.status).toBe('sent');
+    expect(row.attempts).toBe(3);
+    expect(sender.calls).toBe(2);
+    expect(otp.codeRequests).toBe(2);
+    expect(row.attempts).toBeLessThan(5);
+
+    await dispatcher.shutdown();
+  });
+
+  it('does not double-deliver when two dispatchers process the same row', async () => {
+    const store = new MemoryResetStore();
+    const otp = new FakeOtpStore();
+    const sender = new FakeEmailSender(0);
+    const processor = makeProcessor(otp, sender);
+    let now = 2_000_000;
+    const make = () =>
+      new ResetRequestDispatcher(({ email, meta }) => processor.process(email, meta), {
+        store,
+        retryBackoffMs: 30_000,
+        maxAttempts: 5,
+        now: () => now
+      });
+
+    const a = make();
+    const b = make();
+    await a.admit({ email: 'user@example.com' });
+    await Promise.all([a.pump(), b.pump()]);
+    await Promise.all([a.waitForIdle(), b.waitForIdle()]);
+
+    const row = store.rows.find((r) => r.email === 'user@example.com')!;
+    expect(row.status).toBe('sent');
+    expect(sender.calls).toBe(1);
+    expect(row.attempts).toBe(1);
+
+    await a.shutdown();
+    await b.shutdown();
+  });
+
+  it('exposes the throttle error distinctly for observability', () => {
+    const err = new PasswordResetThrottledError();
+    expect(err.code).toBe('PASSWORD_RESET_THROTTLED');
+    expect(err instanceof Error).toBe(true);
+  });
+
+  it('links ownership when a recordId is present (AUD-09)', async () => {
+    // The worker path must pass an ownerLink so delivered rows are not left
+    // with user_id NULL. The processor calls attachOwner(recordId, userId)
+    // before delivery, and a failure there must not block delivery.
+    const otp = new FakeOtpStore();
+    const sender = new FakeEmailSender(0);
+    const attachOwner = vi.fn(async () => {});
+    const processor = new PasswordResetProcessor(
+      { async findUserByEmail() { return { id: 'user-1', email: 'user@example.com', status: 'active' }; } } as never,
+      otp,
+      sender,
+      { async log() {} } as never,
+      { attachOwner }
+    );
+
+    await processor.process('user@example.com', { recordId: 'rec-1' });
+    expect(attachOwner).toHaveBeenCalledWith('rec-1', 'user-1');
+    expect(sender.calls).toBe(1);
+
+    // Without an ownerLink (the AUD-09 defect), processing still succeeds.
+    const otp2 = new FakeOtpStore();
+    const noLink = new PasswordResetProcessor(
+      { async findUserByEmail() { return { id: 'user-1', email: 'user@example.com', status: 'active' }; } } as never,
+      otp2,
+      sender,
+      { async log() {} } as never
+    );
+    await noLink.process('user@example.com', { recordId: 'rec-2' });
+    expect(sender.calls).toBe(2);
   });
 });

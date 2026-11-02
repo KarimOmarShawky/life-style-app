@@ -5,6 +5,7 @@
  */
 
 import { priorityToString } from '../tasks/tasks.dto.js';
+import { formatDateOnly } from '../../core/time/date-utils.js';
 import type {
   RecurringTaskRow,
   RecurrenceRow,
@@ -23,14 +24,6 @@ function formatIso(val: Date | string | null): string | null {
 function formatTime(val: string | null): string | null {
   if (!val) return null;
   return val.slice(0, 5);
-}
-
-function formatDateOnly(val: Date | string | null): string | null {
-  if (!val) return null;
-  if (val instanceof Date) {
-    return val.toISOString().slice(0, 10);
-  }
-  return val.slice(0, 10);
 }
 
 export function toRecurrenceDto(row: RecurrenceRow): RecurrenceDto {

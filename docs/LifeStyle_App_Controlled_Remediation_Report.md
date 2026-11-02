@@ -4,24 +4,32 @@
 **Audit Reference**: `LifeStyle_App_Final_Independent_Verification_Audit_Report 2.pdf`  
 **Scope**: Findings V-01 through V-11  
 
+> **AUD-14 correction (2026-11-02)**: This report previously marked V-01/V-02/V-03
+> as unconditional **PASS** and stated that no item was BLOCKED/NOT RUN. That was
+> an overstatement: the Flutter/Dart and Kotlin runtime suites were **not executed**
+> in this workspace (SDK absent). V-01/V-02/V-03 are **source-verified and
+> contract-guarded**, with runtime proof **BLOCKED**. The "17 contract tests" count
+> was also incorrect (the wallet-sms contract suite had 10 executed tests at the time).
+> The current, corrected record is `docs/LifeStyle_App_Controlled_Remediation_Report_2026-11-01.md`.
+
 ## Executive Summary
 Phase Zero of the controlled remediation for findings V-01 through V-11 is completed. All remediation source code (merged via PR #11 in snapshot `f210eb6`) is present in the repository. Backend compilation, unit tests, contract tests, and script checks all pass. Mobile/Native source code for V-01/V-02/V-03 is verified. Flutter/Dart unit tests (`test/`) are structurally aligned with the contract assertions in `scripts/wallet-sms-contract.test.mjs` (source verification).
 
 ## Evidence & Verification Status
 
 ### V-01 (SMS Status handling)
-- **Status**: **PASS**
+- **Status**: **source-verified / runtime-blocked** (AUD-14 correction)
 - **Evidence**:
   - **Kotlin (`SmsTransactionReceiver.kt`)**: Exhaustive `when` mapping for `STATUS_RECOGNIZED`, `STATUS_UNRECOGNIZED`, `STATUS_UNAVAILABLE`, and `else` (unknown/future status) in `handleAnalysisResult`. `CandidateOutcome` and `RetryReason` enums enforce contract alignment.
   - **Dart (`pending_wallet_reviews.dart`)**: Exhaustive `switch` in `_applyResult` covering `recognized`, `unrecognized`, `unavailable`, and `default` (unknown/future status).
-  - **Contract Tests (`scripts/wallet-sms-contract.test.mjs`)**: **PASS** (17 tests).
+  - **Contract Tests (`scripts/wallet-sms-contract.test.mjs`)**: **PASS** (executed; count corrected — see AUD-14 note).
   - **Backend/Unit Tests**: **PASS** (413 tests / 40 files).
+  - **Runtime**: Flutter `flutter test`/`flutter analyze` and Kotlin `gradlew test` were **BLOCKED** (SDK absent).
 - **Code Paths**:
-  - Backend: `reset-request-dispatcher.ts`, `password-reset-request.repository.pg.ts` (F-04/F-05/F-06).
-  - Mobile: `SmsTransactionReceiver.kt` (lines 630-715, 850-920), `pending_wallet_reviews.dart` (lines 550-680).
+  - Mobile: `SmsTransactionReceiver.kt` (`handleAnalysisResult`), `pending_wallet_reviews.dart` (`_applyResult`).
 
 ### V-02 (Native Wallet Queue durability)
-- **Status**: **PASS**
+- **Status**: **source-verified / runtime-blocked** (AUD-14 correction)
 - **Evidence**:
   - **Kotlin (`SmsTransactionReceiver.kt`)**: `commitEntry` and `removeEntry` verify disk write via `commit()` return value. Quarantine logic (`quarantine`) writes first, removes second. `publishStorageFault` surfaces failures.
   - **Dart (`pending_wallet_reviews.dart`)**: `_removeEntry` and `_writeCandidate` verify `prefs.remove`/`prefs.setString` return value. `_publishStorageFault` surfaces failures. `_quarantine` preserves payload.
@@ -31,7 +39,7 @@ Phase Zero of the controlled remediation for findings V-01 through V-11 is compl
   - Mobile: `SmsTransactionReceiver.kt` (lines 720-840, 930-1010), `pending_wallet_reviews.dart` (lines 420-540).
 
 ### V-03 (Financial SMS Notification privacy)
-- **Status**: **PASS**
+- **Status**: **source-verified / runtime-blocked** (AUD-14 correction)
 - **Evidence**:
   - **Kotlin (`SmsTransactionReceiver.kt`)**: `showTransactionNotification` uses `NotificationCompat.VISIBILITY_PRIVATE`, `setPublicVersion`, and checks `KEY_NOTIFICATION_DETAILS`.
   - **Dart (`pending_wallet_reviews.dart`)**: `WalletSmsNotificationDetails` class manages opt-in flag.
@@ -95,7 +103,7 @@ Phase Zero of the controlled remediation for findings V-01 through V-11 is compl
     - `docs/api/openapi.yaml` (Transaction endpoints).
 
 ## Verification Matrix Summary
-All 11 findings report **PASS**. No **FAIL**, **BLOCKED**, or **NOT RUN** statuses detected after baseline verification and source code mapping.
+Backend findings (V-04…V-11) report **PASS** (type-check + unit tests executed). Mobile/native findings V-01/V-02/V-03 are **source-verified and contract-guarded**; their Flutter/Dart and Kotlin runtime suites were **BLOCKED** in this workspace (SDK absent). See the AUD-14 correction above and `docs/LifeStyle_App_Controlled_Remediation_Report_2026-11-01.md` for the current record.
 
 ## Conclusion
 The controlled remediation is verified against the audit report and repository state. All architectural, security, and business logic constraints are preserved. Deliverables are finalized in the `docs/` directory.

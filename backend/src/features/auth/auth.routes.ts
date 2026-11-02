@@ -11,6 +11,8 @@ import {
   MemoryRateLimiter,
   createRateLimitMiddleware
 } from '../../core/middleware/rate-limiter.js';
+import { createReauthenticationLimiter } from '../../core/middleware/reauthentication.js';
+import { changePasswordSchema } from './auth.validation.js';
 
 export interface AuthRouterOptions {
   controller: AuthController;
@@ -91,6 +93,27 @@ export function createAuthRouter(options: {
     ...degraded
   });
 
+  // Forgot password: per-account issuance cap (AUD-03). The per-code OTP
+  // counter is reset whenever a new code is issued, so without this an attacker
+  // burning reset codes from rotating IPs could guess indefinitely for one
+  // account. This bounds how many codes an account can have issued per hour.
+  // The key is the email string the caller supplied (not whether the account
+  // exists), so unknown and existing emails are treated alike and the cap does
+  // not enable account enumeration.
+  const forgotPasswordAccountLimiter = createRateLimitMiddleware({
+    limiter: rateLimiter,
+    limit: 10,
+    windowSeconds: 3600,
+    keyGenerator: (req) => {
+      const email = req.body?.email;
+      if (typeof email !== 'string' || email.trim().length === 0) {
+        return 'pwforgot:account:unknown';
+      }
+      return `pwforgot:account:${email.trim().toLowerCase()}`;
+    },
+    ...degraded
+  });
+
   // Reset password: 10 requests / 60 min by IP
   const resetPasswordLimiter = createRateLimitMiddleware({
     limiter: rateLimiter,
@@ -100,15 +123,39 @@ export function createAuthRouter(options: {
     ...degraded
   });
 
+  // Change password: shares the authenticated re-authentication budget with
+  // delete-account re-authentication (same factory, key namespace
+  // `reauth:user:<id>`, and fail-closed policy, AUD-04). Validation runs BEFORE
+  // the rate-limit window so a malformed body never consumes the authenticated
+  // user's budget, while well-formed attempts still share the per-account limit.
+  const changePasswordLimiter = createReauthenticationLimiter({
+    limiter: rateLimiter
+  });
+
+  const changePasswordHandler: RequestHandler = (req, res, next) => {
+    try {
+      changePasswordSchema.parse(req.body);
+    } catch (err) {
+      next(err);
+      return;
+    }
+    changePasswordLimiter(req, res, () => controller.changePassword(req, res, next));
+  };
+
   // Route declarations
   router.post('/register', registerLimiter, controller.register);
   router.post('/login', loginIpLimiter, loginAccountLimiter, controller.login);
   router.post('/refresh', refreshLimiter, controller.refresh);
   router.post('/logout', controller.logout);
   router.post('/logout-all', authenticate, controller.logoutAll);
-  router.post('/forgot-password', forgotPasswordLimiter, controller.forgotPassword);
+  router.post(
+    '/forgot-password',
+    forgotPasswordLimiter,
+    forgotPasswordAccountLimiter,
+    controller.forgotPassword
+  );
   router.post('/reset-password', resetPasswordLimiter, controller.resetPassword);
-  router.post('/change-password', authenticate, controller.changePassword);
+  router.post('/change-password', authenticate, changePasswordHandler);
 
   return router;
 }

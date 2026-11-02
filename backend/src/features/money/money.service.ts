@@ -355,6 +355,7 @@ export class MoneyService {
       category = { id: found.id, kind: found.kind, archivedAt: found.archivedAt };
     }
 
+    const userToday = getUserTodayDate(userTimezone);
     assertTransactionInvariants(
       {
         kind: effectiveKind,
@@ -363,7 +364,7 @@ export class MoneyService {
         occurredOn: input.occurredOn ?? existing.occurredOn,
         category
       },
-      getUserTodayDate(userTimezone)
+      userToday
     );
 
     const updated = await this.moneyRepository.updateTransaction(
@@ -381,7 +382,8 @@ export class MoneyService {
         ip: context.ip,
         userAgent: context.userAgent
       },
-      input.version
+      input.version,
+      userToday
     );
 
     if (!updated) {

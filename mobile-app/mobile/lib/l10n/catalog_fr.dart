@@ -216,6 +216,10 @@ const Map<String, String> frCatalog = {
   'aiSuggestion2': 'Comment équilibrer travail et études ?',
   'aiSuggestion3': 'Suggère-moi des habitudes matinales saines',
   'aiSuggestion4': 'Des astuces pour réduire mes dépenses mensuelles',
+  'aiSuggestionAnalyzeTasks': 'Hiérarchiser mes tâches',
+  'aiSuggestionHabitInsights': 'Analyser mes habitudes',
+  'aiSuggestionPlanGoal': 'Décomposer mon objectif',
+  'aiSuggestionSummarizeNote': 'Résumer une note',
   'aiClearChatTooltip': 'Effacer la conversation',
   'aiClearedResetMessage':
       'Bon retour ! Comment puis-je vous aider à organiser votre journée maintenant ?',
@@ -257,4 +261,14 @@ const Map<String, String> frCatalog = {
       'Afficher le montant et le commerçant dans les notifications',
   'smsNotificationDetailsDesc':
       'Désactivé par défaut : les notifications indiquent seulement qu\'un message de portefeuille est arrivé. En activant ceci, le montant et le commerçant s\'affichent, et peuvent être visibles sur l\'écran verrouillé.',
-};
+  'analyticsTitle': 'Analyses et statistiques',
+  'analyticsTimeRange': 'Période',
+  'analyticsCumulative': 'Analyse cumulative',
+  'analyticsDashboard': 'Tableau de bord de performance',
+  'analyticsBalance': 'Score d'équilibre de vie',
+  'analyticsEmpty': 'Lancez une analyse pour voir vos statistiques.',
+  'aiSpeakTooltip': 'Lire cette réponse à voix haute',
+  'aiSpeaking': 'Lecture...',
+  'aiVoiceListening': 'Écoute...',
+  'aiErrorMessage': 'Une erreur est survenue lors du traitement de la demande. Veuillez réessayer.',
+}

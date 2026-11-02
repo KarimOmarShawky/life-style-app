@@ -5,14 +5,7 @@
  */
 
 import type { ProjectRow, ProjectDto, ProjectTaskCounts } from './projects.types.js';
-
-function formatDateOnly(val: Date | string | null): string | null {
-  if (!val) return null;
-  if (val instanceof Date) {
-    return val.toISOString().slice(0, 10);
-  }
-  return val.slice(0, 10);
-}
+import { formatDateOnly } from '../../core/time/date-utils.js';
 
 function formatIso(val: Date | string | null): string | null {
   if (!val) return null;

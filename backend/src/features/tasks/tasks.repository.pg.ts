@@ -223,6 +223,10 @@ export class PgTasksRepository implements TasksRepository {
     let query = this.db
       .selectFrom('tasks')
       .selectAll()
+      // Raw text of the cursor columns preserves microsecond precision that the
+      // Date round-trip drops (AUD-02); used only to build the next cursor.
+      .select(sql`tasks.created_at::text`.as('created_at_text'))
+      .select(sql`tasks.updated_at::text`.as('updated_at_text'))
       .where('user_id', '=', userId)
       .where('deleted_at', 'is', null);
 
@@ -303,14 +307,16 @@ export class PgTasksRepository implements TasksRepository {
     const items = hasMore ? rows.slice(0, limit) : rows;
 
     let nextCursor: string | null = null;
-    const lastItem = items.length > 0 ? items[items.length - 1] : undefined;
-    if (hasMore && lastItem) {
+    // Use the raw row (with the microsecond-precision text columns) to build the
+    // cursor, then cast the returned tasks to the domain row type.
+    const lastRaw = items.length > 0 ? items[items.length - 1] : undefined;
+    if (hasMore && lastRaw) {
       nextCursor = encodeTaskCursor({
         v: 2,
         sort: sortField,
         order: orderDirection,
-        value: cursorValueFor(lastItem, sortField),
-        id: lastItem.id
+        value: cursorValueFor(lastRaw, sortField),
+        id: lastRaw.id
       });
     }
 

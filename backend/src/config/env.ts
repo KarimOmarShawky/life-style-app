@@ -17,6 +17,20 @@ const baseEnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
+  // AUD-17: auxiliary listeners (Railway workaround) are opt-in. Set to a
+  // comma-separated port list (e.g. "3000,8080") to bind them in addition to
+  // the primary PORT. Default empty = only the primary port is bound.
+  AUXILIARY_PORTS: z
+    .string()
+    .default('')
+    .transform((val) =>
+      val
+        ? val
+            .split(',')
+            .map((s) => Number(s.trim()))
+            .filter((n) => Number.isInteger(n) && n > 0 && n <= 65535)
+        : []
+    ),
 
   // Database (PostgreSQL 16) — least-privilege runtime role: lifestyle_app
   DATABASE_URL: z
@@ -53,12 +67,6 @@ const baseEnvSchema = z.object({
   OTP_HMAC_SECRET: z
     .string()
     .min(32, { message: 'OTP_HMAC_SECRET must be at least 32 characters long' }),
-
-  // CORS Hardening (Empty by default in MVP for native Flutter mobile client)
-  CORS_ALLOWED_ORIGINS: z
-    .string()
-    .default('')
-    .transform((val) => (val ? val.split(',').map((s) => s.trim()) : [])),
 
   // Email Infrastructure (Development default: Mailpit SMTP port 1025)
   EMAIL_HOST: z.string().default('localhost'),
@@ -207,6 +215,21 @@ export function validateEnv(customSource?: Record<string, string | undefined>): 
   }
 
   parsedEnv = result.data;
+
+  // AUD-16: behind a reverse proxy every IP-keyed rate limit collapses to the
+  // proxy address unless the proxy hop count is trusted. Warn (not fail) in
+  // production so operators notice before rate limits become useless.
+  if (
+    parsedEnv.NODE_ENV === 'production' &&
+    parsedEnv.TRUST_PROXY_HOPS === 0
+  ) {
+    console.warn(
+      '⚠️  AUD-16: TRUST_PROXY_HOPS is 0 in production. If the API runs behind ' +
+        'a reverse proxy, every IP-keyed rate limit will use the proxy address. ' +
+        'Set TRUST_PROXY_HOPS to the number of proxy hops (e.g. 1 for a single proxy).'
+    );
+  }
+
   return parsedEnv;
 }
 

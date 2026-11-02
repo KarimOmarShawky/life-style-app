@@ -24,6 +24,10 @@ The application answers the single life question:
 
 ## 2. Directory Structure
 
+> **Platform note (AUD-20):** Setup and script tooling are POSIX-only (bash, `npm`, `node`).
+> Windows users should run these via WSL2 or a POSIX shell. `build_apk.bat` is the
+> only Windows-native entry point (it invokes `flutter` from PATH).
+
 ```text
 lifestyle/
 ├── backend/                  # Node.js + Express + TypeScript service

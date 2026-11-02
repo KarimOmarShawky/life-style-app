@@ -19,6 +19,7 @@
  */
 
 import { AppError } from '../../core/errors/app-error.js';
+import { formatDateOnly } from '../../core/time/date-utils.js';
 
 export type TaskSortField = 'dueDate' | 'priority' | 'createdAt' | 'updatedAt';
 export type SortDirection = 'asc' | 'desc';
@@ -128,7 +129,22 @@ export function decodeTaskCursor(
  * `row` is a raw database task row.
  */
 export function cursorValueFor(
-  row: { due_date?: unknown; priority?: unknown; created_at?: unknown; updated_at?: unknown },
+  row: {
+    due_date?: unknown;
+    priority?: unknown;
+    created_at?: unknown;
+    updated_at?: unknown;
+    /**
+     * Raw PostgreSQL text for `created_at`. `timestamptz` columns carry
+     * microsecond precision but node-pg returns a JS `Date` at millisecond
+     * resolution, so a cursor built from `toISOString()` repeats or skips rows
+     * at a page boundary. Carrying the exact database value keeps pagination
+     * lossless (AUD-02).
+     */
+    created_at_text?: unknown;
+    /** Raw PostgreSQL text for `updated_at` (same rationale as above). */
+    updated_at_text?: unknown;
+  },
   sort: TaskSortField
 ): CursorSortValue {
   const toIso = (value: unknown): string | null => {
@@ -137,22 +153,33 @@ export function cursorValueFor(
     return String(value);
   };
 
+  // Prefer the raw database text (full precision) over a JS Date round-trip.
+  const rawText = (value: unknown): string | null => {
+    if (typeof value === 'string' && value.length > 0) return value;
+    return null;
+  };
+
   switch (sort) {
     case 'dueDate': {
       const value = row.due_date;
       if (value === null || value === undefined) return null;
       // `due_date` is a date column: keep the calendar day, not a timestamp.
-      if (value instanceof Date) {
-        return value.toISOString().slice(0, 10);
-      }
-      return String(value).slice(0, 10);
+      // Use the local-getter formatter so the day does not shift with the
+      // process timezone (AUD-06).
+      return formatDateOnly(value as Date | string);
     }
     case 'priority':
       return typeof row.priority === 'number' ? row.priority : Number(row.priority ?? 0);
-    case 'updatedAt':
+    case 'updatedAt': {
+      const text = rawText(row.updated_at_text);
+      if (text !== null) return text;
       return toIso(row.updated_at);
+    }
     case 'createdAt':
-    default:
+    default: {
+      const text = rawText(row.created_at_text);
+      if (text !== null) return text;
       return toIso(row.created_at);
+    }
   }
 }

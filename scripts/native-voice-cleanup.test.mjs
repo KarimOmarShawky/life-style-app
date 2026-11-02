@@ -51,6 +51,13 @@ test('unneeded app recording capabilities and automatic microphone prompt are re
   assert.ok(manifest.includes('android:name=".VoiceRecordingService"') && manifest.includes('android:name=".VoiceActionReceiver"'));
 });
 
+test('AUD-11: VoiceActionReceiver is not exported (own PendingIntents only)', () => {
+  const manifest = read(`${base}AndroidManifest.xml`);
+  const block = manifest.match(/<receiver\s+android:name="\.VoiceActionReceiver"[^>]*>/)?.[0];
+  assert.ok(block, 'VoiceActionReceiver receiver block found');
+  assert.match(block, /android:exported="false"/);
+});
+
 test('existing alarm receiver and other shared channel consumers remain, no user data cleanup', () => {
   assert.ok(read(`${base}AndroidManifest.xml`).includes('android:name=".AlarmReceiver"'));
   assert.ok(native('AlarmReceiver').includes('class AlarmReceiver'));

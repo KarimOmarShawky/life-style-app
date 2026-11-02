@@ -4,6 +4,7 @@ import 'package:lifestyle_mobile/features/focus_shield/weekly_review_screen.dart
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/analytics/presentation/analytics_screen.dart';
 import 'package:lifestyle_mobile/features/calendar/presentation/calendar_screen.dart';
 import 'package:lifestyle_mobile/features/goals/presentation/goals_screen.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
@@ -55,6 +56,14 @@ class MoreScreen extends ConsumerWidget {
             ? 'ملخص شامل لمهام وعادات وأحداث واشتراكات اليوم'
             : 'Unified overview of today\'s tasks, habits, events and bills',
         builder: (_) => const DailyPlanScreen(),
+      ),
+      _MoreItem(
+        icon: Icons.insights,
+        title: l10n.analyticsTitle,
+        subtitle: isAr
+            ? 'تحليل تراكمي وداش بورد أداء شخصي'
+            : 'Cumulative analysis and performance dashboard',
+        builder: (_) => const AnalyticsScreen(),
       ),
       _MoreItem(
         icon: Icons.calendar_month_outlined,

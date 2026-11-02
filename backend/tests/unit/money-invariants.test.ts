@@ -244,6 +244,15 @@ describe('Money effective-state invariants (V-08)', () => {
     );
   });
 
+  it('update: passes userToday to the repository for lock-time re-validation (AUD-07)', async () => {
+    const { repository, service } = serviceWith({});
+    await service.updateTransaction(USER, TX, { description: 'x' }, context, 'UTC');
+    expect(repository.updateTransaction).toHaveBeenCalledTimes(1);
+    const args = repository.updateTransaction.mock.calls[0];
+    // args: userId, transactionId, input, auditData, expectedVersion, userToday
+    expect(args[5]).toBe(getUserTodayDate('UTC'));
+  });
+
   it('payment: enforces the subscription currency scale and the payment date', async () => {
     const { repository, service } = serviceWith({
       findSubscriptionById: vi.fn(async () => subscription({ amount: '1.234', currency: 'KWD' }))

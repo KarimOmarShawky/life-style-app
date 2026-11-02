@@ -22,7 +22,7 @@ Future<void> _publishNativeConfig() async {
     await prefs.remove(_geminiKeyPref);
     await prefs.remove(SecureTokenStore.storageKey);
   } catch (_) {
-    // Non-fatal: native code falls back to its built-in default endpoint.
+    // Non-fatal: native code skips its queue flush until API_BASE_URL is set.
   }
 }
 

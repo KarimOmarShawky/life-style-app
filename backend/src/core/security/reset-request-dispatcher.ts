@@ -441,9 +441,15 @@ export class ResetRequestDispatcher {
         const applied = await this.store.markSent(claim, new Date(this.now()));
         if (!applied) this.report('stale_completion');
       }
-    } catch {
+    } catch (err) {
       // Coarse code only: never persist provider text or account details.
-      const errorCode = 'DELIVERY_FAILED';
+      // Throttling is a distinct outcome from a delivery failure so the two
+      // stay observable; a throttled retry must never be recorded as delivered
+      // (AUD-01).
+      const errorCode =
+        err instanceof Error && (err as { code?: string }).code === 'PASSWORD_RESET_THROTTLED'
+          ? 'THROTTLED'
+          : 'DELIVERY_FAILED';
       if (claim && this.store) {
         const used = claim.attempts;
         try {

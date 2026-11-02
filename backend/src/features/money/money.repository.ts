@@ -83,7 +83,8 @@ export interface MoneyRepository {
     transactionId: string,
     input: UpdateTransactionInput,
     auditData: AuditLogData,
-    expectedVersion?: number | undefined
+    expectedVersion?: number | undefined,
+    userToday?: string
   ): Promise<TransactionEntity | null>;
   softDeleteTransaction(
     userId: string,

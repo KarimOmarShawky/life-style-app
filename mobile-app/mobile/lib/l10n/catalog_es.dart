@@ -212,6 +212,10 @@ const Map<String, String> esCatalog = {
   'aiSuggestion2': '¿Cómo equilibro trabajo y estudio?',
   'aiSuggestion3': 'Sugiéreme hábitos matinales saludables',
   'aiSuggestion4': 'Consejos para reducir mis gastos mensuales',
+  'aiSuggestionAnalyzeTasks': 'Ordenar mis tareas por prioridad',
+  'aiSuggestionHabitInsights': 'Analizar mis hábitos',
+  'aiSuggestionPlanGoal': 'Desglosar mi objetivo',
+  'aiSuggestionSummarizeNote': 'Resumir una nota',
   'aiClearChatTooltip': 'Borrar conversación',
   'aiClearedResetMessage':
       '¡Bienvenido de nuevo! ¿En qué puedo ayudarte a organizar tu día ahora?',
@@ -253,4 +257,14 @@ const Map<String, String> esCatalog = {
       'Mostrar importe y comercio en las notificaciones',
   'smsNotificationDetailsDesc':
       'Desactivado por defecto: las notificaciones solo indican que llegó un mensaje de billetera. Al activarlo se muestran el importe y el comercio, que podrían verse en la pantalla de bloqueo.',
-};
+  'analyticsTitle': 'Analítica e información',
+  'analyticsTimeRange': 'Rango de tiempo',
+  'analyticsCumulative': 'Análisis acumulativo',
+  'analyticsDashboard': 'Panel de rendimiento',
+  'analyticsBalance': 'Puntuación de equilibrio vital',
+  'analyticsEmpty': 'Ejecute un análisis para ver su información.',
+  'aiSpeakTooltip': 'Leer esta respuesta en voz alta',
+  'aiSpeaking': 'Leyendo...',
+  'aiVoiceListening': 'Escuchando...',
+  'aiErrorMessage': 'Ocurrió un error al procesar la solicitud. Inténtelo de nuevo.',
+}

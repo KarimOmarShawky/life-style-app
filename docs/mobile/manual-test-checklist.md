@@ -23,7 +23,7 @@ The CI artifact `lifestyle-app-release-apk` is built from the branch head. Downl
 
 - The APK has **no `GEMINI_API_KEY`**, so AI and voice transcription are disabled.
 - It points at the **production** API (`https://life-style-app-production.up.railway.app/api/v1`). Anything you create is saved there.
-- It is signed with the debug key, so it installs for testing but is not a store build.
+- The signed release APK (`lifestyle-android-signed-release`) is signed with the configured release key and verified against the expected release certificate — not a debug key. (The CI also publishes a separate debug validation APK, `lifestyle-android-debug-validation-NOT-RELEASE`, which is not a release build.)
 
 Install it:
 
@@ -37,21 +37,27 @@ If `adb install` reports a signature mismatch, uninstall the old build first: `a
 
 Create a **new** Gemini key first. The key in older commits was exposed, so it must be rotated.
 
+Release builds never embed `GEMINI_API_KEY` (B-02): `app_config.dart` returns an
+empty key in `kReleaseMode`. AI features require a **debug** build:
+
 ```bash
 cd mobile-app/mobile
-flutter build apk --release \
+flutter build apk --debug \
   --dart-define=API_BASE_URL=https://life-style-app-production.up.railway.app/api/v1 \
   --dart-define=GEMINI_API_KEY=<new key>
 ```
 
-On Windows, set the key in the same terminal and run the builder at the repo root:
+On Windows, set the API base in the same terminal and run the builder at the repo
+root (the builder requires `API_BASE_URL` and passes `GEMINI_API_KEY` as empty):
 
 ```bat
-set GEMINI_API_KEY=<new key>
+set API_BASE_URL=https://life-style-app-production.up.railway.app/api/v1
 build_apk.bat
 ```
 
-The builder prints `AI features: enabled` or `AI features: disabled`. The key is compiled into the APK, so do not share that APK publicly.
+The builder prints `AI features: enabled` or `AI features: disabled`. In a debug
+build the key is compiled in, so do not share that APK publicly. Release builds
+always report AI features disabled.
 
 ### Option C: test against a local backend (debug build only)
 

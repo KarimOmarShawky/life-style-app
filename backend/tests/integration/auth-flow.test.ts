@@ -354,4 +354,37 @@ describe('Auth Flow Integration Tests', () => {
       .set('Authorization', `Bearer ${session2.body.data.tokens.accessToken}`);
     expect(session2Check.status).toBe(401);
   });
+
+  it('AUD-04: change-password is rate-limited per account (5 per 15 minutes)', async () => {
+    // 1. Register user
+    const regRes = await request(app).post('/api/v1/auth/register').send({
+      email: 'grace@example.com',
+      password: 'GracePassword123!',
+      displayName: 'Grace',
+      timezone: 'UTC',
+      defaultCurrency: 'USD'
+    });
+    const accessToken = regRes.body.data.tokens.accessToken;
+
+    // 2. Five well-formed change-password attempts are allowed. Each changes
+    //    the password, so the current password is updated before the next attempt.
+    let current = 'GracePassword123!';
+    for (let i = 0; i < 5; i += 1) {
+      const next = `GraceChangedPassword${i}!`;
+      const res = await request(app)
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: current, newPassword: next });
+      expect(res.status).toBe(204);
+      current = next;
+    }
+
+    // 3. The 6th attempt is refused by the shared re-authentication budget.
+    const res6 = await request(app)
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ currentPassword: current, newPassword: 'GraceChangedPassword6!' });
+    expect(res6.status).toBe(429);
+    expect(res6.body.error.code).toBe('RATE_LIMITED');
+  });
 });

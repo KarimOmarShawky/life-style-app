@@ -11,9 +11,9 @@ import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 ///
 /// When the local Android parser cannot recognize a likely transaction, it
 /// queues a sanitized candidate and the backend fallback (Gemini behind the
-/// API) analyzes it. A high-confidence parse is auto-saved by the receiver; a
-/// low-confidence parse is written here as `pending_wallet_review.<uuid>` and
-/// is only saved after the user confirms it in the Money review flow. Money
+/// API) analyzes it. Every recognized result is written here as
+/// `pending_wallet_review.<uuid>` and is only saved after the user confirms it
+/// in the Money review flow (AUD-05). Money
 /// has no full transaction-history list, so this queue is the only place to
 /// review fallback results.
 ///
@@ -246,7 +246,7 @@ class PendingWalletReviews {
     if (decoded is Map<String, dynamic> && decoded['count'] is int) {
       count = decoded['count'] as int;
     }
-    await prefs.setString(
+    const wrote = await prefs.setString(
       WalletSmsQuarantineStatus.key,
       jsonEncode({
         'count': count + 1,
@@ -254,6 +254,14 @@ class PendingWalletReviews {
         'reason': 'MALFORMED_REVIEW',
       }),
     );
+    if (!wrote) {
+      // The counter did not reach disk: report it instead of staying silent
+      // (V-02, AUD-12).
+      await prefs.setString(
+        WalletSmsQuarantineStatus.storageFaultKey,
+        DateTime.now().millisecondsSinceEpoch.toString(),
+      );
+    }
   }
 
   static Object? _decodeOrNull(String? raw) {
@@ -288,9 +296,19 @@ class PendingWalletReviews {
   /// Drops a review item without saving it.
   Future<void> discard(String id) => _remove(id);
 
-  Future<void> _remove(String id) async {
+  Future<bool> _remove(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('$keyPrefix$id');
+    const key = '$keyPrefix$id';
+    const removed = await prefs.remove(key);
+    if (!removed) {
+      // A silent failure would resurrect the entry on the next read, so the
+      // failed removal is reported (V-02, AUD-12).
+      await prefs.setString(
+        WalletSmsQuarantineStatus.storageFaultKey,
+        DateTime.now().millisecondsSinceEpoch.toString(),
+      );
+    }
+    return removed;
   }
 
   static String _withoutFlutterPrefix(String key) =>
@@ -376,12 +394,11 @@ class CandidateDecision {
   final CandidateRetryReason? reason;
 }
 
-/// Retries queued fallback candidates through the backend analyze route and
-/// applies the same confidence rules as the receiver: high confidence is saved
-/// at once, low confidence becomes a review item.
+/// Retries queued fallback candidates through the backend analyze route. Every
+/// recognized result is queued for user review; nothing is auto-saved (AUD-05).
 ///
 /// Result semantics (F-01/F-02, V-01):
-///  * `recognized` — final: auto-save or queue for review, then drop.
+///  * `recognized` — final: queue for review, then drop.
 ///  * `unrecognized` — final: the message is not a transaction, drop.
 ///  * `unavailable` / HTTP 503 — retryable: keep the candidate and back off.
 ///  * anything else (missing, non-string, unknown or future status) — retryable
@@ -586,26 +603,11 @@ class PendingWalletCandidates {
       return const CandidateDecision.retry(CandidateRetryReason.notFinal);
     }
 
-    if (response['confidence'] == 'high') {
-      // High confidence may auto-save, with the candidate id as idempotency key.
-      try {
-        await _repository.createTransaction(
-          kind: review.kind,
-          amount: review.amount,
-          currency: review.currency,
-          occurredOn: review.occurredOn,
-          idempotencyKey: review.id,
-          description: review.description,
-          merchant: review.merchant,
-        );
-        return const CandidateDecision.handled();
-      } on Exception {
-        // Could not save now: fall through and keep it for review instead.
-      }
-    }
-
-    // Low confidence requires user confirmation in the Money review flow. On a
-    // real device the plugin stores this as `flutter.pending_wallet_review.<id>`,
+    // Every recognized fallback result requires user confirmation in the Money
+    // review flow. Even a "high"-confidence parse is not auto-saved: the fallback
+    // model must not write money records without the user reviewing the parse
+    // (AUD-05). The candidate id is preserved as the review item id.
+    // On a real device the plugin stores this as `flutter.pending_wallet_review.<id>`,
     // the same key format the native receiver uses. The candidate is only
     // dropped once that write is confirmed (V-02).
     try {
@@ -783,7 +785,9 @@ class PendingWalletCandidates {
         try {
           await _codec.write(prefs, key, jsonEncode(decoded));
         } on WalletQueueSecurityException {
-          // Leave the previous envelope untouched.
+          // Leave the previous envelope untouched, but report the failed write
+          // instead of staying silent (V-02, AUD-12).
+          await _publishStorageFault(prefs);
         }
         continue;
       }
@@ -859,8 +863,12 @@ class PendingWalletCandidates {
     }
   }
 
+  /// Permanent rejections match the native receiver's policy (AUD-12):
+  /// 400/422 = invalid payload, 409 = idempotency key reused with other data.
   bool _isPermanentRejection(ApiException error) =>
-      error.statusCode == 400 || error.statusCode == 422;
+      error.statusCode == 400 ||
+      error.statusCode == 409 ||
+      error.statusCode == 422;
 
   static String _withoutFlutterPrefix(String key) =>
       key.startsWith(_flutterPrefix)

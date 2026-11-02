@@ -99,7 +99,14 @@ const resetProcessor = new PasswordResetProcessor(
   new PgAuthRepository(getPgPool()),
   new RedisOtpStore(getRedisClient()),
   emailSender,
-  new PgAuditLogger(getPgPool())
+  new PgAuditLogger(getPgPool()),
+  {
+    // Ownership key written from the background delivery step (V-06). The
+    // worker path must link ownership the same way the API process does, so
+    // rows delivered here (retries/recoveries) are not left with user_id NULL
+    // (AUD-09).
+    attachOwner: (recordId, userId) => resetRequestStore.attachOwner(recordId, userId)
+  }
 );
 const resetDispatcher = new ResetRequestDispatcher(
   ({ email, meta }) => resetProcessor.process(email, meta),

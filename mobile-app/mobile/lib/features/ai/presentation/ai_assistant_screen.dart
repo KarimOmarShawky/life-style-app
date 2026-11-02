@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/gemini_key_dialog.dart';
@@ -19,6 +24,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   bool _isGenerating = false;
   bool _consentedToEgress = false;
   bool _isListening = false;
+  bool _isSpeaking = false;
+
+  StreamSubscription<String>? _streamSub;
+  AudioPlayer? _audioPlayer;
+
+  static const _nativeVoiceChannel =
+      MethodChannel('com.example.lifestyle_mobile/native_voice');
 
   @override
   void didChangeDependencies() {
@@ -36,6 +48,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   @override
   void dispose() {
+    _streamSub?.cancel();
+    _audioPlayer?.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -86,33 +100,166 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
     _textController.clear();
     setState(() {
-      _messages.add(ChatMessage(
-        role: 'user',
-        text: text,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          role: 'user',
+          text: text,
+          timestamp: DateTime.now(),
+        ),
+      );
       _isGenerating = true;
       _isListening = false;
     });
     _scrollToBottom();
 
-    final response = await AiService.instance.sendMessage(
+    // Use streaming: add an empty model placeholder, then fill it in
+    // token-by-token as the stream yields chunks.
+    final placeholder = ChatMessage(
+      role: 'model',
+      text: '',
+      timestamp: DateTime.now(),
+    );
+    setState(() {
+      _messages.add(placeholder);
+    });
+    _scrollToBottom();
+
+    final buffer = StringBuffer();
+    _streamSub?.cancel();
+    _streamSub = AiService.instance.streamMessage(
       conversationHistory: _messages.sublist(0, _messages.length - 1),
       newMessage: text,
       languageName: l10n.promptLanguageName,
+    ).listen(
+      (chunk) {
+        if (!mounted) return;
+        buffer.write(chunk);
+        final idx = _messages.lastIndexOf(placeholder);
+        if (idx != -1) {
+          _messages[idx] = ChatMessage(
+            role: 'model',
+            text: buffer.toString(),
+            timestamp: placeholder.timestamp,
+          );
+          setState(() {});
+          _scrollToBottom();
+        }
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context);
+        setState(() {
+          final idx = _messages.lastIndexOf(placeholder);
+          if (idx != -1) {
+            _messages[idx] = ChatMessage(
+              role: 'model',
+              text: l10n.aiErrorMessage ?? 'Error: $error',
+              timestamp: placeholder.timestamp,
+            );
+          }
+          _isGenerating = false;
+        });
+        _scrollToBottom();
+      },
+      onDone: () {
+        if (!mounted) return;
+        setState(() {
+          final idx = _messages.lastIndexOf(placeholder);
+          if (idx != -1 && buffer.toString().isEmpty) {
+            _messages[idx] = ChatMessage(
+              role: 'model',
+              text: l10n.aiErrorMessage ?? '',
+              timestamp: placeholder.timestamp,
+            );
+          }
+          _isGenerating = false;
+        });
+        _scrollToBottom();
+      },
     );
+  }
 
-    if (!mounted) return;
+  Future<void> _toggleVoiceInput() async {
+    if (_isListening) {
+      setState(() => _isListening = false);
+      return;
+    }
+    setState(() => _isListening = true);
+    try {
+      final l10n = AppLocalizations.of(context);
+      final spokenText = await _nativeVoiceChannel.invokeMethod<String>(
+        'startVoiceRecognition',
+        <String, String>{
+          'languageTag': l10n.locale.toLanguageTag(),
+        },
+      );
+      if (!mounted) return;
+      if (spokenText != null && spokenText.trim().isNotEmpty) {
+        _textController.text = spokenText.trim();
+        _textController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _textController.text.length),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.noSpeechDetected)),
+        );
+      }
+    } catch (_) {
+      // Speech recognition failed; fall back silently.
+    } finally {
+      if (mounted) setState(() => _isListening = false);
+    }
+  }
 
-    setState(() {
-      _messages.add(ChatMessage(
-        role: 'model',
-        text: response,
-        timestamp: DateTime.now(),
-      ));
-      _isGenerating = false;
-    });
-    _scrollToBottom();
+  Future<void> _speakLastResponse() async {
+    if (_isSpeaking) {
+      await _stopSpeaking();
+      return;
+    }
+    // Find the last model message to speak.
+    final lastModel = [..._messages].reversed.firstWhere(
+      (m) => m.role == 'model',
+      orElse: () => ChatMessage(role: 'model', text: ''),
+    );
+    if (lastModel.text.trim().isEmpty) return;
+
+      final l10n = AppLocalizations.of(context);
+      setState(() => _isSpeaking = true);
+      try {
+        final bytes = await AiService.instance.speakText(
+          text: lastModel.text,
+          languageName: l10n.promptLanguageName,
+        );
+        if (!mounted || bytes.isEmpty) {
+          if (mounted) setState(() => _isSpeaking = false);
+          return;
+        }
+        // audioplayers 6.x plays from a file path, so write the audio
+        // bytes to a temporary file first.
+        final tempFile = File(
+          '${Directory.systemTemp.path}/lifestyle_tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
+        );
+        await tempFile.writeAsBytes(bytes);
+        final player = AudioPlayer();
+        _audioPlayer = player;
+        await player.setSourceDeviceFile(tempFile.path);
+        await player.play();
+        player.onPlayerComplete.listen((_) {
+          if (mounted) setState(() => _isSpeaking = false);
+          tempFile.delete();
+        });
+      } catch (_) {
+        if (mounted) setState(() => _isSpeaking = false);
+      }
+  }
+
+  Future<void> _stopSpeaking() async {
+    try {
+      await _audioPlayer?.stop();
+    } catch (_) {
+      // Already stopped.
+    }
+    if (mounted) setState(() => _isSpeaking = false);
   }
 
   @override
@@ -125,6 +272,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       l10n.aiSuggestion2,
       l10n.aiSuggestion3,
       l10n.aiSuggestion4,
+      l10n.aiSuggestionAnalyzeTasks,
+      l10n.aiSuggestionHabitInsights,
+      l10n.aiSuggestionPlanGoal,
+      l10n.aiSuggestionSummarizeNote,
     ];
 
     return Scaffold(
@@ -147,6 +298,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             tooltip: l10n.aiClearChatTooltip,
             icon: const Icon(Icons.refresh_outlined),
             onPressed: () {
+              _streamSub?.cancel();
               setState(() {
                 _messages.clear();
                 _messages.add(
@@ -155,6 +307,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                     text: l10n.aiClearedResetMessage,
                   ),
                 );
+                _isGenerating = false;
               });
             },
           ),
@@ -220,15 +373,40 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                           bottomRight: Radius.circular(isUser ? 4 : 16),
                         ),
                       ),
-                      child: SelectableText(
-                        message.text,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          height: 1.45,
-                          color: isUser
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.onSurface,
-                        ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: SelectableText(
+                              message.text,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                height: 1.45,
+                                color: isUser
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          if (!isUser && message.text.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: IconButton(
+                                tooltip: l10n.aiSpeakTooltip,
+                                icon: Icon(
+                                  _isSpeaking
+                                      ? Icons.volume_up
+                                      : Icons.volume_off,
+                                  size: 18,
+                                  color: _isSpeaking
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                                ),
+                                onPressed: _isSpeaking
+                                    ? _stopSpeaking
+                                    : () => _speakLastResponse(),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   );
@@ -269,7 +447,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        l10n.voiceMicPrompt,
+                        l10n.aiVoiceListening,
                         style: const TextStyle(
                           color: Colors.red,
                           fontWeight: FontWeight.bold,
@@ -297,9 +475,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                       color:
                           _isListening ? Colors.red : theme.colorScheme.primary,
                     ),
-                    onPressed: () {
-                      setState(() => _isListening = !_isListening);
-                    },
+                    onPressed: () => _toggleVoiceInput(),
                   ),
                   Expanded(
                     child: TextField(

@@ -332,4 +332,529 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
           : 'Good evening $userName! You completed $completedHabitsCount of $totalHabitsCount habits. Great job!';
     }
   }
+
+  /// Context-aware chat that injects the user's current life state into the
+  /// conversation. The model receives structured context (pending tasks,
+  /// habits, goals, spending) so replies are personalised, not generic.
+  Future<String> sendMessageWithContext({
+    required List<ChatMessage> conversationHistory,
+    required String newMessage,
+    required Map<String, dynamic> context,
+    String languageName = 'Arabic',
+    Duration timeout = const Duration(seconds: 15),
+    http.Client? httpClient,
+    void Function(bool succeeded)? onOutcome,
+  }) async {
+    final contextJson = jsonEncode(context);
+    final augmentedMessage =
+        'Here is the user's current life context (JSON):\n$contextJson\n\nUse this context to give personalised, specific advice. Do not invent data that is not in the context.\n\nUser request: $newMessage';
+    return sendMessage(
+      conversationHistory: conversationHistory,
+      newMessage: augmentedMessage,
+      languageName: languageName,
+      timeout: timeout,
+      httpClient: httpClient,
+      onOutcome: onOutcome,
+    );
+  }
+
+  /// Analyses a set of tasks and returns a prioritised, grouped plan with
+  /// time estimates and suggested focus order.
+  Future<String?> analyzeTasks({
+    required List<Map<String, dynamic>> tasks,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Analyse these tasks and produce a prioritised plan. For each task, rate urgency (high/medium/low), suggest a time slot, and explain the reasoning. Group them into "Do first", "Do later", and "Delegate or drop".\n\nTasks (JSON): ${jsonEncode(tasks)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Analyses habit patterns and returns insights with concrete suggestions
+  /// for improvement.
+  Future<String?> getHabitInsights({
+    required List<Map<String, dynamic>> habits,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Analyse these habits and produce a weekly insight report. Identify the strongest habit, the weakest, and give one concrete, actionable suggestion for each. Keep it concise.\n\nHabits (JSON): ${jsonEncode(habits)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Breaks a goal down into concrete, time-bound action steps.
+  Future<String?> planGoal({
+    required String goalTitle,
+    required String goalDescription,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Break down this goal into a concrete 30-day action plan. List weekly milestones, daily actions, and the key metric to track progress.\n\nGoal: $goalTitle\nDescription: $goalDescription',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Summarises a note and extracts action items, deadlines, and key points.
+  Future<String?> summarizeNote({
+    required String noteContent,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Summarise this note in 3 bullet points. Then list any action items (with suggested deadlines) and any key decisions made.\n\nNote content:\n$noteContent',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Answers a question using the user's own data (tasks, notes, habits,
+  /// goals, spending). Falls back to generic advice when no data is provided.
+  Future<String> answerWithData({
+    required String question,
+    Map<String, dynamic> data = const {},
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if (data.isEmpty) {
+      return sendMessage(
+        conversationHistory: const [],
+        newMessage: question,
+        languageName: languageName,
+        httpClient: httpClient,
+      );
+    }
+    return sendMessageWithContext(
+      conversationHistory: const [],
+      newMessage: question,
+      context: data,
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+  }
+
+  /// Analyses spending patterns and returns personalised budget advice
+  /// based on the user's transaction history.
+  Future<String?> getMoneyInsights({
+    required List<Map<String, dynamic>> transactions,
+    required String currency,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Analyse these transactions and produce a spending insight report. Identify the top 3 spending categories, flag any unusual patterns, and give 2 concrete budget suggestions.\n\nTransactions (JSON): ${jsonEncode(transactions)}\nCurrency: $currency',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Generates a personalised habit coaching plan based on the user's
+  /// habit history and current streaks.
+  Future<String?> getHabitCoaching({
+    required List<Map<String, dynamic>> habits,
+    required Map<String, dynamic> aggregates,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Create a personalised habit coaching plan. Identify the most promising habit to build next, suggest a realistic weekly target, and explain the reasoning.\n\nHabits (JSON): ${jsonEncode(habits)}\nAggregates (JSON): ${jsonEncode(aggregates)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Suggests a smart schedule for the day based on pending tasks,
+  /// habits, and the user's focus preferences.
+  Future<String?> suggestSchedule({
+    required List<Map<String, dynamic>> tasks,
+    required List<Map<String, dynamic>> habits,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Create a time-blocked schedule for today. Assign time slots to each task and habit, group similar tasks together, and include breaks.\n\nTasks (JSON): ${jsonEncode(tasks)}\nHabits (JSON): ${jsonEncode(habits)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Generates a weekly workout plan based on the user's goals,
+  /// current fitness level, and available equipment.
+  Future<String?> generateWorkoutPlan({
+    required String fitnessLevel,
+    required List<String> equipment,
+    required String goal,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Create a 7-day workout plan. Include warm-ups, main exercises, sets/reps, and rest days.\n\nFitness level: $fitnessLevel\nEquipment: ${jsonEncode(equipment)}\nGoal: $goal',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Generates a meal plan based on dietary preferences, budget,
+  /// and nutritional goals.
+  Future<String?> generateMealPlan({
+    required String dietaryPreference,
+    required int dailyBudget,
+    required List<String> allergies,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Create a 3-day meal plan. Include breakfast, lunch, dinner, and snacks. Keep within the daily budget and avoid allergens.\n\nDietary preference: $dietaryPreference\nDaily budget: $dailyBudget\nAllergies: ${jsonEncode(allergies)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Analyses productivity patterns and returns personalised
+  /// improvement suggestions.
+  Future<String?> getProductivityAnalysis({
+    required Map<String, dynamic> aggregates,
+    required List<Map<String, dynamic>> recentActivity,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Analyse my productivity patterns and give 3 personalised suggestions for improvement. Focus on time management, focus habits, and energy management.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nRecent activity (JSON): ${jsonEncode(recentActivity)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Generates a weekly review summary from the user's completed
+  /// tasks, habits, and achievements.
+  Future<String?> generateWeeklyReview({
+    required Map<String, dynamic> aggregates,
+    required List<Map<String, dynamic>> highlights,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Create a motivational weekly review. Highlight achievements, suggest one area to improve, and set one goal for next week.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nHighlights (JSON): ${jsonEncode(highlights)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Streams a chat response token-by-token for real-time display.
+  /// Uses Gemini's streaming endpoint with Server-Sent Events.
+  Stream<String> streamMessage({
+    required List<ChatMessage> conversationHistory,
+    required String newMessage,
+    String languageName = 'Arabic',
+    Duration timeout = const Duration(seconds: 30),
+    http.Client? httpClient,
+  }) {
+    return Stream.async(() async {
+      final isArabic = languageName == 'Arabic';
+      final key = await getEffectiveApiKey();
+      if (key.isEmpty) {
+        yield isArabic
+            ? 'يرجى إضافة مفتاح Gemini API الشخصي من أيقونة المفتاح أعلى الشاشة أو من الملف الشخصي لتفعيل المساعد الذكي.'
+            : 'Please add your personal Gemini API key via the key icon above or in Profile settings to enable the AI Assistant.';
+        return;
+      }
+
+      if (isKeyPaused) {
+        yield isArabic
+            ? 'تم إيقاف طلبات الذكاء الاصطناعي مؤقتاً بعد عدة محاولات فاشلة. يرجى التحقق من صلاحية مفتاح Gemini API أو تحديثه.'
+            : 'AI requests are temporarily paused after repeated provider errors. Please verify or update your Gemini API key.';
+        return;
+      }
+
+      final client = httpClient ?? http.Client();
+      try {
+        final contents = <Map<String, dynamic>>[];
+        for (final msg in conversationHistory) {
+          contents.add({
+            'role': msg.role == 'user' ? 'user' : 'model',
+            'parts': [{'text': msg.text}],
+          });
+        }
+        contents.add({
+          'role': 'user',
+          'parts': [
+            {
+              'text':
+                  'System context: $_systemPrompt\nReply language: write the reply in the same language as the user request below. Use $languageName only if the request has no detectable language.\n\nUser request: $newMessage'
+            }
+          ],
+        });
+
+        final request = client.post(
+          Uri.parse(_baseUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': key,
+            'Accept': 'text/event-stream',
+          },
+          body: jsonEncode({
+            'generationConfig': {
+              'temperature': 0.7,
+              'maxOutputTokens': 800,
+            },
+            'contents': contents,
+          }),
+        ).timeout(timeout);
+
+        final response = await request;
+        if (response.statusCode != 200) {
+          if (response.statusCode == 401 ||
+              response.statusCode == 403 ||
+              response.statusCode == 429 ||
+              response.statusCode >= 500) {
+            _consecutiveFailures++;
+          }
+          yield isArabic
+              ? 'عذراً، لم أتمكن من معالجة الطلب حالياً. يرجى المحاولة بعد لحظات.'
+              : 'Sorry, I could not process your request right now. Please try again shortly.';
+          return;
+        }
+
+        _consecutiveFailures = 0;
+        final body = response.stream
+            .transform(utf8.decoder)
+            .join();
+
+        final lines = body.split('\n');
+        for (final line in lines) {
+          final trimmed = line.trim();
+          if (trimmed.isEmpty || !trimmed.startsWith('data: ')) continue;
+          final data = trimmed.substring(6);
+          if (data == '[DONE]') break;
+          try {
+            final json = jsonDecode(data) as Map<String, dynamic>;
+            final candidates = json['candidates'] as List<dynamic>?;
+            if (candidates != null && candidates.isNotEmpty) {
+              final first = candidates[0] as Map<String, dynamic>?;
+              final content = first?['content'] as Map<String, dynamic>?;
+              final parts = content?['parts'] as List<dynamic>?;
+              if (parts != null && parts.isNotEmpty) {
+                final firstPart = parts[0] as Map<String, dynamic>?;
+                final text = firstPart?['text'] as String?;
+                if (text != null && text.isNotEmpty) {
+                  yield text;
+                }
+              }
+            }
+          } catch (_) {
+            // Skip malformed JSON chunks.
+          }
+        }
+      } catch (_) {
+        yield isArabic
+            ? 'تعذر الاتصال بالذكاء الاصطناعي. يرجى التحقق من اتصال الإنترنت.'
+            : 'Could not connect to AI. Please check your internet connection.';
+      } finally {
+        if (httpClient == null) {
+          client.close();
+        }
+      }
+    });
+  }
+
+  /// Synthesises speech from text using Gemini's TTS endpoint.
+  /// Returns the audio bytes as a List<int> for playback.
+  Future<List<int>> speakText({
+    required String text,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    final key = await getEffectiveApiKey();
+    if (key.isEmpty || isKeyPaused) return [];
+
+    final client = httpClient ?? http.Client();
+    try {
+      // Gemini TTS endpoint (synthesizeSpeech returns raw audio bytes).
+      final ttsUrl =
+          'https://generativelanguage.googleapis.com/v1beta/models/$_model:synthesizeSpeech';
+      final response = await client
+          .post(
+            Uri.parse(ttsUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-goog-api-key': key,
+            },
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {
+                      'text': text,
+                    }
+                  ],
+                }
+              ],
+              'generationConfig': {
+                'temperature': 0.5,
+                'maxOutputTokens': 800,
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        _consecutiveFailures = 0;
+        // The response body is raw audio bytes (e.g. MP3), not JSON.
+        return response.bodyBytes;
+      }
+      return [];
+    } catch (_) {
+      return [];
+    } finally {
+      if (httpClient == null) {
+        client.close();
+      }
+    }
+  }
+
+  /// Generates a cumulative lifestyle analysis across all features
+  /// (tasks, habits, goals, money, productivity) for a given time range.
+  Future<String?> getCumulativeAnalysis({
+    required Map<String, dynamic> aggregates,
+    required List<Map<String, dynamic>> weeklyTrends,
+    required String timeRange,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Generate a comprehensive cumulative lifestyle analysis for the period: $timeRange. Cover task completion rates, habit consistency, goal progress, spending patterns, and overall productivity. Identify the top 3 strengths and 3 areas needing improvement. Provide actionable recommendations.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nWeekly trends (JSON): ${jsonEncode(weeklyTrends)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Creates a personalised performance dashboard summary that
+  /// highlights key metrics and trends for the user.
+  Future<String?> getPerformanceDashboard({
+    required Map<String, dynamic> metrics,
+    required Map<String, dynamic> streaks,
+    required Map<String, dynamic> highlights,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Create a performance dashboard summary. Highlight the most important metrics, streaks to celebrate, and one key focus area for next week. Keep it concise and motivational.\n\nMetrics (JSON): ${jsonEncode(metrics)}\nStreaks (JSON): ${jsonEncode(streaks)}\nHighlights (JSON): ${jsonEncode(highlights)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Analyses productivity patterns over time and identifies
+  /// peak performance windows.
+  Future<String?> analyzeProductivityTrends({
+    required List<Map<String, dynamic>> dailyStats,
+    required Map<String, dynamic> preferences,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Analyse these daily productivity stats and identify patterns. Determine the user peak performance windows, flag declining trends, and suggest adjustments.\n\nDaily stats (JSON): ${jsonEncode(dailyStats)}\nPreferences (JSON): ${jsonEncode(preferences)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Generates a personalised weekly comparison report showing
+  /// improvements or declines across all lifestyle categories.
+  Future<String?> generateWeeklyComparison({
+    required Map<String, dynamic> thisWeek,
+    required Map<String, dynamic> lastWeek,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Compare this week performance with last week across tasks, habits, goals, and spending. Highlight improvements, declines, and one key takeaway.\n\nThis week (JSON): ${jsonEncode(thisWeek)}\nLast week (JSON): ${jsonEncode(lastWeek)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
+
+  /// Creates a personalised life balance score based on all
+  /// lifestyle categories and suggests improvements.
+  Future<String?> getLifeBalanceScore({
+    required Map<String, dynamic> categoryScores,
+    required Map<String, dynamic> weights,
+    String languageName = 'Arabic',
+    http.Client? httpClient,
+  }) async {
+    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    final result = await sendMessage(
+      conversationHistory: const [],
+      newMessage:
+          'Calculate a personalised life balance score from these category scores. Provide a 1-10 rating, explain the score, and suggest 2 concrete improvements for the weakest categories.\n\nCategory scores (JSON): ${jsonEncode(categoryScores)}\nWeights (JSON): ${jsonEncode(weights)}',
+      languageName: languageName,
+      httpClient: httpClient,
+    );
+    return result.isNotEmpty ? result : null;
+  }
 }

@@ -122,6 +122,28 @@ describe('Sort-aware task keyset pagination (V-07)', () => {
     expect(cursorValueFor({ ...row, due_date: null }, 'dueDate')).toBeNull();
   });
 
+  it('preserves microsecond precision from the raw text columns (AUD-02)', () => {
+    // node-pg returns timestamptz as a JS Date at millisecond resolution, so a
+    // cursor built from toISOString() repeats or skips rows at a page boundary.
+    // The raw text columns carry the exact database value (AUD-02).
+    const row = {
+      due_date: '2026-10-05',
+      priority: 3,
+      created_at: new Date('2026-10-31T10:00:00.123Z'),
+      created_at_text: '2026-10-31 10:00:00.123456+00',
+      updated_at: new Date('2026-10-31T11:00:00.456Z'),
+      updated_at_text: '2026-10-31 11:00:00.456789+00'
+    };
+    expect(cursorValueFor(row, 'createdAt')).toBe('2026-10-31 10:00:00.123456+00');
+    expect(cursorValueFor(row, 'updatedAt')).toBe('2026-10-31 11:00:00.456789+00');
+  });
+
+  it('selects raw text cursor columns so pagination is lossless (AUD-02)', async () => {
+    const text = await compiledTaskList({ sort: 'createdAt', order: 'asc', limit: 25 });
+    expect(text).toMatch(/created_at::text as "created_at_text"/i);
+    expect(text).toMatch(/updated_at::text as "updated_at_text"/i);
+  });
+
   it.each<[TaskSortField, string, 'asc' | 'desc', RegExp]>([
     ['dueDate', '2026-10-05', 'asc', /"tasks"\."due_date" IS NULL\s+OR "tasks"\."due_date" > \$\d+::date/],
     ['dueDate', '2026-10-05', 'desc', /"tasks"\."due_date" < \$\d+::date/],

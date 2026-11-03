@@ -597,113 +597,109 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     String languageName = 'Arabic',
     Duration timeout = const Duration(seconds: 30),
     http.Client? httpClient,
-  }) {
-    return Stream.async(() async {
-      final isArabic = languageName == 'Arabic';
-      final key = await getEffectiveApiKey();
-      if (key.isEmpty) {
-        yield isArabic
-            ? 'يرجى إضافة مفتاح Gemini API الشخصي من أيقونة المفتاح أعلى الشاشة أو من الملف الشخصي لتفعيل المساعد الذكي.'
-            : 'Please add your personal Gemini API key via the key icon above or in Profile settings to enable the AI Assistant.';
-        return;
-      }
+  }) async* {
+    final isArabic = languageName == 'Arabic';
+    final key = await getEffectiveApiKey();
+    if (key.isEmpty) {
+      yield isArabic
+          ? 'يرجى إضافة مفتاح Gemini API الشخصي من أيقونة المفتاح أعلى الشاشة أو من الملف الشخصي لتفعيل المساعد الذكي.'
+          : 'Please add your personal Gemini API key via the key icon above or in Profile settings to enable the AI Assistant.';
+      return;
+    }
 
-      if (isKeyPaused) {
-        yield isArabic
-            ? 'تم إيقاف طلبات الذكاء الاصطناعي مؤقتاً بعد عدة محاولات فاشلة. يرجى التحقق من صلاحية مفتاح Gemini API أو تحديثه.'
-            : 'AI requests are temporarily paused after repeated provider errors. Please verify or update your Gemini API key.';
-        return;
-      }
+    if (isKeyPaused) {
+      yield isArabic
+          ? 'تم إيقاف طلبات الذكاء الاصطناعي مؤقتاً بعد عدة محاولات فاشلة. يرجى التحقق من صلاحية مفتاح Gemini API أو تحديثه.'
+          : 'AI requests are temporarily paused after repeated provider errors. Please verify or update your Gemini API key.';
+      return;
+    }
 
-      final client = httpClient ?? http.Client();
-      try {
-        final contents = <Map<String, dynamic>>[];
-        for (final msg in conversationHistory) {
-          contents.add({
-            'role': msg.role == 'user' ? 'user' : 'model',
-            'parts': [{'text': msg.text}],
-          });
-        }
+    final client = httpClient ?? http.Client();
+    try {
+      final contents = <Map<String, dynamic>>[];
+      for (final msg in conversationHistory) {
         contents.add({
-          'role': 'user',
-          'parts': [
-            {
-              'text':
-                  'System context: $_systemPrompt\nReply language: write the reply in the same language as the user request below. Use $languageName only if the request has no detectable language.\n\nUser request: $newMessage'
-            }
-          ],
+          'role': msg.role == 'user' ? 'user' : 'model',
+          'parts': [{'text': msg.text}],
         });
-
-        final request = client.post(
-          Uri.parse(_baseUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-goog-api-key': key,
-            'Accept': 'text/event-stream',
-          },
-          body: jsonEncode({
-            'generationConfig': {
-              'temperature': 0.7,
-              'maxOutputTokens': 800,
-            },
-            'contents': contents,
-          }),
-        ).timeout(timeout);
-
-        final response = await request;
-        if (response.statusCode != 200) {
-          if (response.statusCode == 401 ||
-              response.statusCode == 403 ||
-              response.statusCode == 429 ||
-              response.statusCode >= 500) {
-            _consecutiveFailures++;
+      }
+      contents.add({
+        'role': 'user',
+        'parts': [
+          {
+            'text':
+                'System context: $_systemPrompt\nReply language: write the reply in the same language as the user request below. Use $languageName only if the request has no detectable language.\n\nUser request: $newMessage'
           }
-          yield isArabic
-              ? 'عذراً، لم أتمكن من معالجة الطلب حالياً. يرجى المحاولة بعد لحظات.'
-              : 'Sorry, I could not process your request right now. Please try again shortly.';
-          return;
+        ],
+      });
+
+      final request = client.post(
+        Uri.parse(_baseUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': key,
+          'Accept': 'text/event-stream',
+        },
+        body: jsonEncode({
+          'generationConfig': {
+            'temperature': 0.7,
+            'maxOutputTokens': 800,
+          },
+          'contents': contents,
+        }),
+      ).timeout(timeout);
+
+      final response = await request;
+      if (response.statusCode != 200) {
+        if (response.statusCode == 401 ||
+            response.statusCode == 403 ||
+            response.statusCode == 429 ||
+            response.statusCode >= 500) {
+          _consecutiveFailures++;
         }
+        yield isArabic
+            ? 'عذراً، لم أتمكن من معالجة الطلب حالياً. يرجى المحاولة بعد لحظات.'
+            : 'Sorry, I could not process your request right now. Please try again shortly.';
+        return;
+      }
 
-        _consecutiveFailures = 0;
-        final body = response.stream
-            .transform(utf8.decoder)
-            .join();
+      _consecutiveFailures = 0;
+      final body = utf8.decode(response.bodyBytes);
 
-        final lines = body.split('\n');
-        for (final line in lines) {
-          final trimmed = line.trim();
-          if (trimmed.isEmpty || !trimmed.startsWith('data: ')) continue;
-          final data = trimmed.substring(6);
-          if (data == '[DONE]') break;
-          try {
-            final json = jsonDecode(data) as Map<String, dynamic>;
-            final candidates = json['candidates'] as List<dynamic>?;
-            if (candidates != null && candidates.isNotEmpty) {
-              final first = candidates[0] as Map<String, dynamic>?;
-              final content = first?['content'] as Map<String, dynamic>?;
-              final parts = content?['parts'] as List<dynamic>?;
-              if (parts != null && parts.isNotEmpty) {
-                final firstPart = parts[0] as Map<String, dynamic>?;
-                final text = firstPart?['text'] as String?;
-                if (text != null && text.isNotEmpty) {
-                  yield text;
-                }
+      final lines = body.split('\n');
+      for (final line in lines) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty || !trimmed.startsWith('data: ')) continue;
+        final data = trimmed.substring(6);
+        if (data == '[DONE]') break;
+        try {
+          final json = jsonDecode(data) as Map<String, dynamic>;
+          final candidates = json['candidates'] as List<dynamic>?;
+          if (candidates != null && candidates.isNotEmpty) {
+            final first = candidates[0] as Map<String, dynamic>?;
+            final content = first?['content'] as Map<String, dynamic>?;
+            final parts = content?['parts'] as List<dynamic>?;
+            if (parts != null && parts.isNotEmpty) {
+              final firstPart = parts[0] as Map<String, dynamic>?;
+              final text = firstPart?['text'] as String?;
+              if (text != null && text.isNotEmpty) {
+                yield text;
               }
             }
-          } catch (_) {
-            // Skip malformed JSON chunks.
           }
-        }
-      } catch (_) {
-        yield isArabic
-            ? 'تعذر الاتصال بالذكاء الاصطناعي. يرجى التحقق من اتصال الإنترنت.'
-            : 'Could not connect to AI. Please check your internet connection.';
-      } finally {
-        if (httpClient == null) {
-          client.close();
+        } catch (_) {
+          // Skip malformed JSON chunks.
         }
       }
-    });
+    } catch (_) {
+      yield isArabic
+          ? 'تعذر الاتصال بالذكاء الاصطناعي. يرجى التحقق من اتصال الإنترنت.'
+          : 'Could not connect to AI. Please check your internet connection.';
+    } finally {
+      if (httpClient == null) {
+        client.close();
+      }
+    }
   }
 
   /// Synthesises speech from text using Gemini's TTS endpoint.

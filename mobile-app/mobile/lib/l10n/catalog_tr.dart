@@ -265,4 +265,4 @@ const Map<String, String> trCatalog = {
   'aiSpeaking': 'Okunuyor...',
   'aiVoiceListening': 'Dinleniyor...',
   'aiErrorMessage': 'İsteğiniz işlenirken bir hata oluştu. Lütfen tekrar deneyin.',
-}
+};

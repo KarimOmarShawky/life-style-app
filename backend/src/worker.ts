@@ -110,7 +110,7 @@ const resetProcessor = new PasswordResetProcessor(
 );
 const resetDispatcher = new ResetRequestDispatcher(
   ({ email, meta }) => resetProcessor.process(email, meta),
-  { store: resetRequestStore, concurrency: 2, maxAttempts: 5, retryBackoffMs: 30_000 }
+  { store: resetRequestStore, concurrency: 2, claimLimit: 2, maxAttempts: 5, retryBackoffMs: 30_000 }
 );
 // Completed and dead-lettered rows hold an email address; do not keep them.
 const RESET_RETENTION_MS = 24 * 60 * 60 * 1000;

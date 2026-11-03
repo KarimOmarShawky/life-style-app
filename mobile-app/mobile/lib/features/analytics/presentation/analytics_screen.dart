@@ -11,6 +11,11 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 }
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
+  /// DEMO DATA NOTICE (NR-06):
+  /// This screen uses hard-coded sample metrics for demonstration purposes only.
+  /// It does NOT represent the user's actual activity, habits, or finances.
+  /// Real data integration is not yet available in this build.
+
   String? _analysisResult;
   bool _isLoading = false;
   String? _error;
@@ -92,10 +97,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           'habitStreak': 12,
           'focusStreak': 3,
         },
-        highlights: const [
-          'Completed 42 tasks this month',
-          'Maintained 12-day habit streak',
-        ],
+        highlights: const {
+          'tasksCompleted': 42,
+          'habitStreak': 12,
+        },
         languageName: l10n.promptLanguageName,
       );
 

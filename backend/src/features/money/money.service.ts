@@ -13,6 +13,8 @@ import type { ReminderCancellationPort } from '../reminders/reminder-cancellatio
 import {
   assertSubscriptionPaymentInvariants,
   assertTransactionInvariants,
+  normalizeStoredAmount,
+  normalizeStoredDate,
   type EffectiveCategory
 } from './money.invariants.js';
 import type {
@@ -359,9 +361,9 @@ export class MoneyService {
     assertTransactionInvariants(
       {
         kind: effectiveKind,
-        amount: input.amount ?? existing.amount,
+        amount: input.amount ?? normalizeStoredAmount(existing.amount, existing.currency),
         currency: input.currency ?? existing.currency,
-        occurredOn: input.occurredOn ?? existing.occurredOn,
+        occurredOn: input.occurredOn ?? normalizeStoredDate(existing.occurredOn),
         category
       },
       userToday
@@ -618,9 +620,9 @@ export class MoneyService {
     // currency scale and future-date rules as a manual transaction (V-08).
     assertSubscriptionPaymentInvariants(
       {
-        amount: input.amount ?? sub.amount,
+        amount: input.amount ?? normalizeStoredAmount(sub.amount, sub.currency),
         currency: sub.currency,
-        occurredOn: input.occurredOn ?? sub.nextBillingDate
+        occurredOn: input.occurredOn ?? normalizeStoredDate(sub.nextBillingDate)
       },
       getUserTodayDate(userTimezone)
     );

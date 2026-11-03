@@ -171,6 +171,14 @@ export function globalErrorHandler(
         );
         return;
       }
+      // 22007: invalid date format, 22008: invalid datetime format
+      case '22007':
+      case '22008': {
+        // Date/datetime cast errors from malformed cursor values or invalid date inputs.
+        return next(
+          AppError.validation([{ field: 'date', message: 'Invalid date or datetime format' }])
+        );
+      }
       // 40001: Serialization failure, 40P01: Deadlock detected
       case '40001':
       case '40P01': {

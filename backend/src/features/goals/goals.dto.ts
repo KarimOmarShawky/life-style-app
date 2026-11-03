@@ -6,6 +6,7 @@
 
 import { Decimal } from 'decimal.js';
 import type { GoalEntity, MilestoneEntity, GoalStatus, GoalProgressType } from './goals.types.js';
+import { formatDateOnly as _formatDateOnly } from '../../core/time/date-utils.js';
 
 export interface MilestoneDto {
   id: string;
@@ -44,14 +45,7 @@ export interface GoalDto {
 }
 
 export function formatDateOnly(val: Date | string | null | undefined): string | null {
-  if (!val) return null;
-  if (val instanceof Date) {
-    const y = val.getUTCFullYear();
-    const m = String(val.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(val.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  return String(val).slice(0, 10);
+  return _formatDateOnly(val);
 }
 
 export function calculateGoalProgress(

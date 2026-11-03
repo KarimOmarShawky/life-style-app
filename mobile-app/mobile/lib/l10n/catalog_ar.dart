@@ -399,4 +399,4 @@ const Map<String, String> arCatalog = {
   'aiSpeaking': 'جارٍ القراءة...',
   'aiVoiceListening': 'جارٍ الاستماع...',
   'aiErrorMessage': 'حدث خطأ أثناء معالجة الطلب. يرجى المحاولة مرة أخرى.',
-}
+};

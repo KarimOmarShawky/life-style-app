@@ -436,4 +436,4 @@ const Map<String, String> enCatalog = {
   'aiSpeaking': 'Speaking...',
   'aiVoiceListening': 'Listening...',
   'aiErrorMessage': 'An error occurred while processing your request. Please try again.',
-}
+};

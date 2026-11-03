@@ -27,6 +27,8 @@ export interface ResetRequestMeta {
   userAgent?: string | undefined;
   /** Durable row id, used only to attach the ownership key (V-06). */
   recordId?: string | undefined;
+  /** Attempt number (1-based), used to distinguish first-attempt suppression from delivery retries (NR-03). */
+  attempt?: number | undefined;
 }
 
 /**
@@ -56,6 +58,20 @@ export class PasswordResetThrottledError extends Error {
   constructor() {
     super('PASSWORD_RESET_THROTTLED');
     this.name = 'PasswordResetThrottledError';
+  }
+}
+
+/**
+ * Admission-time suppression: the 60-second cooldown is active on the first
+ * attempt of a newly admitted request. This is a terminal outcome (the user
+ * already has a valid code), not a delivery failure that should be retried.
+ * Retrying would generate a new code and invalidate the one already sent.
+ */
+export class PasswordResetSuppressedError extends Error {
+  public readonly code = 'PASSWORD_RESET_SUPPRESSED';
+  constructor() {
+    super('PASSWORD_RESET_SUPPRESSED');
+    this.name = 'PasswordResetSuppressedError';
   }
 }
 
@@ -90,21 +106,26 @@ export class PasswordResetProcessor {
 
     const allowed = await this.otpStore.checkCooldown(user.id);
     if (!allowed) {
-      // The 60-second cooldown throttles request admission, not delivery. A
-      // retry that lands while the cooldown is still active must never be
-      // reported as a delivered code, so this is a distinct failure outcome:
-      // the durable dispatcher records a retry (or dead-letters) instead of
-      // marking the row `sent` (AUD-01).
+      // The 60-second cooldown throttles request admission, not delivery.
+      // On the first attempt of a newly admitted request, this is a terminal
+      // suppression: the user already has a valid code from the previous
+      // request. Retrying would generate a new code and invalidate the one
+      // already sent (NR-03). Only delivery-time throttles (SMTP rate limits)
+      // are retryable as THROTTLED.
+      const isFirstAttempt = !meta?.recordId || meta.attempt === 1;
       await this.auditLogger.log({
         actorType: 'user',
         actorUserId: user.id,
         eventType: 'auth.password.reset.requested',
-        outcome: 'failure',
+        outcome: isFirstAttempt ? 'suppressed' : 'failure',
         requestId: meta?.requestId,
         ip: meta?.ip,
         userAgent: meta?.userAgent,
-        metadata: { reason: 'throttled' }
+        metadata: { reason: isFirstAttempt ? 'suppressed_cooldown' : 'throttled' }
       });
+      if (isFirstAttempt) {
+        throw new PasswordResetSuppressedError();
+      }
       throw new PasswordResetThrottledError();
     }
 

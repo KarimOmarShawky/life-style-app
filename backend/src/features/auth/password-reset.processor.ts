@@ -117,7 +117,7 @@ export class PasswordResetProcessor {
         actorType: 'user',
         actorUserId: user.id,
         eventType: 'auth.password.reset.requested',
-        outcome: isFirstAttempt ? 'suppressed' : 'failure',
+        outcome: 'failure',
         requestId: meta?.requestId,
         ip: meta?.ip,
         userAgent: meta?.userAgent,

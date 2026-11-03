@@ -304,13 +304,13 @@ test('AUD-12: review removal verifies disk and shares one permanent-rejection po
   // Dart: the review-item removal checks the SharedPreferences result and
   // publishes a storage fault on failure instead of swallowing it.
   const removeBlock = dartReviews.split('Future<bool> _remove(String id)')[1].split('\n  }')[0];
-  assert.ok(removeBlock.includes('const removed = await prefs.remove(key)'));
+  assert.ok(removeBlock.includes('final removed = await prefs.remove(key)'));
   assert.ok(removeBlock.includes('if (!removed)'));
   assert.ok(removeBlock.includes('WalletSmsQuarantineStatus.storageFaultKey'));
 
   // Dart: the quarantine-flag counter verifies its write.
   const flagBlock = dartReviews.split('Future<void> _publishQuarantineFlag')[1].split('\n  }')[0];
-  assert.ok(flagBlock.includes('const wrote = await prefs.setString'));
+  assert.ok(flagBlock.includes('final wrote = await prefs.setString'));
   assert.ok(flagBlock.includes('if (!wrote)'));
 
   // Dart: permanent rejections match the native set {400, 409, 422}.

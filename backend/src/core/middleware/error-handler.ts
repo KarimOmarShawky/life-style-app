@@ -175,9 +175,14 @@ export function globalErrorHandler(
       case '22007':
       case '22008': {
         // Date/datetime cast errors from malformed cursor values or invalid date inputs.
-        return next(
-          AppError.validation([{ field: 'date', message: 'Invalid date or datetime format' }])
+        res.status(400).json(
+          errorResponse({
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid date or datetime format',
+            requestId
+          })
         );
+        return;
       }
       // 40001: Serialization failure, 40P01: Deadlock detected
       case '40001':

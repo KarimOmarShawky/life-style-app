@@ -431,7 +431,7 @@ export class ResetRequestDispatcher {
         item.recordId
           ? {
               email: item.request.email,
-              meta: { ...item.request.meta, recordId: item.recordId, attempt: claim?.attempts ?? 1 }
+              meta: { ...item.request.meta, recordId: item.recordId, attempt: claim?.attempts ?? 1 } as any
             }
           : item.request
       );
@@ -463,7 +463,7 @@ export class ResetRequestDispatcher {
               new Date(this.now()),
               errorCode
             );
-            if (applied) this.report('suppressed');
+            if (applied) this.report('dead_letter');
             else this.report('stale_completion');
           } else if (used >= this.maxAttempts) {
             const applied = await this.store.markDeadLetter(

@@ -31,7 +31,7 @@ import type { TransactionKind } from './money.types.js';
  * PostgreSQL NUMERIC(19,4) returns values like "15.0000", but the invariant
  * check expects the currency-appropriate scale (e.g., 2 decimals for USD).
  */
-export function normalizeStoredAmount(amount: string | number, currency: string): string {
+export function normalizeStoredAmount(amount: string | number | Decimal, currency: string): string {
   const exponent = getCurrencyExponent(currency);
   try {
     const dec = amount instanceof Decimal ? amount : new Decimal(String(amount));

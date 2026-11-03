@@ -431,7 +431,7 @@ export class ResetRequestDispatcher {
         item.recordId
           ? {
               email: item.request.email,
-              meta: { ...item.request.meta, recordId: item.recordId }
+              meta: { ...item.request.meta, recordId: item.recordId, attempt: claim?.attempts ?? 1 } as any
             }
           : item.request
       );
@@ -445,15 +445,27 @@ export class ResetRequestDispatcher {
       // Coarse code only: never persist provider text or account details.
       // Throttling is a distinct outcome from a delivery failure so the two
       // stay observable; a throttled retry must never be recorded as delivered
-      // (AUD-01).
+      // (AUD-01). Admission-time suppression (NR-03) is a terminal outcome:
+      // the user already has a valid code, so retrying would invalidate it.
       const errorCode =
         err instanceof Error && (err as { code?: string }).code === 'PASSWORD_RESET_THROTTLED'
           ? 'THROTTLED'
-          : 'DELIVERY_FAILED';
+          : err instanceof Error && (err as { code?: string }).code === 'PASSWORD_RESET_SUPPRESSED'
+            ? 'SUPPRESSED'
+            : 'DELIVERY_FAILED';
       if (claim && this.store) {
         const used = claim.attempts;
         try {
-          if (used >= this.maxAttempts) {
+          if (errorCode === 'SUPPRESSED') {
+            // Terminal: mark as dead-letter with SUPPRESSED status. No retry.
+            const applied = await this.store.markDeadLetter(
+              claim,
+              new Date(this.now()),
+              errorCode
+            );
+            if (applied) this.report('dead_letter');
+            else this.report('stale_completion');
+          } else if (used >= this.maxAttempts) {
             const applied = await this.store.markDeadLetter(
               claim,
               new Date(this.now()),

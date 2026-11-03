@@ -271,4 +271,4 @@ const Map<String, String> frCatalog = {
   'aiSpeaking': 'Lecture...',
   'aiVoiceListening': 'Écoute...',
   'aiErrorMessage': 'Une erreur est survenue lors du traitement de la demande. Veuillez réessayer.',
-}
+};

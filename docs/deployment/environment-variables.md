@@ -30,6 +30,7 @@ Before deploying a container image to staging or production, verify:
 - [ ] `CORS_ALLOWED_ORIGINS` is left empty unless explicitly authorized.
 - [ ] All database URLs point to the appropriate least-privilege database user.
 - [ ] `SMS_FALLBACK_GEMINI_KEY` (if set) is injected only into the backend service, never into mobile build pipelines.
+- [ ] `AUXILIARY_PORTS` is set (e.g. `"3000,8080"`) if the deployment expects auxiliary listeners, or left unset if not.
 
 The backend enforces three production startup invariants: `DATABASE_SSL=true`, a `DATABASE_URL` username of `lifestyle_app`, and JWT/OTP secrets that differ from known local and test example values. These checks fail startup rather than silently accepting a development configuration. Migration and maintenance URLs should be injected only into the processes that require them.
 
@@ -53,11 +54,26 @@ require user confirmation in the Money review flow.
 
 ---
 
-## 4. Process listeners (audit P2-02, documented 2026-10)
+## 4. Process listeners (audit P2-02, documented 2026-10; updated 2026-11 for AUD-17)
 
-The API process binds the primary listener on `PORT`, and — intentionally, for
-the Railway deployment target — two auxiliary listeners on ports **3000** and
-**8080** whenever those differ from `PORT`. All three serve the same app. The
-auxiliary listeners are closed during graceful shutdown alongside the primary
-one. If a future deployment target does not need them, remove the
-`secondaryPorts` block in `backend/src/server.ts`.
+The API process always binds the primary listener on `PORT`. Auxiliary
+listeners are **opt-in** via the `AUXILIARY_PORTS` environment variable.
+
+| Variable | Required | Default | Purpose |
+| :--- | :--- | :--- | :--- |
+| `AUXILIARY_PORTS` | No | *(unset)* | Comma-separated list of extra ports the API binds in addition to `PORT`. Each port serves the same app. |
+
+When `AUXILIARY_PORTS` is set (e.g. `AUXILIARY_PORTS="3000,8080"`), the API
+binds each listed port as an auxiliary listener, provided it differs from
+`PORT`. All listeners share the same app instance and are closed together
+during graceful shutdown.
+
+**Migration note (AUD-17):** Prior to AUD-17, auxiliary listeners on 3000 and
+8080 were bound **unconditionally** (a Railway workaround). That exposed extra
+ports on `0.0.0.0` even when the deployment target did not need them. The
+behaviour was changed to opt-in. **Deployments that relied on port 8080 (or
+3000) must now set `AUXILIARY_PORTS` explicitly** — without it, the auxiliary
+listeners are not started and those ports become unreachable.
+
+If a deployment target does not need auxiliary listeners, leave `AUXILIARY_PORTS`
+unset.

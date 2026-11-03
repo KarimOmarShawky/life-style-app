@@ -269,4 +269,4 @@ const Map<String, String> deCatalog = {
   'aiSpeaking': 'Wird vorgetragen...',
   'aiVoiceListening': 'Höre zu...',
   'aiErrorMessage': 'Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
-}
+};

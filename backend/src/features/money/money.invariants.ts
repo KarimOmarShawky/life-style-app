@@ -21,10 +21,34 @@
 
 import { Decimal } from 'decimal.js';
 import { AppError } from '../../core/errors/app-error.js';
-import { addDaysToDateString } from '../../core/time/date-utils.js';
+import { addDaysToDateString, formatDateOnly } from '../../core/time/date-utils.js';
 import { isValidCalendarDate } from '../../core/validation/date-only.js';
 import { getCurrencyExponent } from './money.dto.js';
 import type { TransactionKind } from './money.types.js';
+
+/**
+ * Normalizes a stored amount value to the currency's exponent.
+ * PostgreSQL NUMERIC(19,4) returns values like "15.0000", but the invariant
+ * check expects the currency-appropriate scale (e.g., 2 decimals for USD).
+ */
+export function normalizeStoredAmount(amount: string | number | Decimal, currency: string): string {
+  const exponent = getCurrencyExponent(currency);
+  try {
+    const dec = amount instanceof Decimal ? amount : new Decimal(String(amount));
+    return dec.toFixed(exponent);
+  } catch {
+    return String(amount);
+  }
+}
+
+/**
+ * Normalizes a stored date value to YYYY-MM-DD format.
+ * node-pg returns Date objects for DATE/TIMESTAMP columns, but the invariant
+ * check expects a date string.
+ */
+export function normalizeStoredDate(date: Date | string): string {
+  return formatDateOnly(date) ?? '';
+}
 
 /** Outcome of checking a decimal amount string against a currency exponent. */
 export interface AmountCheck {

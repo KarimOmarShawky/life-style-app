@@ -139,7 +139,14 @@ export function createAuthRouter(options: {
       next(err);
       return;
     }
-    changePasswordLimiter(req, res, () => controller.changePassword(req, res, next));
+    const limiterCallback = (err?: Error) => {
+      if (err) {
+        next(err);
+        return;
+      }
+      controller.changePassword(req, res, next);
+    };
+    changePasswordLimiter(req, res, limiterCallback as any);
   };
 
   // Route declarations

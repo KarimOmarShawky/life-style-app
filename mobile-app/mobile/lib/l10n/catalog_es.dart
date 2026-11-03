@@ -267,4 +267,4 @@ const Map<String, String> esCatalog = {
   'aiSpeaking': 'Leyendo...',
   'aiVoiceListening': 'Escuchando...',
   'aiErrorMessage': 'Ocurrió un error al procesar la solicitud. Inténtelo de nuevo.',
-}
+};

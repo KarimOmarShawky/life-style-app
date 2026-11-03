@@ -246,7 +246,7 @@ class PendingWalletReviews {
     if (decoded is Map<String, dynamic> && decoded['count'] is int) {
       count = decoded['count'] as int;
     }
-    const wrote = await prefs.setString(
+    final wrote = await prefs.setString(
       WalletSmsQuarantineStatus.key,
       jsonEncode({
         'count': count + 1,
@@ -298,8 +298,8 @@ class PendingWalletReviews {
 
   Future<bool> _remove(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    const key = '$keyPrefix$id';
-    const removed = await prefs.remove(key);
+    final key = '$keyPrefix$id';
+    final removed = await prefs.remove(key);
     if (!removed) {
       // A silent failure would resurrect the entry on the next read, so the
       // failed removal is reported (V-02, AUD-12).
@@ -883,4 +883,60 @@ class PendingWalletCandidates {
       return null;
     }
   }
+
+  /// Trusted-sender allow-list management (NR-04).
+  /// The native receiver reads flutter.wallet_trusted_senders from
+  /// SharedPreferences; this provides the write path so the gate is reachable.
+  static const String _trustedSendersKey = 'flutter.wallet_trusted_senders';
+
+  /// Returns the current trusted-sender list (normalized phone numbers).
+  static Future<List<String>> getTrustedSenders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_trustedSendersKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final list = jsonDecode(raw);
+      if (list is List) {
+        return list.map((e) => String(e)).toList();
+      }
+    } on FormatException {
+      // Malformed list: treat as empty, never as "trust everyone".
+    }
+    return [];
+  }
+
+  /// Adds a sender to the trusted allow-list.
+  static Future<void> addTrustedSender(String sender) async {
+    final normalized = _normalizePhone(sender);
+    if (normalized.isEmpty) return;
+    final current = await getTrustedSenders();
+    if (!current.contains(normalized)) {
+      current.add(normalized);
+      await _writeTrustedSenders(current);
+    }
+  }
+
+  /// Removes a sender from the trusted allow-list.
+  static Future<void> removeTrustedSender(String sender) async {
+    final normalized = _normalizePhone(sender);
+    final current = await getTrustedSenders();
+    current.remove(normalized);
+    await _writeTrustedSenders(current);
+  }
+
+  /// Clears all trusted senders (auto-capture off).
+  static Future<void> clearTrustedSenders() async {
+    await _writeTrustedSenders([]);
+  }
+
+  static Future<void> _writeTrustedSenders(List<String> senders) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_trustedSendersKey, jsonEncode(senders));
+  }
+
+  /// Normalizes a phone number to digits only (matches Kotlin normalizePhone).
+  static String _normalizePhone(String phone) {
+    return phone.replaceAll(Regex(r'[^0-9]'), '');
+  }
+
 }

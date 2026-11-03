@@ -97,8 +97,8 @@ export const listTasksQuerySchema = z
       .string()
       .transform((val) => val === 'true')
       .optional(),
-    completedFrom: z.string().optional(),
-    completedTo: z.string().optional(),
+    completedFrom: calendarDaySchemaFor('completedFrom').optional(),
+    completedTo: calendarDaySchemaFor('completedTo').optional(),
     sort: z.enum(['dueDate', 'priority', 'createdAt', 'updatedAt']).optional(),
     order: z.enum(['asc', 'desc']).default('asc'),
     limit: z

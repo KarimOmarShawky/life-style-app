@@ -112,3 +112,20 @@ jobs:
         run: flutter pub get
       - name: Exercise mocked HTTP streaming round-trips
         run: flutter test test/ai_stream_test.dart
+
+  subscription-reminder-diagnostic:
+    name: Subscription reminder behavioral diagnostic
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Check false success on notification failure
+        run: flutter test diagnostics/subscription_reminder_widget_test.dart

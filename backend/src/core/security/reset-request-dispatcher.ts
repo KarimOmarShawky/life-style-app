@@ -10,6 +10,8 @@ export interface ResetRequestMeta {
   userAgent?: string | undefined;
   /** Ownership key for erasure/retention (V-06); never echoed to the caller. */
   userId?: string | undefined;
+  /** 1-based delivery attempt number, distinguishing initial dispatch from retries. */
+  attempt?: number | undefined;
 }
 export interface ResetRequest {
   email: string;
@@ -371,9 +373,7 @@ export class ResetRequestDispatcher {
     }
   }
 
-  private report(
-    reason: 'expired' | 'processing' | 'dead_letter' | 'stale_completion'
-  ): void {
+  private report(reason: 'expired' | 'processing' | 'dead_letter' | 'stale_completion'): void {
     try {
       logger.error('Password reset background request did not complete', { reason });
     } catch {
@@ -450,7 +450,11 @@ export class ResetRequestDispatcher {
         item.recordId
           ? {
               email: item.request.email,
-              meta: { ...item.request.meta, recordId: item.recordId, attempt: claim?.attempts ?? 1 } as any
+              meta: {
+                ...item.request.meta,
+                recordId: item.recordId,
+                attempt: claim?.attempts ?? 1
+              }
             }
           : item.request
       );
@@ -477,19 +481,11 @@ export class ResetRequestDispatcher {
         try {
           if (errorCode === 'SUPPRESSED') {
             // Terminal: mark as dead-letter with SUPPRESSED status. No retry.
-            const applied = await this.store.markDeadLetter(
-              claim,
-              new Date(this.now()),
-              errorCode
-            );
+            const applied = await this.store.markDeadLetter(claim, new Date(this.now()), errorCode);
             if (applied) this.report('dead_letter');
             else this.report('stale_completion');
           } else if (used >= this.maxAttempts) {
-            const applied = await this.store.markDeadLetter(
-              claim,
-              new Date(this.now()),
-              errorCode
-            );
+            const applied = await this.store.markDeadLetter(claim, new Date(this.now()), errorCode);
             if (applied) this.report('dead_letter');
             else this.report('stale_completion');
           } else {

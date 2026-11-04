@@ -30,7 +30,12 @@ import type {
   BudgetPeriod
 } from './money.types.js';
 import { AppError } from '../../core/errors/app-error.js';
-import { assertTransactionInvariants, type EffectiveCategory } from './money.invariants.js';
+import {
+  assertTransactionInvariants,
+  normalizeStoredAmount,
+  normalizeStoredDate,
+  type EffectiveCategory
+} from './money.invariants.js';
 
 interface CategoryDbRow {
   id: string;
@@ -550,7 +555,7 @@ export class PgMoneyRepository implements MoneyRepository {
     if (hasMore && items.length > 0) {
       const last = items[items.length - 1]!;
       const sortVal =
-        filter.sort === 'amount' ? String(last.amount) : formatDateOnly(last.occurred_on) ?? '';
+        filter.sort === 'amount' ? String(last.amount) : (formatDateOnly(last.occurred_on) ?? '');
       nextCursor = Buffer.from(`${sortVal}|${last.id}`, 'utf8').toString('base64url');
     }
 
@@ -617,9 +622,12 @@ export class PgMoneyRepository implements MoneyRepository {
         assertTransactionInvariants(
           {
             kind: input.kind ?? locked.kind,
-            amount: input.amount ?? locked.amount,
+            amount: normalizeStoredAmount(
+              input.amount ?? locked.amount,
+              input.currency ?? locked.currency
+            ),
             currency: input.currency ?? locked.currency,
-            occurredOn: input.occurredOn ?? locked.occurred_on,
+            occurredOn: normalizeStoredDate(input.occurredOn ?? locked.occurred_on),
             category
           },
           userToday
@@ -684,17 +692,17 @@ export class PgMoneyRepository implements MoneyRepository {
         .where('id', '=', transactionId)
         .where('user_id', '=', userId)
         .where('deleted_at', 'is', null)
+        .returning('id')
         .executeTakeFirst();
 
-      const numDeleted = Number(result.numUpdatedRows);
-      if (numDeleted > 0) {
+      if (result) {
         await insertAuditLogRow(trx, {
           ...auditData,
-          entityId: transactionId
+          entityId: result.id
         });
       }
 
-      return numDeleted > 0;
+      return result !== undefined;
     });
   }
 

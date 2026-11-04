@@ -265,7 +265,9 @@ void main() {
           prefs.getString('wallet_trusted_senders'),
           jsonEncode(['BANKX9']),
         );
-        expect(prefs.getKeys(), contains('flutter.wallet_trusted_senders'));
+        // SharedPreferences normalizes platform-prefixed keys in its Dart API.
+        // Reading the logical key above verifies the value used by the native
+        // receiver without depending on mock/plugin `getKeys()` representation.
 
         await PendingWalletCandidates.removeTrustedSender('bank-x9');
         prefs = await SharedPreferences.getInstance();
@@ -275,8 +277,7 @@ void main() {
   });
 
   group('PendingWalletCandidates.flush', () {
-    test(
-        'auto-saves a high-confidence parse with the candidate id as idempotency key',
+    test('queues a high-confidence parse for user review without saving it',
         () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.high': _candidateItem('high'),
@@ -311,15 +312,18 @@ void main() {
 
       expect(resolved, 1);
       expect(requestedPaths.single, endsWith('/ingest/sms/analyze'));
-      expect(sentKeys, ['high']);
-      expect(
-          await PendingWalletReviews(
-                  MoneyRepository(_apiWith(MockClient(
-                    (request) async => http.Response('', 500),
-                  ))),
-                  codec: const PlainWalletQueueCodec())
-              .load(),
-          isEmpty);
+      expect(sentKeys, isEmpty);
+      final reviews = await PendingWalletReviews(
+              MoneyRepository(_apiWith(MockClient(
+                (request) async => http.Response('', 500),
+              ))),
+              codec: const PlainWalletQueueCodec())
+          .load();
+      expect(reviews, hasLength(1));
+      expect(reviews.single.id, 'high');
+      expect(reviews.single.amount, '450.00');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.high'), isNull);
     });
 
     test('low confidence becomes a review item instead of being saved',

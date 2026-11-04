@@ -35,13 +35,13 @@ describe('shared reauthentication limiter (AUD-04)', () => {
       next.mockClear();
       await limiter(req, res, next);
       expect(next).toHaveBeenCalledTimes(1);
-      expect(next.mock.calls[0][0]).toBeUndefined(); // allowed: no error argument
+      expect(next.mock.calls[0]![0]).toBeUndefined(); // allowed: no error argument
     }
 
     next.mockClear();
     await limiter(req, res, next);
     expect(next).toHaveBeenCalledTimes(1);
-    const err = next.mock.calls[0][0];
+    const err = next.mock.calls[0]![0];
     expect(err).toBeInstanceOf(AppError);
     expect(err.code).toBe('RATE_LIMITED');
     expect(err.httpStatus).toBe(429);
@@ -63,7 +63,7 @@ describe('shared reauthentication limiter (AUD-04)', () => {
       next.mockClear();
       await limiter(makeRequest('user-2'), res, next);
       expect(next).toHaveBeenCalledTimes(1);
-      expect(next.mock.calls[0][0]).toBeUndefined();
+      expect(next.mock.calls[0]![0]).toBeUndefined();
     }
   });
 
@@ -79,7 +79,7 @@ describe('shared reauthentication limiter (AUD-04)', () => {
     await limiter(makeRequest('user-1'), makeResponse(), next);
 
     expect(next).toHaveBeenCalledTimes(1);
-    const err = next.mock.calls[0][0];
+    const err = next.mock.calls[0]![0];
     expect(err).toBeInstanceOf(AppError);
     expect(err.httpStatus).toBe(503);
     expect(err.code).toBe('SERVICE_UNAVAILABLE');

@@ -219,10 +219,7 @@ export function validateEnv(customSource?: Record<string, string | undefined>): 
   // AUD-16: behind a reverse proxy every IP-keyed rate limit collapses to the
   // proxy address unless the proxy hop count is trusted. Warn (not fail) in
   // production so operators notice before rate limits become useless.
-  if (
-    parsedEnv.NODE_ENV === 'production' &&
-    parsedEnv.TRUST_PROXY_HOPS === 0
-  ) {
+  if (parsedEnv.NODE_ENV === 'production' && parsedEnv.TRUST_PROXY_HOPS === 0) {
     console.warn(
       '⚠️  AUD-16: TRUST_PROXY_HOPS is 0 in production. If the API runs behind ' +
         'a reverse proxy, every IP-keyed rate limit will use the proxy address. ' +

@@ -46,14 +46,18 @@ function recurrenceRow(overrides: Partial<RecurrenceRow> = {}): RecurrenceRow {
   return {
     id: RECURRENCE_ID,
     user_id: '44444444-4444-4444-8444-444444444444',
+    recurring_task_id: null,
+    habit_id: null,
     freq: 'weekly',
     interval: 1,
-    by_weekday: ['mon', 'wed', 'fri'],
+    by_weekday: [1, 3, 5],
     by_month_day: null,
     by_month: null,
     start_date: '2026-11-01',
     end_date: null,
     occurrence_limit: null,
+    created_at: new Date('2026-10-01T10:00:00Z'),
+    updated_at: new Date('2026-10-15T12:00:00Z'),
     ...overrides
   };
 }
@@ -71,7 +75,6 @@ function recurringTaskRow(overrides: Partial<RecurringTaskRow> = {}): RecurringT
     reminder_offset_minutes: 15,
     status: 'active',
     generated_through: null,
-    recurrence_id: RECURRENCE_ID,
     created_at: new Date('2026-10-01T10:00:00Z'),
     updated_at: new Date('2026-10-15T12:00:00Z'),
     deleted_at: null,
@@ -115,7 +118,7 @@ describe('Recurring tasks DTO serialization (AUD-18)', () => {
     expect(dto.id).toBe(RECURRENCE_ID);
     expect(dto.freq).toBe('weekly');
     expect(dto.interval).toBe(1);
-    expect(dto.byWeekday).toEqual(['mon', 'wed', 'fri']);
+    expect(dto.byWeekday).toEqual([1, 3, 5]);
     expect(dto.startDate).toBe('2026-11-01');
     expect(dto.endDate).toBeNull();
   });

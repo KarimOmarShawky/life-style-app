@@ -57,10 +57,7 @@ export interface AmountCheck {
   maxScale?: number;
 }
 
-export function checkAmountForCurrency(
-  amount: unknown,
-  currency: string
-): AmountCheck {
+export function checkAmountForCurrency(amount: unknown, currency: string): AmountCheck {
   if (typeof amount !== 'string') return { ok: false, reason: 'format' };
   const trimmed = amount.trim();
   if (!/^\d+(\.\d+)?$/.test(trimmed)) return { ok: false, reason: 'format' };

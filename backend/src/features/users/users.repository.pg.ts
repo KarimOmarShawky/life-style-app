@@ -246,10 +246,9 @@ export class PgUsersRepository implements UsersRepository {
         email: string;
         status: 'active' | 'disabled' | 'pending_deletion';
         deletion_scheduled_for: Date | null;
-      }>(
-        `SELECT id, email, status, deletion_scheduled_for FROM users WHERE id = $1 FOR UPDATE`,
-        [userId]
-      );
+      }>(`SELECT id, email, status, deletion_scheduled_for FROM users WHERE id = $1 FOR UPDATE`, [
+        userId
+      ]);
 
       const user = userRes.rows[0];
       if (!user) {
@@ -289,10 +288,10 @@ export class PgUsersRepository implements UsersRepository {
       // 2b. Reset metadata recorded before the account link existed (or for a
       // request made while the account was in flight) has no user_id, so it is
       // erased by the account's email address instead (V-06).
-      await client.query(
-        `DELETE FROM password_reset_requests WHERE user_id = $1 OR email = $2`,
-        [userId, user.email]
-      );
+      await client.query(`DELETE FROM password_reset_requests WHERE user_id = $1 OR email = $2`, [
+        userId,
+        user.email
+      ]);
 
       // 3. Delete the user row (audit_logs.actor_user_id is ON DELETE SET NULL).
       await client.query(`DELETE FROM users WHERE id = $1`, [userId]);

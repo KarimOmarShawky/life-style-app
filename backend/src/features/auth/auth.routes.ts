@@ -4,7 +4,7 @@
  * Implements Section 14.2 & Section 8.3: Auth Routes with Route-Specific Rate Limiters.
  */
 
-import { Router, type RequestHandler } from 'express';
+import { Router, type NextFunction, type RequestHandler } from 'express';
 import type { AuthController } from './auth.controller.js';
 import {
   type RateLimiter,
@@ -139,14 +139,14 @@ export function createAuthRouter(options: {
       next(err);
       return;
     }
-    const limiterCallback = (err?: Error) => {
+    const limiterCallback: NextFunction = (err) => {
       if (err) {
         next(err);
         return;
       }
       controller.changePassword(req, res, next);
     };
-    changePasswordLimiter(req, res, limiterCallback as any);
+    changePasswordLimiter(req, res, limiterCallback);
   };
 
   // Route declarations

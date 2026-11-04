@@ -290,20 +290,24 @@ describe('Money Integration Tests', () => {
           occurredOn: '2026-09-20',
           description: 'Lunch'
         });
+      expect(createRes.status, JSON.stringify(createRes.body)).toBe(201);
       const txId = createRes.body.data.transaction.id;
+      expect(txId).toMatch(/^[0-9a-f-]{36}$/i);
 
       // 2. Update transaction
-      await request(app)
+      const updateRes = await request(app)
         .patch(`/api/v1/money/transactions/${txId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .send({
           description: 'Team Lunch'
         });
+      expect(updateRes.status, JSON.stringify(updateRes.body)).toBe(200);
 
       // 3. Delete transaction
-      await request(app)
+      const deleteRes = await request(app)
         .delete(`/api/v1/money/transactions/${txId}`)
         .set('Authorization', `Bearer ${tokens.accessToken}`);
+      expect(deleteRes.status).toBe(204);
 
       // Verify audit logs in database
       const auditRows = await pool.query(

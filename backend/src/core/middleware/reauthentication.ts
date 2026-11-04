@@ -11,11 +11,11 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import type {
-  RateLimiter,
-  RateLimitDegradedPolicy
+import {
+  createRateLimitMiddleware,
+  type RateLimiter,
+  type RateLimitDegradedPolicy
 } from './rate-limiter.js';
-import { createRateLimitMiddleware } from './rate-limiter.js';
 
 export const REAUTHENTICATION_LIMIT = 5;
 export const REAUTHENTICATION_WINDOW_SECONDS = 900;

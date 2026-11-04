@@ -19,8 +19,14 @@ import {
   listTransactionsQuerySchema,
   paySubscriptionSchema
 } from '../../src/features/money/money.validation.js';
-import { createTaskSchema, listTasksQuerySchema } from '../../src/features/tasks/tasks.validation.js';
-import { createGoalSchema, createMilestoneSchema } from '../../src/features/goals/goals.validation.js';
+import {
+  createTaskSchema,
+  listTasksQuerySchema
+} from '../../src/features/tasks/tasks.validation.js';
+import {
+  createGoalSchema,
+  createMilestoneSchema
+} from '../../src/features/goals/goals.validation.js';
 import {
   createHabitSchema,
   getCheckinsQuerySchema

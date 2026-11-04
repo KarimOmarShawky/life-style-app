@@ -41,9 +41,7 @@ export function isValidCalendarDate(value: unknown): value is string {
 
   // Round-trip: a rolled-over day (e.g. 2026-02-30 -> 2026-03-02) does not match.
   return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
   );
 }
 

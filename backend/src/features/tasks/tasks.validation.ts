@@ -7,7 +7,6 @@
 import { z } from 'zod';
 import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 
-
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const taskStatusSchema = z.enum(['todo', 'in_progress', 'done', 'cancelled']);

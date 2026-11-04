@@ -102,7 +102,12 @@ export interface ResetRequestStore {
    */
   markSent(claim: ResetRequestClaim, now: Date): Promise<boolean>;
   /** Returns the row to `failed` with a bounded backoff for a later attempt. */
-  markRetry(claim: ResetRequestClaim, now: Date, nextAttemptAt: Date, errorCode: string): Promise<boolean>;
+  markRetry(
+    claim: ResetRequestClaim,
+    now: Date,
+    nextAttemptAt: Date,
+    errorCode: string
+  ): Promise<boolean>;
   /** Terminal failure after the attempt budget is exhausted. */
   markDeadLetter(claim: ResetRequestClaim, now: Date, errorCode: string): Promise<boolean>;
   /**

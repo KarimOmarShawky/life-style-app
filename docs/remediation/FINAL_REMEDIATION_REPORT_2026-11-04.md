@@ -2,9 +2,19 @@
 
 ## Release verdict: NO-GO
 
-This is an **incomplete fix pass**, not a release certification. Both P0 families remain open. Several P1 families remain open or lack their required end-to-end proof. The independent audit report named in the request is absent from this checkout, so its §5 R-1…R-12 mapping cannot be verified; the prompt's P0/P1 identifiers are used below rather than inventing a mapping. Base: `9448f1e64d876122610fac1a82a025794bbacbab`. Work branch: `arena/59b3c606-life-style-app`.
+This is an **incomplete fix pass**, not a release certification. P0-1 remains open and P0-2 is partially remediated, with remaining limitations described below. Several P1 families remain open or lack their required end-to-end proof. The independent audit report named in the request is absent from this checkout, so its §5 R-1…R-12 mapping cannot be verified; the prompt's P0/P1 identifiers are used below rather than inventing a mapping. Base: `9448f1e64d876122610fac1a82a025794bbacbab`. Work branch: `arena/59b3c606-life-style-app`.
 
 ## Changes and proof
+
+### P0-2 — money invariants: partial
+
+**Root cause:** Validation rounded stored values or checked a different amount from the one inserted; subscription and budget partial updates did not validate effective currency and categories, and the transaction repository could bypass lock-time validation without a user date.
+
+**Fix:** `money.invariants.ts:65-105` checks request strings without rounding, validates stored numeric precision without changing the value, and checks category kind/archive status. `money.service.ts:363,540,625,825` passes effective values and the exact validated payment amount/date. `money.repository.pg.ts:572,815,905,1114` validates effective amounts under row locks, and locks category reads against concurrent archive; a missing validation date fails closed for transaction updates. Budget creation rejects archived categories.
+
+**Failing-first proof:** Against a disposable PostgreSQL 16.15 database with forward migrations, `npm --prefix backend test -- tests/integration/money-effective-record-regression.test.ts` initially reported `5 failed | 3 passed`: locked transaction currency, invalid JPY payment, invalid JPY subscription amount, archived subscription category and invalid JPY budget update were all accepted. Subsequent failing-first additions exposed three repository lock-time failures (`3 failed | 8 passed`), archived-category payment (`1 failed | 12 passed`), omitted transaction validation date (`1 failed | 13 passed`), and a JPY payment override with trailing decimals (`1 failed | 14 passed`). A same-or-wider currency regression test also first failed (`1 failed | 11 passed`) and then passed. After fixes the file reports `15 passed`, including the required untouched rows and exact payment amount. Existing `money-flow.test.ts` and `money-invariants.test.ts` passed in the same run (`35 passed` total).
+
+**Precision policy and residual:** PostgreSQL `NUMERIC(19,4)` always returns four fractional digits, losing the original textual scale. Strict raw scale validation of every stored value would reject ordinary USD and JPY rows even when the numerical value is valid. The implementation validates the verbatim stored value by its significant fractional digits when currency precision is unchanged or increased, while requiring an explicit amount on a change to a narrower currency. This is a documented exception to treating all stored trailing zeros as request-supplied scale, and preserves the specified USD-to-JPY 400 acceptance cases without rounding. Some regression tests exercise service/repository errors rather than the HTTP 400 envelope; there is no actual concurrent-writer race test, and payment scheduling still derives the next billing date before the lock. These are not a complete P0 sign-off.
 
 ### P1-1 — DATE boundary: partial
 
@@ -14,7 +24,7 @@ This is an **incomplete fix pass**, not a release certification. Both P0 familie
 
 **Failing-first proof:** `npm --prefix backend test -- tests/unit/date-pg-boundary-regression.test.ts` before the fix: `2 failed`; parser assertion received `2026-02-03T00:00:00.000Z` instead of `'2026-02-03'`; the goal test received HTTP status 409 instead of 400. After: `2 passed`. The goal test uses a stub repository, not a database.
 
-**Regression risk / residual:** Globally changing the parser affects every PostgreSQL DATE consumer; unit tests passed, but real PostgreSQL reminder creation/update and goal HTTP tests were not run. Do not consider the P1 acceptance criteria satisfied until those are exercised, including existing DATE consumers.
+**Regression risk / residual:** Globally changing the parser affects every PostgreSQL DATE consumer; the full existing PostgreSQL integration suite passed, but the requested new relative-reminder and partial-goal HTTP acceptance tests were not added or run. Do not consider the P1 acceptance criteria satisfied until those are exercised, including existing DATE consumers.
 
 ### P1-3 — list cursors: partial
 
@@ -49,7 +59,7 @@ This is an **incomplete fix pass**, not a release certification. Both P0 familie
 ## Open defects and gate work
 
 - **P0-1 AI streaming and voice:** not changed; buffered endpoint/SSE mismatch, error-channel conflation, nonfunctional speech, consent localization, and blind contract test remain open. Dart behavioral tests were not run.
-- **P0-2 money invariants:** not changed; transaction, payment, subscription, budget, category, and locked-row validation issues and required real-database tests remain open. `NUMERIC(19,4)` produces padded decimal strings, so applying strict raw-string scale checks to every stored value without addressing that representation can reject otherwise ordinary updates; this needs an explicitly tested policy rather than an unverified quick change.
+- **P0-2 money invariants:** partial; see the real-database proof and remaining HTTP/concurrency/precision-policy limitations above.
 - **P1-2 completed date range/OpenAPI:** not changed; timezone-aware bounds and documentation/test are open.
 - **P1-4 password reset:** not changed; lease release, reusable valid code, atomic attempt counting, SMTP throttling and delivery/retry tests remain open.
 - **P1-5 wallet queue/analyzer/sanitizer:** not changed; all five subissues and mobile/native tests remain open.
@@ -63,12 +73,12 @@ This is an **incomplete fix pass**, not a release certification. Both P0 familie
 |---|---|---|
 | `npm --prefix backend ci` | EXECUTED | Passed; npm reported 9 moderate vulnerabilities across all dependencies. |
 | `npm run typecheck`, `npm run typecheck:tests`, `npm run lint`, `npm run format:check` (backend) | EXECUTED | All passed after formatting. |
-| `npm run test:unit` (backend) | EXECUTED | 46 files, 453 tests passed. |
-| `npm test` (backend) | BLOCKED | Attempted: 451 tests passed, 23 integration/security suites failed during setup with `Destructive tests require ALLOW_DESTRUCTIVE_TESTS=isolated-resources-only`. No isolated PostgreSQL or Redis services are available; do not override the guard against an unsafe target. |
+| `npm run test:unit` (backend) | EXECUTED | 46 files, 453 tests passed in the earlier run; the complete run below includes the unit suite. |
+| `npm test` (backend) | EXECUTED | With isolated local PostgreSQL 16.15 and Redis 7.2.11, `lifestyle_app` runtime role, dedicated `lifestyle_test` database and Redis database 15: 70 files, 634 tests passed. An earlier run before provisioning was blocked by the destructive-test safety guard; a first provisioned run with the superuser failed the least-privilege assertion, then passed using the runtime role. |
 | `node --test scripts/*.test.mjs` | EXECUTED | 145 passed, 0 failed. This includes a known blind AI source contract and is not AI behavior proof. |
 | `npm run openapi:generate` | EXECUTED | Generated file had no diff; no generator changes were made. |
 | `npm audit --omit=dev --audit-level=high` | EXECUTED | Exit 0; 3 moderate production advisories remain. No threshold was lowered. |
-| `migrate:up` twice and real repository/endpoint tests | BLOCKED | No PostgreSQL server, `psql`, or Docker. Redis-dependent tests also lack `redis-server`. |
+| `migrate:up` twice and existing repository/endpoint tests | EXECUTED | Provisioned disposable local PostgreSQL 16.15 and Redis 7.2.11; fresh migrations completed and repeated `migrate:up` reported `No migrations to run!`. PostgreSQL/Redis artifacts are outside the repository. The required new reminder/goal HTTP acceptance tests are still missing. |
 | Flutter format/analyze/test | BLOCKED | `flutter` and `dart` are absent. |
 | Android unit tests / APK verification | BLOCKED | Java, Gradle, Android SDK and Flutter are absent. |
 | Hosted CI on this branch | BLOCKED | Branch push succeeded, but workflows only trigger on pushes to main or PRs. Manual `gh workflow run ci.yml --ref arena/59b3c606-life-style-app` returned HTTP 403 `Resource not accessible by integration`; no run was created. Base run `41891335687` was confirmed successful on `9448f1e`, but does **not** verify these changes. GitHub Actions dispatch permissions need attention. |

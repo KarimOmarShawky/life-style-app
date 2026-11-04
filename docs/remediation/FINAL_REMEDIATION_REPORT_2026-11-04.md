@@ -81,7 +81,7 @@ This is an **incomplete fix pass**, not a release certification. P0-1 remains op
 | `migrate:up` twice and existing repository/endpoint tests | EXECUTED | Provisioned disposable local PostgreSQL 16.15 and Redis 7.2.11; fresh migrations completed and repeated `migrate:up` reported `No migrations to run!`. PostgreSQL/Redis artifacts are outside the repository. The required new reminder/goal HTTP acceptance tests are still missing. |
 | Flutter format/analyze/test | BLOCKED | `flutter` and `dart` are absent. |
 | Android unit tests / APK verification | BLOCKED | Java, Gradle, Android SDK and Flutter are absent. |
-| Hosted CI on this branch | BLOCKED | Branch push succeeded, but workflows only trigger on pushes to main or PRs. Manual `gh workflow run ci.yml --ref arena/59b3c606-life-style-app` returned HTTP 403 `Resource not accessible by integration`; no run was created. Base run `41891335687` was confirmed successful on `9448f1e`, but does **not** verify these changes. GitHub Actions dispatch permissions need attention. |
+| Hosted CI on this branch | EXECUTED | User-triggered run [41920536221](https://github.com/KarimOmarShawky/life-style-app/actions/runs/41920536221) succeeded on `arena/59b3c606-life-style-app` at commit `6de3db6`. Backend gate, Flutter formatting/analyze/test, Kotlin JVM tests, debug APK build and signature verification passed. The signed-release build was skipped by workflow condition. This run predates this documentation-only update and is not evidence that the open AI defect was fixed. Direct `gh workflow run` from this session had returned HTTP 403. |
 
 ## Corrections / qualifications
 

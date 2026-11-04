@@ -110,10 +110,5 @@ jobs:
           cache: true
       - name: Resolve Flutter dependencies
         run: flutter pub get
-      - name: Prepare and report formatting for diagnostic run
-        run: |
-          dart format lib test
-          git diff --binary > "$RUNNER_TEMP/ai-format.patch"
-          python3 -c 'import base64,os,zlib; p=open(os.environ["RUNNER_TEMP"]+"/ai-format.patch","rb").read(); s=base64.b64encode(zlib.compress(p)).decode(); [print("::notice title=AI format patch %03d::"%(i//3500)+s[i:i+3500]) for i in range(0,len(s),3500)]'
       - name: Exercise mocked HTTP streaming round-trips
         run: flutter test test/ai_stream_test.dart

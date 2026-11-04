@@ -11,7 +11,8 @@ class _FakeClient extends http.BaseClient {
   final Future<http.StreamedResponse> Function(http.BaseRequest request) handle;
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) => handle(request);
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      handle(request);
 }
 
 class _StreamResult {
@@ -21,8 +22,7 @@ class _StreamResult {
   final Object? error;
 }
 
-String _event(String text) =>
-    'data: ${jsonEncode({
+String _event(String text) => 'data: ${jsonEncode({
           'candidates': [
             {
               'content': {
@@ -95,14 +95,12 @@ void main() {
       );
     });
 
-    final subscription = service
-        .streamMessage(
-          conversationHistory: const [],
-          newMessage: 'Hello',
-          languageName: 'English',
-          httpClient: client,
-        )
-        .listen((chunk) {
+    final subscription = service.streamMessage(
+      conversationHistory: const [],
+      newMessage: 'Hello',
+      languageName: 'English',
+      httpClient: client,
+    ).listen((chunk) {
       chunks.add(chunk);
       if (!firstChunk.isCompleted) firstChunk.complete();
     }, onError: (Object error) {
@@ -112,7 +110,8 @@ void main() {
     });
 
     try {
-      final request = await requested.future.timeout(const Duration(seconds: 3));
+      final request =
+          await requested.future.timeout(const Duration(seconds: 3));
       expect(request.method, 'POST');
       expect(request.url.path, endsWith(':streamGenerateContent'));
       expect(request.url.queryParameters['alt'], 'sse');

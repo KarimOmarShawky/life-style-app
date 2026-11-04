@@ -140,37 +140,37 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
     _streamSub = AiService.instance
         .streamMessage(
-      conversationHistory: history,
-      newMessage: text,
-      languageName: l10n.promptLanguageName,
-    )
+          conversationHistory: history,
+          newMessage: text,
+          languageName: l10n.promptLanguageName,
+        )
         .listen(
-      (chunk) {
-        if (!mounted || generation != _streamGeneration) return;
-        buffer.write(chunk);
-        if (placeholderIndex < _messages.length) {
-          setState(() {
-            _messages[placeholderIndex] = ChatMessage(
-              role: 'model',
-              text: buffer.toString(),
-              timestamp: placeholder.timestamp,
-            );
-          });
-          _scrollToBottom();
-        }
-      },
-      onError: (Object _) => showFailure(),
-      onDone: () {
-        if (!mounted || generation != _streamGeneration) return;
-        if (buffer.isEmpty) {
-          showFailure();
-          return;
-        }
-        setState(() => _isGenerating = false);
-        _scrollToBottom();
-      },
-      cancelOnError: true,
-    );
+          (chunk) {
+            if (!mounted || generation != _streamGeneration) return;
+            buffer.write(chunk);
+            if (placeholderIndex < _messages.length) {
+              setState(() {
+                _messages[placeholderIndex] = ChatMessage(
+                  role: 'model',
+                  text: buffer.toString(),
+                  timestamp: placeholder.timestamp,
+                );
+              });
+              _scrollToBottom();
+            }
+          },
+          onError: (Object _) => showFailure(),
+          onDone: () {
+            if (!mounted || generation != _streamGeneration) return;
+            if (buffer.isEmpty) {
+              showFailure();
+              return;
+            }
+            setState(() => _isGenerating = false);
+            _scrollToBottom();
+          },
+          cancelOnError: true,
+        );
   }
 
   Future<void> _toggleVoiceInput() async {
@@ -331,7 +331,6 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                               ),
                             ),
                           ),
-
                         ],
                       ),
                     ),

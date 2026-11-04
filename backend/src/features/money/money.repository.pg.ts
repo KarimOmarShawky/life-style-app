@@ -550,7 +550,7 @@ export class PgMoneyRepository implements MoneyRepository {
     if (hasMore && items.length > 0) {
       const last = items[items.length - 1]!;
       const sortVal =
-        filter.sort === 'amount' ? String(last.amount) : formatDateOnly(last.occurred_on) ?? '';
+        filter.sort === 'amount' ? String(last.amount) : (formatDateOnly(last.occurred_on) ?? '');
       nextCursor = Buffer.from(`${sortVal}|${last.id}`, 'utf8').toString('base64url');
     }
 

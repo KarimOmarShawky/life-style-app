@@ -111,7 +111,11 @@ describe('Bounded domain archive (SQL harness, not PostgreSQL execution)', () =>
     for (const table of archiveExcluded) {
       expect(USER_OWNED_TABLES_IN_DELETE_ORDER).toContain(table);
       const documented = ACCOUNT_ARCHIVE_EXCLUSIONS.join(' ').toLowerCase();
-      expect(documented).toContain(table.replace(/_/g, ' ').replace('password reset requests', 'password-reset request records'));
+      expect(documented).toContain(
+        table
+          .replace(/_/g, ' ')
+          .replace('password reset requests', 'password-reset request records')
+      );
     }
     const migrations = readdirSync('src/infrastructure/database/postgres/migrations')
       .map((name) =>

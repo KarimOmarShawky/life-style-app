@@ -155,15 +155,15 @@ describe('Money effective-state invariants (V-08)', () => {
   it('rejects impossible dates, future dates, bad scale, and mismatched categories', () => {
     const base = { kind: 'expense' as const, amount: '10.00', currency: 'USD', occurredOn: TODAY };
     expect(() => assertTransactionInvariants(base, TODAY)).not.toThrow();
-    expect(() =>
-      assertTransactionInvariants({ ...base, occurredOn: '2026-02-30' }, TODAY)
-    ).toThrow(AppError);
-    expect(() =>
-      assertTransactionInvariants({ ...base, occurredOn: '2999-01-01' }, TODAY)
-    ).toThrow(AppError);
-    expect(() =>
-      assertTransactionInvariants({ ...base, amount: '10.005' }, TODAY)
-    ).toThrow(AppError);
+    expect(() => assertTransactionInvariants({ ...base, occurredOn: '2026-02-30' }, TODAY)).toThrow(
+      AppError
+    );
+    expect(() => assertTransactionInvariants({ ...base, occurredOn: '2999-01-01' }, TODAY)).toThrow(
+      AppError
+    );
+    expect(() => assertTransactionInvariants({ ...base, amount: '10.005' }, TODAY)).toThrow(
+      AppError
+    );
     expect(() =>
       assertTransactionInvariants({ ...base, category: category({ kind: 'income' }) }, TODAY)
     ).toThrow(AppError);
@@ -248,9 +248,7 @@ describe('Money effective-state invariants (V-08)', () => {
     const { repository, service } = serviceWith({});
     await service.updateTransaction(USER, TX, { description: 'x' }, context, 'UTC');
     expect(repository.updateTransaction).toHaveBeenCalledTimes(1);
-    const args = repository.updateTransaction.mock.calls[0] as unknown as
-      | unknown[]
-      | undefined;
+    const args = repository.updateTransaction.mock.calls[0] as unknown as unknown[] | undefined;
     // args: userId, transactionId, input, auditData, expectedVersion, userToday
     expect(args?.[5]).toBe(getUserTodayDate('UTC'));
   });

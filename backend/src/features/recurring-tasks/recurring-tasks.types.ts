@@ -19,8 +19,8 @@ export interface RecurrenceRow {
   by_weekday: number[] | null;
   by_month_day: number | null;
   by_month: number | null;
-  start_date: string;
-  end_date: string | null;
+  start_date: Date | string;
+  end_date: Date | string | null;
   occurrence_limit: number | null;
   created_at: Date;
   updated_at: Date;

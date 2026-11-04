@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Kysely, PostgresDialect, sql } from 'kysely';
+import { Kysely, PostgresDialect } from 'kysely';
 import type { DatabaseSchema } from '../../src/infrastructure/database/postgres/kysely.js';
 import {
   TASK_CURSOR_VERSION,
@@ -33,15 +33,16 @@ function compileHarness() {
   };
   const db = new Kysely<DatabaseSchema>({
     dialect: new PostgresDialect({
-      pool: { connect: async () => ({ query, release: () => undefined }), end: async () => undefined } as never
+      pool: {
+        connect: async () => ({ query, release: () => undefined }),
+        end: async () => undefined
+      } as never
     })
   });
   return { db, executed };
 }
 
-async function compiledTaskList(
-  filter: Parameters<PgTasksRepository['list']>[1]
-): Promise<string> {
+async function compiledTaskList(filter: Parameters<PgTasksRepository['list']>[1]): Promise<string> {
   const { db, executed } = compileHarness();
   const repository = new PgTasksRepository(db);
   await repository.list('22222222-2222-4222-8222-222222222222', filter, '2026-10-29');
@@ -88,20 +89,34 @@ describe('Sort-aware task keyset pagination (V-07)', () => {
     expectValidation(() => decodeTaskCursor(forDueDate, 'createdAt', 'asc'));
     expectValidation(() => decodeTaskCursor(forDueDate, 'dueDate', 'desc'));
 
-    const legacy = Buffer.from(JSON.stringify({ id: ID, createdAt: new Date().toISOString() })).toString('base64');
+    const legacy = Buffer.from(
+      JSON.stringify({ id: ID, createdAt: new Date().toISOString() })
+    ).toString('base64');
     expectValidation(() => decodeTaskCursor(legacy, 'createdAt', 'asc'));
 
     expectValidation(() => decodeTaskCursor('!!!not-base64-json!!!', 'priority', 'asc'));
     expectValidation(() =>
       decodeTaskCursor(
-        encodeTaskCursor({ v: TASK_CURSOR_VERSION, sort: 'priority', order: 'asc', value: 1, id: 'not-a-uuid' }),
+        encodeTaskCursor({
+          v: TASK_CURSOR_VERSION,
+          sort: 'priority',
+          order: 'asc',
+          value: 1,
+          id: 'not-a-uuid'
+        }),
         'priority',
         'asc'
       )
     );
     expectValidation(() =>
       decodeTaskCursor(
-        encodeTaskCursor({ v: TASK_CURSOR_VERSION, sort: 'dueDate', order: 'asc', value: null, id: ID }),
+        encodeTaskCursor({
+          v: TASK_CURSOR_VERSION,
+          sort: 'dueDate',
+          order: 'asc',
+          value: null,
+          id: ID
+        }),
         'createdAt',
         'asc'
       )
@@ -145,7 +160,12 @@ describe('Sort-aware task keyset pagination (V-07)', () => {
   });
 
   it.each<[TaskSortField, string, 'asc' | 'desc', RegExp]>([
-    ['dueDate', '2026-10-05', 'asc', /"tasks"\."due_date" IS NULL\s+OR "tasks"\."due_date" > \$\d+::date/],
+    [
+      'dueDate',
+      '2026-10-05',
+      'asc',
+      /"tasks"\."due_date" IS NULL\s+OR "tasks"\."due_date" > \$\d+::date/
+    ],
     ['dueDate', '2026-10-05', 'desc', /"tasks"\."due_date" < \$\d+::date/],
     ['priority', '2', 'asc', /"tasks"\."priority" IS NULL\s+OR "tasks"\."priority" > \$\d+::int/],
     ['updatedAt', '2026-10-05T00:00:00.000Z', 'desc', /"tasks"\."updated_at" < \$\d+::timestamptz/],
@@ -223,9 +243,11 @@ describe('Sort-aware task keyset pagination (V-07)', () => {
       value: 1,
       id: ID
     });
-    await expect(compiledTaskList({ sort: 'dueDate', order: 'asc', cursor })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR'
-    });
+    await expect(compiledTaskList({ sort: 'dueDate', order: 'asc', cursor })).rejects.toMatchObject(
+      {
+        code: 'VALIDATION_ERROR'
+      }
+    );
   });
 
   it('keeps the sort value and field in the emitted next cursor', async () => {
@@ -243,8 +265,18 @@ describe('Sort-aware task keyset pagination (V-07)', () => {
                 rows:
                   call === 1
                     ? [
-                        { id: ID, created_at: new Date('2026-10-01T00:00:00Z'), due_date: '2026-10-02', priority: 1 },
-                        { id: '33333333-3333-4333-8333-333333333333', created_at: new Date('2026-10-02T00:00:00Z'), due_date: '2026-10-03', priority: 2 }
+                        {
+                          id: ID,
+                          created_at: new Date('2026-10-01T00:00:00Z'),
+                          due_date: '2026-10-02',
+                          priority: 1
+                        },
+                        {
+                          id: '33333333-3333-4333-8333-333333333333',
+                          created_at: new Date('2026-10-02T00:00:00Z'),
+                          due_date: '2026-10-03',
+                          priority: 2
+                        }
                       ]
                     : [],
                 rowCount: 0,
@@ -259,11 +291,15 @@ describe('Sort-aware task keyset pagination (V-07)', () => {
     });
 
     const repository = new PgTasksRepository(db);
-    const result = await repository.list('22222222-2222-4222-8222-222222222222', {
-      sort: 'dueDate',
-      order: 'asc',
-      limit: 1
-    });
+    const result = await repository.list(
+      '22222222-2222-4222-8222-222222222222',
+      {
+        sort: 'dueDate',
+        order: 'asc',
+        limit: 1
+      },
+      '2026-10-01'
+    );
 
     expect(result.nextCursor).not.toBeNull();
     const decoded = decodeTaskCursor(result.nextCursor!, 'dueDate', 'asc');

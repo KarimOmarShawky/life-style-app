@@ -28,9 +28,7 @@ export const recurrenceDefinitionSchema = z
       .nullable(),
     byMonth: z.number().int().min(1).max(12).optional().nullable(),
     startDate: calendarDaySchemaFor('startDate'),
-    endDate: calendarDaySchemaFor('endDate')
-      .optional()
-      .nullable(),
+    endDate: calendarDaySchemaFor('endDate').optional().nullable(),
     occurrenceLimit: z.number().int().min(1).optional().nullable()
   })
   .strict()

@@ -391,10 +391,11 @@ describe('Durable password-reset delivery (F-06)', () => {
 
     // Lease expires; the recovery pass releases the row and claimant B takes it.
     now = base + 60_000;
-    const second = new ResetRequestDispatcher(
-      async () => undefined,
-      { store, now: () => now, leaseMs: 1_000 }
-    );
+    const second = new ResetRequestDispatcher(async () => undefined, {
+      store,
+      now: () => now,
+      leaseMs: 1_000
+    });
     await second.recoverStale();
     await second.drainDue();
     await second.waitForIdle();
@@ -475,7 +476,10 @@ describe('Durable password-reset delivery (F-06)', () => {
 
   it('attaches the owning account in the background for erasure (V-06)', async () => {
     const store = new MemoryResetStore();
-    const queue = new ResetRequestDispatcher(vi.fn(async () => undefined), { store });
+    const queue = new ResetRequestDispatcher(
+      vi.fn(async () => undefined),
+      { store }
+    );
     await queue.admit({ email: 'owned@example.com' });
 
     const row = store.rows[0]!;
@@ -569,20 +573,12 @@ class FakeEmailSender {
 function makeProcessor(otp: FakeOtpStore, sender: FakeEmailSender) {
   const repo = {
     async findUserByEmail(email: string) {
-      return email === 'user@example.com'
-        ? { id: 'user-1', email, status: 'active' }
-        : null;
+      return email === 'user@example.com' ? { id: 'user-1', email, status: 'active' } : null;
     }
   };
   const auditLogger = { async log() {} };
   const ownerLink = { async attachOwner() {} };
-  return new PasswordResetProcessor(
-    repo as never,
-    otp,
-    sender,
-    auditLogger as never,
-    ownerLink
-  );
+  return new PasswordResetProcessor(repo as never, otp, sender, auditLogger as never, ownerLink);
 }
 
 describe('V-08 password-reset throttling is never a delivered code (AUD-01)', () => {
@@ -676,7 +672,11 @@ describe('V-08 password-reset throttling is never a delivered code (AUD-01)', ()
     const sender = new FakeEmailSender(0);
     const attachOwner = vi.fn(async () => {});
     const processor = new PasswordResetProcessor(
-      { async findUserByEmail() { return { id: 'user-1', email: 'user@example.com', status: 'active' }; } } as never,
+      {
+        async findUserByEmail() {
+          return { id: 'user-1', email: 'user@example.com', status: 'active' };
+        }
+      } as never,
       otp,
       sender,
       { async log() {} } as never,
@@ -690,7 +690,11 @@ describe('V-08 password-reset throttling is never a delivered code (AUD-01)', ()
     // Without an ownerLink (the AUD-09 defect), processing still succeeds.
     const otp2 = new FakeOtpStore();
     const noLink = new PasswordResetProcessor(
-      { async findUserByEmail() { return { id: 'user-1', email: 'user@example.com', status: 'active' }; } } as never,
+      {
+        async findUserByEmail() {
+          return { id: 'user-1', email: 'user@example.com', status: 'active' };
+        }
+      } as never,
       otp2,
       sender,
       { async log() {} } as never

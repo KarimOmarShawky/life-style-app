@@ -30,9 +30,7 @@ export const createProjectSchema = z
       .optional()
       .nullable(),
     goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
-    dueDate: calendarDaySchemaFor('dueDate')
-      .optional()
-      .nullable()
+    dueDate: calendarDaySchemaFor('dueDate').optional().nullable()
   })
   .strict();
 
@@ -58,9 +56,7 @@ export const updateProjectSchema = z
       .optional()
       .nullable(),
     goalId: z.guid({ message: 'goalId must be a valid UUID' }).optional().nullable(),
-    dueDate: calendarDaySchemaFor('dueDate')
-      .optional()
-      .nullable(),
+    dueDate: calendarDaySchemaFor('dueDate').optional().nullable(),
     version: z.number().int().min(1).optional()
   })
   .strict();

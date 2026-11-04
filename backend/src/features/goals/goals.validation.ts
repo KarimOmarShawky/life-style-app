@@ -9,7 +9,6 @@ import { calendarDaySchemaFor } from '../../core/validation/date-only.js';
 
 const decimalRegex = /^\d+(\.\d{1,4})?$/;
 
-
 export const createGoalSchema = z
   .object({
     title: z
@@ -42,12 +41,8 @@ export const createGoalSchema = z
       .nullable()
       .optional(),
     unit: z.string().trim().max(30, 'Unit cannot exceed 30 characters').nullable().optional(),
-    startDate: calendarDaySchemaFor('startDate')
-      .nullable()
-      .optional(),
-    targetDate: calendarDaySchemaFor('targetDate')
-      .nullable()
-      .optional()
+    startDate: calendarDaySchemaFor('startDate').nullable().optional(),
+    targetDate: calendarDaySchemaFor('targetDate').nullable().optional()
   })
   .refine(
     (data) => {
@@ -117,12 +112,8 @@ export const updateGoalSchema = z
       .nullable()
       .optional(),
     unit: z.string().trim().max(30, 'Unit cannot exceed 30 characters').nullable().optional(),
-    startDate: calendarDaySchemaFor('startDate')
-      .nullable()
-      .optional(),
-    targetDate: calendarDaySchemaFor('targetDate')
-      .nullable()
-      .optional(),
+    startDate: calendarDaySchemaFor('startDate').nullable().optional(),
+    targetDate: calendarDaySchemaFor('targetDate').nullable().optional(),
     version: z.number().int().positive().optional()
   })
   .refine(
@@ -157,9 +148,7 @@ export const createMilestoneSchema = z.object({
     .trim()
     .min(1, 'Title must be at least 1 character long')
     .max(200, 'Title cannot exceed 200 characters'),
-  dueDate: calendarDaySchemaFor('dueDate')
-    .nullable()
-    .optional(),
+  dueDate: calendarDaySchemaFor('dueDate').nullable().optional(),
   sortOrder: z.number().int().optional()
 });
 
@@ -170,9 +159,7 @@ export const updateMilestoneSchema = z.object({
     .min(1, 'Title must be at least 1 character long')
     .max(200, 'Title cannot exceed 200 characters')
     .optional(),
-  dueDate: calendarDaySchemaFor('dueDate')
-    .nullable()
-    .optional(),
+  dueDate: calendarDaySchemaFor('dueDate').nullable().optional(),
   completed: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   version: z.number().int().positive().optional()

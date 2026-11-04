@@ -58,8 +58,7 @@ export class HabitsService {
     checkins: Array<{ checkin_date: Date | string; status: 'done' | 'skipped' }>,
     userToday: string
   ): { currentStreak: number; longestStreak: number } {
-    const startDateStr =
-      formatDateOnly(habitRow.start_date)!
+    const startDateStr = formatDateOnly(habitRow.start_date)!;
 
     const scheduleRule = {
       freq: recurrenceRow.freq as 'daily' | 'weekly',
@@ -72,8 +71,7 @@ export class HabitsService {
 
     const checkinsMap = new Map<string, 'done' | 'skipped'>();
     for (const c of checkins) {
-      const dStr =
-        formatDateOnly(c.checkin_date)!
+      const dStr = formatDateOnly(c.checkin_date)!;
       checkinsMap.set(dStr, c.status);
     }
 
@@ -288,8 +286,7 @@ export class HabitsService {
       ]);
     }
 
-    const startDateStr =
-      formatDateOnly(habit.start_date)!
+    const startDateStr = formatDateOnly(habit.start_date)!;
 
     // Date before habit start_date rejected with 400
     if (date < startDateStr) {
@@ -380,16 +377,14 @@ export class HabitsService {
     const checkins = await this.habitsRepository.getAllCheckinsForHabits(userId, habitIds);
     const todayCheckinsMap = new Map<string, 'done' | 'skipped'>();
     for (const c of checkins) {
-      const dStr =
-        formatDateOnly(c.checkin_date)!
+      const dStr = formatDateOnly(c.checkin_date)!;
       if (dStr === userToday) {
         todayCheckinsMap.set(c.habit_id, c.status);
       }
     }
 
     const statuses: DailyHabitStatus[] = items.map(({ habit, recurrence }) => {
-      const startDateStr =
-        formatDateOnly(habit.start_date)!
+      const startDateStr = formatDateOnly(habit.start_date)!;
 
       const scheduleRule = {
         freq: recurrence.freq as 'daily' | 'weekly',

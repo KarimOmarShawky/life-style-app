@@ -9,7 +9,8 @@ import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  const notificationChannel = MethodChannel('dexterous.com/flutter/local_notifications');
+  const notificationChannel =
+      MethodChannel('dexterous.com/flutter/local_notifications');
   const subscription = Subscription(
     id: '6f1c2d3e-0000-4000-8000-000000000001',
     name: 'Sample',
@@ -17,6 +18,7 @@ void main() {
     currency: 'USD',
     billingUnit: 'month',
     billingInterval: 1,
+    anchorDate: '2099-01-31',
     nextBillingDate: '2099-01-31',
     status: 'active',
     monthlyEquivalent: '10.0000',

@@ -92,6 +92,8 @@ const Map<String, String> frCatalog = {
   'budgetWarning': 'Attention : approche du plafond du budget !',
   'budgetExceeded': 'Attention : budget dépassé !',
   'remindSubscription': 'Rappeler avant le renouvellement',
+  'subscriptionReminderUnavailable':
+      "Impossible d’activer les rappels. Vérifiez les autorisations de notification et d’alarme exacte, puis réessayez.",
   'subscriptionReminderSet': 'Rappel de renouvellement programmé !',
   'renewalSoon': 'Renouvellement proche !',
   'subscriptionsTitle': 'Abonnements et factures',

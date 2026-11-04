@@ -50,6 +50,42 @@ class MoneyRepository {
         .toList(growable: false);
   }
 
+  /// Fetch every active subscription before replacing a reminder snapshot.
+  /// A partial or malformed page fails closed and never becomes an empty snapshot.
+  Future<List<Subscription>> listAllActiveSubscriptions() async {
+    final all = <Subscription>[];
+    final seenCursors = <String>{};
+    String? cursor;
+    while (true) {
+      final response = await _api.get('money/subscriptions', query: {
+        'status': 'active',
+        'limit': '100',
+        if (cursor != null) 'cursor': cursor,
+      });
+      if (response is! Map<String, dynamic> ||
+          response['subscriptions'] is! List<dynamic> ||
+          response['meta'] is! Map<String, dynamic>) {
+        throw const FormatException('Invalid subscription page');
+      }
+      final items = response['subscriptions'] as List<dynamic>;
+      all.addAll(items.map(
+          (value) => Subscription.fromJson(value as Map<String, dynamic>)));
+      if (all.length > 200) {
+        throw const FormatException('Too many subscriptions');
+      }
+      final meta = response['meta'] as Map<String, dynamic>;
+      if (meta['hasMore'] == false) return all;
+      final next = meta['nextCursor'];
+      if (meta['hasMore'] != true ||
+          next is! String ||
+          next.isEmpty ||
+          !seenCursors.add(next)) {
+        throw const FormatException('Invalid subscription cursor');
+      }
+      cursor = next;
+    }
+  }
+
   Future<void> paySubscription(String id, String idempotencyKey) async {
     await _api.post(
       'money/subscriptions/$id/pay',

@@ -88,6 +88,8 @@ const Map<String, String> arCatalog = {
   'budgetWarning': 'تنبيه: اقتربت من الحد الأقصى للميزانية!',
   'budgetExceeded': 'تنبيه: لقد تجاوزت الميزانية المحددة!',
   'remindSubscription': 'تذكير قبل التجديد',
+  'subscriptionReminderUnavailable':
+      "تعذر تفعيل تذكيرات الاشتراكات. تحقق من أذونات الإشعارات والمنبهات الدقيقة ثم أعد المحاولة.",
   'subscriptionReminderSet': 'تم ضبط تذكير قبل التجديد بنجاح!',
   'renewalSoon': 'تجديد قريب!',
   'subscriptionsTitle': 'الاشتراكات والفواتير',

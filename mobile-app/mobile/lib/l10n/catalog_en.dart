@@ -124,6 +124,8 @@ const Map<String, String> enCatalog = {
   'budgetWarning': 'Warning: approaching budget limit!',
   'budgetExceeded': 'Warning: budget exceeded!',
   'remindSubscription': 'Remind before renewal',
+  'subscriptionReminderUnavailable':
+      "Could not enable subscription reminders. Check notification and exact alarm permissions, then retry.",
   'subscriptionReminderSet': 'Renewal reminder set!',
   'renewalSoon': 'Renewal soon!',
   'subscriptionsTitle': 'Subscriptions & Bills',

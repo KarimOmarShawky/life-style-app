@@ -127,5 +127,5 @@ jobs:
           cache: true
       - name: Resolve Flutter dependencies
         run: flutter pub get
-      - name: Check false success on notification failure
-        run: flutter test diagnostics/subscription_reminder_widget_test.dart
+      - name: Check subscription reminder behavior
+        run: flutter test test/subscription_reminder_widget_test.dart test/subscription_reminders_test.dart

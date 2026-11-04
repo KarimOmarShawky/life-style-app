@@ -92,6 +92,8 @@ const Map<String, String> deCatalog = {
   'budgetWarning': 'Warnung: Budgetlimit fast erreicht!',
   'budgetExceeded': 'Warnung: Budget überschritten!',
   'remindSubscription': 'Vor Verlängerung erinnern',
+  'subscriptionReminderUnavailable':
+      "Abo-Erinnerungen konnten nicht aktiviert werden. Prüfe die Berechtigungen für Benachrichtigungen und genaue Alarme und versuche es erneut.",
   'subscriptionReminderSet': 'Verlängerungserinnerung eingerichtet!',
   'renewalSoon': 'Baldige Verlängerung!',
   'subscriptionsTitle': 'Abonnements & Rechnungen',

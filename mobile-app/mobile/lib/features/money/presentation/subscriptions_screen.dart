@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifestyle_mobile/data/notification_service.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
@@ -21,6 +21,15 @@ class SubscriptionsScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(subscriptionsProvider);
+          try {
+            await syncSubscriptionReminders(ref);
+          } catch (_) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.subscriptionReminderUnavailable)),
+              );
+            }
+          }
         },
         child: subsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -231,20 +240,29 @@ class _SubscriptionTile extends ConsumerWidget {
             IconButton(
               tooltip: l10n.remindSubscription,
               icon: const Icon(Icons.alarm_on_outlined, size: 20),
-              onPressed: () async {
-                final notifId = subscription.id.hashCode;
-                await NotificationService.instance.showInstantNotification(
-                  id: notifId,
-                  title: subscription.name,
-                  body:
-                      '${l10n.remindSubscription}: ${subscription.amount} ${subscription.currency}',
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.subscriptionReminderSet)),
-                  );
-                }
-              },
+              onPressed: subscription.status != 'active'
+                  ? null
+                  : () async {
+                      try {
+                        await SubscriptionReminders.checkPermission();
+                        await syncSubscriptionReminders(ref,
+                            requiredSubscriptionId: subscription.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(l10n.subscriptionReminderSet)),
+                          );
+                        }
+                      } catch (_) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text(l10n.subscriptionReminderUnavailable)),
+                          );
+                        }
+                      }
+                    },
             ),
             IconButton(
               tooltip: l10n.deleteSubscription,
@@ -273,6 +291,22 @@ class _SubscriptionTile extends ConsumerWidget {
                       .read(moneyRepositoryProvider)
                       .deleteSubscription(subscription.id);
                   ref.invalidate(subscriptionsProvider);
+                  try {
+                    final account = ref.read(authProvider).asData?.value?.id;
+                    if (account != null) {
+                      await SubscriptionReminders.remove(
+                          account, subscription.id);
+                      if (context.mounted) await syncSubscriptionReminders(ref);
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text(l10n.subscriptionReminderUnavailable)),
+                      );
+                    }
+                  }
                 }
               },
             ),
@@ -284,6 +318,7 @@ class _SubscriptionTile extends ConsumerWidget {
 }
 
 Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
+  final parentContext = context;
   final l10n = AppLocalizations.of(context);
   final user = ref.read(authProvider).asData?.value;
   final defaultCurr = user?.defaultCurrency ?? 'EGP';
@@ -351,13 +386,22 @@ Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
                 );
 
             ref.invalidate(subscriptionsProvider);
-
+            var remindersAvailable = true;
+            try {
+              await syncSubscriptionReminders(ref);
+            } catch (_) {
+              remindersAvailable = false;
+            }
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
             }
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.transactionSaved)),
+            if (parentContext.mounted) {
+              ScaffoldMessenger.of(parentContext).showSnackBar(
+                SnackBar(
+                  content: Text(remindersAvailable
+                      ? l10n.transactionSaved
+                      : l10n.subscriptionReminderUnavailable),
+                ),
               );
             }
           } catch (e) {

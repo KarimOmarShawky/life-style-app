@@ -6,6 +6,7 @@ import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepository(
@@ -99,6 +100,11 @@ class AuthController extends AsyncNotifier<AppUser?> {
           'topTaskTitle': '',
         });
       } catch (_) {/* Native support is optional. */}
+      try {
+        await SubscriptionReminders.clear();
+      } catch (_) {
+        /* Sign-out must still clear credentials if native cleanup fails. */
+      }
       // Signing out revokes the session, so both the SMS receiver's ingest token
       // and any user-specific BYOK Gemini key are cleared from local storage.
       try {

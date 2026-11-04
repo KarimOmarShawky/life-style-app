@@ -88,6 +88,38 @@ class MainActivity : FlutterActivity() {
                         )
                     }
                 }
+                "replaceSubscriptionReminders" -> {
+                    try {
+                        SubscriptionReminderScheduler.replace(
+                            this,
+                            requireNotNull(call.argument<String>("account")),
+                            requireNotNull(call.argument<List<Any>>("schedules"))
+                        )
+                        result.success(null)
+                    } catch (_: Exception) {
+                        result.error("REMINDER_UNAVAILABLE", "Subscription reminders are unavailable", null)
+                    }
+                }
+                "removeSubscriptionReminder" -> {
+                    try {
+                        SubscriptionReminderScheduler.remove(
+                            this,
+                            requireNotNull(call.argument<String>("account")),
+                            requireNotNull(call.argument<String>("id"))
+                        )
+                        result.success(null)
+                    } catch (_: Exception) {
+                        result.error("REMINDER_UNAVAILABLE", "Subscription reminders are unavailable", null)
+                    }
+                }
+                "clearSubscriptionReminders" -> {
+                    try {
+                        SubscriptionReminderScheduler.clear(this)
+                        result.success(null)
+                    } catch (_: Exception) {
+                        result.error("REMINDER_UNAVAILABLE", "Subscription reminders are unavailable", null)
+                    }
+                }
                 "refreshPinnedNotification" -> {
                     showNativePinnedNotification(this)
                     result.success(true)

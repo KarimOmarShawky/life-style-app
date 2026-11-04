@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subscription_reminder_channel">Abonelik hatırlatıcıları</string>
+    <string name="subscription_reminder_title">Abonelik hatırlatıcısı</string>
+    <string name="subscription_reminder_body">Bir abonelik yakında yenilenebilir. Kontrol etmek için LifeStyle uygulamasını açın.</string>
+</resources>

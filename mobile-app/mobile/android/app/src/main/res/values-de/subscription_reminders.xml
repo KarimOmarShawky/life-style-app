@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subscription_reminder_channel">Abo-Erinnerungen</string>
+    <string name="subscription_reminder_title">Abo-Erinnerung</string>
+    <string name="subscription_reminder_body">Ein Abo könnte bald verlängert werden. Öffne LifeStyle zur Prüfung.</string>
+</resources>

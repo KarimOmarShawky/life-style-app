@@ -90,6 +90,8 @@ const Map<String, String> esCatalog = {
   'budgetWarning': 'Aviso: ¡te acercas al límite del presupuesto!',
   'budgetExceeded': 'Aviso: ¡presupuesto superado!',
   'remindSubscription': 'Avisar antes de la renovación',
+  'subscriptionReminderUnavailable':
+      "No se pudieron activar los recordatorios. Comprueba los permisos de notificaciones y alarmas exactas e inténtalo de nuevo.",
   'subscriptionReminderSet': '¡Recordatorio de renovación programado!',
   'renewalSoon': '¡Renovación próxima!',
   'subscriptionsTitle': 'Suscripciones y facturas',

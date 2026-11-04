@@ -31,6 +31,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     with WidgetsBindingObserver {
   late int _currentIndex;
   bool _flushingWalletQueue = false;
+  bool _syncingSubscriptionReminders = false;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
       _flushWalletQueue();
       _ensureWalletIngestToken();
       rescheduleCalendarReminders();
+      _syncRenewalReminders();
       ref.read(focusShieldProvider.notifier).refreshNative();
     });
   }
@@ -56,7 +58,26 @@ class _HomeShellState extends ConsumerState<HomeShell>
     if (state == AppLifecycleState.resumed) {
       _flushWalletQueue();
       _ensureWalletIngestToken();
+      _syncRenewalReminders();
       ref.read(focusShieldProvider.notifier).refreshNative();
+    }
+  }
+
+  Future<void> _syncRenewalReminders() async {
+    if (_syncingSubscriptionReminders) return;
+    _syncingSubscriptionReminders = true;
+    try {
+      await syncSubscriptionReminders(ref);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(AppLocalizations.of(context)
+                  .subscriptionReminderUnavailable)),
+        );
+      }
+    } finally {
+      _syncingSubscriptionReminders = false;
     }
   }
 

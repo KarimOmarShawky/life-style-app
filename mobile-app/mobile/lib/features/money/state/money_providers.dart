@@ -4,6 +4,7 @@ import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
 
 final moneyRepositoryProvider = Provider<MoneyRepository>(
   (ref) => MoneyRepository(ref.watch(apiClientProvider)),
@@ -36,4 +37,19 @@ class MoneyController {
   Future<WeeklySpending> weeklySpending(
           String from, String to, String currency) =>
       _repository.weeklySpending(from, to, currency);
+}
+
+/// Reconcile only after a complete authenticated fetch; stale account requests are ignored.
+Future<void> syncSubscriptionReminders(WidgetRef ref,
+    {String? requiredSubscriptionId}) async {
+  final account = ref.read(authProvider).asData?.value?.id;
+  if (account == null) {
+    throw StateError('Sign in to schedule reminders');
+  }
+  await SubscriptionReminders.sync(
+    account: account,
+    repository: ref.read(moneyRepositoryProvider),
+    currentAccount: () => ref.read(authProvider).asData?.value?.id,
+    requiredSubscriptionId: requiredSubscriptionId,
+  );
 }

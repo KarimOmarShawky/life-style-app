@@ -208,6 +208,8 @@ class AppLocalizations {
   String get budgetExceeded => _s('budgetExceeded');
   String get remindSubscription => _s('remindSubscription');
   String get subscriptionReminderSet => _s('subscriptionReminderSet');
+  String get subscriptionReminderUnavailable =>
+      _s('subscriptionReminderUnavailable');
   String get renewalSoon => _s('renewalSoon');
   String get subscriptionsTitle => _s('subscriptionsTitle');
   String get addSubscription => _s('addSubscription');

@@ -6,6 +6,7 @@
 
 import { Decimal } from 'decimal.js';
 import { AppError } from '../../core/errors/app-error.js';
+import { formatDateOnly } from '../../core/time/date-utils.js';
 import type { GoalsRepository } from './goals.repository.js';
 import type {
   MilestoneEntity,
@@ -101,9 +102,11 @@ export class GoalsService {
       throw AppError.notFound('Goal not found');
     }
 
-    const effectiveStartDate = input.startDate !== undefined ? input.startDate : existing.startDate;
+    const effectiveStartDate = formatDateOnly(
+      input.startDate !== undefined ? input.startDate : existing.startDate
+    );
     const effectiveTargetDate =
-      input.targetDate !== undefined ? input.targetDate : existing.targetDate;
+      formatDateOnly(input.targetDate !== undefined ? input.targetDate : existing.targetDate);
 
     if (effectiveStartDate && effectiveTargetDate) {
       if (effectiveStartDate > effectiveTargetDate) {

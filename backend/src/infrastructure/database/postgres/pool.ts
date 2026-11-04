@@ -11,6 +11,9 @@ import { logger } from '../../../core/logger/logger.js';
 
 const { Pool } = pg;
 
+// DATE is a civil day, not an instant. Keep it consistent with Kysely's string types.
+pg.types.setTypeParser(1082, (value) => value);
+
 let pool: pg.Pool | null = null;
 
 export function getPgPool(): pg.Pool {

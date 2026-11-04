@@ -171,6 +171,12 @@ export function globalErrorHandler(
         );
         return;
       }
+      case '22P02': {
+        res
+          .status(400)
+          .json(errorResponse({ code: 'VALIDATION_ERROR', message: 'Invalid input', requestId }));
+        return;
+      }
       // 22007: invalid date format, 22008: invalid datetime format
       case '22007':
       case '22008': {

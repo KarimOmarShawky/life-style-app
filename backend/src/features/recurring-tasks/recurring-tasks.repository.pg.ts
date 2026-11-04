@@ -1,3 +1,4 @@
+import { decodeCreatedAtCursor } from '../../core/http/created-at-cursor.js';
 /**
  * src/features/recurring-tasks/recurring-tasks.repository.pg.ts
  *
@@ -312,22 +313,14 @@ export class PgRecurringTasksRepository implements RecurringTasksRepository {
 
     query = query.orderBy('created_at', 'desc').orderBy('id', 'desc');
 
-    if (cursor) {
-      try {
-        const decoded = Buffer.from(cursor, 'base64').toString('utf8');
-        const { id: cId, createdAt } = JSON.parse(decoded);
-        if (cId && createdAt) {
-          const cursorDate = new Date(createdAt);
-          query = query.where((eb) =>
-            eb.or([
-              eb('created_at', '<', cursorDate),
-              eb.and([eb('created_at', '=', cursorDate), eb('id', '<', cId)])
-            ])
-          );
-        }
-      } catch {
-        // ignore invalid cursor
-      }
+    if (cursor !== undefined) {
+      const { id, createdAt } = decodeCreatedAtCursor(cursor);
+      query = query.where((eb) =>
+        eb.or([
+          eb('created_at', '<', createdAt),
+          eb.and([eb('created_at', '=', createdAt), eb('id', '<', id)])
+        ])
+      );
     }
 
     const rows = await query.limit(limit + 1).execute();

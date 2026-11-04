@@ -31,8 +31,10 @@ import type {
 } from './money.types.js';
 import { AppError } from '../../core/errors/app-error.js';
 import { isValidCalendarDate } from '../../core/validation/date-only.js';
+import { calculateNextBillingDate } from './money.cycle.js';
 import {
   assertTransactionInvariants,
+  assertSubscriptionPaymentInvariants,
   assertMoneyAmount,
   mayUseStoredPadding,
   assertMoneyCategory,
@@ -906,9 +908,9 @@ export class PgMoneyRepository implements MoneyRepository {
     userId: string,
     subscriptionId: string,
     input: PaySubscriptionInput,
-    newNextBillingDate: string,
+    userToday: string,
     auditEvents: { transactionAudit: AuditLogData; subscriptionAudit: AuditLogData },
-    amountIsStored?: boolean
+    expectedVersion: number
   ): Promise<{ transaction: TransactionEntity; subscription: SubscriptionEntity }> {
     return await this.db.transaction().execute(async (trx) => {
       // 1. Lock subscription row
@@ -928,12 +930,34 @@ export class PgMoneyRepository implements MoneyRepository {
         throw AppError.conflict('SUBSCRIPTION_NOT_ACTIVE', 'Subscription is not active');
       }
 
-      // Recheck the exact amount being inserted against the locked currency.
-      assertMoneyAmount(
-        input.amount ?? subRow.amount,
-        subRow.currency,
-        'amount',
-        amountIsStored === true || input.amount === undefined
+      // The service's preliminary read must still describe this locked row.
+      // This also stops two simultaneous payments for the same observed cycle
+      // from silently charging two different cycles.
+      if (!Number.isSafeInteger(expectedVersion) || expectedVersion !== subRow.version) {
+        throw AppError.conflict('VERSION_CONFLICT', 'Subscription was modified concurrently');
+      }
+      if (!isValidCalendarDate(userToday)) {
+        throw AppError.validation([
+          { field: 'occurredOn', message: 'Validation date is required' }
+        ]);
+      }
+      const billingDate = formatDateOnly(subRow.next_billing_date)!;
+      const txAmount = input.amount ?? subRow.amount;
+      const occurredOn = input.occurredOn ?? billingDate;
+      assertSubscriptionPaymentInvariants(
+        {
+          amount: txAmount,
+          amountIsStored: input.amount === undefined,
+          currency: subRow.currency,
+          occurredOn
+        },
+        userToday
+      );
+      const newNextBillingDate = calculateNextBillingDate(
+        formatDateOnly(subRow.anchor_date)!,
+        billingDate,
+        subRow.billing_unit,
+        subRow.billing_interval
       );
       if (subRow.category_id) {
         const category = await trx
@@ -949,8 +973,6 @@ export class PgMoneyRepository implements MoneyRepository {
           'expense'
         );
       }
-      const billingDate = formatDateOnly(subRow.next_billing_date)!;
-
       // 2. Check if already paid for this cycle
       const existingTx = (await trx
         .selectFrom('transactions')
@@ -967,10 +989,7 @@ export class PgMoneyRepository implements MoneyRepository {
         );
       }
 
-      // 3. Create linked expense transaction
-      const txAmount = input.amount ?? subRow.amount;
-      const occurredOn = input.occurredOn ?? billingDate;
-
+      // 3. Create linked expense transaction using the validated locked values.
       const txRow = (await trx
         .insertInto('transactions')
         .values({

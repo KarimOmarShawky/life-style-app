@@ -393,6 +393,299 @@ describe('Money Integration Tests', () => {
     });
   });
 
+  describe('P0 effective money records over HTTP', () => {
+    it('rejects partial currency and amount updates without changing their rows', async () => {
+      const { tokens } = await registerUser();
+      const auth = `Bearer ${tokens.accessToken}`;
+      const tx = await request(app)
+        .post('/api/v1/money/transactions')
+        .set('Authorization', auth)
+        .set('Idempotency-Key', uuidv4())
+        .send({ kind: 'expense', amount: '10.00', currency: 'USD', occurredOn: '2020-01-01' });
+      expect(tx.status).toBe(201);
+      const txId = tx.body.data.transaction.id;
+      const sub = await request(app)
+        .post('/api/v1/money/subscriptions')
+        .set('Authorization', auth)
+        .send({
+          name: 'Test',
+          amount: '10',
+          currency: 'JPY',
+          billingUnit: 'month',
+          anchorDate: '2020-01-01',
+          nextBillingDate: '2020-01-01'
+        });
+      expect(sub.status).toBe(201);
+      const subId = sub.body.data.subscription.id;
+      const budget = await request(app)
+        .post('/api/v1/money/budgets')
+        .set('Authorization', auth)
+        .send({ amountLimit: '100', currency: 'JPY' });
+      expect(budget.status).toBe(201);
+      const budgetId = budget.body.data.budget.id;
+      const snapshot = async (table: 'transactions' | 'subscriptions' | 'budgets', id: string) =>
+        (await pool.query(`SELECT row_to_json(t)::text AS row FROM ${table} t WHERE id = $1`, [id]))
+          .rows[0].row;
+      const before = await Promise.all([
+        snapshot('transactions', txId),
+        snapshot('subscriptions', subId),
+        snapshot('budgets', budgetId)
+      ]);
+      const responses = await Promise.all([
+        request(app)
+          .patch(`/api/v1/money/transactions/${txId}`)
+          .set('Authorization', auth)
+          .send({ currency: 'JPY' }),
+        request(app)
+          .patch(`/api/v1/money/subscriptions/${subId}`)
+          .set('Authorization', auth)
+          .send({ amount: '10.55' }),
+        request(app)
+          .patch(`/api/v1/money/budgets/${budgetId}`)
+          .set('Authorization', auth)
+          .send({ amountLimit: '10.55' })
+      ]);
+      for (const response of responses) {
+        expect(response.status, JSON.stringify(response.body)).toBe(400);
+        expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      }
+      expect(
+        await Promise.all([
+          snapshot('transactions', txId),
+          snapshot('subscriptions', subId),
+          snapshot('budgets', budgetId)
+        ])
+      ).toEqual(before);
+    });
+
+    it('rejects archived effective categories in transaction, subscription and budget updates', async () => {
+      const { tokens } = await registerUser();
+      const auth = `Bearer ${tokens.accessToken}`;
+      const cat = await request(app)
+        .post('/api/v1/money/categories')
+        .set('Authorization', auth)
+        .send({ kind: 'expense', name: 'Archived fixture' });
+      expect(cat.status).toBe(201);
+      const categoryId = cat.body.data.category.id;
+      const tx = await request(app)
+        .post('/api/v1/money/transactions')
+        .set('Authorization', auth)
+        .set('Idempotency-Key', uuidv4())
+        .send({
+          kind: 'expense',
+          amount: '10.00',
+          currency: 'USD',
+          occurredOn: '2020-01-01',
+          categoryId
+        });
+      const sub = await request(app)
+        .post('/api/v1/money/subscriptions')
+        .set('Authorization', auth)
+        .send({
+          name: 'Test',
+          amount: '10.00',
+          currency: 'USD',
+          billingUnit: 'month',
+          anchorDate: '2020-01-01',
+          nextBillingDate: '2020-01-01',
+          categoryId
+        });
+      const budget = await request(app)
+        .post('/api/v1/money/budgets')
+        .set('Authorization', auth)
+        .send({ amountLimit: '100.00', currency: 'USD', categoryId });
+      expect([tx.status, sub.status, budget.status]).toEqual([201, 201, 201]);
+      const ids = [
+        tx.body.data.transaction.id,
+        sub.body.data.subscription.id,
+        budget.body.data.budget.id
+      ];
+      const archived = await request(app)
+        .patch(`/api/v1/money/categories/${categoryId}`)
+        .set('Authorization', auth)
+        .send({ archived: true });
+      expect(archived.status).toBe(200);
+      const snapshot = async (table: 'transactions' | 'subscriptions' | 'budgets', id: string) =>
+        (await pool.query(`SELECT row_to_json(t)::text AS row FROM ${table} t WHERE id = $1`, [id]))
+          .rows[0].row;
+      const before = await Promise.all([
+        snapshot('transactions', ids[0]),
+        snapshot('subscriptions', ids[1]),
+        snapshot('budgets', ids[2])
+      ]);
+      const responses = await Promise.all([
+        request(app)
+          .patch(`/api/v1/money/transactions/${ids[0]}`)
+          .set('Authorization', auth)
+          .send({ description: 'Updated' }),
+        request(app)
+          .patch(`/api/v1/money/subscriptions/${ids[1]}`)
+          .set('Authorization', auth)
+          .send({ name: 'Updated' }),
+        request(app)
+          .patch(`/api/v1/money/budgets/${ids[2]}`)
+          .set('Authorization', auth)
+          .send({ amountLimit: '90.00' })
+      ]);
+      for (const response of responses) {
+        expect(response.status, JSON.stringify(response.body)).toBe(400);
+        expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      }
+      expect(
+        await Promise.all([
+          snapshot('transactions', ids[0]),
+          snapshot('subscriptions', ids[1]),
+          snapshot('budgets', ids[2])
+        ])
+      ).toEqual(before);
+    });
+
+    it('rejects invalid payments and inserts the exact validated KWD override', async () => {
+      const { tokens } = await registerUser();
+      const auth = `Bearer ${tokens.accessToken}`;
+      const makeSub = (currency: string, amount: string) =>
+        request(app)
+          .post('/api/v1/money/subscriptions')
+          .set('Authorization', auth)
+          .send({
+            name: `${currency} test`,
+            amount,
+            currency,
+            billingUnit: 'month',
+            anchorDate: '2020-01-01',
+            nextBillingDate: '2020-01-01'
+          });
+      const kwd = await makeSub('KWD', '1.234');
+      const jpy = await makeSub('JPY', '10');
+      expect([kwd.status, jpy.status]).toEqual([201, 201]);
+      const kwdId = kwd.body.data.subscription.id;
+      const jpyId = jpy.body.data.subscription.id;
+      await pool.query('UPDATE subscriptions SET amount = $1 WHERE id = $2', ['10.5000', jpyId]);
+      const before = (
+        await pool.query('SELECT row_to_json(t)::text AS row FROM subscriptions t WHERE id = $1', [
+          jpyId
+        ])
+      ).rows[0].row;
+      const jpyPay = await request(app)
+        .post(`/api/v1/money/subscriptions/${jpyId}/pay`)
+        .set('Authorization', auth)
+        .set('Idempotency-Key', uuidv4())
+        .send({});
+      expect(jpyPay.status, JSON.stringify(jpyPay.body)).toBe(400);
+      expect(jpyPay.body.error.code).toBe('VALIDATION_ERROR');
+      expect(
+        (
+          await pool.query(
+            'SELECT row_to_json(t)::text AS row FROM subscriptions t WHERE id = $1',
+            [jpyId]
+          )
+        ).rows[0].row
+      ).toBe(before);
+      const invalid = await request(app)
+        .post(`/api/v1/money/subscriptions/${kwdId}/pay`)
+        .set('Authorization', auth)
+        .set('Idempotency-Key', uuidv4())
+        .send({ amount: '1.2345' });
+      expect(invalid.status, JSON.stringify(invalid.body)).toBe(400);
+      expect(invalid.body.error.code).toBe('VALIDATION_ERROR');
+      expect(
+        (
+          await pool.query(
+            'SELECT count(*)::int AS n FROM transactions WHERE subscription_id IN ($1, $2)',
+            [jpyId, kwdId]
+          )
+        ).rows[0].n
+      ).toBe(0);
+      const valid = await request(app)
+        .post(`/api/v1/money/subscriptions/${kwdId}/pay`)
+        .set('Authorization', auth)
+        .set('Idempotency-Key', uuidv4())
+        .send({ amount: '1.234' });
+      expect(valid.status, JSON.stringify(valid.body)).toBe(201);
+      expect(valid.body.data.transaction.amount).toBe('1.234');
+      expect(
+        (
+          await pool.query(
+            'SELECT amount::text, currency FROM transactions WHERE subscription_id = $1',
+            [kwdId]
+          )
+        ).rows
+      ).toEqual([{ amount: '1.2340', currency: 'KWD' }]);
+    });
+
+    it('returns HTTP 409 and inserts nothing when a payment races a subscription update', async () => {
+      const { tokens } = await registerUser();
+      const auth = `Bearer ${tokens.accessToken}`;
+      const sub = await request(app)
+        .post('/api/v1/money/subscriptions')
+        .set('Authorization', auth)
+        .send({
+          name: 'Test',
+          amount: '10.00',
+          currency: 'USD',
+          billingUnit: 'month',
+          anchorDate: '2020-01-31',
+          nextBillingDate: '2020-01-31'
+        });
+      expect(sub.status).toBe(201);
+      const id = sub.body.data.subscription.id;
+      const client = await pool.connect();
+      let pending: Promise<unknown> | undefined;
+      try {
+        await client.query('BEGIN');
+        const pid = (await client.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')).rows[0]!
+          .pid;
+        await client.query(
+          `UPDATE subscriptions SET amount = '13.25', next_billing_date = '2020-02-15', version = version + 1 WHERE id = $1`,
+          [id]
+        );
+        const response = request(app)
+          .post(`/api/v1/money/subscriptions/${id}/pay`)
+          .set('Authorization', auth)
+          .set('Idempotency-Key', uuidv4())
+          .send({})
+          .then((value) => value);
+        pending = response.catch(() => undefined);
+        const deadline = Date.now() + 5_000;
+        let blocked = false;
+        while (Date.now() < deadline && !blocked) {
+          const result = await pool.query<{ blocked: boolean }>(
+            'SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))) AS blocked',
+            [pid]
+          );
+          blocked = result.rows[0]!.blocked;
+          if (!blocked) await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        expect(blocked).toBe(true);
+        await client.query('COMMIT');
+        const res = await response;
+        expect(res.status, JSON.stringify(res.body)).toBe(409);
+        expect(res.body.error.code).toBe('VERSION_CONFLICT');
+        const current = await pool.query(
+          'SELECT amount::text, next_billing_date, version FROM subscriptions WHERE id = $1',
+          [id]
+        );
+        expect(current.rows[0]).toEqual({
+          amount: '13.2500',
+          next_billing_date: '2020-02-15',
+          version: 2
+        });
+        expect(
+          (
+            await pool.query(
+              'SELECT count(*)::int AS n FROM transactions WHERE subscription_id = $1',
+              [id]
+            )
+          ).rows[0].n
+        ).toBe(0);
+      } finally {
+        await client.query('ROLLBACK');
+        await pending;
+        client.release();
+      }
+    });
+  });
+
   describe('AC-MON-06: Budget Usage & Constraints', () => {
     it('Calculates usage from current calendar month in user timezone and enforces one budget per target/currency', async () => {
       const { tokens } = await registerUser('budget_tz_user@example.com', 'UTC');

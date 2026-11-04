@@ -111,9 +111,9 @@ export interface MoneyRepository {
     userId: string,
     subscriptionId: string,
     input: PaySubscriptionInput,
-    newNextBillingDate: string,
+    userToday: string,
     auditEvents: { transactionAudit: AuditLogData; subscriptionAudit: AuditLogData },
-    amountIsStored?: boolean
+    expectedVersion: number
   ): Promise<{ transaction: TransactionEntity; subscription: SubscriptionEntity }>;
   countActiveSubscriptions(userId: string): Promise<number>;
 

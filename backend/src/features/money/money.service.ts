@@ -46,11 +46,7 @@ import {
   type BudgetDto,
   type ReportSummaryDto
 } from './money.dto.js';
-import {
-  calculateNextBillingDate,
-  calculateInitialNextBillingDate,
-  daysInMonth
-} from './money.cycle.js';
+import { calculateInitialNextBillingDate, daysInMonth } from './money.cycle.js';
 
 export const MAX_CATEGORIES_PER_USER = 200;
 export const MAX_TRANSACTIONS_PER_USER = 200000;
@@ -612,13 +608,6 @@ export class MoneyService {
       throw AppError.conflict('SUBSCRIPTION_NOT_ACTIVE', 'Subscription is not active');
     }
 
-    const newNextBillingDate = calculateNextBillingDate(
-      sub.anchorDate,
-      sub.nextBillingDate,
-      sub.billingUnit,
-      sub.billingInterval
-    );
-
     const userToday = getUserToday(userTimezone);
 
     // The payment path is an alternate create path and must enforce the same
@@ -630,18 +619,14 @@ export class MoneyService {
         currency: sub.currency,
         occurredOn: input.occurredOn ?? normalizeStoredDate(sub.nextBillingDate)
       },
-      getUserTodayDate(userTimezone)
+      userToday
     );
 
     const result = await this.moneyRepository.paySubscription(
       userId,
       subscriptionId,
-      {
-        ...input,
-        amount: input.amount ?? sub.amount,
-        occurredOn: input.occurredOn ?? normalizeStoredDate(sub.nextBillingDate)
-      },
-      newNextBillingDate,
+      input,
+      userToday,
       {
         transactionAudit: {
           actorType: 'user',
@@ -664,7 +649,7 @@ export class MoneyService {
           userAgent: context.userAgent
         }
       },
-      input.amount === undefined
+      sub.version
     );
 
     return {

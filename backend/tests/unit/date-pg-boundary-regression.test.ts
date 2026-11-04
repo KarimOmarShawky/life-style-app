@@ -12,7 +12,9 @@ describe('PostgreSQL DATE boundary', () => {
 
   it('rejects an earlier partial target date even for a legacy Date row', async () => {
     const repository = {
-      findGoalById: vi.fn().mockResolvedValue({ startDate: new Date(2026, 9, 10), targetDate: null }),
+      findGoalById: vi
+        .fn()
+        .mockResolvedValue({ startDate: new Date(2026, 9, 10), targetDate: null }),
       updateGoal: vi.fn()
     };
     const service = new GoalsService(repository as never);

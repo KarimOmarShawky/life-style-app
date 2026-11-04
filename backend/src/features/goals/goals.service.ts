@@ -105,8 +105,9 @@ export class GoalsService {
     const effectiveStartDate = formatDateOnly(
       input.startDate !== undefined ? input.startDate : existing.startDate
     );
-    const effectiveTargetDate =
-      formatDateOnly(input.targetDate !== undefined ? input.targetDate : existing.targetDate);
+    const effectiveTargetDate = formatDateOnly(
+      input.targetDate !== undefined ? input.targetDate : existing.targetDate
+    );
 
     if (effectiveStartDate && effectiveTargetDate) {
       if (effectiveStartDate > effectiveTargetDate) {

@@ -28,7 +28,6 @@ void main() {
   final calls = <String>[];
 
   setUp(() {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
     calls.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(notificationChannel, (call) async {
@@ -40,22 +39,28 @@ void main() {
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(notificationChannel, null);
-    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('a failed notification attempt cannot report a reminder was set',
       (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        subscriptionsProvider.overrideWith((ref) async => [subscription]),
-      ],
-      child: const MaterialApp(home: SubscriptionsScreen()),
-    ));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Remind before renewal'));
-    await tester.pumpAndSettle();
+    final previousPlatform = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          subscriptionsProvider.overrideWith((ref) async => [subscription]),
+        ],
+        child: const MaterialApp(home: SubscriptionsScreen()),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remind before renewal'));
+      await tester.pumpAndSettle();
 
-    expect(calls, isNotEmpty);
-    expect(find.text('Renewal reminder set!'), findsNothing);
+      expect(calls, isNotEmpty);
+      expect(find.text('Renewal reminder set!'), findsNothing);
+    } finally {
+      // Flutter verifies debug globals before package:test runs tearDown.
+      debugDefaultTargetPlatformOverride = previousPlatform;
+    }
   });
 }

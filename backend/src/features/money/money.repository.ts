@@ -83,8 +83,8 @@ export interface MoneyRepository {
     transactionId: string,
     input: UpdateTransactionInput,
     auditData: AuditLogData,
-    expectedVersion?: number | undefined,
-    userToday?: string
+    expectedVersion: number | undefined,
+    userToday: string
   ): Promise<TransactionEntity | null>;
   softDeleteTransaction(
     userId: string,
@@ -112,7 +112,8 @@ export interface MoneyRepository {
     subscriptionId: string,
     input: PaySubscriptionInput,
     newNextBillingDate: string,
-    auditEvents: { transactionAudit: AuditLogData; subscriptionAudit: AuditLogData }
+    auditEvents: { transactionAudit: AuditLogData; subscriptionAudit: AuditLogData },
+    amountIsStored?: boolean
   ): Promise<{ transaction: TransactionEntity; subscription: SubscriptionEntity }>;
   countActiveSubscriptions(userId: string): Promise<number>;
 

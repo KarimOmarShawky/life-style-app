@@ -30,9 +30,12 @@ import type {
   BudgetPeriod
 } from './money.types.js';
 import { AppError } from '../../core/errors/app-error.js';
+import { isValidCalendarDate } from '../../core/validation/date-only.js';
 import {
   assertTransactionInvariants,
-  normalizeStoredAmount,
+  assertMoneyAmount,
+  mayUseStoredPadding,
+  assertMoneyCategory,
   normalizeStoredDate,
   type EffectiveCategory
 } from './money.invariants.js';
@@ -571,9 +574,10 @@ export class PgMoneyRepository implements MoneyRepository {
     transactionId: string,
     input: UpdateTransactionInput,
     auditData: AuditLogData,
-    expectedVersion?: number | undefined,
-    userToday?: string
+    expectedVersion: number | undefined,
+    userToday: string
   ): Promise<TransactionEntity | null> {
+    if (!isValidCalendarDate(userToday)) throw new Error('A valid user date is required');
     return await this.db.transaction().execute(async (trx) => {
       // Lock the row so concurrent partial updates serialize (AUD-07).
       const locked = (
@@ -588,7 +592,7 @@ export class PgMoneyRepository implements MoneyRepository {
       // Re-validate the effective record from the locked row (AUD-07): a
       // partial update merged with values that changed since the service's
       // pre-read must not leave scale, date or category invariants broken.
-      if (userToday !== undefined) {
+      {
         const effectiveCategoryId =
           input.categoryId !== undefined ? input.categoryId : locked.category_id;
         let category: EffectiveCategory | null = null;
@@ -598,6 +602,7 @@ export class PgMoneyRepository implements MoneyRepository {
             .selectAll()
             .where('id', '=', effectiveCategoryId)
             .where('user_id', '=', userId)
+            .forShare()
             .executeTakeFirst()) as unknown as CategoryDbRow | undefined;
           if (categoryRow) {
             category = {
@@ -622,10 +627,10 @@ export class PgMoneyRepository implements MoneyRepository {
         assertTransactionInvariants(
           {
             kind: input.kind ?? locked.kind,
-            amount: normalizeStoredAmount(
-              input.amount ?? locked.amount,
-              input.currency ?? locked.currency
-            ),
+            amount: input.amount ?? locked.amount,
+            amountIsStored:
+              input.amount === undefined &&
+              mayUseStoredPadding(locked.currency, input.currency ?? locked.currency),
             currency: input.currency ?? locked.currency,
             occurredOn: normalizeStoredDate(input.occurredOn ?? locked.occurred_on),
             category
@@ -813,39 +818,72 @@ export class PgMoneyRepository implements MoneyRepository {
     input: UpdateSubscriptionInput,
     expectedVersion?: number | undefined
   ): Promise<SubscriptionEntity | null> {
-    let query = this.db
-      .updateTable('subscriptions')
-      .set({
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.amount !== undefined ? { amount: input.amount } : {}),
-        ...(input.currency !== undefined ? { currency: input.currency } : {}),
-        ...(input.billingUnit !== undefined ? { billing_unit: input.billingUnit } : {}),
-        ...(input.billingInterval !== undefined ? { billing_interval: input.billingInterval } : {}),
-        ...(input.anchorDate !== undefined ? { anchor_date: input.anchorDate } : {}),
-        ...(input.nextBillingDate !== undefined
-          ? { next_billing_date: input.nextBillingDate }
-          : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
-        ...(input.cancelledOn !== undefined ? { cancelled_on: input.cancelledOn } : {}),
-        ...(input.categoryId !== undefined ? { category_id: input.categoryId } : {}),
-        ...(input.reminderDaysBefore !== undefined
-          ? { reminder_days_before: input.reminderDaysBefore }
-          : {}),
-        ...(input.notes !== undefined ? { notes: input.notes } : {}),
-        updated_at: new Date(),
-        version: sql<number>`version + 1`
-      })
-      .where('id', '=', subscriptionId)
-      .where('user_id', '=', userId)
-      .where('deleted_at', 'is', null);
+    return this.db.transaction().execute(async (trx) => {
+      const locked = (
+        await sql<SubscriptionDbRow>`
+        SELECT * FROM subscriptions WHERE id = ${subscriptionId}::uuid
+        AND user_id = ${userId}::uuid AND deleted_at IS NULL FOR UPDATE
+      `.execute(trx)
+      ).rows[0];
+      if (!locked) return null;
+      assertMoneyAmount(
+        input.amount ?? locked.amount,
+        input.currency ?? locked.currency,
+        'amount',
+        input.amount === undefined &&
+          mayUseStoredPadding(locked.currency, input.currency ?? locked.currency)
+      );
+      const categoryId = input.categoryId !== undefined ? input.categoryId : locked.category_id;
+      if (categoryId) {
+        const category = await trx
+          .selectFrom('categories')
+          .selectAll()
+          .where('id', '=', categoryId)
+          .where('user_id', '=', userId)
+          .forShare()
+          .executeTakeFirst();
+        if (!category) throw AppError.notFound('Category not found');
+        assertMoneyCategory(
+          { id: category.id, kind: category.kind, archivedAt: category.archived_at },
+          'expense'
+        );
+      }
+      let query = trx
+        .updateTable('subscriptions')
+        .set({
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.amount !== undefined ? { amount: input.amount } : {}),
+          ...(input.currency !== undefined ? { currency: input.currency } : {}),
+          ...(input.billingUnit !== undefined ? { billing_unit: input.billingUnit } : {}),
+          ...(input.billingInterval !== undefined
+            ? { billing_interval: input.billingInterval }
+            : {}),
+          ...(input.anchorDate !== undefined ? { anchor_date: input.anchorDate } : {}),
+          ...(input.nextBillingDate !== undefined
+            ? { next_billing_date: input.nextBillingDate }
+            : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.cancelledOn !== undefined ? { cancelled_on: input.cancelledOn } : {}),
+          ...(input.categoryId !== undefined ? { category_id: input.categoryId } : {}),
+          ...(input.reminderDaysBefore !== undefined
+            ? { reminder_days_before: input.reminderDaysBefore }
+            : {}),
+          ...(input.notes !== undefined ? { notes: input.notes } : {}),
+          updated_at: new Date(),
+          version: sql<number>`version + 1`
+        })
+        .where('id', '=', subscriptionId)
+        .where('user_id', '=', userId)
+        .where('deleted_at', 'is', null);
 
-    if (expectedVersion !== undefined) {
-      query = query.where('version', '=', expectedVersion);
-    }
+      if (expectedVersion !== undefined) {
+        query = query.where('version', '=', expectedVersion);
+      }
 
-    const row = (await query.returningAll().executeTakeFirst()) as unknown as
-      SubscriptionDbRow | undefined;
-    return row ? toSubscriptionEntity(row) : null;
+      const row = (await query.returningAll().executeTakeFirst()) as unknown as
+        SubscriptionDbRow | undefined;
+      return row ? toSubscriptionEntity(row) : null;
+    });
   }
 
   async softDeleteSubscription(userId: string, subscriptionId: string): Promise<boolean> {
@@ -869,7 +907,8 @@ export class PgMoneyRepository implements MoneyRepository {
     subscriptionId: string,
     input: PaySubscriptionInput,
     newNextBillingDate: string,
-    auditEvents: { transactionAudit: AuditLogData; subscriptionAudit: AuditLogData }
+    auditEvents: { transactionAudit: AuditLogData; subscriptionAudit: AuditLogData },
+    amountIsStored?: boolean
   ): Promise<{ transaction: TransactionEntity; subscription: SubscriptionEntity }> {
     return await this.db.transaction().execute(async (trx) => {
       // 1. Lock subscription row
@@ -889,6 +928,27 @@ export class PgMoneyRepository implements MoneyRepository {
         throw AppError.conflict('SUBSCRIPTION_NOT_ACTIVE', 'Subscription is not active');
       }
 
+      // Recheck the exact amount being inserted against the locked currency.
+      assertMoneyAmount(
+        input.amount ?? subRow.amount,
+        subRow.currency,
+        'amount',
+        amountIsStored === true || input.amount === undefined
+      );
+      if (subRow.category_id) {
+        const category = await trx
+          .selectFrom('categories')
+          .selectAll()
+          .where('id', '=', subRow.category_id)
+          .where('user_id', '=', userId)
+          .forShare()
+          .executeTakeFirst();
+        if (!category) throw AppError.notFound('Category not found');
+        assertMoneyCategory(
+          { id: category.id, kind: category.kind, archivedAt: category.archived_at },
+          'expense'
+        );
+      }
       const billingDate = formatDateOnly(subRow.next_billing_date)!;
 
       // 2. Check if already paid for this cycle
@@ -1057,24 +1117,53 @@ export class PgMoneyRepository implements MoneyRepository {
     input: UpdateBudgetInput,
     expectedVersion?: number | undefined
   ): Promise<BudgetEntity | null> {
-    let query = this.db
-      .updateTable('budgets')
-      .set({
-        ...(input.amountLimit !== undefined ? { amount_limit: input.amountLimit } : {}),
-        updated_at: new Date(),
-        version: sql<number>`version + 1`
-      })
-      .where('id', '=', budgetId)
-      .where('user_id', '=', userId)
-      .where('deleted_at', 'is', null);
+    return this.db.transaction().execute(async (trx) => {
+      const locked = (
+        await sql<BudgetDbRow>`
+        SELECT * FROM budgets WHERE id = ${budgetId}::uuid
+        AND user_id = ${userId}::uuid AND deleted_at IS NULL FOR UPDATE
+      `.execute(trx)
+      ).rows[0];
+      if (!locked) return null;
+      assertMoneyAmount(
+        input.amountLimit ?? locked.amount_limit,
+        locked.currency,
+        'amountLimit',
+        input.amountLimit === undefined
+      );
+      if (locked.category_id) {
+        const category = await trx
+          .selectFrom('categories')
+          .selectAll()
+          .where('id', '=', locked.category_id)
+          .where('user_id', '=', userId)
+          .forShare()
+          .executeTakeFirst();
+        if (!category) throw AppError.notFound('Category not found');
+        assertMoneyCategory(
+          { id: category.id, kind: category.kind, archivedAt: category.archived_at },
+          'expense'
+        );
+      }
+      let query = trx
+        .updateTable('budgets')
+        .set({
+          ...(input.amountLimit !== undefined ? { amount_limit: input.amountLimit } : {}),
+          updated_at: new Date(),
+          version: sql<number>`version + 1`
+        })
+        .where('id', '=', budgetId)
+        .where('user_id', '=', userId)
+        .where('deleted_at', 'is', null);
 
-    if (expectedVersion !== undefined) {
-      query = query.where('version', '=', expectedVersion);
-    }
+      if (expectedVersion !== undefined) {
+        query = query.where('version', '=', expectedVersion);
+      }
 
-    const row = (await query.returningAll().executeTakeFirst()) as unknown as
-      BudgetDbRow | undefined;
-    return row ? toBudgetEntity(row) : null;
+      const row = (await query.returningAll().executeTakeFirst()) as unknown as
+        BudgetDbRow | undefined;
+      return row ? toBudgetEntity(row) : null;
+    });
   }
 
   async softDeleteBudget(userId: string, budgetId: string): Promise<boolean> {

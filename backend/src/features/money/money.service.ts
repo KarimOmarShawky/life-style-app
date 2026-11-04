@@ -13,7 +13,9 @@ import type { ReminderCancellationPort } from '../reminders/reminder-cancellatio
 import {
   assertSubscriptionPaymentInvariants,
   assertTransactionInvariants,
-  normalizeStoredAmount,
+  assertMoneyAmount,
+  mayUseStoredPadding,
+  assertMoneyCategory,
   normalizeStoredDate,
   type EffectiveCategory
 } from './money.invariants.js';
@@ -361,7 +363,10 @@ export class MoneyService {
     assertTransactionInvariants(
       {
         kind: effectiveKind,
-        amount: input.amount ?? normalizeStoredAmount(existing.amount, existing.currency),
+        amount: input.amount ?? existing.amount,
+        amountIsStored:
+          input.amount === undefined &&
+          mayUseStoredPadding(existing.currency, input.currency ?? existing.currency),
         currency: input.currency ?? existing.currency,
         occurredOn: input.occurredOn ?? normalizeStoredDate(existing.occurredOn),
         category
@@ -469,6 +474,7 @@ export class MoneyService {
       }
     }
 
+    assertMoneyAmount(input.amount, input.currency);
     const userToday = getUserToday(userTimezone);
     const initialNextBilling =
       input.nextBillingDate ??
@@ -531,19 +537,18 @@ export class MoneyService {
       throw AppError.notFound('Subscription not found');
     }
 
-    if (input.categoryId) {
-      const category = await this.moneyRepository.findCategoryById(userId, input.categoryId);
-      if (!category) {
-        throw AppError.notFound('Category not found');
-      }
-      if (category.kind !== 'expense') {
-        throw AppError.validation([
-          {
-            field: 'categoryId',
-            message: 'Subscription category must be of kind "expense"'
-          }
-        ]);
-      }
+    assertMoneyAmount(
+      input.amount ?? existing.amount,
+      input.currency ?? existing.currency,
+      'amount',
+      input.amount === undefined &&
+        mayUseStoredPadding(existing.currency, input.currency ?? existing.currency)
+    );
+    const categoryId = input.categoryId !== undefined ? input.categoryId : existing.categoryId;
+    if (categoryId) {
+      const category = await this.moneyRepository.findCategoryById(userId, categoryId);
+      if (!category) throw AppError.notFound('Category not found');
+      assertMoneyCategory(category, 'expense');
     }
 
     const userToday = getUserToday(userTimezone);
@@ -620,7 +625,8 @@ export class MoneyService {
     // currency scale and future-date rules as a manual transaction (V-08).
     assertSubscriptionPaymentInvariants(
       {
-        amount: input.amount ?? normalizeStoredAmount(sub.amount, sub.currency),
+        amount: input.amount ?? sub.amount,
+        amountIsStored: input.amount === undefined,
         currency: sub.currency,
         occurredOn: input.occurredOn ?? normalizeStoredDate(sub.nextBillingDate)
       },
@@ -630,7 +636,11 @@ export class MoneyService {
     const result = await this.moneyRepository.paySubscription(
       userId,
       subscriptionId,
-      input,
+      {
+        ...input,
+        amount: input.amount ?? sub.amount,
+        occurredOn: input.occurredOn ?? normalizeStoredDate(sub.nextBillingDate)
+      },
       newNextBillingDate,
       {
         transactionAudit: {
@@ -653,7 +663,8 @@ export class MoneyService {
           ip: context.ip,
           userAgent: context.userAgent
         }
-      }
+      },
+      input.amount === undefined
     );
 
     return {
@@ -734,7 +745,10 @@ export class MoneyService {
           }
         ]);
       }
+      assertMoneyCategory(category, 'expense');
     }
+
+    assertMoneyAmount(input.amountLimit, input.currency, 'amountLimit');
 
     const existing = await this.moneyRepository.findActiveBudgetByTarget(
       userId,
@@ -806,6 +820,18 @@ export class MoneyService {
     const existing = await this.moneyRepository.findBudgetById(userId, budgetId);
     if (!existing) {
       throw AppError.notFound('Budget not found');
+    }
+
+    assertMoneyAmount(
+      input.amountLimit ?? existing.amountLimit,
+      existing.currency,
+      'amountLimit',
+      input.amountLimit === undefined
+    );
+    if (existing.categoryId) {
+      const category = await this.moneyRepository.findCategoryById(userId, existing.categoryId);
+      if (!category) throw AppError.notFound('Category not found');
+      assertMoneyCategory(category, 'expense');
     }
 
     const updated = await this.moneyRepository.updateBudget(userId, budgetId, input, input.version);

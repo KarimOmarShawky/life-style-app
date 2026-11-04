@@ -277,8 +277,7 @@ void main() {
   });
 
   group('PendingWalletCandidates.flush', () {
-    test(
-        'queues a high-confidence parse for user review without saving it',
+    test('queues a high-confidence parse for user review without saving it',
         () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.high': _candidateItem('high'),

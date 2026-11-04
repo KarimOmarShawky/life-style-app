@@ -684,17 +684,17 @@ export class PgMoneyRepository implements MoneyRepository {
         .where('id', '=', transactionId)
         .where('user_id', '=', userId)
         .where('deleted_at', 'is', null)
+        .returning('id')
         .executeTakeFirst();
 
-      const numDeleted = Number(result.numUpdatedRows);
-      if (numDeleted > 0) {
+      if (result) {
         await insertAuditLogRow(trx, {
           ...auditData,
-          entityId: transactionId
+          entityId: result.id
         });
       }
 
-      return numDeleted > 0;
+      return result !== undefined;
     });
   }
 

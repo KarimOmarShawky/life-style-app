@@ -49,6 +49,62 @@ function fixture() {
 }
 
 describe('Bounded volatile reset request dispatcher', () => {
+  it('reserves capacity while durable admissions are still being persisted', async () => {
+    let resolveEnqueue: (value: { id: string }) => void = () => undefined;
+    const store = {
+      enqueue: vi.fn(
+        () =>
+          new Promise<{ id: string }>((resolve) => {
+            resolveEnqueue = resolve;
+          })
+      ),
+      claimById: vi.fn(async () => null)
+    };
+    const queue = new ResetRequestDispatcher(async () => undefined, {
+      capacity: 1,
+      concurrency: 1,
+      store: store as never
+    });
+
+    const first = queue.admit({ email: 'one@example.com' });
+    await expect(queue.admit({ email: 'two@example.com' })).resolves.toBe(false);
+    expect(store.enqueue).toHaveBeenCalledTimes(1);
+
+    resolveEnqueue({ id: 'reset-record-1' });
+    await expect(first).resolves.toBe(true);
+    expect(queue.snapshot()).toEqual({ active: 0, waiting: 1, accepting: true });
+  });
+
+  it('releases reserved capacity when durable persistence fails', async () => {
+    let rejectEnqueue: (reason: Error) => void = () => undefined;
+    const store = {
+      enqueue: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<{ id: string }>((_resolve, reject) => {
+              rejectEnqueue = reject;
+            })
+        )
+        .mockImplementationOnce(async () => ({ id: 'reset-record-2' })),
+      claimById: vi.fn(async () => null)
+    };
+    const queue = new ResetRequestDispatcher(async () => undefined, {
+      capacity: 1,
+      concurrency: 1,
+      store: store as never
+    });
+
+    const first = queue.admit({ email: 'failed@example.com' });
+    await expect(queue.admit({ email: 'blocked@example.com' })).resolves.toBe(false);
+    rejectEnqueue(new Error('storage unavailable'));
+    await expect(first).resolves.toBe(false);
+
+    await expect(queue.admit({ email: 'retry@example.com' })).resolves.toBe(true);
+    expect(store.enqueue).toHaveBeenCalledTimes(2);
+    expect(queue.snapshot()).toEqual({ active: 0, waiting: 1, accepting: true });
+  });
+
   it('admits before processing, caps queued + active work and enforces concurrency', async () => {
     const blocked = gate();
     const work = vi.fn(async () => {

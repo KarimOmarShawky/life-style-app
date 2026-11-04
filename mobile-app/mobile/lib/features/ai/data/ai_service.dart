@@ -347,7 +347,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
   }) async {
     final contextJson = jsonEncode(context);
     final augmentedMessage =
-        'Here is the user's current life context (JSON):\n$contextJson\n\nUse this context to give personalised, specific advice. Do not invent data that is not in the context.\n\nUser request: $newMessage';
+        "Here is the user's current life context (JSON):\n$contextJson\n\nUse this context to give personalised, specific advice. Do not invent data that is not in the context.\n\nUser request: $newMessage";
     return sendMessage(
       conversationHistory: conversationHistory,
       newMessage: augmentedMessage,

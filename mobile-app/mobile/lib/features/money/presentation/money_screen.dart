@@ -860,6 +860,23 @@ class _SmsSyncCard extends ConsumerWidget {
           // user opts in here (V-03).
           if (settings.smsSyncEnabled) ...[
             const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.verified_user_outlined),
+              title: Text(
+                l10n.smsTrustedSendersTitle,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(l10n.smsTrustedSendersDesc),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (_) => const _TrustedSendersDialog(),
+              ),
+            ),
+            const Divider(height: 1),
             SwitchListTile.adaptive(
               secondary: const Icon(Icons.receipt_long_outlined),
               title: Text(
@@ -880,6 +897,124 @@ class _SmsSyncCard extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _TrustedSendersDialog extends StatefulWidget {
+  const _TrustedSendersDialog();
+
+  @override
+  State<_TrustedSendersDialog> createState() => _TrustedSendersDialogState();
+}
+
+class _TrustedSendersDialogState extends State<_TrustedSendersDialog> {
+  final TextEditingController _controller = TextEditingController();
+  List<String> _senders = <String>[];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSenders();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSenders() async {
+    final senders = await PendingWalletCandidates.getTrustedSenders();
+    if (!mounted) return;
+    setState(() {
+      _senders = senders;
+      _loading = false;
+    });
+  }
+
+  Future<void> _addSender() async {
+    final value = PendingWalletCandidates.normalizeTrustedSender(
+      _controller.text,
+    );
+    if (value.isEmpty) return;
+    await PendingWalletCandidates.addTrustedSender(value);
+    if (!mounted) return;
+    _controller.clear();
+    await _loadSenders();
+  }
+
+  Future<void> _removeSender(String sender) async {
+    await PendingWalletCandidates.removeTrustedSender(sender);
+    if (!mounted) return;
+    await _loadSenders();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.smsTrustedSendersTitle),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 360),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(l10n.smsTrustedSendersDesc),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _addSender(),
+                      decoration: InputDecoration(
+                        labelText: l10n.smsTrustedSenderHint,
+                      ),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: l10n.smsAddTrustedSender,
+                    onPressed: _addSender,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_loading)
+                const Center(child: CircularProgressIndicator())
+              else if (_senders.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(l10n.smsNoTrustedSenders),
+                )
+              else
+                ..._senders.map(
+                  (sender) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(sender),
+                    trailing: IconButton(
+                      tooltip: l10n.delete,
+                      onPressed: () => _removeSender(sender),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+      ],
     );
   }
 }

@@ -242,8 +242,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         await tempFile.writeAsBytes(bytes);
         final player = AudioPlayer();
         _audioPlayer = player;
-        await player.setSourceDeviceFile(tempFile.path);
-        await player.play();
+        await player.play(DeviceFileSource(tempFile.path));
         player.onPlayerComplete.listen((_) {
           if (mounted) setState(() => _isSpeaking = false);
           tempFile.delete();

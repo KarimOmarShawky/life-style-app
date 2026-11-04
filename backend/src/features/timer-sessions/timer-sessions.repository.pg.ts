@@ -5,6 +5,7 @@
  */
 
 import { sql, type Kysely } from 'kysely';
+import { AppError } from '../../core/errors/app-error.js';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
 import type {
   TimerSessionsRepository,
@@ -15,6 +16,51 @@ import type {
   TimerEndReason,
   ListTimerSessionsFilter
 } from './timer-sessions.types.js';
+
+function decodeTimerCursor(cursor: string): { id: string; startedAt: string } {
+  const invalid = (): never => {
+    throw AppError.validation([
+      {
+        field: 'cursor',
+        code: 'INVALID_CURSOR',
+        message: 'Supplied pagination cursor is malformed or invalid'
+      }
+    ]);
+  };
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(cursor)) return invalid();
+  let decoded: string;
+  try {
+    decoded = Buffer.from(cursor, 'base64').toString('utf8');
+  } catch {
+    return invalid();
+  }
+  if (Buffer.from(decoded, 'utf8').toString('base64') !== cursor) return invalid();
+  try {
+    const payload: unknown = JSON.parse(decoded);
+    if (
+      !payload ||
+      typeof payload !== 'object' ||
+      Array.isArray(payload) ||
+      !('id' in payload) ||
+      !('startedAt' in payload) ||
+      Object.keys(payload).length !== 2 ||
+      typeof payload.id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        payload.id
+      ) ||
+      typeof payload.startedAt !== 'string'
+    ) {
+      return invalid();
+    }
+    const date = new Date(payload.startedAt);
+    if (!Number.isFinite(date.getTime()) || date.toISOString() !== payload.startedAt) {
+      return invalid();
+    }
+    return { id: payload.id, startedAt: payload.startedAt };
+  } catch {
+    return invalid();
+  }
+}
 
 export class PgTimerSessionsRepository implements TimerSessionsRepository {
   constructor(private readonly db: Kysely<DatabaseSchema>) {}
@@ -117,22 +163,15 @@ export class PgTimerSessionsRepository implements TimerSessionsRepository {
 
     query = query.orderBy('started_at', 'desc').orderBy('id', 'desc');
 
-    if (filter.cursor) {
-      try {
-        const decoded = Buffer.from(filter.cursor, 'base64').toString('utf8');
-        const { id, startedAt } = JSON.parse(decoded);
-        if (id && startedAt) {
-          const cursorDate = new Date(startedAt);
-          query = query.where((eb) =>
-            eb.or([
-              eb('started_at', '<', cursorDate),
-              eb.and([eb('started_at', '=', cursorDate), eb('id', '<', id)])
-            ])
-          );
-        }
-      } catch {
-        // ignore invalid cursor
-      }
+    if (filter.cursor !== undefined) {
+      const { id, startedAt } = decodeTimerCursor(filter.cursor);
+      const cursorDate = new Date(startedAt);
+      query = query.where((eb) =>
+        eb.or([
+          eb('started_at', '<', cursorDate),
+          eb.and([eb('started_at', '=', cursorDate), eb('id', '<', id)])
+        ])
+      );
     }
 
     const rows = await query.limit(limit + 1).execute();

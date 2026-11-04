@@ -59,6 +59,8 @@ interface WaitingItem {
 export class ResetRequestDispatcher {
   private readonly waiting: WaitingItem[] = [];
   private active = 0;
+  /** Capacity reserved while durable enqueue or recovery claims are awaiting I/O. */
+  private pendingAdmissions = 0;
   private scheduled = false;
   private accepting = true;
   private readonly capacity: number;
@@ -115,43 +117,58 @@ export class ResetRequestDispatcher {
    * can never describe work that only existed in memory.
    */
   async admit(request: ResetRequest): Promise<boolean> {
-    if (!this.accepting || this.waiting.length + this.active >= this.capacity) return false;
-
-    // Explicit projection: even accidental extra caller fields cannot enqueue a code/password.
-    const meta = request.meta;
-    const projected: ResetRequest = {
-      email: request.email,
-      meta: meta
-        ? {
-            requestId: meta.requestId?.slice(0, 128),
-            ip: meta.ip?.slice(0, 64),
-            userAgent: meta.userAgent?.slice(0, 512),
-            userId: meta.userId
-          }
-        : undefined
-    };
-
-    let recordId: string | undefined;
-    if (this.store) {
-      try {
-        const record = await this.store.enqueue({
-          email: projected.email,
-          userId: projected.meta?.userId ?? null,
-          meta: projected.meta ? { ...projected.meta } : undefined
-        });
-        recordId = record.id;
-      } catch (err) {
-        // Do not acknowledge work that could not be given durable ownership.
-        logger.error('Password reset request could not be persisted', {
-          reason: err instanceof Error ? err.name : 'unknown'
-        });
-        return false;
-      }
+    // Reserve synchronously before the durable write yields. Without this
+    // reservation, concurrent calls could all pass the same capacity check.
+    if (
+      !this.accepting ||
+      this.waiting.length + this.active + this.pendingAdmissions >= this.capacity
+    ) {
+      return false;
     }
+    this.pendingAdmissions += 1;
 
-    this.waiting.push({ request: projected, recordId, admittedAt: this.now() });
-    this.schedule();
-    return true;
+    try {
+      // Explicit projection: even accidental extra caller fields cannot enqueue a code/password.
+      const meta = request.meta;
+      const projected: ResetRequest = {
+        email: request.email,
+        meta: meta
+          ? {
+              requestId: meta.requestId?.slice(0, 128),
+              ip: meta.ip?.slice(0, 64),
+              userAgent: meta.userAgent?.slice(0, 512),
+              userId: meta.userId
+            }
+          : undefined
+      };
+
+      let recordId: string | undefined;
+      if (this.store) {
+        try {
+          const record = await this.store.enqueue({
+            email: projected.email,
+            userId: projected.meta?.userId ?? null,
+            meta: projected.meta ? { ...projected.meta } : undefined
+          });
+          recordId = record.id;
+        } catch (err) {
+          // Do not acknowledge work that could not be given durable ownership.
+          logger.error('Password reset request could not be persisted', {
+            reason: err instanceof Error ? err.name : 'unknown'
+          });
+          return false;
+        }
+      }
+
+      this.waiting.push({ request: projected, recordId, admittedAt: this.now() });
+      this.schedule();
+      return true;
+    } finally {
+      // The item has been placed on the in-memory queue (or persistence failed),
+      // so its temporary reservation is no longer needed.
+      this.pendingAdmissions -= 1;
+      this.maybeResolveIdle();
+    }
   }
 
   stopAccepting(): void {
@@ -171,21 +188,19 @@ export class ResetRequestDispatcher {
     if (!this.store || !this.accepting) return 0;
     if (this.draining) return 0;
     this.draining = true;
+    let reservedCapacity = 0;
     try {
       // Claim only the capacity this process can actually admit. Claiming the
       // configured total while the in-process queue is already full left rows
       // in `processing` that nobody was working on, delaying them until lease
       // recovery (V-05).
-      const free = this.capacity - (this.waiting.length + this.active);
+      const free = this.capacity - (this.waiting.length + this.active + this.pendingAdmissions);
       if (free <= 0) return 0;
+      reservedCapacity = Math.min(this.claimLimit, free);
+      this.pendingAdmissions += reservedCapacity;
       const now = new Date(this.now());
-      const claimed = await this.store.claimDue(
-        now,
-        Math.min(this.claimLimit, free),
-        this.leaseMs
-      );
+      const claimed = await this.store.claimDue(now, reservedCapacity, this.leaseMs);
       for (const record of claimed) {
-        if (this.waiting.length + this.active >= this.capacity) break;
         this.waiting.push({
           request: {
             email: record.email,
@@ -212,6 +227,8 @@ export class ResetRequestDispatcher {
       });
       return 0;
     } finally {
+      this.pendingAdmissions -= reservedCapacity;
+      this.maybeResolveIdle();
       this.draining = false;
     }
   }
@@ -227,7 +244,9 @@ export class ResetRequestDispatcher {
     idleTimeoutMs: number = DEFAULT_RESET_DRAIN_TIMEOUT_MS
   ): Promise<{ claimed: number; drained: boolean }> {
     const claimed = await this.drainDue();
-    if (this.waiting.length + this.active === 0) return { claimed, drained: true };
+    if (this.waiting.length + this.active + this.pendingAdmissions === 0) {
+      return { claimed, drained: true };
+    }
     const drained = await this.waitForIdleWithin(idleTimeoutMs);
     return { claimed, drained };
   }
@@ -238,7 +257,7 @@ export class ResetRequestDispatcher {
    * the next process, so a timeout is a warning, never a loss.
    */
   async waitForIdleWithin(timeoutMs: number): Promise<boolean> {
-    if (this.waiting.length + this.active === 0) return true;
+    if (this.waiting.length + this.active + this.pendingAdmissions === 0) return true;
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<boolean>((resolve) => {
       timer = setTimeout(() => resolve(false), Math.max(1, timeoutMs));
@@ -303,7 +322,7 @@ export class ResetRequestDispatcher {
    */
   waitForIdle(): Promise<void> {
     if (!this.store) {
-      if (this.waiting.length + this.active > 0) return this.idlePromise();
+      if (this.waiting.length + this.active + this.pendingAdmissions > 0) return this.idlePromise();
       return Promise.resolve();
     }
     // Durable mode: return the shared promise, then reconcile asynchronously so
@@ -332,7 +351,7 @@ export class ResetRequestDispatcher {
   }
 
   private resolveIdleIfEmpty(): void {
-    if (this.waiting.length + this.active > 0) return;
+    if (this.waiting.length + this.active + this.pendingAdmissions > 0) return;
     const resolve = this.resolveIdle;
     this.idle = undefined;
     this.resolveIdle = undefined;
@@ -381,7 +400,7 @@ export class ResetRequestDispatcher {
   }
 
   private maybeResolveIdle(): void {
-    if (this.waiting.length + this.active > 0) return;
+    if (this.waiting.length + this.active + this.pendingAdmissions > 0) return;
     if (!this.resolveIdle) return;
     if (!this.store) {
       this.resolveIdleIfEmpty();

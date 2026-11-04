@@ -1,5 +1,9 @@
 // App string catalog for the LifeStyle mobile client — locale: tr (Turkish).
 const Map<String, String> trCatalog = {
+  'aiEgressTitle': 'Konuşma Google Gemini’ye gönderilsin mi?',
+  'aiEgressDescription':
+      'Mesajınız ve konuşma geçmişiniz API anahtarınız kullanılarak Google’a gönderilir. Finansal kayıtlar otomatik olarak eklenmez. Gizli veya hassas bilgiler yazmayın. Google kendi veri politikalarını uygular.',
+  'aiEgressAgree': 'Kabul et ve gönder',
   'appTitle': 'LifeStyle',
   'signIn': 'Giriş yap',
   'createAccount': 'Hesap oluştur',

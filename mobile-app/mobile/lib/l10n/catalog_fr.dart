@@ -1,5 +1,9 @@
 // App string catalog for the LifeStyle mobile client — locale: fr (French).
 const Map<String, String> frCatalog = {
+  'aiEgressTitle': 'Envoyer la conversation à Google Gemini ?',
+  'aiEgressDescription':
+      'Votre message et l’historique de la conversation sont envoyés à Google avec votre clé API. Les données financières ne sont pas incluses automatiquement. Ne saisissez pas de secrets ni de données sensibles. Google applique ses propres règles de confidentialité.',
+  'aiEgressAgree': 'Accepter et envoyer',
   'appTitle': 'LifeStyle',
   'signIn': 'Se connecter',
   'createAccount': 'Créer un compte',

@@ -342,6 +342,9 @@ class AppLocalizations {
 
   String get noSpeechDetected => _s('noSpeechDetected');
   String get aiErrorMessage => _s('aiErrorMessage');
+  String get aiEgressTitle => _s('aiEgressTitle');
+  String get aiEgressDescription => _s('aiEgressDescription');
+  String get aiEgressAgree => _s('aiEgressAgree');
   String get smsSyncTitle => _s('smsSyncTitle');
   String get smsTrustedSendersTitle => _s('smsTrustedSendersTitle');
   String get smsTrustedSendersDesc => _s('smsTrustedSendersDesc');

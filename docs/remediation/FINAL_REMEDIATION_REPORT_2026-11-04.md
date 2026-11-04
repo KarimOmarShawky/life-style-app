@@ -2,9 +2,19 @@
 
 ## Release verdict: NO-GO
 
-This is an **incomplete fix pass**, not a release certification. P0-1 remains open and P0-2 is partially remediated, with remaining limitations described below. Several P1 families remain open or lack their required end-to-end proof. The independent audit report named in the request is absent from this checkout, so its §5 R-1…R-12 mapping cannot be verified; the prompt's P0/P1 identifiers are used below rather than inventing a mapping. Base: `9448f1e64d876122610fac1a82a025794bbacbab`. Work branch: `arena/59b3c606-life-style-app`.
+This is an **incomplete fix pass**, not a release certification. P0-1 has a proposed fix awaiting a passing Flutter run, and P0-2 is partially remediated, with remaining limitations described below. Several P1 families remain open or lack their required end-to-end proof. The independent audit report named in the request is absent from this checkout, so its §5 R-1…R-12 mapping cannot be verified; the prompt's P0/P1 identifiers are used below rather than inventing a mapping. Base: `9448f1e64d876122610fac1a82a025794bbacbab`. Work branch: `arena/59b3c606-life-style-app`.
 
 ## Changes and proof
+
+### P0-1 — assistant streaming and voice: fix proposed, Flutter verification pending
+
+**Root cause:** The assistant posted to the buffered `generateContent` endpoint, parsed it as SSE, and yielded failure messages as model text. The speech method targeted a nonexistent endpoint. The screen also used a placeholder object as an identity after replacing it on the first chunk.
+
+**Fix:** Chosen option A. `ai_service.dart` uses `streamGenerateContent?alt=sse` with `client.send` and incrementally decodes SSE frames; missing keys, HTTP/network failures, malformed/empty responses and buffered JSON use a typed stream error instead of content. The screen reports errors separately, updates the same bubble across chunks, and localizes its egress dialog in all six catalogs. The fake TTS method and assistant speaker button were removed; `audioplayers` remains because the focus timer uses it. The prior source-only contract was replaced with an SSE endpoint and streamed-request check; Dart mock-client behavior tests are now in `test/ai_stream_test.dart` and picked up by the full Flutter suite.
+
+**Failing-first proof:** User-triggered [diagnostic 41922761693](https://github.com/KarimOmarShawky/life-style-app/actions/runs/41922761693) ran the four Dart tests on `572f1a9`; the screenshot shows `0 tests passed, 4 failed` for buffered JSON, incremental SSE, HTTP 500 and network error. The runner's log download was inaccessible from this environment; the run metadata and user screenshot establish the outcome. `node --test scripts/ai-egress-regression.test.mjs` before the UI/TTS fix: `3 failed` (endpoint, unsupported speech, missing localization); a later added placeholder regression also failed before its fix. After the code changes, the Node tests report `4 passed`. **The Dart passing-after run is pending**; GitHub's diagnostic formats its checkout before testing, so any resulting formatting patch must be applied locally and the ordinary CI gate run against the committed result.
+
+**Regression risk / residual:** No Flutter analyzer, widget test, Dart formatter, Android build, mocked Dart passing result or actual provider/device check has been executed for this fix yet. The release remains NO-GO. Replaced the old assertions `assert.match(aiService, /data: /);`, `assert.match(aiService, /[DONE]/);` and `assert.match(aiService, /Future<List<int>> speakText\(/);`: they pinned the literal data marker and nonexistent speech API, and `[DONE]` was an unescaped character class rather than a sentinel. The replacement checks the SSE endpoint and streamed request, rejects the fake speech method, and the new Dart tests exercise behavior.
 
 ### P0-2 — money invariants: partial
 
@@ -58,13 +68,13 @@ This is an **incomplete fix pass**, not a release certification. P0-1 remains op
 
 ## Open defects and gate work
 
-- **P0-1 AI streaming and voice:** not changed; buffered endpoint/SSE mismatch, error-channel conflation, nonfunctional speech, consent localization, and blind contract test remain open. Dart behavioral tests were not run.
+- **P0-1 AI streaming and voice:** proposed fix is not accepted until its Dart tests pass after the observed failing-first run; see details above.
 - **P0-2 money invariants:** partial; see the real-database proof and remaining HTTP/concurrency/precision-policy limitations above.
 - **P1-2 completed date range/OpenAPI:** not changed; timezone-aware bounds and documentation/test are open.
 - **P1-4 password reset:** not changed; lease release, reusable valid code, atomic attempt counting, SMTP throttling and delivery/retry tests remain open.
 - **P1-5 wallet queue/analyzer/sanitizer:** not changed; all five subissues and mobile/native tests remain open.
 - **P1-6/P1-7:** partial, as detailed above.
-- **Gate integrity:** no validation-schema-to-OpenAPI route coverage guard was added; AI contract remains source-based; full migration-to-snapshot column/constraint drift guard remains open.
+- **Gate integrity:** no validation-schema-to-OpenAPI route coverage guard was added; AI source contract is supplemented by Dart behavior tests, whose passing run is pending; full migration-to-snapshot column/constraint drift guard remains open.
 - **P2:** ledger, analytics egress/consent, documentation, moderate advisories and test gaps remain open.
 
 ## Verification

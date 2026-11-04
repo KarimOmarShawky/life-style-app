@@ -1,6 +1,10 @@
 // GENERATED CATALOG — locale: en
 // App string catalog for the LifeStyle mobile client.
 const Map<String, String> enCatalog = {
+  'aiEgressTitle': 'Send conversation to Google Gemini?',
+  'aiEgressDescription':
+      'Your message and conversation history are sent to Google using your API key. Financial records are not included automatically. Do not type secrets or sensitive information. Google applies its own data policies.',
+  'aiEgressAgree': 'Agree and send',
   'appTitle': 'LifeStyle',
   'signIn': 'Sign in',
   'createAccount': 'Create account',

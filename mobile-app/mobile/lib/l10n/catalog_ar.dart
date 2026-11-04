@@ -1,6 +1,10 @@
 // GENERATED CATALOG — locale: ar
 // App string catalog for the LifeStyle mobile client.
 const Map<String, String> arCatalog = {
+  'aiEgressTitle': 'إرسال المحادثة إلى Google Gemini؟',
+  'aiEgressDescription':
+      'تُرسل رسالتك وسجل المحادثة إلى Google باستخدام مفتاح API الخاص بك. لا تُرسل السجلات المالية تلقائياً. لا تكتب أسراراً أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
+  'aiEgressAgree': 'أوافق وأرسل',
   'appTitle': 'لايف ستايل',
   'signIn': 'تسجيل الدخول',
   'createAccount': 'إنشاء حساب جديد',

@@ -24,6 +24,12 @@ import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 /// Both queues are sealed with a device-bound key (F-05); see
 /// [WalletQueueCodec].
 
+bool _isValidDateOnly(String value) {
+  if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) return false;
+  final parsed = DateTime.tryParse('${value}T00:00:00Z');
+  return parsed != null && parsed.toIso8601String().startsWith(value);
+}
+
 /// One transaction produced by the SMS fallback, waiting for confirmation.
 class WalletReviewItem {
   const WalletReviewItem({
@@ -75,7 +81,7 @@ class WalletReviewItem {
         double.tryParse(amount) == null ||
         double.parse(amount) <= 0 ||
         occurredOn is! String ||
-        !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(occurredOn)) {
+        !_isValidDateOnly(occurredOn)) {
       return null;
     }
 
@@ -152,8 +158,9 @@ class WalletSmsQuarantineStatus {
     }
     // Fall back to the queue itself: the flag is best-effort, the entries are not.
     return prefs.getKeys().any(
-          (String entry) =>
-              entry.replaceFirst(_flutterPrefix, '').startsWith(quarantinePrefix),
+          (String entry) => entry
+              .replaceFirst(_flutterPrefix, '')
+              .startsWith(quarantinePrefix),
         );
   }
 
@@ -162,7 +169,9 @@ class WalletSmsQuarantineStatus {
   static Future<bool> hasStorageFault() async {
     final prefs = await SharedPreferences.getInstance();
     final Object? value = prefs.get(storageFaultKey);
-    return value != null && value.toString().isNotEmpty && value.toString() != 'false';
+    return value != null &&
+        value.toString().isNotEmpty &&
+        value.toString() != 'false';
   }
 
   /// SharedPreferences key, without the platform `flutter.` prefix.
@@ -240,7 +249,7 @@ class PendingWalletReviews {
 
   /// Publishes the quarantine flag without acknowledging the affected entry.
   Future<void> _publishQuarantineFlag(SharedPreferences prefs) async {
-    final Object? previous = prefs.getString(WalletSmsQuarantineStatus.key);
+    final String? previous = prefs.getString(WalletSmsQuarantineStatus.key);
     var count = 0;
     final decoded = previous == null ? null : _decodeOrNull(previous);
     if (decoded is Map<String, dynamic> && decoded['count'] is int) {
@@ -408,21 +417,24 @@ class CandidateDecision {
 class PendingWalletCandidates {
   PendingWalletCandidates(
     this._api,
-    this._repository, {
+    MoneyRepository _repository, {
     WalletQueueCodec? codec,
   }) : _codec = codec ?? PlatformWalletQueueCodec();
 
   static const String keyPrefix = 'pending_wallet_candidate.';
-  static const String quarantinePrefix = WalletSmsQuarantineStatus.quarantinePrefix;
+  static const String quarantinePrefix =
+      WalletSmsQuarantineStatus.quarantinePrefix;
 
   /// Low-confidence results are queued for review, not for analysis again.
   static const String reviewPrefix = 'pending_wallet_review.';
   static const String _flutterPrefix = 'flutter.';
   static const int _maxAttempts = 5;
+
   /// Quarantine reasons. Only an unreadable payload can heal; a malformed one is
   /// proven unparseable and is never restored to its queue (no revive loop).
   static const String unreadableReason = 'UNREADABLE';
   static const String malformedReason = 'MALFORMED';
+
   /// A quarantined entry is retried this many times before it stays parked for
   /// the user to resolve (bounded recovery, never an infinite loop).
   static const int _maxQuarantineAttempts = 2;
@@ -442,7 +454,6 @@ class PendingWalletCandidates {
   static const String storageFaultKey = 'wallet_storage_fault';
 
   final ApiClient _api;
-  final MoneyRepository _repository;
   final WalletQueueCodec _codec;
 
   /// Returns how many candidates were resolved. Unresolved candidates stay
@@ -578,7 +589,8 @@ class PendingWalletCandidates {
         break;
       default:
         // Unknown/future status: keep the candidate (V-01).
-        return const CandidateDecision.retry(CandidateRetryReason.unknownStatus);
+        return const CandidateDecision.retry(
+            CandidateRetryReason.unknownStatus);
     }
 
     final transaction = response['transaction'];
@@ -801,8 +813,9 @@ class PendingWalletCandidates {
       await _removeEntry(prefs, key);
     }
     if (!prefs.getKeys().any(
-          (String entry) =>
-              entry.replaceFirst(_flutterPrefix, '').startsWith(quarantinePrefix),
+          (String entry) => entry
+              .replaceFirst(_flutterPrefix, '')
+              .startsWith(quarantinePrefix),
         )) {
       await prefs.remove(quarantineKey);
     }
@@ -830,7 +843,8 @@ class PendingWalletCandidates {
     await _publishCounter(prefs, fallbackUnavailableKey);
   }
 
-  Future<void> _publishQuarantine(SharedPreferences prefs, String reason) async {
+  Future<void> _publishQuarantine(
+      SharedPreferences prefs, String reason) async {
     await _publishCounter(prefs, quarantineKey, reason: reason);
   }
 
@@ -885,11 +899,11 @@ class PendingWalletCandidates {
   }
 
   /// Trusted-sender allow-list management (NR-04).
-  /// The native receiver reads flutter.wallet_trusted_senders from
-  /// SharedPreferences; this provides the write path so the gate is reachable.
-  static const String _trustedSendersKey = 'flutter.wallet_trusted_senders';
+  /// The Dart key maps to the native `flutter.wallet_trusted_senders` entry;
+  /// SharedPreferences applies its platform prefix automatically.
+  static const String _trustedSendersKey = 'wallet_trusted_senders';
 
-  /// Returns the current trusted-sender list (normalized phone numbers).
+  /// Returns the current trusted-sender list in its normalized form.
   static Future<List<String>> getTrustedSenders() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_trustedSendersKey);
@@ -897,7 +911,12 @@ class PendingWalletCandidates {
     try {
       final list = jsonDecode(raw);
       if (list is List) {
-        return list.map((e) => String(e)).toList();
+        return list
+            .whereType<String>()
+            .map(normalizeTrustedSender)
+            .where((sender) => sender.isNotEmpty)
+            .toSet()
+            .toList();
       }
     } on FormatException {
       // Malformed list: treat as empty, never as "trust everyone".
@@ -907,7 +926,7 @@ class PendingWalletCandidates {
 
   /// Adds a sender to the trusted allow-list.
   static Future<void> addTrustedSender(String sender) async {
-    final normalized = _normalizePhone(sender);
+    final normalized = normalizeTrustedSender(sender);
     if (normalized.isEmpty) return;
     final current = await getTrustedSenders();
     if (!current.contains(normalized)) {
@@ -918,7 +937,7 @@ class PendingWalletCandidates {
 
   /// Removes a sender from the trusted allow-list.
   static Future<void> removeTrustedSender(String sender) async {
-    final normalized = _normalizePhone(sender);
+    final normalized = normalizeTrustedSender(sender);
     final current = await getTrustedSenders();
     current.remove(normalized);
     await _writeTrustedSenders(current);
@@ -934,9 +953,13 @@ class PendingWalletCandidates {
     await prefs.setString(_trustedSendersKey, jsonEncode(senders));
   }
 
-  /// Normalizes a phone number to digits only (matches Kotlin normalizePhone).
-  static String _normalizePhone(String phone) {
-    return phone.replaceAll(Regex(r'[^0-9]'), '');
+  /// Normalizes phone numbers to digits and alphanumeric sender IDs to uppercase
+  /// letters/digits. The native receiver uses the same rule.
+  static String normalizeTrustedSender(String sender) {
+    final trimmed = sender.trim();
+    if (RegExp(r'[A-Za-z]').hasMatch(trimmed)) {
+      return trimmed.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    }
+    return trimmed.replaceAll(RegExp(r'[^0-9]'), '');
   }
-
 }

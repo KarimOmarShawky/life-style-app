@@ -377,16 +377,13 @@ const Map<String, String> arCatalog = {
   'smsFallbackUnavailableTitle': 'تحليل رسائل المحفظة متوقف مؤقتًا',
   'smsFallbackUnavailableDesc':
       'تعذّر تحليل بعض الرسائل الآن. تم الاحتفاظ بها وستُعاد المحاولة تلقائيًا دون فقد أي شيء.',
-  'smsQuarantineTitle':
-      'رسائل محفظة محفوظة للمراجعة',
+  'smsQuarantineTitle': 'رسائل محفظة محفوظة للمراجعة',
   'smsQuarantineDesc':
       'تعذّرت معالجة بعض رسائل المحفظة. تم الاحتفاظ بها ولم تُحذف، وستُعاد المحاولة تلقائيًا، وتنتهي صلاحيتها بعد ٧ أيام.',
-  'smsStorageFaultTitle':
-      'مشكلة في تخزين بيانات المحفظة',
+  'smsStorageFaultTitle': 'مشكلة في تخزين بيانات المحفظة',
   'smsStorageFaultDesc':
       'تعذّر حفظ رسالة محفظة على هذا الجهاز. لم يُحذف أي شيء، وسيواصل التطبيق المحاولة في الخلفية.',
-  'smsNotificationDetailsTitle':
-      'إظهار المبلغ والتاجر في الإشعارات',
+  'smsNotificationDetailsTitle': 'إظهار المبلغ والتاجر في الإشعارات',
   'smsNotificationDetailsDesc':
       'معطّل افتراضيًا: الإشعارات تذكر فقط وصول رسالة محفظة. عند التفعيل يظهر المبلغ والتاجر وقد يكون ذلك مرئيًا على شاشة القفل.',
   'analyticsTitle': 'التحليلات والرؤى',
@@ -395,6 +392,13 @@ const Map<String, String> arCatalog = {
   'analyticsDashboard': 'داش بورد الأداء',
   'analyticsBalance': 'نقاط توازن الحياة',
   'analyticsEmpty': 'شغل تحليل لرؤية الرؤى الخاصة بك.',
+  'analyticsDemoNotice': 'هذه أرقام تجريبية فقط ولا تمثل نشاطك أو أموالك.',
+  'smsTrustedSendersTitle': 'المرسلون الموثوقون',
+  'smsTrustedSendersDesc':
+      'قد تُسجل الرسائل من المرسلين الموثوقين تلقائيًا عند التعرف على المعاملة محليًا. تبقى الرسائل الأخرى للمراجعة.',
+  'smsTrustedSenderHint': 'رقم هاتف أو معرّف مرسل أبجدي رقمي',
+  'smsNoTrustedSenders': 'لم تتم إضافة مرسلين موثوقين.',
+  'smsAddTrustedSender': 'إضافة مرسل',
   'aiSpeakTooltip': 'قراءة هذا الرد بصوت',
   'aiSpeaking': 'جارٍ القراءة...',
   'aiVoiceListening': 'جارٍ الاستماع...',

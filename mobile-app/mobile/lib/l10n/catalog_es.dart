@@ -245,12 +245,10 @@ const Map<String, String> esCatalog = {
       'Lee los SMS de banca y billeteras (InstaPay, Vodafone Cash...) y registra las transacciones automáticamente.',
   'smsPermissionDenied':
       'Se necesita el permiso de SMS para activar la captura automática.',
-  'smsQuarantineTitle':
-      'Mensajes de billetera guardados para revisión',
+  'smsQuarantineTitle': 'Mensajes de billetera guardados para revisión',
   'smsQuarantineDesc':
       'No se pudieron procesar algunos mensajes de billetera. Se conservaron, no se eliminaron, y se reintentarán automáticamente. Caducan a los 7 días.',
-  'smsStorageFaultTitle':
-      'Problema de almacenamiento de la billetera',
+  'smsStorageFaultTitle': 'Problema de almacenamiento de la billetera',
   'smsStorageFaultDesc':
       'Un mensaje de billetera no se pudo guardar en este dispositivo. No se descartó nada; la aplicación sigue reintentando en segundo plano.',
   'smsNotificationDetailsTitle':
@@ -263,8 +261,17 @@ const Map<String, String> esCatalog = {
   'analyticsDashboard': 'Panel de rendimiento',
   'analyticsBalance': 'Puntuación de equilibrio vital',
   'analyticsEmpty': 'Ejecute un análisis para ver su información.',
+  'analyticsDemoNotice':
+      'Solo son datos de ejemplo; no representan tu actividad ni tus finanzas.',
+  'smsTrustedSendersTitle': 'Remitentes de confianza',
+  'smsTrustedSendersDesc':
+      'Los mensajes de remitentes de confianza pueden guardarse automáticamente si la transacción se reconoce localmente. Los demás quedan para revisión.',
+  'smsTrustedSenderHint': 'Número de teléfono o identificador alfanumérico',
+  'smsNoTrustedSenders': 'No hay remitentes de confianza añadidos.',
+  'smsAddTrustedSender': 'Añadir remitente',
   'aiSpeakTooltip': 'Leer esta respuesta en voz alta',
   'aiSpeaking': 'Leyendo...',
   'aiVoiceListening': 'Escuchando...',
-  'aiErrorMessage': 'Ocurrió un error al procesar la solicitud. Inténtelo de nuevo.',
+  'aiErrorMessage':
+      'Ocurrió un error al procesar la solicitud. Inténtelo de nuevo.',
 };

@@ -178,8 +178,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(Icons.insights,
-                size: 20, color: theme.colorScheme.primary),
+            Icon(Icons.insights, size: 20, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Text(l10n.analyticsTitle),
           ],
@@ -191,6 +190,31 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Card(
+                color: theme.colorScheme.tertiaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: theme.colorScheme.onTertiaryContainer,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          l10n.analyticsDemoNotice,
+                          style: TextStyle(
+                            color: theme.colorScheme.onTertiaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               // Time range selector
               Row(
                 children: [
@@ -235,7 +259,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   ),
                   FilledButton.icon(
                     onPressed: _isLoading ? null : _runLifeBalance,
-                    icon: const Icon(Icons.scale_balance),
+                    icon: const Icon(Icons.balance),
                     label: Text(l10n.analyticsBalance),
                   ),
                 ],

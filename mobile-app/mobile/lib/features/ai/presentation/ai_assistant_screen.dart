@@ -126,11 +126,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
     final buffer = StringBuffer();
     _streamSub?.cancel();
-    _streamSub = AiService.instance.streamMessage(
+    _streamSub = AiService.instance
+        .streamMessage(
       conversationHistory: _messages.sublist(0, _messages.length - 1),
       newMessage: text,
       languageName: l10n.promptLanguageName,
-    ).listen(
+    )
+        .listen(
       (chunk) {
         if (!mounted) return;
         buffer.write(chunk);
@@ -145,7 +147,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           _scrollToBottom();
         }
       },
-      onError: (Object error) {
+      onError: (Object _) {
         if (!mounted) return;
         final l10n = AppLocalizations.of(context);
         setState(() {
@@ -153,7 +155,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           if (idx != -1) {
             _messages[idx] = ChatMessage(
               role: 'model',
-              text: l10n.aiErrorMessage ?? 'Error: $error',
+              text: l10n.aiErrorMessage,
               timestamp: placeholder.timestamp,
             );
           }
@@ -168,7 +170,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           if (idx != -1 && buffer.toString().isEmpty) {
             _messages[idx] = ChatMessage(
               role: 'model',
-              text: l10n.aiErrorMessage ?? '',
+              text: l10n.aiErrorMessage,
               timestamp: placeholder.timestamp,
             );
           }
@@ -218,39 +220,38 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     }
     // Find the last model message to speak.
     final lastModel = [..._messages].reversed.firstWhere(
-      (m) => m.role == 'model',
-      orElse: () => ChatMessage(role: 'model', text: ''),
-    );
+          (m) => m.role == 'model',
+          orElse: () => ChatMessage(role: 'model', text: ''),
+        );
     if (lastModel.text.trim().isEmpty) return;
 
-      final l10n = AppLocalizations.of(context);
-      setState(() => _isSpeaking = true);
-      try {
-        final bytes = await AiService.instance.speakText(
-          text: lastModel.text,
-          languageName: l10n.promptLanguageName,
-        );
-        if (!mounted || bytes.isEmpty) {
-          if (mounted) setState(() => _isSpeaking = false);
-          return;
-        }
-        // audioplayers 6.x plays from a file path, so write the audio
-        // bytes to a temporary file first.
-        final tempFile = File(
-          '${Directory.systemTemp.path}/lifestyle_tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
-        );
-        await tempFile.writeAsBytes(bytes);
-        final player = AudioPlayer();
-        _audioPlayer = player;
-        await player.setSourceDeviceFile(tempFile.path);
-        await player.play();
-        player.onPlayerComplete.listen((_) {
-          if (mounted) setState(() => _isSpeaking = false);
-          tempFile.delete();
-        });
-      } catch (_) {
+    final l10n = AppLocalizations.of(context);
+    setState(() => _isSpeaking = true);
+    try {
+      final bytes = await AiService.instance.speakText(
+        text: lastModel.text,
+        languageName: l10n.promptLanguageName,
+      );
+      if (!mounted || bytes.isEmpty) {
         if (mounted) setState(() => _isSpeaking = false);
+        return;
       }
+      // audioplayers 6.x plays from a file path, so write the audio
+      // bytes to a temporary file first.
+      final tempFile = File(
+        '${Directory.systemTemp.path}/lifestyle_tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
+      );
+      await tempFile.writeAsBytes(bytes);
+      final player = AudioPlayer();
+      _audioPlayer = player;
+      await player.play(DeviceFileSource(tempFile.path));
+      player.onPlayerComplete.listen((_) {
+        if (mounted) setState(() => _isSpeaking = false);
+        tempFile.delete();
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isSpeaking = false);
+    }
   }
 
   Future<void> _stopSpeaking() async {

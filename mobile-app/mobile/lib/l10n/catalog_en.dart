@@ -414,16 +414,13 @@ const Map<String, String> enCatalog = {
   'smsFallbackUnavailableTitle': 'Wallet SMS analysis paused',
   'smsFallbackUnavailableDesc':
       'Some messages could not be analyzed right now. They are kept and retried automatically, so nothing is lost.',
-  'smsQuarantineTitle':
-      'Wallet messages kept for review',
+  'smsQuarantineTitle': 'Wallet messages kept for review',
   'smsQuarantineDesc':
       'Some wallet messages could not be processed. They were kept, not deleted, and are retried automatically. They expire after 7 days.',
-  'smsStorageFaultTitle':
-      'Wallet storage problem',
+  'smsStorageFaultTitle': 'Wallet storage problem',
   'smsStorageFaultDesc':
       'A wallet message could not be saved on this device. Nothing was discarded; the app keeps retrying in the background.',
-  'smsNotificationDetailsTitle':
-      'Show amount and merchant in notifications',
+  'smsNotificationDetailsTitle': 'Show amount and merchant in notifications',
   'smsNotificationDetailsDesc':
       'Off by default: notifications only say that a wallet message arrived. Turning this on shows the amount and merchant, which may be visible on your lock screen.',
   'analyticsTitle': 'Analytics & Insights',
@@ -432,8 +429,17 @@ const Map<String, String> enCatalog = {
   'analyticsDashboard': 'Performance dashboard',
   'analyticsBalance': 'Life balance score',
   'analyticsEmpty': 'Run an analysis to see your insights.',
+  'analyticsDemoNotice':
+      'Demo values only; they do not reflect your activity or finances.',
+  'smsTrustedSendersTitle': 'Trusted senders',
+  'smsTrustedSendersDesc':
+      'Messages from trusted senders may be auto-saved when a transaction is recognized locally. Other messages stay for review.',
+  'smsTrustedSenderHint': 'Phone number or alphanumeric sender ID',
+  'smsNoTrustedSenders': 'No trusted senders added.',
+  'smsAddTrustedSender': 'Add sender',
   'aiSpeakTooltip': 'Speak this response',
   'aiSpeaking': 'Speaking...',
   'aiVoiceListening': 'Listening...',
-  'aiErrorMessage': 'An error occurred while processing your request. Please try again.',
+  'aiErrorMessage':
+      'An error occurred while processing your request. Please try again.',
 };

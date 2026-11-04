@@ -343,6 +343,12 @@ class AppLocalizations {
   String get noSpeechDetected => _s('noSpeechDetected');
   String get aiErrorMessage => _s('aiErrorMessage');
   String get smsSyncTitle => _s('smsSyncTitle');
+  String get smsTrustedSendersTitle => _s('smsTrustedSendersTitle');
+  String get smsTrustedSendersDesc => _s('smsTrustedSendersDesc');
+  String get smsTrustedSenderHint => _s('smsTrustedSenderHint');
+  String get smsNoTrustedSenders => _s('smsNoTrustedSenders');
+  String get smsAddTrustedSender => _s('smsAddTrustedSender');
+  String get analyticsDemoNotice => _s('analyticsDemoNotice');
   String get smsSyncDesc => _s('smsSyncDesc');
   String get smsPermissionDenied => _s('smsPermissionDenied');
   String get smsReviewTitle => _s('smsReviewTitle');

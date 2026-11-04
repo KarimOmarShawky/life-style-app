@@ -47,6 +47,7 @@ String _reviewItem(
   String id, {
   String kind = 'expense',
   String amount = '250.00',
+  String occurredOn = '2026-10-08',
   int createdAt = 1,
 }) =>
     jsonEncode({
@@ -54,7 +55,7 @@ String _reviewItem(
       'kind': kind,
       'amount': amount,
       'currency': 'EGP',
-      'occurredOn': '2026-10-08',
+      'occurredOn': occurredOn,
       'description': 'Transfer via wallet',
       'merchant': 'InstaPay',
       'sender': '[PHONE]',
@@ -132,6 +133,12 @@ void main() {
       expect(WalletReviewItem.tryParse(_reviewItem('b', amount: '250.999')),
           isNull);
       expect(WalletReviewItem.tryParse(_reviewItem('c', amount: '-5')), isNull);
+      expect(
+        WalletReviewItem.tryParse(
+          _reviewItem('impossible-date', occurredOn: '2026-02-30'),
+        ),
+        isNull,
+      );
       expect(
         WalletReviewItem.tryParse(jsonEncode({'id': 'd', 'kind': 'expense'})),
         isNull,
@@ -234,6 +241,37 @@ void main() {
       expect(called, isFalse);
       expect(await reviews.load(), isEmpty);
     });
+  });
+
+  group('Trusted sender normalization', () {
+    test('keeps phone numbers numeric and normalizes alphanumeric IDs', () {
+      expect(
+        PendingWalletCandidates.normalizeTrustedSender('+20 100-123-4567'),
+        '201001234567',
+      );
+      expect(
+        PendingWalletCandidates.normalizeTrustedSender('  Bank-X 9  '),
+        'BANKX9',
+      );
+    });
+
+    test(
+      'persists the key the native receiver reads and supports removal',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        await PendingWalletCandidates.addTrustedSender('Bank-X 9');
+        var prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getString('wallet_trusted_senders'),
+          jsonEncode(['BANKX9']),
+        );
+        expect(prefs.getKeys(), contains('flutter.wallet_trusted_senders'));
+
+        await PendingWalletCandidates.removeTrustedSender('bank-x9');
+        prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('wallet_trusted_senders'), jsonEncode([]));
+      },
+    );
   });
 
   group('PendingWalletCandidates.flush', () {

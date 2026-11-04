@@ -248,9 +248,11 @@ describe('Money effective-state invariants (V-08)', () => {
     const { repository, service } = serviceWith({});
     await service.updateTransaction(USER, TX, { description: 'x' }, context, 'UTC');
     expect(repository.updateTransaction).toHaveBeenCalledTimes(1);
-    const args = repository.updateTransaction.mock.calls[0];
+    const args = repository.updateTransaction.mock.calls[0] as unknown as
+      | unknown[]
+      | undefined;
     // args: userId, transactionId, input, auditData, expectedVersion, userToday
-    expect(args[5]).toBe(getUserTodayDate('UTC'));
+    expect(args?.[5]).toBe(getUserTodayDate('UTC'));
   });
 
   it('payment: enforces the subscription currency scale and the payment date', async () => {
@@ -258,7 +260,16 @@ describe('Money effective-state invariants (V-08)', () => {
       findSubscriptionById: vi.fn(async () => subscription({ amount: '1.234', currency: 'KWD' }))
     });
 
-    await expectValidation(service.paySubscription(USER, SUB, { amount: '1.2345' }, context, 'UTC'), 'amount');
+    await expectValidation(
+      service.paySubscription(
+        USER,
+        SUB,
+        { amount: '1.2345', idempotencyKey: 'payment-test-key' },
+        context,
+        'UTC'
+      ),
+      'amount'
+    );
     expect(repository.paySubscription).not.toHaveBeenCalled();
 
     const future = new Date(`${TODAY}T00:00:00Z`);
@@ -267,7 +278,10 @@ describe('Money effective-state invariants (V-08)', () => {
       service.paySubscription(
         USER,
         SUB,
-        { occurredOn: future.toISOString().slice(0, 10) },
+        {
+          occurredOn: future.toISOString().slice(0, 10),
+          idempotencyKey: 'payment-test-key'
+        },
         context,
         'UTC'
       ),
@@ -275,7 +289,13 @@ describe('Money effective-state invariants (V-08)', () => {
     );
     expect(repository.paySubscription).not.toHaveBeenCalled();
 
-    await service.paySubscription(USER, SUB, { amount: '1.234' }, context, 'UTC');
+    await service.paySubscription(
+      USER,
+      SUB,
+      { amount: '1.234', idempotencyKey: 'payment-test-key' },
+      context,
+      'UTC'
+    );
     expect(repository.paySubscription).toHaveBeenCalledTimes(1);
   });
 });

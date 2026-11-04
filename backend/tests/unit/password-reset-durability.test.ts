@@ -28,8 +28,12 @@ import type { OtpStore } from '../../src/core/security/otp-service.js';
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+type MemoryResetRequestRecord = Omit<ResetRequestRecord, 'status'> & {
+  status: ResetRequestRecord['status'] | 'purged';
+};
+
 class MemoryResetStore implements ResetRequestStore {
-  public readonly rows: ResetRequestRecord[] = [];
+  public readonly rows: MemoryResetRequestRecord[] = [];
   public failEnqueue = false;
   private seq = 0;
   private token = 0;
@@ -59,7 +63,11 @@ class MemoryResetStore implements ResetRequestStore {
     return { ...record };
   }
 
-  private claim(rows: ResetRequestRecord[], now: Date, leaseMs: number): ResetRequestRecord[] {
+  private claim(
+    rows: MemoryResetRequestRecord[],
+    now: Date,
+    leaseMs: number
+  ): ResetRequestRecord[] {
     const claimed: ResetRequestRecord[] = [];
     for (const row of rows) {
       this.token += 1;
@@ -69,7 +77,7 @@ class MemoryResetStore implements ResetRequestStore {
       // Fresh fencing token per claim, exactly like the PostgreSQL store.
       row.leaseToken = `lease-${this.token}`;
       row.updatedAt = now;
-      claimed.push({ ...row });
+      claimed.push({ ...row, status: 'processing' });
     }
     return claimed;
   }
@@ -93,7 +101,7 @@ class MemoryResetStore implements ResetRequestStore {
   }
 
   /** Same predicate as completeOwned() in the PostgreSQL store. */
-  private owned(claim: ResetRequestClaim): ResetRequestRecord | undefined {
+  private owned(claim: ResetRequestClaim): MemoryResetRequestRecord | undefined {
     return this.rows.find(
       (r) =>
         r.id === claim.id &&
@@ -182,7 +190,7 @@ class MemoryResetStore implements ResetRequestStore {
         row.leaseExpiresAt !== null &&
         row.leaseExpiresAt <= windows.abandonedCutoff;
       if (terminal || abandonedPending || abandonedProcessing) {
-        row.status = 'purged' as ResetRequestRecord['status'];
+        row.status = 'purged';
         purged += 1;
       }
     }
@@ -551,10 +559,11 @@ class FakeOtpStore implements OtpStore {
 class FakeEmailSender {
   public calls = 0;
   constructor(private failFirst = 1) {}
-  async sendPasswordResetEmail(): Promise<void> {
+  async sendPasswordResetEmail(_to: string, _code: string): Promise<void> {
     this.calls += 1;
     if (this.calls <= this.failFirst) throw new Error('smtp down');
   }
+  async sendReminderEmail(_to: string, _subject: string, _body: string): Promise<void> {}
 }
 
 function makeProcessor(otp: FakeOtpStore, sender: FakeEmailSender) {
@@ -640,7 +649,8 @@ describe('V-08 password-reset throttling is never a delivered code (AUD-01)', ()
     const a = make();
     const b = make();
     await a.admit({ email: 'user@example.com' });
-    await Promise.all([a.pump(), b.pump()]);
+    await tick();
+    await b.drainDue();
     await Promise.all([a.waitForIdle(), b.waitForIdle()]);
 
     const row = store.rows.find((r) => r.email === 'user@example.com')!;

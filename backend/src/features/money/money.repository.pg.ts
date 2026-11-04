@@ -100,6 +100,52 @@ interface BudgetDbRow {
   version: number;
 }
 
+function invalidMoneyCursor(): never {
+  throw AppError.validation([
+    {
+      field: 'cursor',
+      code: 'INVALID_CURSOR',
+      message: 'Supplied pagination cursor is malformed or invalid'
+    }
+  ]);
+}
+
+function decodeMoneyCursor(cursor: string, sort: 'date' | 'amount'): [string, string] {
+  if (!/^[A-Za-z0-9_-]+$/.test(cursor)) invalidMoneyCursor();
+  let decoded: string;
+  try {
+    decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+  } catch {
+    return invalidMoneyCursor();
+  }
+  if (Buffer.from(decoded, 'utf8').toString('base64url') !== cursor) {
+    return invalidMoneyCursor();
+  }
+  const parts = decoded.split('|');
+  if (parts.length !== 2) return invalidMoneyCursor();
+  const [sortValue, id] = parts;
+  if (
+    !sortValue ||
+    !id ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    return invalidMoneyCursor();
+  }
+  if (sort === 'amount') {
+    if (!/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(sortValue)) return invalidMoneyCursor();
+  } else {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sortValue)) return invalidMoneyCursor();
+    const parsedDate = new Date(`${sortValue}T00:00:00.000Z`);
+    if (
+      !Number.isFinite(parsedDate.getTime()) ||
+      parsedDate.toISOString().slice(0, 10) !== sortValue
+    ) {
+      return invalidMoneyCursor();
+    }
+  }
+  return [sortValue, id];
+}
+
 function formatDateOnly(val: Date | string | null | undefined): string | null {
   if (!val) return null;
   if (val instanceof Date) {
@@ -473,23 +519,19 @@ export class PgMoneyRepository implements MoneyRepository {
     }
 
     // Cursor pagination parsing
-    if (filter.cursor) {
-      try {
-        const decoded = Buffer.from(filter.cursor, 'base64url').toString('utf8');
-        const [cursorSortVal, cursorId] = decoded.split('|');
-        if (cursorSortVal && cursorId) {
-          if (filter.sort === 'amount') {
-            query = query.where(
-              sql<boolean>`(amount, id) < (${cursorSortVal}::numeric, ${cursorId}::uuid)`
-            );
-          } else {
-            query = query.where(
-              sql<boolean>`(occurred_on, id) < (${cursorSortVal}::date, ${cursorId}::uuid)`
-            );
-          }
-        }
-      } catch {
-        // ignore malformed cursor
+    if (filter.cursor !== undefined) {
+      const [cursorSortVal, cursorId] = decodeMoneyCursor(
+        filter.cursor,
+        filter.sort === 'amount' ? 'amount' : 'date'
+      );
+      if (filter.sort === 'amount') {
+        query = query.where(
+          sql<boolean>`(amount, id) < (${cursorSortVal}::numeric, ${cursorId}::uuid)`
+        );
+      } else {
+        query = query.where(
+          sql<boolean>`(occurred_on, id) < (${cursorSortVal}::date, ${cursorId}::uuid)`
+        );
       }
     }
 
@@ -727,18 +769,11 @@ export class PgMoneyRepository implements MoneyRepository {
       query = query.where('status', '=', filter.status);
     }
 
-    if (filter.cursor) {
-      try {
-        const decoded = Buffer.from(filter.cursor, 'base64url').toString('utf8');
-        const [cursorDate, cursorId] = decoded.split('|');
-        if (cursorDate && cursorId) {
-          query = query.where(
-            sql<boolean>`(next_billing_date, id) > (${cursorDate}::date, ${cursorId}::uuid)`
-          );
-        }
-      } catch {
-        // ignore malformed cursor
-      }
+    if (filter.cursor !== undefined) {
+      const [cursorDate, cursorId] = decodeMoneyCursor(filter.cursor, 'date');
+      query = query.where(
+        sql<boolean>`(next_billing_date, id) > (${cursorDate}::date, ${cursorId}::uuid)`
+      );
     }
 
     const rows = (await query

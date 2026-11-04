@@ -225,29 +225,33 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     )
 
     /**
-     * Keeps only the digits of a phone number so "+20 100 000 0000", "01000000000"
-     * and "201000000000" normalize to the same value. Used to match a sender against
-     * the trusted allow-list and to normalize the values stored there (AUD-05).
+     * Normalizes phone numbers to digits and alphanumeric sender IDs to uppercase
+     * letters/digits, matching the Flutter trusted-sender settings.
      */
-    private fun normalizePhone(phone: String): String {
-        return phone.replace(Regex("[^0-9]"), "")
+    private fun normalizeSender(sender: String): String {
+        val trimmed = sender.trim()
+        return if (trimmed.any { it in 'A'..'Z' || it in 'a'..'z' }) {
+            trimmed.uppercase(Locale.ROOT).filter { it in 'A'..'Z' || it in '0'..'9' }
+        } else {
+            trimmed.filter { it in '0'..'9' }
+        }
     }
 
     /**
      * True only when the sender is on the trusted allow-list stored under
-     * [KEY_TRUSTED_SENDERS] (a JSON array of normalized phone numbers). An absent
+     * [KEY_TRUSTED_SENDERS] (a JSON array of normalized phone numbers or sender IDs). An absent
      * or empty list trusts no sender, so auto-save is off until the user adds one
      * (AUD-05). A malformed list is treated as empty, never as "trust everyone".
      */
     private fun isTrustedSender(context: Context, sender: String): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val raw = prefs.getString(KEY_TRUSTED_SENDERS, null) ?: return false
-        val normalizedSender = normalizePhone(sender)
+        val normalizedSender = normalizeSender(sender)
         if (normalizedSender.isEmpty()) return false
         return try {
             val list = JSONArray(raw)
             for (i in 0 until list.length()) {
-                if (normalizePhone(list.optString(i)) == normalizedSender) return true
+                if (normalizeSender(list.optString(i)) == normalizedSender) return true
             }
             false
         } catch (e: Exception) {

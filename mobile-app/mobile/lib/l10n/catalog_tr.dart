@@ -243,16 +243,13 @@ const Map<String, String> trCatalog = {
       'Banka ve cüzdan SMS\'lerini okur (InstaPay, Vodafone Cash...) ve işlemleri otomatik kaydeder.',
   'smsPermissionDenied':
       'Otomatik yakalamayı etkinleştirmek için SMS izni gereklidir.',
-  'smsQuarantineTitle':
-      'İncelenmek üzere saklanan cüzdan mesajları',
+  'smsQuarantineTitle': 'İncelenmek üzere saklanan cüzdan mesajları',
   'smsQuarantineDesc':
       'Bazı cüzdan mesajları işlenemedi. Silinmedi, saklandı ve otomatik olarak yeniden denenecek. 7 gün sonra sona erer.',
-  'smsStorageFaultTitle':
-      'Cüzdan depolama sorunu',
+  'smsStorageFaultTitle': 'Cüzdan depolama sorunu',
   'smsStorageFaultDesc':
       'Bir cüzdan mesajı bu cihaza kaydedilemedi. Hiçbir şey atılmadı; uygulama arka planda yeniden denemeye devam ediyor.',
-  'smsNotificationDetailsTitle':
-      'Bildirimlerde tutarı ve satıcıyı göster',
+  'smsNotificationDetailsTitle': 'Bildirimlerde tutarı ve satıcıyı göster',
   'smsNotificationDetailsDesc':
       'Varsayılan olarak kapalı: bildirimler yalnızca bir cüzdan mesajı geldiğini söyler. Bu açıldığında tutar ve satıcı gösterilir ve kilit ekranında görülebilir.',
   'analyticsTitle': 'Analitik ve içgörüler',
@@ -261,8 +258,17 @@ const Map<String, String> trCatalog = {
   'analyticsDashboard': 'Performans paneli',
   'analyticsBalance': 'Yaşam denge puanı',
   'analyticsEmpty': 'İçgörüleri görmek için bir analiz çalıştırın.',
+  'analyticsDemoNotice':
+      'Bunlar yalnızca örnek değerlerdir; etkinliğinizi veya mali durumunuzu yansıtmaz.',
+  'smsTrustedSendersTitle': 'Güvenilir gönderenler',
+  'smsTrustedSendersDesc':
+      'Güvenilir gönderenlerden gelen mesajlar yerel olarak tanınırsa otomatik kaydedilebilir. Diğer mesajlar inceleme için bekletilir.',
+  'smsTrustedSenderHint': 'Telefon numarası veya alfasayısal gönderen kimliği',
+  'smsNoTrustedSenders': 'Henüz güvenilir gönderen eklenmedi.',
+  'smsAddTrustedSender': 'Gönderen ekle',
   'aiSpeakTooltip': 'Bu yanıtı sesli oku',
   'aiSpeaking': 'Okunuyor...',
   'aiVoiceListening': 'Dinleniyor...',
-  'aiErrorMessage': 'İsteğiniz işlenirken bir hata oluştu. Lütfen tekrar deneyin.',
+  'aiErrorMessage':
+      'İsteğiniz işlenirken bir hata oluştu. Lütfen tekrar deneyin.',
 };

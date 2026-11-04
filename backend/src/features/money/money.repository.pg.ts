@@ -270,6 +270,28 @@ function toBudgetEntity(row: BudgetDbRow): BudgetEntity {
   };
 }
 
+/** Hold a shared row lock until insertion commits, serializing archive changes. */
+async function assertCreateCategory(
+  trx: Kysely<DatabaseSchema>,
+  userId: string,
+  categoryId: string | null | undefined,
+  kind: TransactionKind
+): Promise<void> {
+  if (!categoryId) return;
+  const category = await trx
+    .selectFrom('categories')
+    .selectAll()
+    .where('id', '=', categoryId)
+    .where('user_id', '=', userId)
+    .forShare()
+    .executeTakeFirst();
+  if (!category) throw AppError.notFound('Category not found');
+  assertMoneyCategory(
+    { id: category.id, kind: category.kind, archivedAt: category.archived_at },
+    kind
+  );
+}
+
 async function insertAuditLogRow(
   dbOrTrx: Kysely<DatabaseSchema>,
   data: AuditLogData
@@ -432,6 +454,7 @@ export class PgMoneyRepository implements MoneyRepository {
     auditData: AuditLogData
   ): Promise<TransactionEntity> {
     return await this.db.transaction().execute(async (trx) => {
+      await assertCreateCategory(trx, userId, input.categoryId, input.kind);
       const row = (await trx
         .insertInto('transactions')
         .values({
@@ -739,27 +762,30 @@ export class PgMoneyRepository implements MoneyRepository {
     userId: string,
     input: CreateSubscriptionInput
   ): Promise<SubscriptionEntity> {
-    const row = (await this.db
-      .insertInto('subscriptions')
-      .values({
-        user_id: userId,
-        name: input.name,
-        amount: input.amount,
-        amount_scale: moneyInputScale(input.amount),
-        currency: input.currency,
-        billing_unit: input.billingUnit,
-        billing_interval: input.billingInterval ?? 1,
-        anchor_date: input.anchorDate,
-        next_billing_date: input.nextBillingDate ?? input.anchorDate,
-        category_id: input.categoryId ?? null,
-        reminder_days_before: input.reminderDaysBefore ?? null,
-        notes: input.notes ?? null,
-        status: 'active'
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow()) as unknown as SubscriptionDbRow;
+    return this.db.transaction().execute(async (trx) => {
+      await assertCreateCategory(trx, userId, input.categoryId, 'expense');
+      const row = (await trx
+        .insertInto('subscriptions')
+        .values({
+          user_id: userId,
+          name: input.name,
+          amount: input.amount,
+          amount_scale: moneyInputScale(input.amount),
+          currency: input.currency,
+          billing_unit: input.billingUnit,
+          billing_interval: input.billingInterval ?? 1,
+          anchor_date: input.anchorDate,
+          next_billing_date: input.nextBillingDate ?? input.anchorDate,
+          category_id: input.categoryId ?? null,
+          reminder_days_before: input.reminderDaysBefore ?? null,
+          notes: input.notes ?? null,
+          status: 'active'
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()) as unknown as SubscriptionDbRow;
 
-    return toSubscriptionEntity(row);
+      return toSubscriptionEntity(row);
+    });
   }
 
   async findSubscriptionById(
@@ -1075,20 +1101,23 @@ export class PgMoneyRepository implements MoneyRepository {
   // ==========================================
 
   async createBudget(userId: string, input: CreateBudgetInput): Promise<BudgetEntity> {
-    const row = (await this.db
-      .insertInto('budgets')
-      .values({
-        user_id: userId,
-        category_id: input.categoryId ?? null,
-        amount_limit: input.amountLimit,
-        amount_scale: moneyInputScale(input.amountLimit),
-        currency: input.currency,
-        period: input.period ?? 'monthly'
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow()) as unknown as BudgetDbRow;
+    return this.db.transaction().execute(async (trx) => {
+      await assertCreateCategory(trx, userId, input.categoryId, 'expense');
+      const row = (await trx
+        .insertInto('budgets')
+        .values({
+          user_id: userId,
+          category_id: input.categoryId ?? null,
+          amount_limit: input.amountLimit,
+          amount_scale: moneyInputScale(input.amountLimit),
+          currency: input.currency,
+          period: input.period ?? 'monthly'
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()) as unknown as BudgetDbRow;
 
-    return toBudgetEntity(row);
+      return toBudgetEntity(row);
+    });
   }
 
   async findBudgetById(userId: string, budgetId: string): Promise<BudgetEntity | null> {

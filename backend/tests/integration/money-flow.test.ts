@@ -290,8 +290,9 @@ describe('Money Integration Tests', () => {
           occurredOn: '2026-09-20',
           description: 'Lunch'
         });
-      expect(createRes.status).toBe(201);
+      expect(createRes.status, JSON.stringify(createRes.body)).toBe(201);
       const txId = createRes.body.data.transaction.id;
+      expect(txId).toMatch(/^[0-9a-f-]{36}$/i);
 
       // 2. Update transaction
       const updateRes = await request(app)
@@ -300,7 +301,7 @@ describe('Money Integration Tests', () => {
         .send({
           description: 'Team Lunch'
         });
-      expect(updateRes.status).toBe(200);
+      expect(updateRes.status, JSON.stringify(updateRes.body)).toBe(200);
 
       // 3. Delete transaction
       const deleteRes = await request(app)

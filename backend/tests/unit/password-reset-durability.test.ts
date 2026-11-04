@@ -257,21 +257,24 @@ describe('Durable password-reset delivery (F-06)', () => {
   it('dead-letters after the attempt budget instead of retrying forever', async () => {
     const store = new MemoryResetStore();
     const attempts: number[] = [];
+    let now = Date.now();
     const queue = new ResetRequestDispatcher(
       async () => {
         attempts.push(1);
         throw new Error('smtp down');
       },
-      { store, retryBackoffMs: 1, maxAttempts: 2 }
+      { store, retryBackoffMs: 1, maxAttempts: 2, now: () => now }
     );
 
     await queue.admit({ email: 'dead@example.com' });
     await queue.waitForIdle();
     // First failure leaves the row retryable.
     expect(store.rows[0]!.status).toBe('failed');
-    // Elapse the tiny backoff so the row becomes claimable again.
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    await queue.drainDue();
+    expect(attempts).toHaveLength(1);
+    expect(await queue.drainDue()).toBe(0);
+    // Advance the injected clock exactly to the retry deadline.
+    now = store.rows[0]!.nextAttemptAt.getTime();
+    expect(await queue.drainDue()).toBe(1);
     await queue.waitForIdle();
 
     expect(attempts).toHaveLength(2);

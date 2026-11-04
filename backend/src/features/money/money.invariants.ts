@@ -60,27 +60,34 @@ export function checkAmountForCurrency(amount: unknown, currency: string): Amoun
   return { ok: true, maxScale };
 }
 
-/** On a move to a narrower currency, require an explicit amount; storage
- * cannot recover how many trailing zeros the user originally supplied. */
-export function mayUseStoredPadding(originalCurrency: string, targetCurrency: string): boolean {
-  return getCurrencyExponent(targetCurrency) >= getCurrencyExponent(originalCurrency);
+/** Number of fractional digits in a validated amount supplied by the user. */
+export function moneyInputScale(amount: string): number {
+  return (amount.trim().split('.')[1] ?? '').length;
 }
 
-/** Validate request text strictly, while accounting for PostgreSQL NUMERIC(19,4)
- * padding on an unchanged stored value. No rounding or numeric translation occurs.
- */
-export function assertMoneyAmount(
-  amount: string,
-  currency: string,
-  field = 'amount',
-  stored = false
-): void {
+/** Recover recorded textual scale exactly, or require a fresh amount for legacy rows. */
+export function effectiveMoneyAmount(
+  supplied: string | undefined,
+  stored: string,
+  scale: number | null,
+  field = 'amount'
+): string {
+  if (supplied !== undefined) return supplied;
+  if (scale === null || scale === undefined) {
+    throw AppError.validation([{ field, message: 'Re-enter the amount for this older record' }]);
+  }
+  const decimal = new Decimal(stored);
+  if (!Number.isInteger(scale) || scale < 0 || scale > 4 || decimal.decimalPlaces() > scale) {
+    throw AppError.validation([{ field, message: 'Stored amount scale is inconsistent' }]);
+  }
+  // decimalPlaces() proves no nonzero digits are discarded: toFixed formats only.
+  return decimal.toFixed(scale);
+}
+
+/** Strictly validate the effective unrounded request or reconstructed stored text. */
+export function assertMoneyAmount(amount: string, currency: string, field = 'amount'): void {
   const check = checkAmountForCurrency(amount, currency);
-  const validStoredValue =
-    stored &&
-    check.reason === 'scale' &&
-    new Decimal(amount).decimalPlaces() <= getCurrencyExponent(currency);
-  if (!check.ok && !validStoredValue) {
+  if (!check.ok) {
     throw AppError.validation([
       {
         field,
@@ -125,7 +132,6 @@ export interface EffectiveCategory {
 export interface EffectiveTransactionState {
   kind: TransactionKind;
   amount: string;
-  amountIsStored?: boolean;
   currency: string;
   occurredOn: string;
   category?: EffectiveCategory | null;
@@ -150,7 +156,7 @@ export function assertTransactionInvariants(
     throw AppError.validation([{ field: 'occurredOn', message: FUTURE_MESSAGE }]);
   }
 
-  assertMoneyAmount(state.amount, state.currency, 'amount', state.amountIsStored);
+  assertMoneyAmount(state.amount, state.currency, 'amount');
   assertMoneyCategory(state.category ?? null, state.kind);
 }
 
@@ -161,7 +167,7 @@ export function assertTransactionInvariants(
  * manual transaction.
  */
 export function assertSubscriptionPaymentInvariants(
-  state: { amount: string; currency: string; occurredOn: string; amountIsStored?: boolean },
+  state: { amount: string; currency: string; occurredOn: string },
   userToday: string
 ): void {
   if (!isValidCalendarDate(state.occurredOn)) {
@@ -172,5 +178,5 @@ export function assertSubscriptionPaymentInvariants(
   if (!isWithinFutureAllowance(state.occurredOn, userToday)) {
     throw AppError.validation([{ field: 'occurredOn', message: FUTURE_MESSAGE }]);
   }
-  assertMoneyAmount(state.amount, state.currency, 'amount', state.amountIsStored);
+  assertMoneyAmount(state.amount, state.currency, 'amount');
 }

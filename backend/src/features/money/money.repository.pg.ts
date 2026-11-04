@@ -36,7 +36,8 @@ import {
   assertTransactionInvariants,
   assertSubscriptionPaymentInvariants,
   assertMoneyAmount,
-  mayUseStoredPadding,
+  effectiveMoneyAmount,
+  moneyInputScale,
   assertMoneyCategory,
   normalizeStoredDate,
   type EffectiveCategory
@@ -60,6 +61,7 @@ interface TransactionDbRow {
   user_id: string;
   kind: 'expense' | 'income';
   amount: string;
+  amount_scale: number | null;
   currency: string;
   occurred_on: string;
   category_id: string | null;
@@ -81,6 +83,7 @@ interface SubscriptionDbRow {
   user_id: string;
   name: string;
   amount: string;
+  amount_scale: number | null;
   currency: string;
   billing_unit: 'week' | 'month' | 'year';
   billing_interval: number;
@@ -102,6 +105,7 @@ interface BudgetDbRow {
   user_id: string;
   category_id: string | null;
   amount_limit: string;
+  amount_scale: number | null;
   currency: string;
   period: 'monthly';
   created_at: Date;
@@ -193,6 +197,7 @@ function toTransactionEntity(row: TransactionDbRow): TransactionEntity {
     userId: row.user_id,
     kind: row.kind,
     amount: String(row.amount),
+    amountScale: row.amount_scale,
     currency: row.currency,
     occurredOn: formatDateOnly(row.occurred_on)!,
     categoryId: row.category_id,
@@ -221,6 +226,7 @@ function toSubscriptionEntity(row: SubscriptionDbRow): SubscriptionEntity {
     userId: row.user_id,
     name: row.name,
     amount: String(row.amount),
+    amountScale: row.amount_scale,
     currency: row.currency,
     billingUnit: row.billing_unit,
     billingInterval: row.billing_interval,
@@ -249,6 +255,7 @@ function toBudgetEntity(row: BudgetDbRow): BudgetEntity {
     userId: row.user_id,
     categoryId: row.category_id,
     amountLimit: String(row.amount_limit),
+    amountScale: row.amount_scale,
     currency: row.currency,
     period: row.period,
     createdAt: row.created_at instanceof Date ? row.created_at : new Date(row.created_at),
@@ -431,6 +438,7 @@ export class PgMoneyRepository implements MoneyRepository {
           user_id: userId,
           kind: input.kind,
           amount: input.amount,
+          amount_scale: moneyInputScale(input.amount),
           currency: input.currency,
           occurred_on: input.occurredOn,
           category_id: input.categoryId ?? null,
@@ -629,10 +637,7 @@ export class PgMoneyRepository implements MoneyRepository {
         assertTransactionInvariants(
           {
             kind: input.kind ?? locked.kind,
-            amount: input.amount ?? locked.amount,
-            amountIsStored:
-              input.amount === undefined &&
-              mayUseStoredPadding(locked.currency, input.currency ?? locked.currency),
+            amount: effectiveMoneyAmount(input.amount, locked.amount, locked.amount_scale),
             currency: input.currency ?? locked.currency,
             occurredOn: normalizeStoredDate(input.occurredOn ?? locked.occurred_on),
             category
@@ -645,7 +650,9 @@ export class PgMoneyRepository implements MoneyRepository {
         .updateTable('transactions')
         .set({
           ...(input.kind !== undefined ? { kind: input.kind } : {}),
-          ...(input.amount !== undefined ? { amount: input.amount } : {}),
+          ...(input.amount !== undefined
+            ? { amount: input.amount, amount_scale: moneyInputScale(input.amount) }
+            : {}),
           ...(input.currency !== undefined ? { currency: input.currency } : {}),
           ...(input.occurredOn !== undefined ? { occurred_on: input.occurredOn } : {}),
           ...(input.categoryId !== undefined ? { category_id: input.categoryId } : {}),
@@ -738,6 +745,7 @@ export class PgMoneyRepository implements MoneyRepository {
         user_id: userId,
         name: input.name,
         amount: input.amount,
+        amount_scale: moneyInputScale(input.amount),
         currency: input.currency,
         billing_unit: input.billingUnit,
         billing_interval: input.billingInterval ?? 1,
@@ -829,11 +837,9 @@ export class PgMoneyRepository implements MoneyRepository {
       ).rows[0];
       if (!locked) return null;
       assertMoneyAmount(
-        input.amount ?? locked.amount,
+        effectiveMoneyAmount(input.amount, locked.amount, locked.amount_scale),
         input.currency ?? locked.currency,
-        'amount',
-        input.amount === undefined &&
-          mayUseStoredPadding(locked.currency, input.currency ?? locked.currency)
+        'amount'
       );
       const categoryId = input.categoryId !== undefined ? input.categoryId : locked.category_id;
       if (categoryId) {
@@ -854,7 +860,9 @@ export class PgMoneyRepository implements MoneyRepository {
         .updateTable('subscriptions')
         .set({
           ...(input.name !== undefined ? { name: input.name } : {}),
-          ...(input.amount !== undefined ? { amount: input.amount } : {}),
+          ...(input.amount !== undefined
+            ? { amount: input.amount, amount_scale: moneyInputScale(input.amount) }
+            : {}),
           ...(input.currency !== undefined ? { currency: input.currency } : {}),
           ...(input.billingUnit !== undefined ? { billing_unit: input.billingUnit } : {}),
           ...(input.billingInterval !== undefined
@@ -942,12 +950,11 @@ export class PgMoneyRepository implements MoneyRepository {
         ]);
       }
       const billingDate = formatDateOnly(subRow.next_billing_date)!;
-      const txAmount = input.amount ?? subRow.amount;
+      const txAmount = effectiveMoneyAmount(input.amount, subRow.amount, subRow.amount_scale);
       const occurredOn = input.occurredOn ?? billingDate;
       assertSubscriptionPaymentInvariants(
         {
           amount: txAmount,
-          amountIsStored: input.amount === undefined,
           currency: subRow.currency,
           occurredOn
         },
@@ -996,6 +1003,7 @@ export class PgMoneyRepository implements MoneyRepository {
           user_id: userId,
           kind: 'expense',
           amount: txAmount,
+          amount_scale: moneyInputScale(txAmount),
           currency: subRow.currency,
           occurred_on: occurredOn,
           category_id: subRow.category_id,
@@ -1073,6 +1081,7 @@ export class PgMoneyRepository implements MoneyRepository {
         user_id: userId,
         category_id: input.categoryId ?? null,
         amount_limit: input.amountLimit,
+        amount_scale: moneyInputScale(input.amountLimit),
         currency: input.currency,
         period: input.period ?? 'monthly'
       })
@@ -1145,10 +1154,14 @@ export class PgMoneyRepository implements MoneyRepository {
       ).rows[0];
       if (!locked) return null;
       assertMoneyAmount(
-        input.amountLimit ?? locked.amount_limit,
+        effectiveMoneyAmount(
+          input.amountLimit,
+          locked.amount_limit,
+          locked.amount_scale,
+          'amountLimit'
+        ),
         locked.currency,
-        'amountLimit',
-        input.amountLimit === undefined
+        'amountLimit'
       );
       if (locked.category_id) {
         const category = await trx
@@ -1167,7 +1180,9 @@ export class PgMoneyRepository implements MoneyRepository {
       let query = trx
         .updateTable('budgets')
         .set({
-          ...(input.amountLimit !== undefined ? { amount_limit: input.amountLimit } : {}),
+          ...(input.amountLimit !== undefined
+            ? { amount_limit: input.amountLimit, amount_scale: moneyInputScale(input.amountLimit) }
+            : {}),
           updated_at: new Date(),
           version: sql<number>`version + 1`
         })

@@ -14,7 +14,7 @@ import {
   assertSubscriptionPaymentInvariants,
   assertTransactionInvariants,
   assertMoneyAmount,
-  mayUseStoredPadding,
+  effectiveMoneyAmount,
   assertMoneyCategory,
   normalizeStoredDate,
   type EffectiveCategory
@@ -359,10 +359,7 @@ export class MoneyService {
     assertTransactionInvariants(
       {
         kind: effectiveKind,
-        amount: input.amount ?? existing.amount,
-        amountIsStored:
-          input.amount === undefined &&
-          mayUseStoredPadding(existing.currency, input.currency ?? existing.currency),
+        amount: effectiveMoneyAmount(input.amount, existing.amount, existing.amountScale),
         currency: input.currency ?? existing.currency,
         occurredOn: input.occurredOn ?? normalizeStoredDate(existing.occurredOn),
         category
@@ -534,11 +531,9 @@ export class MoneyService {
     }
 
     assertMoneyAmount(
-      input.amount ?? existing.amount,
+      effectiveMoneyAmount(input.amount, existing.amount, existing.amountScale),
       input.currency ?? existing.currency,
-      'amount',
-      input.amount === undefined &&
-        mayUseStoredPadding(existing.currency, input.currency ?? existing.currency)
+      'amount'
     );
     const categoryId = input.categoryId !== undefined ? input.categoryId : existing.categoryId;
     if (categoryId) {
@@ -614,8 +609,7 @@ export class MoneyService {
     // currency scale and future-date rules as a manual transaction (V-08).
     assertSubscriptionPaymentInvariants(
       {
-        amount: input.amount ?? sub.amount,
-        amountIsStored: input.amount === undefined,
+        amount: effectiveMoneyAmount(input.amount, sub.amount, sub.amountScale),
         currency: sub.currency,
         occurredOn: input.occurredOn ?? normalizeStoredDate(sub.nextBillingDate)
       },
@@ -808,10 +802,14 @@ export class MoneyService {
     }
 
     assertMoneyAmount(
-      input.amountLimit ?? existing.amountLimit,
+      effectiveMoneyAmount(
+        input.amountLimit,
+        existing.amountLimit,
+        existing.amountScale,
+        'amountLimit'
+      ),
       existing.currency,
-      'amountLimit',
-      input.amountLimit === undefined
+      'amountLimit'
     );
     if (existing.categoryId) {
       const category = await this.moneyRepository.findCategoryById(userId, existing.categoryId);

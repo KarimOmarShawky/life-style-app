@@ -109,6 +109,29 @@ describe('Boot-Time Database DDL & Schema Drift Guard (B-09)', () => {
     }
   });
 
+  it('preserves the optional original monetary scale and its integrity constraint in both snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      for (const [tableName, column] of [
+        ['transactions', 'amount'],
+        ['subscriptions', 'amount'],
+        ['budgets', 'amount_limit']
+      ]) {
+        const table = snapshot.match(
+          new RegExp(`CREATE TABLE ${tableName} \\(([\\s\\S]*?)\\n\\s*\\);`, 'i')
+        )?.[1];
+        expect(table).toBeDefined();
+        expect(table).toMatch(/\bamount_scale\s+SMALLINT\b/i);
+        expect(table).toMatch(
+          new RegExp(
+            `amount_scale BETWEEN 0 AND 4 AND ${column} = trunc\\(${column}, amount_scale\\)`,
+            'i'
+          )
+        );
+      }
+    }
+  });
+
   it('keeps the approved optional timer task nullable in the reference schema', () => {
     const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
     const timer = root.slice(root.indexOf('CREATE TABLE timer_sessions'));

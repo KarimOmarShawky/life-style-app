@@ -13,20 +13,27 @@ const service = new MoneyService(repository, { cancelPendingFor: async () => und
 const today = getUserTodayDate('UTC');
 let userId: string;
 
+// Values ending in four padded digits model NUMERIC storage in these pre-existing
+// tests; record the original meaningful scale instead of inventing legacy data.
+function fixtureScale(amount: string): number {
+  const fraction = amount.split('.')[1] ?? '';
+  return fraction.length === 4 ? fraction.replace(/0+$/, '').length : fraction.length;
+}
+
 async function transaction(amount: string) {
   const result = await pool.query<{ id: string }>(
-    `INSERT INTO transactions (user_id,kind,amount,currency,occurred_on)
-     VALUES ($1,'expense',$2,'USD',$3) RETURNING id`,
-    [userId, amount, today]
+    `INSERT INTO transactions (user_id,kind,amount,currency,occurred_on,amount_scale)
+     VALUES ($1,'expense',$2,'USD',$3,$4) RETURNING id`,
+    [userId, amount, today, fixtureScale(amount)]
   );
   return result.rows[0]!.id;
 }
 
 async function subscription(amount: string, currency: string) {
   const result = await pool.query<{ id: string }>(
-    `INSERT INTO subscriptions (user_id,name,amount,currency,billing_unit,anchor_date,next_billing_date)
-     VALUES ($1,'Test',$2,$3,'month',$4,$4) RETURNING id`,
-    [userId, amount, currency, today]
+    `INSERT INTO subscriptions (user_id,name,amount,currency,billing_unit,anchor_date,next_billing_date,amount_scale)
+     VALUES ($1,'Test',$2,$3,'month',$4,$4,$5) RETURNING id`,
+    [userId, amount, currency, today, fixtureScale(amount)]
   );
   return result.rows[0]!.id;
 }

@@ -271,6 +271,7 @@ export interface SubscriptionsTable {
   user_id: string;
   name: string;
   amount: string;
+  amount_scale: number | null;
   currency: string;
   billing_unit: 'week' | 'month' | 'year';
   billing_interval: Generated<number>;
@@ -293,6 +294,7 @@ export interface TransactionsTable {
   user_id: string;
   kind: 'expense' | 'income';
   amount: string;
+  amount_scale: number | null;
   currency: string;
   occurred_on: string;
   category_id: string | null;
@@ -315,6 +317,7 @@ export interface BudgetsTable {
   category_kind: Generated<'expense'>;
   category_id: string | null;
   amount_limit: string;
+  amount_scale: number | null;
   currency: string;
   period: Generated<'monthly'>;
   created_at: Generated<Date>;

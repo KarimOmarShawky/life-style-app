@@ -40,6 +40,7 @@ function transaction(overrides: Partial<TransactionEntity> = {}): TransactionEnt
     userId: USER,
     kind: 'expense',
     amount: '10.00',
+    amountScale: 2,
     currency: 'USD',
     occurredOn: TODAY,
     categoryId: null,
@@ -80,6 +81,7 @@ function subscription(overrides: Partial<SubscriptionEntity> = {}): Subscription
     userId: USER,
     name: 'Streaming',
     amount: '10.00',
+    amountScale: 2,
     currency: 'USD',
     billingUnit: 'month',
     billingInterval: 1,
@@ -255,7 +257,9 @@ describe('Money effective-state invariants (V-08)', () => {
 
   it('payment: enforces the subscription currency scale and the payment date', async () => {
     const { repository, service } = serviceWith({
-      findSubscriptionById: vi.fn(async () => subscription({ amount: '1.234', currency: 'KWD' }))
+      findSubscriptionById: vi.fn(async () =>
+        subscription({ amount: '1.234', amountScale: 3, currency: 'KWD' })
+      )
     });
 
     await expectValidation(

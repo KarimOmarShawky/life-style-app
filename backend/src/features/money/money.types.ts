@@ -28,6 +28,7 @@ export interface TransactionEntity {
   userId: string;
   kind: TransactionKind;
   amount: string;
+  amountScale: number | null;
   currency: string;
   occurredOn: string;
   categoryId: string | null;
@@ -49,6 +50,7 @@ export interface SubscriptionEntity {
   userId: string;
   name: string;
   amount: string;
+  amountScale: number | null;
   currency: string;
   billingUnit: BillingUnit;
   billingInterval: number;
@@ -70,6 +72,7 @@ export interface BudgetEntity {
   userId: string;
   categoryId: string | null;
   amountLimit: string;
+  amountScale: number | null;
   currency: string;
   period: BudgetPeriod;
   createdAt: Date;

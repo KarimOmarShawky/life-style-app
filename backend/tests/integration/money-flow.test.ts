@@ -560,7 +560,10 @@ describe('Money Integration Tests', () => {
       expect([kwd.status, jpy.status]).toEqual([201, 201]);
       const kwdId = kwd.body.data.subscription.id;
       const jpyId = jpy.body.data.subscription.id;
-      await pool.query('UPDATE subscriptions SET amount = $1 WHERE id = $2', ['10.5000', jpyId]);
+      await pool.query('UPDATE subscriptions SET amount = $1, amount_scale = NULL WHERE id = $2', [
+        '10.5000',
+        jpyId
+      ]);
       const before = (
         await pool.query('SELECT row_to_json(t)::text AS row FROM subscriptions t WHERE id = $1', [
           jpyId

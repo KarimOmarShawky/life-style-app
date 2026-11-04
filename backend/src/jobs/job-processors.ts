@@ -91,10 +91,6 @@ export interface JobClock {
 const MAX_REMINDER_ATTEMPTS = 5;
 const RETRY_BACKOFF_MS = 5 * 60_000;
 
-function truncate(message: string, max = 480): string {
-  return message.length > max ? `${message.slice(0, max)}…` : message;
-}
-
 /**
  * Dispatches due reminders. `in_app` reminders are "delivered" by being listed
  * through the API (the mobile client shows a local notification), `email`
@@ -152,8 +148,8 @@ export async function processReminderDispatch(
       // 'in_app': delivered by presence in the API listing.
       await store.markSent(reminder.id, now, reminder.attemptCount);
       sent += 1;
-    } catch (err) {
-      const message = truncate(err instanceof Error ? err.message : String(err));
+    } catch {
+      const message = 'Reminder delivery failed';
       const attempts = reminder.attemptCount; // claimDue already increments this attempt
       if (attempts >= MAX_REMINDER_ATTEMPTS) {
         await store.markFailed(reminder.id, now, 'DELIVERY_FAILED', message, reminder.attemptCount);

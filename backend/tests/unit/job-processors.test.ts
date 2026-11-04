@@ -82,6 +82,19 @@ const pushUnavailable = {
 };
 
 describe('processReminderDispatch', () => {
+  it('never persists provider errors containing private values', async () => {
+    const store = fakeStore([reminder({ channel: 'email' })]);
+    const sender: EmailSender = {
+      sendPasswordResetEmail: vi.fn(),
+      sendReminderEmail: vi.fn().mockRejectedValue(new Error('private person@example.com'))
+    };
+    await processReminderDispatch(clock, store, emails, sender, pushAvailable);
+    expect(store.markRetry).toHaveBeenCalled();
+    expect(JSON.stringify(vi.mocked(store.markRetry).mock.calls)).not.toContain(
+      'person@example.com'
+    );
+  });
+
   it('sends in_app and email reminders and marks them sent', async () => {
     const store = fakeStore([reminder(), reminder({ id: 'rem-2', channel: 'email' })]);
     const result = await processReminderDispatch(clock, store, emails, emailSender, pushAvailable);

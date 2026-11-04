@@ -8,6 +8,7 @@
 
 import type pg from 'pg';
 import { logger } from '../../../core/logger/logger.js';
+import { summarizeErrorForLog } from '../../../core/logger/log-minimization.js';
 
 export interface AuditEvent {
   actorType: 'user' | 'system';
@@ -55,7 +56,9 @@ export class PgAuditLogger implements AuditLogger {
     try {
       await this.pool.query(query, values);
     } catch (err) {
-      logger.error('Failed to append audit log entry', err, { eventType: event.eventType });
+      logger.error('Failed to append audit log entry', summarizeErrorForLog(err), {
+        eventType: event.eventType
+      });
     }
   }
 }

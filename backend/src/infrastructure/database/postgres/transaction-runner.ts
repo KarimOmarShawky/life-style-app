@@ -9,6 +9,7 @@
 import type { Kysely, Transaction } from 'kysely';
 import type { DatabaseSchema } from './kysely.js';
 import { logger } from '../../../core/logger/logger.js';
+import { summarizeErrorForLog } from '../../../core/logger/log-minimization.js';
 
 export type CommitHook = () => Promise<void> | void;
 
@@ -44,7 +45,7 @@ export class PgTransactionRunner<DB = DatabaseSchema> implements TransactionRunn
         await hook();
       } catch (err) {
         // After-commit failures are logged; transaction is already committed.
-        logger.error('Error executing after-commit side-effect hook', err);
+        logger.error('Error executing after-commit side-effect hook', summarizeErrorForLog(err));
       }
     }
 

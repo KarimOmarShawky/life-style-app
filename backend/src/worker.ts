@@ -1,3 +1,4 @@
+import { summarizeErrorForLog } from './core/logger/log-minimization.js';
 /**
  * src/worker.ts
  *
@@ -74,7 +75,7 @@ if (env.DATABASE_MAINTENANCE_URL) {
     statement_timeout: env.DATABASE_STATEMENT_TIMEOUT_MS
   });
   maintenancePool.on('error', (err) => {
-    logger.error('Unexpected error on idle maintenance PostgreSQL pool', err);
+    logger.error('Unexpected error on idle maintenance PostgreSQL pool', summarizeErrorForLog(err));
   });
   auditRetentionStore = new PgAuditRetentionStore(
     new Kysely<DatabaseSchema>({ dialect: new PostgresDialect({ pool: maintenancePool }) })
@@ -292,7 +293,7 @@ async function handleWorkerShutdown(signal: string, exitCode = 0): Promise<void>
     logger.info('Worker shutdown complete. Exiting cleanly.');
     process.exit(exitCode);
   } catch (err) {
-    logger.error('Worker shutdown encountered error', err);
+    logger.error('Worker shutdown encountered error', summarizeErrorForLog(err));
     process.exit(1);
   }
 }
@@ -301,7 +302,7 @@ process.on('SIGTERM', () => void handleWorkerShutdown('SIGTERM'));
 process.on('SIGINT', () => void handleWorkerShutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
-  logger.fatal('Worker uncaught exception', err);
+  logger.fatal('Worker uncaught exception', summarizeErrorForLog(err));
   void handleWorkerShutdown('uncaughtException', 1);
 });
 

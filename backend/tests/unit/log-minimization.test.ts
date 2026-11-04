@@ -10,7 +10,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { correlationId, summarizeErrorForLog } from '../../src/core/logger/log-minimization.js';
-import { logger } from '../../src/core/logger/logger.js';
+import { baseLogger, logger } from '../../src/core/logger/logger.js';
+import { PgAuditLogger } from '../../src/infrastructure/database/postgres/audit-logger.js';
+import { PgTransactionRunner } from '../../src/infrastructure/database/postgres/transaction-runner.js';
 import { createRateLimitMiddleware } from '../../src/core/middleware/rate-limiter.js';
 import { globalErrorHandler } from '../../src/core/middleware/error-handler.js';
 
@@ -22,6 +24,23 @@ afterEach(() => {
 });
 
 describe('Log minimization (V-10)', () => {
+  it('does not leak provider values from audit and after-commit failures', async () => {
+    const sink = vi.spyOn(baseLogger, 'error').mockImplementation(() => undefined as never);
+    const err = new Error(`secret value ${EMAIL}`);
+    const audit = new PgAuditLogger({ query: vi.fn().mockRejectedValue(err) } as never);
+    await audit.log({ actorType: 'system', eventType: 'test', outcome: 'failure' });
+    const runner = new PgTransactionRunner({
+      transaction: () => ({ execute: async (fn: (tx: unknown) => Promise<unknown>) => fn({}) })
+    } as never);
+    await runner.run(async (ctx) => {
+      ctx.afterCommit(() => {
+        throw err;
+      });
+    });
+    expect(sink).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sink.mock.calls)).not.toContain(EMAIL);
+  });
+
   it('replaces a sensitive key with a keyed, non-reversible correlation id', () => {
     const key = `login:${EMAIL}:${IP}`;
     const first = correlationId(key);

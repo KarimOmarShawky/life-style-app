@@ -1070,17 +1070,13 @@ class _WalletCaptureNoticeCardState
           color: color,
         ),
         title: Text(
-          _quarantined
-              ? l10n.smsQuarantineTitle
-              : l10n.smsStorageFaultTitle,
+          _quarantined ? l10n.smsQuarantineTitle : l10n.smsStorageFaultTitle,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
-            _quarantined
-                ? l10n.smsQuarantineDesc
-                : l10n.smsStorageFaultDesc,
+            _quarantined ? l10n.smsQuarantineDesc : l10n.smsStorageFaultDesc,
           ),
         ),
       ),

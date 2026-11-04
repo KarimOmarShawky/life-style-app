@@ -247,12 +247,10 @@ const Map<String, String> deCatalog = {
       'Liest Bank- und Wallet-SMS (InstaPay, Vodafone Cash ...) und bucht Transaktionen automatisch.',
   'smsPermissionDenied':
       'SMS-Berechtigung ist für die automatische Erfassung erforderlich.',
-  'smsQuarantineTitle':
-      'Wallet-Nachrichten zur Prüfung aufbewahrt',
+  'smsQuarantineTitle': 'Wallet-Nachrichten zur Prüfung aufbewahrt',
   'smsQuarantineDesc':
       'Einige Wallet-Nachrichten konnten nicht verarbeitet werden. Sie wurden aufbewahrt, nicht gelöscht, und werden automatisch erneut versucht. Sie verfallen nach 7 Tagen.',
-  'smsStorageFaultTitle':
-      'Problem beim Speichern der Wallet-Daten',
+  'smsStorageFaultTitle': 'Problem beim Speichern der Wallet-Daten',
   'smsStorageFaultDesc':
       'Eine Wallet-Nachricht konnte auf diesem Gerät nicht gespeichert werden. Es wurde nichts verworfen; die App versucht es im Hintergrund weiter.',
   'smsNotificationDetailsTitle':
@@ -264,15 +262,19 @@ const Map<String, String> deCatalog = {
   'analyticsCumulative': 'Kumulierte Analyse',
   'analyticsDashboard': 'Performance-Dashboard',
   'analyticsBalance': 'Lebensbalance-Score',
-  'analyticsEmpty': 'Führen Sie eine Analyse aus, um Ihre Erkenntnisse zu sehen.',
-  'analyticsDemoNotice': 'Nur Beispielwerte; sie spiegeln weder Ihre Aktivitäten noch Ihre Finanzen wider.',
+  'analyticsEmpty':
+      'Führen Sie eine Analyse aus, um Ihre Erkenntnisse zu sehen.',
+  'analyticsDemoNotice':
+      'Nur Beispielwerte; sie spiegeln weder Ihre Aktivitäten noch Ihre Finanzen wider.',
   'smsTrustedSendersTitle': 'Vertrauenswürdige Absender',
-  'smsTrustedSendersDesc': 'Nachrichten vertrauenswürdiger Absender können bei lokaler Erkennung automatisch gespeichert werden. Andere Nachrichten bleiben zur Prüfung.',
+  'smsTrustedSendersDesc':
+      'Nachrichten vertrauenswürdiger Absender können bei lokaler Erkennung automatisch gespeichert werden. Andere Nachrichten bleiben zur Prüfung.',
   'smsTrustedSenderHint': 'Telefonnummer oder alphanumerische Absenderkennung',
   'smsNoTrustedSenders': 'Keine vertrauenswürdigen Absender hinzugefügt.',
   'smsAddTrustedSender': 'Absender hinzufügen',
   'aiSpeakTooltip': 'Diese Antwort vorlesen',
   'aiSpeaking': 'Wird vorgetragen...',
   'aiVoiceListening': 'Höre zu...',
-  'aiErrorMessage': 'Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
+  'aiErrorMessage':
+      'Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
 };

@@ -158,8 +158,9 @@ class WalletSmsQuarantineStatus {
     }
     // Fall back to the queue itself: the flag is best-effort, the entries are not.
     return prefs.getKeys().any(
-          (String entry) =>
-              entry.replaceFirst(_flutterPrefix, '').startsWith(quarantinePrefix),
+          (String entry) => entry
+              .replaceFirst(_flutterPrefix, '')
+              .startsWith(quarantinePrefix),
         );
   }
 
@@ -168,7 +169,9 @@ class WalletSmsQuarantineStatus {
   static Future<bool> hasStorageFault() async {
     final prefs = await SharedPreferences.getInstance();
     final Object? value = prefs.get(storageFaultKey);
-    return value != null && value.toString().isNotEmpty && value.toString() != 'false';
+    return value != null &&
+        value.toString().isNotEmpty &&
+        value.toString() != 'false';
   }
 
   /// SharedPreferences key, without the platform `flutter.` prefix.
@@ -246,7 +249,7 @@ class PendingWalletReviews {
 
   /// Publishes the quarantine flag without acknowledging the affected entry.
   Future<void> _publishQuarantineFlag(SharedPreferences prefs) async {
-    final Object? previous = prefs.getString(WalletSmsQuarantineStatus.key);
+    final String? previous = prefs.getString(WalletSmsQuarantineStatus.key);
     var count = 0;
     final decoded = previous == null ? null : _decodeOrNull(previous);
     if (decoded is Map<String, dynamic> && decoded['count'] is int) {
@@ -414,21 +417,24 @@ class CandidateDecision {
 class PendingWalletCandidates {
   PendingWalletCandidates(
     this._api,
-    this._repository, {
+    MoneyRepository _repository, {
     WalletQueueCodec? codec,
   }) : _codec = codec ?? PlatformWalletQueueCodec();
 
   static const String keyPrefix = 'pending_wallet_candidate.';
-  static const String quarantinePrefix = WalletSmsQuarantineStatus.quarantinePrefix;
+  static const String quarantinePrefix =
+      WalletSmsQuarantineStatus.quarantinePrefix;
 
   /// Low-confidence results are queued for review, not for analysis again.
   static const String reviewPrefix = 'pending_wallet_review.';
   static const String _flutterPrefix = 'flutter.';
   static const int _maxAttempts = 5;
+
   /// Quarantine reasons. Only an unreadable payload can heal; a malformed one is
   /// proven unparseable and is never restored to its queue (no revive loop).
   static const String unreadableReason = 'UNREADABLE';
   static const String malformedReason = 'MALFORMED';
+
   /// A quarantined entry is retried this many times before it stays parked for
   /// the user to resolve (bounded recovery, never an infinite loop).
   static const int _maxQuarantineAttempts = 2;
@@ -448,7 +454,6 @@ class PendingWalletCandidates {
   static const String storageFaultKey = 'wallet_storage_fault';
 
   final ApiClient _api;
-  final MoneyRepository _repository;
   final WalletQueueCodec _codec;
 
   /// Returns how many candidates were resolved. Unresolved candidates stay
@@ -584,7 +589,8 @@ class PendingWalletCandidates {
         break;
       default:
         // Unknown/future status: keep the candidate (V-01).
-        return const CandidateDecision.retry(CandidateRetryReason.unknownStatus);
+        return const CandidateDecision.retry(
+            CandidateRetryReason.unknownStatus);
     }
 
     final transaction = response['transaction'];
@@ -807,8 +813,9 @@ class PendingWalletCandidates {
       await _removeEntry(prefs, key);
     }
     if (!prefs.getKeys().any(
-          (String entry) =>
-              entry.replaceFirst(_flutterPrefix, '').startsWith(quarantinePrefix),
+          (String entry) => entry
+              .replaceFirst(_flutterPrefix, '')
+              .startsWith(quarantinePrefix),
         )) {
       await prefs.remove(quarantineKey);
     }
@@ -836,7 +843,8 @@ class PendingWalletCandidates {
     await _publishCounter(prefs, fallbackUnavailableKey);
   }
 
-  Future<void> _publishQuarantine(SharedPreferences prefs, String reason) async {
+  Future<void> _publishQuarantine(
+      SharedPreferences prefs, String reason) async {
     await _publishCounter(prefs, quarantineKey, reason: reason);
   }
 

@@ -620,7 +620,9 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
       for (final msg in conversationHistory) {
         contents.add({
           'role': msg.role == 'user' ? 'user' : 'model',
-          'parts': [{'text': msg.text}],
+          'parts': [
+            {'text': msg.text}
+          ],
         });
       }
       contents.add({
@@ -633,21 +635,23 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
         ],
       });
 
-      final request = client.post(
-        Uri.parse(_baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-goog-api-key': key,
-          'Accept': 'text/event-stream',
-        },
-        body: jsonEncode({
-          'generationConfig': {
-            'temperature': 0.7,
-            'maxOutputTokens': 800,
-          },
-          'contents': contents,
-        }),
-      ).timeout(timeout);
+      final request = client
+          .post(
+            Uri.parse(_baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-goog-api-key': key,
+              'Accept': 'text/event-stream',
+            },
+            body: jsonEncode({
+              'generationConfig': {
+                'temperature': 0.7,
+                'maxOutputTokens': 800,
+              },
+              'contents': contents,
+            }),
+          )
+          .timeout(timeout);
 
       final response = await request;
       if (response.statusCode != 200) {
@@ -703,7 +707,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
   }
 
   /// Synthesises speech from text using Gemini's TTS endpoint.
-  /// Returns the audio bytes as a List<int> for playback.
+  /// Returns the audio bytes as a `List<int>` for playback.
   Future<List<int>> speakText({
     required String text,
     String languageName = 'Arabic',

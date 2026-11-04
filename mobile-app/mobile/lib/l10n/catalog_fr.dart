@@ -249,12 +249,10 @@ const Map<String, String> frCatalog = {
       'Lit les SMS bancaires et portefeuille (InstaPay, Vodafone Cash...) et enregistre automatiquement les transactions.',
   'smsPermissionDenied':
       'L\'autorisation SMS est requise pour activer la capture automatique.',
-  'smsQuarantineTitle':
-      'Messages de portefeuille conservés pour vérification',
+  'smsQuarantineTitle': 'Messages de portefeuille conservés pour vérification',
   'smsQuarantineDesc':
       'Certains messages de portefeuille n\'ont pas pu être traités. Ils ont été conservés, et non supprimés, et sont réessayés automatiquement. Ils expirent après 7 jours.',
-  'smsStorageFaultTitle':
-      'Problème de stockage du portefeuille',
+  'smsStorageFaultTitle': 'Problème de stockage du portefeuille',
   'smsStorageFaultDesc':
       'Un message de portefeuille n\'a pas pu être enregistré sur cet appareil. Rien n\'a été supprimé ; l\'application continue de réessayer en arrière-plan.',
   'smsNotificationDetailsTitle':
@@ -267,14 +265,17 @@ const Map<String, String> frCatalog = {
   'analyticsDashboard': 'Tableau de bord de performance',
   'analyticsBalance': 'Score d\'équilibre de vie',
   'analyticsEmpty': 'Lancez une analyse pour voir vos statistiques.',
-  'analyticsDemoNotice': 'Valeurs de démonstration uniquement ; elles ne représentent pas votre activité ni vos finances.',
+  'analyticsDemoNotice':
+      'Valeurs de démonstration uniquement ; elles ne représentent pas votre activité ni vos finances.',
   'smsTrustedSendersTitle': 'Expéditeurs approuvés',
-  'smsTrustedSendersDesc': 'Les messages des expéditeurs approuvés peuvent être enregistrés automatiquement si la transaction est reconnue localement. Les autres restent à vérifier.',
+  'smsTrustedSendersDesc':
+      'Les messages des expéditeurs approuvés peuvent être enregistrés automatiquement si la transaction est reconnue localement. Les autres restent à vérifier.',
   'smsTrustedSenderHint': 'Numéro de téléphone ou identifiant alphanumérique',
   'smsNoTrustedSenders': 'Aucun expéditeur approuvé.',
   'smsAddTrustedSender': 'Ajouter un expéditeur',
   'aiSpeakTooltip': 'Lire cette réponse à voix haute',
   'aiSpeaking': 'Lecture...',
   'aiVoiceListening': 'Écoute...',
-  'aiErrorMessage': 'Une erreur est survenue lors du traitement de la demande. Veuillez réessayer.',
+  'aiErrorMessage':
+      'Une erreur est survenue lors du traitement de la demande. Veuillez réessayer.',
 };

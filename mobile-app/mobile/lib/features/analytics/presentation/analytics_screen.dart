@@ -178,8 +178,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(Icons.insights,
-                size: 20, color: theme.colorScheme.primary),
+            Icon(Icons.insights, size: 20, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Text(l10n.analyticsTitle),
           ],

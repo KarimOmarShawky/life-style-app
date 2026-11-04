@@ -250,7 +250,7 @@ describe('Password reset acceptance is not delivery', () => {
       const entered = gate();
       const blocked = gate();
       if (stage === 'lookup')
-        f.repo.findUserByEmail.mockImplementation(async () => {
+        f.repo.findUserByEmail.mockImplementation(async (_email: string) => {
           entered.release();
           await blocked.promise;
           return { id: 'u', email: 'private@example.com', status: 'active' };

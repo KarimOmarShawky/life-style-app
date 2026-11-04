@@ -279,7 +279,8 @@ test('AUD-05 wallet SMS auto-save requires a trusted sender; fallback results al
   // Native: a trusted-sender allow-list gate exists and defaults to empty.
   assert.ok(receiver.includes('private const val KEY_TRUSTED_SENDERS = "flutter.wallet_trusted_senders"'));
   assert.ok(receiver.includes('private fun isTrustedSender(context: Context, sender: String): Boolean'));
-  assert.ok(receiver.includes('private fun normalizePhone(phone: String): String'));
+  assert.ok(receiver.includes('private fun normalizeSender(sender: String): String'));
+  assert.ok(receiver.includes('trimmed.uppercase(Locale.ROOT)'));
   // An absent/empty list trusts no sender (default deny).
   assert.ok(receiver.includes('prefs.getString(KEY_TRUSTED_SENDERS, null) ?: return false'));
   // Auto-save is gated on the trusted sender, never on a body match alone.

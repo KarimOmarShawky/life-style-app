@@ -30,7 +30,12 @@ import type {
   BudgetPeriod
 } from './money.types.js';
 import { AppError } from '../../core/errors/app-error.js';
-import { assertTransactionInvariants, type EffectiveCategory } from './money.invariants.js';
+import {
+  assertTransactionInvariants,
+  normalizeStoredAmount,
+  normalizeStoredDate,
+  type EffectiveCategory
+} from './money.invariants.js';
 
 interface CategoryDbRow {
   id: string;
@@ -617,9 +622,12 @@ export class PgMoneyRepository implements MoneyRepository {
         assertTransactionInvariants(
           {
             kind: input.kind ?? locked.kind,
-            amount: input.amount ?? locked.amount,
+            amount: normalizeStoredAmount(
+              input.amount ?? locked.amount,
+              input.currency ?? locked.currency
+            ),
             currency: input.currency ?? locked.currency,
-            occurredOn: input.occurredOn ?? locked.occurred_on,
+            occurredOn: normalizeStoredDate(input.occurredOn ?? locked.occurred_on),
             category
           },
           userToday

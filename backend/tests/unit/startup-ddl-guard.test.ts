@@ -88,6 +88,27 @@ describe('Boot-Time Database DDL & Schema Drift Guard (B-09)', () => {
     expect(rootSchemaTables).toEqual(migrationTables);
   });
 
+  it('keeps reset ownership and fencing columns, foreign key, and indexes in both snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      const table = snapshot.match(
+        /CREATE TABLE password_reset_requests \(([\s\S]*?)\n\s*\);/i
+      )?.[1];
+      expect(table).toBeDefined();
+      expect(table).toMatch(/\blease_token\s+UUID\b/i);
+      expect(table).toMatch(/\buser_id\s+UUID\b/i);
+      expect(table).toMatch(
+        /CONSTRAINT\s+password_reset_requests_user_fk\s+FOREIGN KEY\s*\(user_id\)\s+REFERENCES\s+users\s*\(id\)\s+ON DELETE CASCADE/i
+      );
+      expect(snapshot).toMatch(
+        /CREATE INDEX(?: IF NOT EXISTS)? idx_password_reset_user\s+ON password_reset_requests\s*\(user_id\)/i
+      );
+      expect(snapshot).toMatch(
+        /CREATE INDEX(?: IF NOT EXISTS)? idx_password_reset_abandoned\s+ON password_reset_requests\s*\(updated_at\)/i
+      );
+    }
+  });
+
   it('keeps the approved optional timer task nullable in the reference schema', () => {
     const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
     const timer = root.slice(root.indexOf('CREATE TABLE timer_sessions'));

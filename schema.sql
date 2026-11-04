@@ -760,9 +760,12 @@ CREATE TABLE password_reset_requests (
       user_agent VARCHAR(512),
       processing_started_at TIMESTAMPTZ,
       lease_expires_at TIMESTAMPTZ,
+      lease_token UUID,
+      user_id UUID,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       completed_at TIMESTAMPTZ,
+      CONSTRAINT password_reset_requests_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       CHECK (status <> 'processing' OR lease_expires_at IS NOT NULL),
       CHECK (status NOT IN ('sent', 'dead_letter') OR completed_at IS NOT NULL)
     );
@@ -778,6 +781,14 @@ CREATE TABLE password_reset_requests (
     CREATE INDEX idx_password_reset_retention
       ON password_reset_requests (COALESCE(completed_at, updated_at))
       WHERE status IN ('sent', 'dead_letter');
+
+    CREATE INDEX idx_password_reset_user
+      ON password_reset_requests (user_id)
+      WHERE user_id IS NOT NULL;
+
+    CREATE INDEX idx_password_reset_abandoned
+      ON password_reset_requests (updated_at)
+      WHERE status IN ('pending', 'failed');
 
 CREATE TABLE ingest_tokens (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

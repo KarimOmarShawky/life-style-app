@@ -1278,16 +1278,25 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () async {
-                              await PendingWalletReviews(
-                                ref.read(moneyRepositoryProvider),
-                              ).discard(item.id);
-                              if (sheetContext.mounted) {
-                                Navigator.of(sheetContext).pop();
+                              try {
+                                await PendingWalletReviews(
+                                  ref.read(moneyRepositoryProvider),
+                                ).discard(item.id);
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                      content: Text(l10n.smsReviewDiscarded)),
+                                );
+                              } on Exception {
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text(l10n.errorTitle)),
+                                );
                               }
-                              messenger.showSnackBar(
-                                SnackBar(
-                                    content: Text(l10n.smsReviewDiscarded)),
-                              );
                             },
                             child: Text(l10n.smsReviewDiscard),
                           ),

@@ -60,6 +60,9 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         // Non-retryable or unreadable entries are retained here in a sealed
         // envelope until expiry. The diagnostic is not an editable review flow.
         const val QUARANTINE_PREFIX = "flutter.pending_wallet_quarantine."
+        // Content-free shared marker: once age/undated hold is observed, a
+        // later clock change must not automatically resume that legacy item.
+        const val LEGACY_HOLD_PREFIX = "flutter.wallet_legacy_hold."
         // AUD-10: no hard-coded production fallback — the API base must come
         // from SharedPreferences (published by the Flutter app). An unset
         // value skips the native flush instead of sending to a default host.
@@ -499,8 +502,11 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         retryQuarantined(prefs)
         val candidateKeys = prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }.sorted()
         for (key in candidateKeys) {
+            val holdKey = LEGACY_HOLD_PREFIX + key.removePrefix(CANDIDATE_PREFIX)
+            if (prefs.contains(holdKey)) continue
             val stored = prefs.getString(key, null) ?: continue
             val raw = cipher.decrypt(stored)
+            if (prefs.contains(holdKey)) continue
             if (raw == null) {
                 // Unreadable and not proven corrupt: quarantine, never delete (V-02).
                 quarantine(prefs, key, stored, QUARANTINE_UNREADABLE, CANDIDATE_PREFIX)
@@ -511,22 +517,33 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 // Malformed content is unrecoverable, but it is still not a
                 // reason to lose the message silently: park it for the user.
+                if (prefs.contains(holdKey)) continue
                 quarantine(prefs, key, stored, QUARANTINE_MALFORMED, CANDIDATE_PREFIX)
                 continue
             }
             // Ownership is not authenticated in this legacy queue. Hold old or
             // undated records without deleting, transmitting or modifying them.
-            if (WalletLegacyRetention.hold(item.optLong("receivedAtMs", 0L), System.currentTimeMillis())) continue
+            if (WalletLegacyRetention.hold(item.optLong("receivedAtMs", 0L), System.currentTimeMillis())) {
+                // A failed commit leaves the source intact but cannot promise
+                // the hold will survive restart; commitEntry reports the fault.
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             val attempts = item.optInt("attempts", 0)
             if (item.optBoolean("blocked", false)) continue
             if (item.optLong("nextAttemptAtMs", 0L) > System.currentTimeMillis()) continue
 
+            if (prefs.contains(holdKey)) continue
             val (status, body) = postAnalyze(analyzeUrl, token, item)
+            // Another runtime may have marked the record during the request.
+            // The remote call itself cannot be recalled.
+            if (prefs.contains(holdKey)) continue
             when {
                 status in 200..299 && body != null -> {
                     // Handle first, delete after: a recognized result is queued
                     // for review before the candidate disappears (F-01).
                     val outcome = handleAnalysisResult(context, prefs, item, body)
+                    if (prefs.contains(holdKey)) continue
                     when (outcome) {
                         CandidateOutcome.HANDLED -> {
                             // Delete only once the replacement record (saved
@@ -764,6 +781,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val keys = prefs.all.keys.filter { it.startsWith(QUARANTINE_PREFIX) }
         if (keys.isEmpty()) return
         for (key in keys) {
+            val holdKey = LEGACY_HOLD_PREFIX + key.removePrefix(QUARANTINE_PREFIX)
+            if (prefs.contains(holdKey)) continue
             val stored = prefs.getString(key, null) ?: continue
             val raw = cipher.decrypt(stored) ?: continue
             val entry = try {
@@ -773,18 +792,24 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             }
             // An old or undated unknown-owner entry must not be deleted or
             // automatically revived into a live queue.
-            if (WalletLegacyRetention.hold(entry.optLong("quarantinedAtMs", 0L), System.currentTimeMillis())) continue
+            if (WalletLegacyRetention.hold(entry.optLong("quarantinedAtMs", 0L), System.currentTimeMillis())) {
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             if (entry.optString("reason") != QUARANTINE_UNREADABLE) continue
             val attempts = entry.optInt("attempts", 0)
             if (attempts >= MAX_QUARANTINE_ATTEMPTS) continue
             val payload = entry.optString("payload")
-            if (payload.isEmpty() || cipher.decrypt(payload) == null) {
+            val readable = payload.isNotEmpty() && cipher.decrypt(payload) != null
+            if (prefs.contains(holdKey)) continue
+            if (!readable) {
                 entry.put("attempts", attempts + 1)
                 val resealed = try {
                     WalletQueueCipher().encrypt(entry.toString())
                 } catch (e: Exception) {
                     continue
                 }
+                if (prefs.contains(holdKey)) continue
                 commitEntry(prefs, key, resealed)
                 continue
             }
@@ -792,7 +817,9 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             val origin = entry.optString("origin", CANDIDATE_PREFIX)
             val restored = payload
             val target = origin + key.removePrefix(QUARANTINE_PREFIX)
+            if (prefs.contains(holdKey)) continue
             if (!commitEntry(prefs, target, restored)) continue
+            if (prefs.contains(holdKey)) continue
             if (!removeEntry(prefs, key)) continue
             Log.i(TAG, "Quarantined wallet entry restored")
         }

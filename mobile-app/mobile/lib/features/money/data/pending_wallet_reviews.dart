@@ -213,6 +213,11 @@ class WalletSmsNotificationDetails {
   }
 }
 
+/// A record has been placed on a legacy hold; its owner is not established.
+class WalletLegacyHeldException implements Exception {
+  const WalletLegacyHeldException();
+}
+
 /// Reads and resolves the review queue. Confirming sends the (possibly edited)
 /// values through [MoneyRepository] with the review id as the Idempotency-Key,
 /// so a retry after a lost response can never create a duplicate.
@@ -233,6 +238,11 @@ class PendingWalletReviews {
     final items = <WalletReviewItem>[];
     for (final key in prefs.getKeys().map(_withoutFlutterPrefix)) {
       if (!key.startsWith(keyPrefix)) continue;
+      final id = key.substring(keyPrefix.length);
+      await prefs.reload();
+      if (prefs.containsKey('${PendingWalletCandidates.legacyHoldPrefix}$id')) {
+        continue;
+      }
       final String? entry;
       try {
         entry = await _codec.read(prefs, key);
@@ -242,11 +252,15 @@ class PendingWalletReviews {
         continue;
       }
       final item = WalletReviewItem.tryParse(entry);
-      if (item == null) {
+      if (item == null || item.id != id) {
         // A malformed entry is still the only copy of a financial message, so it
         // is neither listed nor deleted: it stays on disk and the state is
         // published so the Money screen reports it (V-02).
         await _publishQuarantineFlag(prefs);
+        continue;
+      }
+      await prefs.reload();
+      if (prefs.containsKey('${PendingWalletCandidates.legacyHoldPrefix}$id')) {
         continue;
       }
       items.add(item);
@@ -298,6 +312,12 @@ class PendingWalletReviews {
     String? description,
     String? merchant,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    if (prefs
+        .containsKey('${PendingWalletCandidates.legacyHoldPrefix}${item.id}')) {
+      throw const WalletLegacyHeldException();
+    }
     await _repository.createTransaction(
       kind: kind,
       amount: amount,
@@ -315,6 +335,10 @@ class PendingWalletReviews {
 
   Future<bool> _remove(String id) async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    if (prefs.containsKey('${PendingWalletCandidates.legacyHoldPrefix}$id')) {
+      throw const WalletLegacyHeldException();
+    }
     final key = '$keyPrefix$id';
     final removed = await prefs.remove(key);
     if (!removed) {
@@ -427,9 +451,13 @@ class PendingWalletCandidates {
     this._api,
     MoneyRepository _repository, {
     WalletQueueCodec? codec,
-  }) : _codec = codec ?? PlatformWalletQueueCodec();
+    DateTime Function()? clock,
+  })  : _codec = codec ?? PlatformWalletQueueCodec(),
+        _clock = clock ?? DateTime.now;
 
   static const String keyPrefix = 'pending_wallet_candidate.';
+  // Shared with Android; contains only the queue identifier, not SMS content.
+  static const String legacyHoldPrefix = 'wallet_legacy_hold.';
   static const String quarantinePrefix =
       WalletSmsQuarantineStatus.quarantinePrefix;
 
@@ -465,6 +493,7 @@ class PendingWalletCandidates {
 
   final ApiClient _api;
   final WalletQueueCodec _codec;
+  final DateTime Function() _clock;
 
   /// Returns how many candidates were resolved. Unresolved candidates stay
   /// queued for a later attempt.
@@ -482,15 +511,22 @@ class PendingWalletCandidates {
 
     var resolved = 0;
     for (final key in keys) {
+      final holdKey = '$legacyHoldPrefix${key.substring(keyPrefix.length)}';
+      await prefs.reload();
+      if (prefs.containsKey(holdKey)) continue;
       final String? raw;
       try {
         raw = await _codec.read(prefs, key);
       } on WalletQueueSecurityException {
         // Unreadable rather than absent: park it instead of retrying forever
         // or deleting the message (V-02).
+        await prefs.reload();
+        if (prefs.containsKey(holdKey)) continue;
         await _quarantine(prefs, key, unreadableReason);
         continue;
       }
+      await prefs.reload();
+      if (prefs.containsKey(holdKey)) continue;
       final decoded = _decodeOrNull(raw);
       if (decoded is! Map<String, dynamic>) {
         await _quarantine(prefs, key, malformedReason);
@@ -499,10 +535,11 @@ class PendingWalletCandidates {
       final receivedAt = decoded['receivedAtMs'];
       if (receivedAt is! int ||
           receivedAt <= 0 ||
-          DateTime.now().millisecondsSinceEpoch - receivedAt >
+          _clock().millisecondsSinceEpoch - receivedAt >
               retention.inMilliseconds) {
-        // Never delete or send an aged or undated legacy record based only on
-        // its age. Its account ownership is not authenticated.
+        // Persist the content-free hold so a later clock change does not
+        // automatically revive an item already identified as old or undated.
+        await _markLegacyHold(prefs, holdKey);
         continue;
       }
       final candidate = WalletSmsCandidate.tryParse(raw);
@@ -527,6 +564,8 @@ class PendingWalletCandidates {
         continue;
       }
 
+      await prefs.reload();
+      if (prefs.containsKey(holdKey)) continue;
       try {
         final response = jsonObject(
           await _api.post(
@@ -539,7 +578,12 @@ class PendingWalletCandidates {
           ),
           'SMS analysis',
         );
+        await prefs.reload();
+        // This cannot undo a provider request already sent before the hold.
+        if (prefs.containsKey(holdKey)) continue;
         final decision = await _applyResult(prefs, key, candidate, response);
+        await prefs.reload();
+        if (prefs.containsKey(holdKey)) continue;
         if (decision.outcome == CandidateOutcome.handled) {
           // The replacement record is durable; only now may the candidate go.
           if (await _removeEntry(prefs, key)) {
@@ -553,6 +597,8 @@ class PendingWalletCandidates {
           return resolved;
         }
       } on ApiException catch (error) {
+        await prefs.reload();
+        if (prefs.containsKey(holdKey)) continue;
         if (_isPermanentRejection(error)) {
           // A rejected analyze request is not a verdict on the SMS. Preserve
           // the sealed candidate instead of silently discarding it.
@@ -568,6 +614,8 @@ class PendingWalletCandidates {
           return resolved;
         }
       } on Exception {
+        await prefs.reload();
+        if (prefs.containsKey(holdKey)) continue;
         await _bumpAttempts(prefs, key, decoded);
         return resolved;
       }
@@ -766,6 +814,10 @@ class PendingWalletCandidates {
         .toList();
     if (keys.isEmpty) return;
     for (final key in keys) {
+      final holdKey =
+          '$legacyHoldPrefix${key.substring(quarantinePrefix.length)}';
+      await prefs.reload();
+      if (prefs.containsKey(holdKey)) continue;
       final String? raw;
       try {
         raw = await _codec.read(prefs, key);
@@ -778,8 +830,9 @@ class PendingWalletCandidates {
       final quarantinedAt = decoded['quarantinedAtMs'];
       if (quarantinedAt is! int ||
           quarantinedAt <= 0 ||
-          DateTime.now().millisecondsSinceEpoch - quarantinedAt >
+          _clock().millisecondsSinceEpoch - quarantinedAt >
               retention.inMilliseconds) {
+        await _markLegacyHold(prefs, holdKey);
         continue;
       }
 
@@ -804,6 +857,8 @@ class PendingWalletCandidates {
         continue;
       }
 
+      await prefs.reload();
+      if (prefs.containsKey(holdKey)) continue;
       if (readable == null) {
         // Still unreadable: record the attempt and leave it parked.
         decoded['attempts'] = used + 1;
@@ -823,6 +878,8 @@ class PendingWalletCandidates {
         await _publishQuarantine(prefs, 'WRITE_FAILED');
         continue;
       }
+      await prefs.reload();
+      if (prefs.containsKey(holdKey)) continue;
       await _removeEntry(prefs, key);
     }
     if (!prefs.getKeys().any(
@@ -831,6 +888,17 @@ class PendingWalletCandidates {
               .startsWith(quarantinePrefix),
         )) {
       await prefs.remove(quarantineKey);
+    }
+  }
+
+  /// Failure leaves the source untouched, but cannot ensure a durable hold.
+  Future<void> _markLegacyHold(SharedPreferences prefs, String holdKey) async {
+    try {
+      if (!await prefs.setString(holdKey, 'HELD')) {
+        await _publishStorageFault(prefs);
+      }
+    } on Object {
+      await _publishStorageFault(prefs);
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -225,6 +226,81 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(await reviews.load(), isEmpty);
       expect(prefs.getString('pending_wallet_review.one'), isNull);
+    });
+
+    test('a held review is not listed, saved, or discarded', () async {
+      final original = _reviewItem('held');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_review.held': original,
+      });
+      var calls = 0;
+      final reviews = PendingWalletReviews(
+        MoneyRepository(_apiWith(MockClient((_) async {
+          calls++;
+          return http.Response('', 201);
+        }))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      final item = (await reviews.load()).single;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('wallet_legacy_hold.held', 'HELD');
+      expect(await reviews.load(), isEmpty);
+      await expectLater(
+        reviews.confirm(item: item, kind: 'expense', amount: '1.00'),
+        throwsA(isA<WalletLegacyHeldException>()),
+      );
+      await expectLater(
+        reviews.discard(item.id),
+        throwsA(isA<WalletLegacyHeldException>()),
+      );
+      expect(calls, 0);
+      expect(prefs.getString('pending_wallet_review.held'), original);
+    });
+
+    test('a hold arriving during confirmation prevents local removal',
+        () async {
+      final original = _reviewItem('in-flight-review');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_review.in-flight-review': original,
+      });
+      final requested = Completer<void>();
+      final response = Completer<http.Response>();
+      final reviews = PendingWalletReviews(
+        MoneyRepository(_apiWith(MockClient((_) {
+          requested.complete();
+          return response.future;
+        }))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      final item = (await reviews.load()).single;
+      final confirm = reviews.confirm(item: item, kind: 'expense', amount: '1');
+      final rejected =
+          expectLater(confirm, throwsA(isA<WalletLegacyHeldException>()));
+      await requested.future;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('wallet_legacy_hold.in-flight-review', 'HELD');
+      response.complete(http.Response('', 201));
+      await rejected;
+      // The remote request was already sent; this assertion concerns only the
+      // local source and cannot undo an accepted remote transaction.
+      expect(
+          prefs.getString('pending_wallet_review.in-flight-review'), original);
+    });
+
+    test('a review whose item id differs from its key stays hidden and kept',
+        () async {
+      final original = _reviewItem('other');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_review.mismatch': original,
+      });
+      final reviews = PendingWalletReviews(
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 500)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      expect(await reviews.load(), isEmpty);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_review.mismatch'), original);
     });
 
     test('discard removes the entry without any API call', () async {
@@ -792,6 +868,82 @@ void main() {
       expect(await candidates.flush(), 0);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('pending_wallet_candidate.soft'), isNotNull);
+    });
+
+    test('recorded age holds survive a backward clock change in both queues',
+        () async {
+      final actual = DateTime.now();
+      var clock = actual.add(const Duration(days: 8));
+      final candidate = _candidateItem('held-candidate',
+          receivedAtMs: actual.millisecondsSinceEpoch);
+      final quarantine = jsonEncode({
+        'origin': PendingWalletCandidates.keyPrefix,
+        'reason': 'UNREADABLE',
+        'attempts': 0,
+        'payload': _candidateItem('held-quarantine'),
+        'quarantinedAtMs': actual.millisecondsSinceEpoch,
+      });
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.held-candidate': candidate,
+        'flutter.pending_wallet_quarantine.held-quarantine': quarantine,
+      });
+      var calls = 0;
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) async {
+          calls++;
+          return http.Response('', 200);
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+        clock: () => clock,
+      );
+      expect(await candidates.flush(), 0);
+      var prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('wallet_legacy_hold.held-candidate'), 'HELD');
+      expect(prefs.getString('wallet_legacy_hold.held-quarantine'), 'HELD');
+      clock = actual.subtract(const Duration(days: 1));
+      expect(await candidates.flush(), 0);
+      prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.held-candidate'),
+          candidate);
+      expect(prefs.getString('pending_wallet_quarantine.held-quarantine'),
+          quarantine);
+      expect(
+          prefs.getString('pending_wallet_candidate.held-quarantine'), isNull);
+      expect(calls, 0);
+    });
+
+    test(
+        'a hold arriving during analysis preserves the source after the response',
+        () async {
+      final candidate = _candidateItem('in-flight');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.in-flight': candidate,
+      });
+      final started = Completer<void>();
+      final response = Completer<http.Response>();
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) {
+          started.complete();
+          return response.future;
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      final flush = candidates.flush();
+      await started.future;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('wallet_legacy_hold.in-flight', 'HELD');
+      response.complete(http.Response(
+        _analyzeResponse(status: 'recognized', transaction: _strictTransaction),
+        200,
+        headers: {'content-type': 'application/json'},
+      ));
+      expect(await flush, 0);
+      expect(prefs.getString('pending_wallet_candidate.in-flight'), candidate);
+      expect(prefs.getString('pending_wallet_review.in-flight'), isNull);
     });
 
     test('old or undated candidates stay unchanged and are not sent', () async {

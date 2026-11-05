@@ -6,7 +6,7 @@
  * and a cross-code per-account attempt budget (AUD-03).
  */
 
-import { randomInt, createHmac, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomInt, createHmac, timingSafeEqual } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import { getEnv } from '../../config/env.js';
 
@@ -19,6 +19,46 @@ import { getEnv } from '../../config/env.js';
  */
 const MAX_ACCOUNT_ATTEMPTS = 20;
 const ACCOUNT_ATTEMPT_WINDOW_SECONDS = 3600;
+
+// Issuance and the per-code counter reset are one Redis operation. The random
+// generation tag distinguishes rotations even when the same six digits recur.
+const ISSUE_SCRIPT = `-- otp-issue-v1
+redis.call('SET', KEYS[1], ARGV[1], 'EX', 900)
+redis.call('DEL', KEYS[2])
+redis.call('SET', KEYS[3], ARGV[2], 'EX', 900)
+return 1
+`;
+
+// Bind the verified snapshot, attempt budgets, TTLs and consume/delete to one
+// atomic operation. A stale request must never mutate a replacement code.
+const VERIFY_SCRIPT = `-- otp-verify-v1
+local current = redis.call('GET', KEYS[1])
+local generation = redis.call('GET', KEYS[4]) or ''
+if not current or current ~= ARGV[1] or generation ~= ARGV[2] then return 0 end
+local accountAttempts = redis.call('INCR', KEYS[3])
+if accountAttempts == 1 or redis.call('TTL', KEYS[3]) < 0 then
+  redis.call('EXPIRE', KEYS[3], tonumber(ARGV[4]))
+end
+if accountAttempts > tonumber(ARGV[3]) then
+  redis.call('DEL', KEYS[1], KEYS[2], KEYS[4])
+  return 0
+end
+local attempts = redis.call('INCR', KEYS[2])
+if attempts == 1 or redis.call('PTTL', KEYS[2]) < 0 then
+  local ttl = redis.call('PTTL', KEYS[1])
+  redis.call('PEXPIRE', KEYS[2], ttl > 0 and ttl or 900000)
+end
+if attempts > 5 then
+  redis.call('DEL', KEYS[1], KEYS[2], KEYS[4])
+  return 0
+end
+if ARGV[5] == '1' then
+  redis.call('DEL', KEYS[1], KEYS[2], KEYS[4])
+  return 1
+end
+if attempts >= 5 then redis.call('DEL', KEYS[1], KEYS[2], KEYS[4]) end
+return 0
+`;
 
 export interface OtpStore {
   generateAndStoreCode(userId: string): Promise<string>;
@@ -50,71 +90,46 @@ export class RedisOtpStore implements OtpStore {
       .digest('hex');
 
     const redisKey = `pwreset:${userId}`;
-    // Store the HMAC with 15 minutes TTL (900 seconds). Attempt accounting
-    // lives in its own counter key so it can be incremented atomically.
-    await this.redis.set(redisKey, codeHmac, 'EX', 900);
-    await this.redis.del(this.attemptsKey(userId));
-
+    await this.redis.eval(
+      ISSUE_SCRIPT,
+      3,
+      redisKey,
+      this.attemptsKey(userId),
+      this.generationKey(userId),
+      codeHmac,
+      randomBytes(16).toString('hex')
+    );
     return code;
   }
 
   public async verifyAndConsumeCode(userId: string, code: string): Promise<boolean> {
     const redisKey = `pwreset:${userId}`;
-    const attemptsKey = this.attemptsKey(userId);
-    const storedHmac = await this.redis.get(redisKey);
-
-    if (!storedHmac) {
-      return false;
-    }
-
-    // Cross-code per-account budget (AUD-03): consume it before the per-code
-    // counter. Each verification attempt (correct or not) counts toward a
-    // one-hour account budget that is NOT reset when a new code is issued, so
-    // rotating reset codes cannot mint a fresh guess budget. When the budget is
-    // exhausted the code is invalidated so the caller must request a new one.
-    if (!(await this.consumeAccountAttempt(userId))) {
-      await this.redis.del(redisKey);
-      return false;
-    }
-
-    // Count the attempt atomically BEFORE comparing. Every concurrent guess is
-    // accounted for by a single Redis INCR, so the 5-guess cap cannot be
-    // exceeded by parallel requests (a read-modify-write on the code payload
-    // silently undercounted them).
-    const attempts = await this.redis.incr(attemptsKey);
-    if (attempts === 1) {
-      // Tie the counter's lifetime to the code's remaining TTL so both expire
-      // together. A legacy JSON payload has no usable TTL path here; fall back
-      // to the full window.
-      const ttl = await this.redis.ttl(redisKey);
-      await this.redis.expire(attemptsKey, ttl > 0 ? ttl : 900);
-    }
-
-    if (attempts > 5) {
-      // Exceeded 5 attempts: delete code
-      await this.redis.del(redisKey, attemptsKey);
-      return false;
-    }
+    // Both values are read together. Legacy codes without a generation tag
+    // remain usable; all newly generated codes carry a unique tag.
+    const [storedHmac, generation] = await this.redis.mget(redisKey, this.generationKey(userId));
+    if (!storedHmac) return false;
 
     const expectedHmac = createHmac('sha256', this.hmacSecret)
       .update(`${userId}:${code}`)
       .digest('hex');
-
     const bufA = Buffer.from(storedHmac, 'hex');
     const bufB = Buffer.from(expectedHmac, 'hex');
+    const matches = bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
 
-    if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
-      if (attempts >= 5) {
-        await this.redis.del(redisKey, attemptsKey);
-      }
-      return false;
-    }
-
-    // Single-use guarantee: deleting the code key must return 1. Exactly one
-    // of any concurrent correct guesses wins; the rest see 0 and fail.
-    const delCount = await this.redis.del(redisKey);
-    await this.redis.del(attemptsKey);
-    return delCount === 1;
+    const result = await this.redis.eval(
+      VERIFY_SCRIPT,
+      4,
+      redisKey,
+      this.attemptsKey(userId),
+      this.accountAttemptsKey(userId),
+      this.generationKey(userId),
+      storedHmac,
+      generation ?? '',
+      this.maxAccountAttempts,
+      this.accountAttemptWindowSeconds,
+      matches ? '1' : '0'
+    );
+    return result === 1;
   }
 
   private attemptsKey(userId: string): string {
@@ -125,18 +140,7 @@ export class RedisOtpStore implements OtpStore {
     return `pwreset-acct-attempts:${userId}`;
   }
 
-  /**
-   * Atomically consumes one unit of the per-account verification budget and
-   * reports whether the caller may proceed. The counter's TTL is set on the
-   * first increment so it expires with the window; the budget is intentionally
-   * never reset when a new code is issued (AUD-03).
-   */
-  private async consumeAccountAttempt(userId: string): Promise<boolean> {
-    const key = this.accountAttemptsKey(userId);
-    const count = await this.redis.incr(key);
-    if (count === 1) {
-      await this.redis.expire(key, this.accountAttemptWindowSeconds);
-    }
-    return count <= this.maxAccountAttempts;
+  private generationKey(userId: string): string {
+    return `pwreset-generation:${userId}`;
   }
 }

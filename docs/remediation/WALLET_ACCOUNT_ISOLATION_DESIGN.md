@@ -15,6 +15,8 @@ Status: **work in progress; NO-GO for real SMS or release**. This design applies
 
 Flutter now serializes selected authentication transitions within one controller and suppresses older login/restore results after sign-out begins. This is not a native capture fence or a cross-engine lock, and pending network, storage, refresh and profile work can still race or stall.
 
+The Flutter API client also fences observed session transitions and requires a known same-client rotation lineage before retrying an expired request. It checks the token pair before refreshing or cleaning up, but its read/check/write and read/check/clear sequences are not atomic, already-started requests cannot be recalled, and other engines can bypass the in-memory generation. These checks do not establish message ownership.
+
 ## Requirements for wiring
 
 1. Introduce one authoritative native session/capture fence. Serialize session activation, invalidation and snapshot/capture with the same native authority, in the app process; document and test the manifest/process assumption. Establish a clear durable linearization point before sign-out/switch proceeds to network work. If invalidation or a durable write fails, do not claim a successful safe transition or guess an owner. Avoid treating a saved credential, sender or cached Flutter state alone as proof of an active session. Coordinate all auth paths, app restoration, enable/disable, failures, stale responses and overlapping account operations.

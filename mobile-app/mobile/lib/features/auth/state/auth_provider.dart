@@ -120,6 +120,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
   Future<void> signOut() async {
     _signingOut = true;
     _authGeneration++;
+    ref.read(authRepositoryProvider).invalidateSessionRetries();
     WalletIngestToken.invalidatePending();
     final account = state.asData?.value?.id;
     // Schedule local cleanup now rather than waiting for network logout and

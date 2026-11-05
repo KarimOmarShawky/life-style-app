@@ -13,13 +13,21 @@ class AuthRepository {
   final ApiClient _api;
   final TokenStore _tokens;
 
+  /// Prevent this API client's old requests from retrying on another session.
+  void invalidateSessionRetries() => _api.invalidateSessionRetries();
+
   Future<AppUser?> restoreSession() async {
     final session = await _api.restoreSession();
     if (session == null) return null;
     try {
       return await getProfile();
     } on ApiException catch (error) {
-      if (error.statusCode == 401) await _tokens.clear();
+      // A response fenced by an account transition must not clear the newer
+      // account's credentials. Other 401 cleanup is still not atomic with an
+      // independent engine or token-store write.
+      if (error.statusCode == 401 && error.code != 'SESSION_CHANGED') {
+        await _tokens.clear();
+      }
       rethrow;
     }
   }
@@ -28,6 +36,7 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
+    invalidateSessionRetries();
     final response = await _api.post(
       'auth/login',
       authenticated: false,
@@ -41,6 +50,7 @@ class AuthRepository {
     required String password,
     required String displayName,
   }) async {
+    invalidateSessionRetries();
     final response = await _api.post(
       'auth/register',
       authenticated: false,
@@ -118,6 +128,7 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    invalidateSessionRetries();
     try {
       await _api.post('auth/logout', body: {});
     } finally {

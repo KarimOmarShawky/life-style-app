@@ -307,7 +307,10 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.fatal('Worker unhandled rejection', reason);
+  // Rejection reasons can be arbitrary objects or provider strings containing secrets.
+  logger.fatal('Worker unhandled rejection', {
+    errorType: reason instanceof Error ? 'Error' : typeof reason
+  });
   void handleWorkerShutdown('unhandledRejection', 1);
 });
 

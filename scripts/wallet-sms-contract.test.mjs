@@ -13,7 +13,9 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const mobile = 'mobile-app/mobile/';
@@ -390,4 +392,21 @@ test('bound ingest credentials are sealed together and legacy credentials stay u
   assert.ok(record.includes('if (!value.startsWith("wallet-bound-")) return null'));
   assert.ok(record.includes('require(value.startsWith(PREFIX))'));
   // This storage foundation does not bind queued records or activate a client.
+});
+
+// A cheap source check only; Flutter analysis remains authoritative.
+function dartFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return dartFiles(path);
+    return entry.isFile() && entry.name.endsWith('.dart') ? [path] : [];
+  });
+}
+
+test('Dart source and tests do not repeat an identical simple import', () => {
+  const base = fileURLToPath(new URL('../mobile-app/mobile/', import.meta.url));
+  for (const file of ['lib', 'test'].flatMap((dir) => dartFiles(join(base, dir)))) {
+    const imports = readFileSync(file, 'utf8').match(/^import\s+['"][^'"]+['"]\s*;/gm) ?? [];
+    assert.equal(new Set(imports).size, imports.length, `duplicate import in ${file}`);
+  }
 });

@@ -192,6 +192,26 @@ describe('GeminiSmsFallbackAnalyzer', () => {
     expect(requestBody).toContain('250 EGP');
   });
 
+  it('does not send localized digits or fragments of masked cards to the model', async () => {
+    let requestBody = '';
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      requestBody = String(init?.body ?? '');
+      return geminiResponse(VALID_MODEL_OUTPUT);
+    });
+    await analyzerWith(fetchImpl as unknown as typeof fetch).analyze({
+      text: 'رمز التحقق ١٢٣\u200f٤٥٦. used **** 5678. تم خصم ٢٥٠٫٥٠ جنيه',
+      sender: '+٢٠١٠٠٠٠٠٠٠٠٠',
+      receivedAt: '2026-10-08'
+    });
+    expect(requestBody).not.toContain('١٢٣');
+    expect(requestBody).not.toContain('123456');
+    expect(requestBody).not.toContain('5678');
+    expect(requestBody).not.toContain('[ACCOUNT]78');
+    expect(requestBody).toContain('[OTP]');
+    expect(requestBody).toContain('[ACCOUNT]');
+    expect(requestBody).toContain('250.50 جنيه');
+  });
+
   it('throws a retryable error without leaking the key when the API fails', async () => {
     const fetchImpl = vi.fn(async () => new Response('secret-key-echo', { status: 500 }));
     const analyzer = analyzerWith(fetchImpl as unknown as typeof fetch, 'super-secret-key');

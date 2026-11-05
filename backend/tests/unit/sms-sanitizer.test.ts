@@ -18,6 +18,25 @@ import {
 } from '../../src/features/ingest/sms-sanitizer.js';
 
 describe('sanitizeSmsText', () => {
+  it('redacts Arabic and Persian digits, including directional marks, before preserving amounts', () => {
+    const text = sanitizeSmsText(
+      'رمز التحقق ١٢٣\u200f٤٥٦. الحساب ۱۲۳۴۵۶۷۸۹. الرصيد ١٬٢٣٤٫٥٦ جنيه. تم خصم ٢٥٠٫٥٠ جنيه'
+    );
+    expect(text).toContain('رمز التحقق [OTP]');
+    expect(text).toContain('الحساب [ACCOUNT]');
+    expect(text).toContain('الرصيد [BALANCE]');
+    expect(text).toContain('250.50 جنيه');
+    expect(text).not.toMatch(/[٠-٩۰-۹\u200f]/u);
+    expect(text).not.toContain('123456');
+    expect(text).not.toContain('123456789');
+    expect(text).not.toContain('1,234.56');
+  });
+
+  it('does not leave trailing digits of masked cards', () => {
+    expect(sanitizeSmsText('used **** 1234 today')).not.toMatch(/1234|234|34/);
+    expect(sanitizeSmsText('card ****-****-****-5678 used')).not.toContain('5678');
+  });
+
   it('redacts OTP codes but keeps the OTP label', () => {
     expect(sanitizeSmsText('Your OTP is 123456 for transaction of 500 EGP')).toBe(
       `Your OTP is ${REDACTION_TOKENS.otp} for transaction of 500 EGP`
@@ -187,6 +206,11 @@ describe('sanitizeModelMerchant', () => {
 });
 
 describe('sanitizeSmsSender', () => {
+  it('redacts Unicode digit and directionally marked sender numbers', () => {
+    expect(sanitizeSmsSender('+٢٠١٠٠٠\u200f٠٠٠٠٠٠')).toBe('[PHONE]');
+    expect(sanitizeSmsSender('IPN۱۲۳۴۵۶۷')).not.toContain('1234567');
+  });
+
   it('redacts phone-like senders and keeps alphanumeric sender IDs', () => {
     expect(sanitizeSmsSender('+201000000000')).toBe(REDACTION_TOKENS.phone);
     expect(sanitizeSmsSender('01000000000')).toBe(REDACTION_TOKENS.phone);

@@ -53,8 +53,10 @@ multi-provider abstraction is deferred until a real second provider exists.
 
 ## 7. Secret-Handling Rules (Standing)
 
-- Raw SMS text never leaves the client except the sanitized extract to the
-  server-side Gemini proxy (ADR-044 guardrails).
+- The client applies pattern-based redaction before sending an SMS-derived
+  extract to the server-side Gemini proxy. This is not guaranteed anonymization:
+  names and unsupported sensitive formats may survive. Real SMS/provider testing
+  requires resolving consent and residual egress risks; use synthetic data until then.
 - A user's BYOK key is stored in transit/TLS only as a presentation credential;
   persistence strategy (encrypted-at-rest vs per-request-only) is decided in the
   production workflow phase — the pilot uses per-request-only.

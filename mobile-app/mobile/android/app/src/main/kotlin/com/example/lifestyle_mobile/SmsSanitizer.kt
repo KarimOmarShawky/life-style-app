@@ -6,8 +6,8 @@ package com.example.lifestyle_mobile
  * The local parser auto-saves only transactions it fully understands. Anything
  * else that still looks like a money movement is queued as a *candidate* and
  * analyzed by the backend (Gemini behind the API). Before a candidate leaves the
- * phone it is sanitized here, and the backend sanitizes it again ("re-sanitize").
- * Raw SMS text is never sent anywhere and never written to logs.
+ * phone, known patterns are redacted here and again on the backend. These
+ * heuristics cannot guarantee that all personal information is removed.
  *
  * Redacted categories (stable placeholders, same as the backend sanitizer):
  * - OTP / verification codes                      -> [OTP]
@@ -28,7 +28,8 @@ object SmsSanitizer {
 
     private val URL_PATTERN = Regex("""(?i)\b(?:https?://\S+|www\.\S+)""")
     private val EMAIL_PATTERN = Regex("""\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b""")
-    private val MASKED_CARD_PATTERN = Regex("""\*{2,}[\d* -]{2,}?\d""")
+    private val MASKED_CARD_PATTERN = Regex("""\*{2,}[\d* -]*\d""")
+    private val CARD_DIGIT_PATTERN = Regex("""(?<![\d*])(?:\d[ -]?){12,19}(?![\d*])""")
 
     private val OTP_PATTERN = Regex(
         """(?i)(?<label>\b(?:otp|one[\s-]?time\s+(?:password|code|pin)|verification\s+code|pin\s+code|كود التحقق|رمز التحقق|الرمز السري|كلمة المرور)\b[\s:=\-]*(?:is[\s:=\-]+|هو[\s:=\-]+)?)(?<code>\d{4,8}(?!\d)|[A-Z0-9]{6,8}(?![\p{L}\p{N}_]))"""
@@ -78,11 +79,26 @@ object SmsSanitizer {
     private val BARE_LONG_DIGITS_PATTERN = Regex("""(?<![\d.,])\d{7,}(?!\d|\.\d)""")
     private val COMMA_GROUPED_DIGITS_PATTERN = Regex("""(?<![\d.,])\d{1,3}(?:,\d{3}){2,}(?![\d.,])""")
 
-    /** Redacts every sensitive category and returns only safe text. */
+    // Arabic-Indic and Eastern Arabic-Indic digits and separators must be
+    // normalized before applying the ASCII-based redaction patterns. Strip
+    // invisible format controls that can split otherwise matching identifiers.
+    private fun normalizeSmsNumerals(raw: String): String = buildString {
+        for (char in raw) {
+            when (char) {
+                in '\u0660'..'\u0669' -> append('0' + (char - '\u0660'))
+                in '\u06F0'..'\u06F9' -> append('0' + (char - '\u06F0'))
+                '\u066B' -> append('.')
+                '\u066C' -> append(',')
+                else -> if (Character.getType(char) != Character.FORMAT.toInt()) append(char)
+            }
+        }
+    }
+
+    /** Applies known redaction patterns; unrecognized sensitive data may remain. */
     @JvmStatic
     fun sanitize(raw: String): String {
         if (raw.isEmpty()) return ""
-        var text = raw
+        var text = normalizeSmsNumerals(raw)
         text = text.replace(URL_PATTERN, "[URL]")
         text = text.replace(EMAIL_PATTERN, "[EMAIL]")
         text = replaceKeepingLabel(text, OTP_PATTERN, "[OTP]")
@@ -92,6 +108,7 @@ object SmsSanitizer {
         text = text.replace(LOCAL_PHONE_PATTERN, "[PHONE]")
         text = text.replace(GROUPED_PHONE_PATTERN, "[PHONE]")
         text = text.replace(MASKED_CARD_PATTERN, "[ACCOUNT]")
+        text = text.replace(CARD_DIGIT_PATTERN, "[ACCOUNT]")
         text = text.replace(ISO_DATE_PATTERN, "[DATE]")
         text = text.replace(NUMERIC_DATE_PATTERN, "[DATE]")
         text = text.replace(SHORT_DATE_PATTERN, "[DATE]")
@@ -109,12 +126,13 @@ object SmsSanitizer {
     /** Sanitizes the sender for outbound use. Phone-like senders become [PHONE]. */
     @JvmStatic
     fun sanitizeSender(raw: String?): String {
-        val trimmed = raw?.trim() ?: ""
+        val trimmed = raw?.let(::normalizeSmsNumerals)?.trim() ?: ""
         if (trimmed.isEmpty()) return "[UNKNOWN]"
         if (Regex("""^\+?[\d\s().\-]{7,}$""").matches(trimmed)) return "[PHONE]"
         val redacted = trimmed
             .replace(URL_PATTERN, "[URL]")
             .replace(EMAIL_PATTERN, "[EMAIL]")
+            .replace(MASKED_CARD_PATTERN, "[ACCOUNT]")
             .replace(Regex("""(?<!\d)\d{6,}(?!\d)"""), "[ACCOUNT]")
             .replace(Regex("""(?<!\d)\d[\d\s.\-]{4,}\d(?!\d)"""), "[PHONE]")
         return redacted.replace(Regex("""[ \t]{2,}"""), " ").trim().take(60)
@@ -123,8 +141,11 @@ object SmsSanitizer {
     private fun replaceKeepingLabel(text: String, pattern: Regex, token: String): String {
         return pattern.replace(text) { match ->
             val named = match.groups as? MatchNamedGroupCollection
-            val label = named?.get("label")?.value ?: named?.get("prefix")?.value ?: ""
-            label + token
+            // Accessing a nonexistent named group throws, rather than returning
+            // null. Balance/fee patterns use prefix; the others use label.
+            val group = if (pattern.pattern.contains("(?<label>")) "label" else "prefix"
+            val prefix = named?.get(group)?.value ?: ""
+            prefix + token
         }
     }
 

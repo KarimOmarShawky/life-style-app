@@ -191,7 +191,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                     // A transaction the local parser cannot fully recognize, or a
                     // parsed transaction from an untrusted sender: queue a
                     // sanitized candidate for the backend SMS fallback (Gemini
-                    // behind the API). The raw text never leaves the phone.
+                    // behind the API). Pattern redaction is not exhaustive.
                     enqueueCandidate(context, sender, body, receivedAtMs)
                 }
                 flushPending(context)

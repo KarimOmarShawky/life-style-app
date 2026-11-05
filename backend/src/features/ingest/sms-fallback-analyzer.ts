@@ -6,9 +6,9 @@
  * candidate and this analyzer is the only component allowed to consult Gemini.
  *
  * Hard rules:
- * - The model only ever sees text that has been sanitized (and the analyzer
- *   sanitizes again on its way in: "re-sanitize"). Raw SMS never leaves the phone
- *   and is never written to logs, including in error messages.
+ * - The phone applies pattern-based redaction and the analyzer applies it again
+ *   before provider egress. Unknown sensitive fragments may remain; never log
+ *   message text or include upstream bodies in error messages.
  * - The Gemini key lives in server configuration (SMS_FALLBACK_GEMINI_KEY). It is
  *   never part of any client build or API response.
  * - Only an explicit non-transaction is a terminal negative. Malformed or

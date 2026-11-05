@@ -3,8 +3,8 @@
  *
  * Server-side redaction for SMS-derived text. The SMS fallback path may only ever
  * hand sanitized text to the Gemini model, and model output is sanitized again
- * before it is returned to the client ("re-sanitize"). Raw SMS bodies must never
- * be sent to third parties or written to logs.
+ * before it is returned to the client ("re-sanitize"). These patterns cannot
+ * guarantee removal of every sensitive fragment. Do not log SMS bodies.
  *
  * Redacted categories (placeholders are stable and safe to keep in output):
  * - OTP / verification codes                      -> [OTP]
@@ -19,7 +19,8 @@
  * a decimal part) are preserved so the analyzer can extract them. Numbers that
  * cannot be told apart from references (bare runs of 7+ digits) are redacted on
  * purpose: over-redaction degrades the parse to "needs review", while
- * under-redaction leaks financial identifiers.
+ * under-redaction can leak financial identifiers. Names, unrecognized formats,
+ * and arbitrary personal text are not reliably identifiable by these rules.
  *
  * Note: `\b` word boundaries are ASCII-only in JavaScript, so Arabic patterns use
  * `(?<![\p{L}\p{N}_])` / `(?![\p{L}\p{N}_])` lookarounds with the `u` flag instead.
@@ -48,7 +49,7 @@ const URL_PATTERN = /\b(?:https?:\/\/\S+|www\.\S+)/giu;
 const EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 
 // Masked card numbers ("**** 1234", "****-****-****-1234").
-const MASKED_CARD_PATTERN = /\*{2,}[\d* -]{2,}?\d/g;
+const MASKED_CARD_PATTERN = /\*{2,}[\d* -]*\d/g;
 // Long unbroken card-like digit runs (12-19 digits, no decimals).
 const CARD_DIGIT_PATTERN = /(?<![\d*])(?:\d[ -]?){12,19}(?![\d*])/g;
 
@@ -122,6 +123,20 @@ const SENTENCE_SPLIT_PATTERN = /(?<=[.!?\u061F\n\u061B])/;
 const BARE_LONG_DIGITS_PATTERN = /(?<![\d.,])\d{7,}(?![\d]|\.\d)/g;
 const COMMA_GROUPED_DIGITS_PATTERN = /(?<![\d.,])\d{1,3}(?:,\d{3}){2,}(?![\d.,])/g;
 
+// Normalize common Egyptian/Arabic numeric forms before matching sensitive
+// patterns; invisible format controls must not split an identifier. Other
+// scripts and unlabeled free text remain outside this heuristic's guarantee.
+function normalizeSmsNumerals(text: string): string {
+  return text
+    .replace(/\p{Cf}/gu, '')
+    .replace(/[\u0660-\u0669\u06f0-\u06f9]/g, (digit) => {
+      const code = digit.charCodeAt(0);
+      return String(code - (code >= 0x06f0 ? 0x06f0 : 0x0660));
+    })
+    .replace(/\u066b/g, '.')
+    .replace(/\u066c/g, ',');
+}
+
 function collapseWhitespace(text: string): string {
   return text
     .replace(/[ \t]{2,}/g, ' ')
@@ -150,7 +165,7 @@ function redactPromoSentences(text: string): string {
 }
 
 /**
- * Redacts every sensitive category from raw SMS text and returns only safe text.
+ * Applies known redaction patterns to SMS text; unrecognized sensitive data may remain.
  * The transaction amount (when present) is preserved. The output is capped in
  * length so a malicious message cannot smuggle content in a huge body.
  */
@@ -159,7 +174,7 @@ export function sanitizeSmsText(raw: string): string {
     return '';
   }
 
-  let text = raw;
+  let text = normalizeSmsNumerals(raw);
   text = text.replace(URL_PATTERN, REDACTION_TOKENS.url);
   text = text.replace(EMAIL_PATTERN, REDACTION_TOKENS.email);
   text = replacePreservingPrefix(text, OTP_PATTERN, REDACTION_TOKENS.otp);
@@ -197,8 +212,8 @@ export function sanitizeSmsText(raw: string): string {
 
 /**
  * Sanitizes free text produced by the fallback model (description fields) with
- * the same redaction rules, so a model hallucination can never reintroduce an
- * OTP, phone number, URL, balance, date, percentage or promo text.
+ * the same pattern-based redaction rules. Unrecognized sensitive content can
+ * still appear in model output.
  */
 export function sanitizeModelDescription(raw: string | null | undefined): string | null {
   if (typeof raw !== 'string') {
@@ -228,7 +243,7 @@ export function sanitizeModelMerchant(raw: string | null | undefined): string | 
  * alphanumeric sender IDs keep their letters but lose embedded digit runs.
  */
 export function sanitizeSmsSender(raw: string | null | undefined): string {
-  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  const trimmed = typeof raw === 'string' ? normalizeSmsNumerals(raw).trim() : '';
   if (trimmed.length === 0) {
     return REDACTION_TOKENS.unknown;
   }

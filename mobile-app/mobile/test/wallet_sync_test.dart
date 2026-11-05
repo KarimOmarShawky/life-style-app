@@ -152,6 +152,39 @@ void main() {
       }
     });
 
+    test('stops a stale flush after in-flight success or rejection', () async {
+      for (final status in [201, 422]) {
+        final original = _queuedItem('one');
+        final next = _queuedItem('two');
+        SharedPreferences.setMockInitialValues({
+          'flutter.pending_wallet_tx.one': original,
+          'flutter.pending_wallet_tx.two': next,
+        });
+        var current = true;
+        var requests = 0;
+        final queue = PendingWalletTransactions(
+          MoneyRepository(_apiWith(MockClient((_) async {
+            requests++;
+            current = false;
+            return status == 201
+                ? _jsonResponse(201, {})
+                : _jsonResponse(422, {
+                    'success': false,
+                    'error': {'code': 'REJECTED', 'message': 'Rejected'},
+                  });
+          }))),
+          codec: const PlainWalletQueueCodec(),
+          stillCurrent: () => current,
+        );
+        expect(await queue.flush(), 0);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('pending_wallet_tx.one'), original);
+        expect(prefs.getString('pending_wallet_tx.two'), next);
+        expect(prefs.getString('wallet_tx_rejected.one'), isNull);
+        expect(requests, 1); // Already sent; cannot be recalled.
+      }
+    });
+
     test('keeps a mismatched transaction ID locked without sending', () async {
       final original = _queuedItem('different');
       SharedPreferences.setMockInitialValues({

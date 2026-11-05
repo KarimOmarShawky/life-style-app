@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -124,6 +125,32 @@ class _FlakyCodec implements WalletQueueCodec {
       throw WalletQueueSecurityException('value cannot be protected');
     }
     await prefs.setString(key, value);
+  }
+}
+
+class _BlockingReviewCodec extends PlainWalletQueueCodec {
+  final started = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<void> write(SharedPreferences prefs, String key, String value) async {
+    if (key.startsWith(PendingWalletCandidates.reviewPrefix)) {
+      started.complete();
+      await release.future;
+    }
+    await super.write(prefs, key, value);
+  }
+}
+
+class _BlockingUnsealCodec extends PlainWalletQueueCodec {
+  final started = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<String?> unseal(String stored) async {
+    started.complete();
+    await release.future;
+    return stored;
   }
 }
 
@@ -702,6 +729,103 @@ void main() {
       // The next round analyzes it normally.
       expect(await candidates.flush(), 1);
       expect(prefs.getString('pending_wallet_candidate.sealed'), isNull);
+    });
+
+    test('a stale analysis response neither creates review nor deletes source',
+        () async {
+      final original = _candidateItem('one');
+      final next = _candidateItem('two');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.one': original,
+        'flutter.pending_wallet_candidate.two': next,
+      });
+      var current = true;
+      var calls = 0;
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) async {
+          calls++;
+          current = false;
+          return http.Response(
+            _analyzeResponse(
+                status: 'recognized', transaction: _strictTransaction),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+        stillCurrent: () => current,
+      );
+      expect(await candidates.flush(), 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.one'), original);
+      expect(prefs.getString('pending_wallet_candidate.two'), next);
+      expect(prefs.getString('pending_wallet_review.one'), isNull);
+      expect(
+          calls, 1); // The already-started provider request is not cancelled.
+    });
+
+    test('a started review write cannot be recalled but the source survives',
+        () async {
+      final original = _candidateItem('one');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.one': original,
+      });
+      var current = true;
+      final codec = _BlockingReviewCodec();
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) async => http.Response(
+              _analyzeResponse(
+                  status: 'recognized', transaction: _strictTransaction),
+              200,
+              headers: {'content-type': 'application/json'},
+            ))),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: codec,
+        stillCurrent: () => current,
+      );
+      final flush = candidates.flush();
+      await codec.started.future.timeout(const Duration(seconds: 1));
+      current = false;
+      codec.release.complete();
+      expect(await flush, 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.one'), original);
+      // This demonstrates the remaining storage race, not an ownership guarantee.
+      expect(prefs.getString('pending_wallet_review.one'), isNotNull);
+    });
+
+    test('stale quarantine recovery preserves its source without restoring',
+        () async {
+      final quarantine = jsonEncode({
+        'origin': 'pending_wallet_candidate.',
+        'reason': 'UNREADABLE',
+        'attempts': 0,
+        'payload': _candidateItem('one'),
+        'quarantinedAtMs': DateTime.now().millisecondsSinceEpoch,
+      });
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_quarantine.one': quarantine,
+      });
+      var current = true;
+      final codec = _BlockingUnsealCodec();
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) async => http.Response('', 200))),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: codec,
+        stillCurrent: () => current,
+      );
+      final flush = candidates.flush();
+      await codec.started.future.timeout(const Duration(seconds: 1));
+      current = false;
+      codec.release.complete();
+      expect(await flush, 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_quarantine.one'), quarantine);
+      expect(prefs.getString('pending_wallet_candidate.one'), isNull);
     });
 
     test('candidate collisions and mismatched IDs remain locked', () async {

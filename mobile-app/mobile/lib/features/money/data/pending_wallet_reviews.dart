@@ -7,6 +7,7 @@ import 'package:lifestyle_mobile/data/json_fields.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_work_guard.dart';
 
 /// Wallet SMS fallback results waiting for user confirmation.
 ///
@@ -473,8 +474,10 @@ class PendingWalletCandidates {
     MoneyRepository _repository, {
     WalletQueueCodec? codec,
     DateTime Function()? clock,
+    bool Function()? stillCurrent,
   })  : _codec = codec ?? PlatformWalletQueueCodec(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _guard = WalletWorkGuard(stillCurrent);
 
   static const String keyPrefix = 'pending_wallet_candidate.';
   // Shared with Android; contains only the queue identifier, not SMS content.
@@ -515,12 +518,25 @@ class PendingWalletCandidates {
   final ApiClient _api;
   final WalletQueueCodec _codec;
   final DateTime Function() _clock;
+  final WalletWorkGuard _guard;
 
   /// Returns how many candidates were resolved. Unresolved candidates stay
   /// queued for a later attempt.
   Future<int> flush() async {
+    try {
+      return await _flushCurrent();
+    } on WalletWorkEnded {
+      // Already-started server/storage work cannot be recalled.
+      return 0;
+    }
+  }
+
+  Future<int> _flushCurrent() async {
+    var resolved = 0;
+    _guard.check();
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
+    _guard.check();
     final keys = prefs
         .getKeys()
         .map(_withoutFlutterPrefix)
@@ -530,11 +546,13 @@ class PendingWalletCandidates {
 
     await _retryQuarantined(prefs);
 
-    var resolved = 0;
+    _guard.check();
     for (final key in keys) {
+      _guard.check();
       final id = key.substring(keyPrefix.length);
       final holdKey = '$legacyHoldPrefix$id';
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(holdKey)) continue;
       if (prefs.containsKey('$quarantinePrefix$id') ||
           prefs.containsKey('$reviewPrefix$id')) {
@@ -545,15 +563,18 @@ class PendingWalletCandidates {
       final String? raw;
       try {
         raw = await _codec.read(prefs, key);
+        _guard.check();
       } on WalletQueueSecurityException {
         // Unreadable rather than absent: park it instead of retrying forever
         // or deleting the message (V-02).
         await prefs.reload();
+        _guard.check();
         if (prefs.containsKey(holdKey)) continue;
         await _quarantine(prefs, key, unreadableReason);
         continue;
       }
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(holdKey)) continue;
       final decoded = _decodeOrNull(raw);
       if (decoded is! Map<String, dynamic>) {
@@ -597,6 +618,7 @@ class PendingWalletCandidates {
       }
 
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(holdKey)) continue;
       if (prefs.containsKey('$quarantinePrefix$id') ||
           prefs.containsKey('$reviewPrefix$id')) {
@@ -616,6 +638,7 @@ class PendingWalletCandidates {
           'SMS analysis',
         );
         await prefs.reload();
+        _guard.check();
         // This cannot undo a provider request already sent before the hold.
         if (prefs.containsKey(holdKey)) continue;
         if (prefs.containsKey('$quarantinePrefix$id') ||
@@ -625,6 +648,7 @@ class PendingWalletCandidates {
         }
         final decision = await _applyResult(prefs, key, candidate, response);
         await prefs.reload();
+        _guard.check();
         if (prefs.containsKey(holdKey)) continue;
         if (decision.outcome == CandidateOutcome.held) continue;
         if (decision.outcome == CandidateOutcome.handled) {
@@ -639,8 +663,11 @@ class PendingWalletCandidates {
         if (!await _retryCandidate(prefs, key, decoded, attempts, reason)) {
           return resolved;
         }
+      } on WalletWorkEnded {
+        rethrow;
       } on ApiException catch (error) {
         await prefs.reload();
+        _guard.check();
         if (prefs.containsKey(holdKey)) continue;
         if (prefs.containsKey('$quarantinePrefix$id') ||
             prefs.containsKey('$reviewPrefix$id')) {
@@ -663,6 +690,7 @@ class PendingWalletCandidates {
         }
       } on Exception {
         await prefs.reload();
+        _guard.check();
         if (prefs.containsKey(holdKey)) continue;
         if (prefs.containsKey('$quarantinePrefix$id') ||
             prefs.containsKey('$reviewPrefix$id')) {
@@ -688,6 +716,7 @@ class PendingWalletCandidates {
     WalletSmsCandidate candidate,
     Map<String, dynamic> response,
   ) async {
+    _guard.check();
     final status = response['status'];
     if (status is! String || status.isEmpty) {
       return const CandidateDecision.retry(CandidateRetryReason.unknownStatus);
@@ -738,6 +767,7 @@ class PendingWalletCandidates {
     // dropped once that write is confirmed (V-02).
     final reviewKey = '$reviewPrefix${review.id}';
     await prefs.reload();
+    _guard.check();
     if (prefs.containsKey(reviewKey)) {
       await _markLegacyHold(prefs, '$legacyHoldPrefix${review.id}');
       return const CandidateDecision.held();
@@ -748,6 +778,7 @@ class PendingWalletCandidates {
         reviewKey,
         reviewRaw,
       );
+      _guard.check();
       return const CandidateDecision.handled();
     } on WalletQueueSecurityException {
       // Without protection the entry must not be written: retry the candidate.
@@ -764,6 +795,7 @@ class PendingWalletCandidates {
     Object? attempts,
     CandidateRetryReason reason,
   ) async {
+    _guard.check();
     final next = attempts is int ? attempts + 1 : 1;
     decoded['attempts'] = next;
     decoded['retryReason'] = reason.name;
@@ -772,12 +804,14 @@ class PendingWalletCandidates {
       // deleting the message silently.
       decoded['blocked'] = true;
       await _writeCandidate(prefs, key, decoded);
+      _guard.check();
       await _publishReason(prefs, reason);
       return true;
     }
     decoded['nextAttemptAtMs'] = DateTime.now().millisecondsSinceEpoch +
         _backoffStep.inMilliseconds * next;
     await _writeCandidate(prefs, key, decoded);
+    _guard.check();
     await _publishReason(prefs, reason);
     return false;
   }
@@ -813,6 +847,7 @@ class PendingWalletCandidates {
     String key,
     Map<String, dynamic> decoded,
   ) async {
+    _guard.check();
     try {
       await _codec.write(prefs, key, jsonEncode(decoded));
     } on WalletQueueSecurityException {
@@ -831,6 +866,7 @@ class PendingWalletCandidates {
     String key,
     String reason,
   ) async {
+    _guard.check();
     final String? stored = prefs.getString(key);
     if (stored == null) return;
     final envelope = jsonEncode({
@@ -843,6 +879,7 @@ class PendingWalletCandidates {
     final id = key.substring(keyPrefix.length);
     final target = '$quarantinePrefix$id';
     await prefs.reload();
+    _guard.check();
     if (prefs.containsKey(target)) {
       await _markLegacyHold(prefs, '$legacyHoldPrefix$id');
       return;
@@ -856,7 +893,9 @@ class PendingWalletCandidates {
       await _publishQuarantine(prefs, 'WRITE_FAILED');
       return;
     }
+    _guard.check();
     await _removeEntry(prefs, key);
+    _guard.check();
     await _publishQuarantine(prefs, reason);
   }
 
@@ -879,13 +918,16 @@ class PendingWalletCandidates {
         .toList();
     if (keys.isEmpty) return;
     for (final key in keys) {
+      _guard.check();
       final holdKey =
           '$legacyHoldPrefix${key.substring(quarantinePrefix.length)}';
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(holdKey)) continue;
       final String? raw;
       try {
         raw = await _codec.read(prefs, key);
+        _guard.check();
       } on WalletQueueSecurityException {
         continue;
       }
@@ -924,6 +966,7 @@ class PendingWalletCandidates {
       }
 
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(holdKey)) continue;
       if (readable == null) {
         // Still unreadable: record the attempt and leave it parked.
@@ -949,9 +992,11 @@ class PendingWalletCandidates {
         continue;
       }
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(holdKey)) continue;
       await _removeEntry(prefs, key);
     }
+    _guard.check();
     if (!prefs.getKeys().any(
           (String entry) => entry
               .replaceFirst(_flutterPrefix, '')
@@ -963,6 +1008,7 @@ class PendingWalletCandidates {
 
   /// Failure leaves the source untouched, but cannot ensure a durable hold.
   Future<void> _markLegacyHold(SharedPreferences prefs, String holdKey) async {
+    _guard.check();
     try {
       if (!await prefs.setString(holdKey, 'HELD')) {
         await _publishStorageFault(prefs);
@@ -975,6 +1021,7 @@ class PendingWalletCandidates {
   /// Removes one entry and verifies the removal reached disk (V-02). A silent
   /// failure would resurrect the entry on the next read, so it is reported.
   Future<bool> _removeEntry(SharedPreferences prefs, String key) async {
+    _guard.check();
     final removed = await prefs.remove(key);
     if (!removed) {
       await _publishStorageFault(prefs);
@@ -1004,6 +1051,7 @@ class PendingWalletCandidates {
     String key, {
     String? reason,
   }) async {
+    _guard.check();
     final previous = prefs.getString(key);
     var count = 0;
     if (previous != null) {
@@ -1023,6 +1071,7 @@ class PendingWalletCandidates {
   }
 
   Future<void> _clearFallbackUnavailable(SharedPreferences prefs) async {
+    _guard.check();
     if (prefs.containsKey(fallbackUnavailableKey)) {
       await prefs.remove(fallbackUnavailableKey);
     }

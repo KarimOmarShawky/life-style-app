@@ -113,6 +113,46 @@ class _RacingAuthRepository extends _SlowLogoutRepository {
   }
 }
 
+class _RacingProfileRepository extends _RacingAuthRepository {
+  final updateStarted = Completer<void>();
+  final finishUpdate = Completer<AppUser>();
+
+  @override
+  Future<AppUser> updateProfile({
+    String? displayName,
+    String? timezone,
+    String? defaultCurrency,
+  }) {
+    updateStarted.complete();
+    return finishUpdate.future;
+  }
+}
+
+class _RacingDeletionRepository extends _RacingAuthRepository {
+  final actionStarted = Completer<void>();
+  final finishAction = Completer<void>();
+  var profileCalls = 0;
+
+  @override
+  Future<DateTime?> scheduleAccountDeletion(String currentPassword) async {
+    actionStarted.complete();
+    await finishAction.future;
+    return null;
+  }
+
+  @override
+  Future<void> cancelAccountDeletion() async {
+    actionStarted.complete();
+    await finishAction.future;
+  }
+
+  @override
+  Future<AppUser> getProfile() async {
+    profileCalls++;
+    return _accountB;
+  }
+}
+
 class _RacingRestoreRepository extends _SlowLogoutRepository {
   int restoreCalls = 0;
   final restoreStarted = Completer<void>();
@@ -195,6 +235,75 @@ void main() {
     await scenario(fail: false);
     await scenario(fail: true);
   });
+  test('an old profile response cannot replace the new wallet account',
+      () async {
+    final repo = _RacingProfileRepository();
+    final container = ProviderContainer(overrides: [
+      authRepositoryProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    final accountA = (await container.read(authProvider.future))!;
+    final auth = container.read(authProvider.notifier);
+    final update = auth.updateCurrency('USD');
+    final rejected = expectLater(update, throwsStateError);
+    await repo.updateStarted.future.timeout(const Duration(seconds: 1));
+    final login = auth.signIn(email: _accountB.email, password: 'password');
+    await repo.loginStarted.future.timeout(const Duration(seconds: 1));
+    repo.finishLogin.complete(_accountB);
+    await login;
+    repo.finishUpdate.complete(accountA);
+    await rejected;
+    expect(auth.walletAccount, _accountB.id);
+    expect(container.read(authProvider).asData?.value?.id, _accountB.id);
+  });
+
+  test('stale deletion actions do not request a new account profile', () async {
+    for (final cancel in [false, true]) {
+      final repo = _RacingDeletionRepository();
+      final container = ProviderContainer(overrides: [
+        authRepositoryProvider.overrideWithValue(repo),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(authProvider.future);
+      final auth = container.read(authProvider.notifier);
+      final action = cancel
+          ? auth.cancelAccountDeletion()
+          : auth.scheduleAccountDeletion('password');
+      final rejected = expectLater(action, throwsStateError);
+      await repo.actionStarted.future.timeout(const Duration(seconds: 1));
+      final login = auth.signIn(email: _accountB.email, password: 'password');
+      await repo.loginStarted.future.timeout(const Duration(seconds: 1));
+      repo.finishLogin.complete(_accountB);
+      await login;
+      repo.finishAction.complete();
+      await rejected;
+      expect(repo.profileCalls, 0);
+      expect(auth.walletAccount, _accountB.id);
+    }
+  });
+
+  test('wallet work is superseded at login start even for the same account',
+      () async {
+    final repo = _RacingAuthRepository();
+    final container = ProviderContainer(overrides: [
+      authRepositoryProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    final account = (await container.read(authProvider.future))!;
+    final auth = container.read(authProvider.notifier);
+    final originalGeneration = auth.walletGeneration;
+    expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isTrue);
+    final login = auth.signIn(email: account.email, password: 'password');
+    expect(auth.walletAccount, isNull);
+    expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isFalse);
+    await repo.loginStarted.future.timeout(const Duration(seconds: 1));
+    repo.finishLogin.complete(account);
+    await login;
+    expect(auth.walletAccount, account.id);
+    expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isFalse);
+    expect(auth.walletWorkIsCurrent(account.id, auth.walletGeneration), isTrue);
+  });
+
   test('sign-out invalidates a pending login before it can publish an account',
       () async {
     FakeSecureStorage().install();

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_work_guard.dart';
 
 /// Wallet and bank transactions that the Android SMS receiver stored while the
 /// app was not running.
@@ -14,8 +15,10 @@ import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 /// so token refresh is handled by [ApiClient]. The entry id is used as the
 /// Idempotency-Key, so a retry after a lost response cannot create a duplicate.
 class PendingWalletTransactions {
-  PendingWalletTransactions(this._repository, {WalletQueueCodec? codec})
-      : _codec = codec ?? PlatformWalletQueueCodec();
+  PendingWalletTransactions(this._repository,
+      {WalletQueueCodec? codec, bool Function()? stillCurrent})
+      : _codec = codec ?? PlatformWalletQueueCodec(),
+        _guard = WalletWorkGuard(stillCurrent);
 
   static const String keyPrefix = 'pending_wallet_tx.';
   // Marker has no SMS content and is shared with the native receiver.
@@ -24,15 +27,28 @@ class PendingWalletTransactions {
 
   final MoneyRepository _repository;
   final WalletQueueCodec _codec;
+  final WalletWorkGuard _guard;
 
   /// Sends queued transactions that are not blocked by a prior rejection.
   /// Rejected entries remain parked; returns how many were stored.
   /// Older entries may still use the legacy plaintext storage format.
   Future<int> flush() async {
+    try {
+      return await _flushCurrent();
+    } on WalletWorkEnded {
+      // Already-started server/storage work cannot be recalled.
+      return 0;
+    }
+  }
+
+  Future<int> _flushCurrent() async {
+    var stored = 0;
+    _guard.check();
     final prefs = await SharedPreferences.getInstance();
     // The native SMS receiver writes to this store from outside Dart, and the plugin
     // caches values. Reload so entries written while the app was running are visible.
     await prefs.reload();
+    _guard.check();
     final keys = prefs
         .getKeys()
         .map(_withoutFlutterPrefix)
@@ -40,13 +56,16 @@ class PendingWalletTransactions {
         .toList()
       ..sort();
 
-    var stored = 0;
     for (final key in keys) {
+      _guard.check();
       await prefs.reload();
+      _guard.check();
       final id = key.substring(keyPrefix.length);
       final blockedKey = '$blockedPrefix$id';
       final holdKey = 'wallet_legacy_hold.$id';
-      if (prefs.containsKey(blockedKey) || prefs.containsKey(holdKey)) continue;
+      if (prefs.containsKey(blockedKey) || prefs.containsKey(holdKey)) {
+        continue;
+      }
       if (prefs.containsKey('pending_wallet_quarantine.$id')) {
         // Two records with the same ID may be unrelated; keep both locked.
         try {
@@ -62,6 +81,7 @@ class PendingWalletTransactions {
       final String? entry;
       try {
         entry = await _codec.read(prefs, key);
+        _guard.check();
       } on WalletQueueSecurityException {
         // Unreadable right now: keep the entry instead of deleting it.
         continue;
@@ -84,6 +104,7 @@ class PendingWalletTransactions {
         continue;
       }
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(blockedKey) ||
           prefs.containsKey(holdKey) ||
           prefs.containsKey('pending_wallet_quarantine.$id')) {
@@ -99,7 +120,11 @@ class PendingWalletTransactions {
           description: item.description,
           merchant: item.merchant,
         );
+        _guard.check();
+      } on WalletWorkEnded {
+        rethrow;
       } on ApiException catch (error) {
+        _guard.check();
         if (_isPermanentRejection(error)) {
           // Preserve the original (legacy entries may be plaintext) and park it.
           if (!await _markRejected(prefs, blockedKey)) break;
@@ -112,6 +137,7 @@ class PendingWalletTransactions {
       }
       // Native processing may have parked this item while the request was in flight.
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey(blockedKey) ||
           prefs.containsKey(holdKey) ||
           prefs.containsKey('pending_wallet_quarantine.$id')) {

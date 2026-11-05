@@ -109,14 +109,25 @@ class _HomeShellState extends ConsumerState<HomeShell>
     if (_flushingWalletQueue) return;
     _flushingWalletQueue = true;
     try {
+      final controller = ref.read(authProvider.notifier);
+      final account = widget.user.id;
+      final generation = controller.walletGeneration;
+      bool stillCurrent() =>
+          mounted &&
+          identical(ref.read(authProvider.notifier), controller) &&
+          controller.walletWorkIsCurrent(account, generation);
+      if (!stillCurrent()) return;
       final stored = await PendingWalletTransactions(
         ref.read(moneyRepositoryProvider),
+        stillCurrent: stillCurrent,
       ).flush();
+      if (!stillCurrent()) return;
       final resolvedCandidates = await PendingWalletCandidates(
         ref.read(apiClientProvider),
         ref.read(moneyRepositoryProvider),
+        stillCurrent: stillCurrent,
       ).flush();
-      if (mounted && (stored > 0 || resolvedCandidates > 0)) {
+      if (stillCurrent() && (stored > 0 || resolvedCandidates > 0)) {
         ref.invalidate(budgetsProvider);
         ref.invalidate(subscriptionsProvider);
       }

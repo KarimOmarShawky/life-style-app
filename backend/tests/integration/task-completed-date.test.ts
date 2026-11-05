@@ -15,11 +15,15 @@ describe('completed task local calendar-day filtering', () => {
     const limiter = getContainer().rateLimiter;
     if ('clear' in limiter && typeof limiter.clear === 'function') limiter.clear();
   });
-  const cases = [
+  // Fixed historical transitions retain a deterministic repeated-midnight
+  // regression. Havana's 2026 rules were changed after the original fixture
+  // was written; resolve that day's end with the PostgreSQL tzdb in use.
+  const cases: Array<[string, string, string, string | null]> = [
     ['UTC', '2026-03-08', '2026-03-08 00:00:00+00', '2026-03-09 00:00:00+00'],
     ['America/New_York', '2026-03-08', '2026-03-08 05:00:00+00', '2026-03-09 04:00:00+00'],
     ['America/New_York', '2026-11-01', '2026-11-01 04:00:00+00', '2026-11-02 05:00:00+00'],
-    ['America/Havana', '2026-11-01', '2026-11-01 04:00:00+00', '2026-11-02 05:00:00+00'],
+    ['America/Havana', '2024-11-03', '2024-11-03 04:00:00+00', '2024-11-04 05:00:00+00'],
+    ['America/Havana', '2026-11-01', '2026-11-01 04:00:00+00', null],
     ['Africa/Cairo', '2026-04-24', '2026-04-23 22:00:00+00', '2026-04-24 21:00:00+00'],
     ['+05:45', '2026-03-08', '2026-03-07 18:15:00+00', '2026-03-08 18:15:00+00'],
     ['-03:30', '2026-03-08', '2026-03-08 03:30:00+00', '2026-03-09 03:30:00+00'],
@@ -46,6 +50,16 @@ describe('completed task local calendar-day filtering', () => {
         defaultCurrency: 'USD'
       });
       expect(other.status).toBe(201);
+      // The next midnight is unambiguous on this day in both known Havana
+      // rulesets. Query it from PostgreSQL, whose tzdb also drives filtering;
+      // Node and PostgreSQL may carry different tzdb releases.
+      const actualEnd =
+        end ??
+        (
+          await pool.query<{ end_at: Date }>(
+            `SELECT timezone('America/Havana', '2026-11-02 00:00:00'::timestamp) AS end_at`
+          )
+        ).rows[0]!.end_at.toISOString();
       await pool.query(
         `INSERT INTO tasks (user_id, title, status, completed_at) VALUES
       ($1, 'before', 'done', $3::timestamptz - interval '1 microsecond'),
@@ -54,7 +68,7 @@ describe('completed task local calendar-day filtering', () => {
       ($1, 'after', 'done', $4::timestamptz),
       ($1, 'open', 'todo', NULL),
       ($2, 'other tenant', 'done', $3::timestamptz)`,
-        [user.id, other.body.data.user.id, start, end]
+        [user.id, other.body.data.user.id, start, actualEnd]
       );
       async function titles(query: Record<string, string>) {
         const res = await request(app)

@@ -30,12 +30,14 @@ describe('DATE consumers over authenticated HTTP and PostgreSQL', () => {
 
   it('anchors a task relative reminder to its stored civil date in the user timezone', async () => {
     const token = await register('Africa/Cairo');
+    const dueDate = `${new Date().getUTCFullYear() + 2}-01-15`;
+    const expectedReminder = `${dueDate}T06:30:00.000Z`;
     const task = await request(app)
       .post('/api/v1/tasks')
       .set('Authorization', `Bearer ${token}`)
-      .send({ title: 'Due task', dueDate: '2028-01-15', dueTime: '09:30' });
+      .send({ title: 'Due task', dueDate, dueTime: '09:30' });
     expect(task.status).toBe(201);
-    expect(task.body.data.task.dueDate).toBe('2028-01-15');
+    expect(task.body.data.task.dueDate).toBe(dueDate);
     const reminder = await request(app)
       .post('/api/v1/reminders')
       .set('Authorization', `Bearer ${token}`)
@@ -43,15 +45,15 @@ describe('DATE consumers over authenticated HTTP and PostgreSQL', () => {
     expect(reminder.status).toBe(201);
     expect(reminder.body.data).toMatchObject({
       offsetMinutes: 60,
-      remindAt: '2028-01-15T06:30:00.000Z',
-      nextAttemptAt: '2028-01-15T06:30:00.000Z'
+      remindAt: expectedReminder,
+      nextAttemptAt: expectedReminder
     });
     const stored = await pool.query(
       'SELECT remind_at, next_attempt_at FROM reminders WHERE id = $1',
       [reminder.body.data.id]
     );
-    expect(stored.rows[0].remind_at.toISOString()).toBe('2028-01-15T06:30:00.000Z');
-    expect(stored.rows[0].next_attempt_at.toISOString()).toBe('2028-01-15T06:30:00.000Z');
+    expect(stored.rows[0].remind_at.toISOString()).toBe(expectedReminder);
+    expect(stored.rows[0].next_attempt_at.toISOString()).toBe(expectedReminder);
   });
 
   it.each([

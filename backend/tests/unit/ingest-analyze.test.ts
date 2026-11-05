@@ -203,3 +203,41 @@ describe('Analyze route result contract for SMS clients (F-01/F-02)', () => {
     expect(error.code).toBe('SMS_FALLBACK_UNAVAILABLE');
   });
 });
+
+describe('SMS receivedAt semantic validation', () => {
+  it('rejects impossible calendar dates, times, offsets and unknown fields', () => {
+    for (const receivedAt of [
+      '2026-02-30',
+      '2025-02-29',
+      '2026-10-08T24:00:00Z',
+      '2026-10-08T12:60:00Z',
+      '2026-10-08T12:00:60Z',
+      '2026-10-08T12:00:00+24:00'
+    ]) {
+      expect(
+        analyzeSmsRequestSchema.safeParse({ text: 'paid 250', receivedAt }).success,
+        receivedAt
+      ).toBe(false);
+    }
+    expect(
+      analyzeSmsRequestSchema.safeParse({
+        text: 'paid 250',
+        receivedAt: '2026-10-08',
+        unexpected: true
+      }).success
+    ).toBe(false);
+  });
+  it('accepts valid date and client timestamp formats', () => {
+    for (const receivedAt of [
+      '2024-02-29',
+      '2026-10-08T13:05:00Z',
+      '2026-10-08T13:05:00.123456Z',
+      '2026-10-08T13:05+02:00'
+    ]) {
+      expect(
+        analyzeSmsRequestSchema.safeParse({ text: 'paid 250', receivedAt }).success,
+        receivedAt
+      ).toBe(true);
+    }
+  });
+});

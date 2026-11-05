@@ -250,3 +250,66 @@ describe('GeminiSmsFallbackAnalyzer', () => {
     expect(result.transaction?.occurredOn).toBe('2026-10-08');
   });
 });
+
+describe('Gemini SMS output safety boundaries', () => {
+  it('never rounds numeric amounts or returns values incompatible with money writes', async () => {
+    const cases = [
+      { amount: 1.239, currency: 'EGP' },
+      { amount: 999999999999999.9, currency: 'EGP' },
+      { amount: '250.00', currency: 'JPY' },
+      { amount: '1000000000000000.00', currency: 'EGP' },
+      { amount: '250.00', currency: 'ZZZ' }
+    ];
+    for (const value of cases) {
+      const result = await analyzerWith(
+        vi.fn(async () =>
+          geminiResponse({ ...VALID_MODEL_OUTPUT, ...value })
+        ) as unknown as typeof fetch
+      ).analyze({ text: 'paid 250', receivedAt: '2026-10-08' });
+      expect(result.status, JSON.stringify(value)).toBe('unrecognized');
+      expect(result.transaction).toBeNull();
+    }
+  });
+
+  it('accepts valid currency-specific scale and numeric values without rounding', async () => {
+    for (const value of [
+      { amount: '250', currency: 'JPY' },
+      { amount: 250, currency: 'JPY' },
+      { amount: 0.1, currency: 'EGP' }
+    ]) {
+      const result = await analyzerWith(
+        vi.fn(async () =>
+          geminiResponse({ ...VALID_MODEL_OUTPUT, ...value })
+        ) as unknown as typeof fetch
+      ).analyze({ text: 'paid', receivedAt: '2026-10-08' });
+      expect(result.status, JSON.stringify(value)).toBe('recognized');
+    }
+  });
+
+  it('demotes inferred currency and numeric model amounts to user review', async () => {
+    for (const value of [
+      { amount: 250, currency: 'EGP' },
+      { amount: '250.00', currency: '' }
+    ]) {
+      const result = await analyzerWith(
+        vi.fn(async () =>
+          geminiResponse({ ...VALID_MODEL_OUTPUT, ...value })
+        ) as unknown as typeof fetch
+      ).analyze({ text: 'paid 250', receivedAt: '2026-10-08' });
+      expect(result.status).toBe('recognized');
+      expect(result.confidence).toBe('low');
+    }
+  });
+
+  it('rejects invalid receivedAt before sending the SMS to the provider', async () => {
+    for (const receivedAt of ['2026-02-30', '2026-10-08T25:00:00Z', '2026-10-08junk']) {
+      const fetchImpl = vi.fn(async () => geminiResponse(VALID_MODEL_OUTPUT));
+      const result = await analyzerWith(fetchImpl as unknown as typeof fetch).analyze({
+        text: 'paid 250',
+        receivedAt
+      });
+      expect(result.status, receivedAt).toBe('unrecognized');
+      expect(fetchImpl).not.toHaveBeenCalled();
+    }
+  });
+});

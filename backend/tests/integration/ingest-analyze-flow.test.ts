@@ -14,6 +14,7 @@ import { createApp } from '../../src/app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
 import {
+  GeminiSmsFallbackAnalyzer,
   SmsFallbackUnavailableError,
   type AnalyzeCandidateInput,
   type SmsAnalysisResult
@@ -197,6 +198,79 @@ describe('SMS fallback analyze route', () => {
     expect(res.status).toBe(503);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('SMS_FALLBACK_UNAVAILABLE');
+  });
+
+  it('validates metadata before the real analyzer and handles unsafe provider amounts over authenticated HTTP', async () => {
+    let modelAmount: string | number = '250.00';
+    let currency = 'EGP';
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        isTransaction: true,
+                        kind: 'expense',
+                        amount: modelAmount,
+                        currency,
+                        merchant: 'Wallet',
+                        description: 'Payment',
+                        confidence: 'high'
+                      })
+                    }
+                  ]
+                }
+              }
+            ]
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+    );
+    const app = createApp({
+      smsAnalyzer: new GeminiSmsFallbackAnalyzer({
+        apiKey: 'test-key',
+        model: 'stub',
+        timeoutMs: 1000,
+        fetchImpl: fetchImpl as unknown as typeof fetch
+      })
+    });
+    const { tokens } = await registerUser(app);
+    const ingestToken = await issueIngestToken(app, tokens.accessToken);
+    const send = (receivedAt: string, token = tokens.accessToken) =>
+      request(app)
+        .post('/api/v1/ingest/sms/analyze')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ text: 'Paid 250 EGP', receivedAt });
+
+    expect((await send('2026-02-30')).status).toBe(400);
+    expect((await send('2026-10-08T25:00:00Z', ingestToken)).status).toBe(400);
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    modelAmount = 1.239;
+    let result = await send('2026-10-08T13:05:00Z', ingestToken);
+    expect(result.status).toBe(200);
+    expect(result.body.data.status).toBe('unrecognized');
+
+    modelAmount = 250;
+    result = await send('2026-10-08T13:05:00Z');
+    expect(result.body.data.status).toBe('recognized');
+    expect(result.body.data.confidence).toBe('low');
+    expect(result.body.data.transaction.amount).toBe('250.00');
+
+    modelAmount = '250.00';
+    currency = 'JPY';
+    result = await send('2026-10-08T13:05:00Z');
+    expect(result.body.data.status).toBe('unrecognized');
+
+    currency = 'EGP';
+    result = await send('2026-10-08T13:05:00Z');
+    expect(result.body.data.status).toBe('recognized');
+    expect(result.body.data.confidence).toBe('high');
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
 
   it('rejects malformed bodies with a validation error', async () => {

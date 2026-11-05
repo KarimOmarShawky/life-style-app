@@ -48,7 +48,9 @@ export function createIngestRouter(options: {
     limiter: rateLimiter,
     limit: 60,
     windowSeconds: 60,
-    keyGenerator: (req) => `ingest-sms-analyze:user:${req.user?.id || 'anon'}`
+    keyGenerator: (req) => `ingest-sms-analyze:user:${req.user?.id || 'anon'}`,
+    // Do not run a paid provider without a shared quota during Redis outages.
+    degradedPolicy: 'fail-closed'
   });
 
   router.post('/token', authenticate, tokenRateLimiter, controller.issueToken);

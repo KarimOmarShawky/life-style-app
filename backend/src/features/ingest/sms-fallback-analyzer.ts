@@ -18,6 +18,11 @@
  */
 
 import { z } from 'zod';
+import { Decimal } from 'decimal.js';
+import { currencySchema } from '../../core/security/profile-validation.js';
+import { checkAmountForCurrency } from '../money/money.invariants.js';
+import { getCurrencyExponent } from '../money/money.dto.js';
+import { isValidSmsReceivedAt } from './ingest.validation.js';
 import {
   sanitizeSmsText,
   sanitizeSmsSender,
@@ -76,8 +81,6 @@ const MODEL_OUTPUT_SCHEMA = z.object({
 });
 
 const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
-const CURRENCY_PATTERN = /^[A-Z]{3}$/;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const PROMPT_HEADER = `You extract wallet or bank transaction data from one sanitized SMS message.
 The text contains redaction placeholders such as [OTP], [PHONE], [ACCOUNT], [REFERENCE], [URL], [EMAIL], [BALANCE], [FEE], [DATE], [PERCENT] and [PROMO]. Placeholders never hold transaction data.
@@ -134,10 +137,8 @@ export class GeminiSmsFallbackAnalyzer implements SmsTransactionAnalyzer {
     // Defense in depth: sanitize again even if the caller claims the text is clean.
     const safeText = sanitizeSmsText(input.text);
     const safeSender = sanitizeSmsSender(input.sender);
-    const occurredOn = DATE_PATTERN.test(input.receivedAt)
-      ? input.receivedAt
-      : input.receivedAt.slice(0, 10);
-    if (!DATE_PATTERN.test(occurredOn)) {
+    const occurredOn = input.receivedAt.slice(0, 10);
+    if (!isValidSmsReceivedAt(input.receivedAt)) {
       // Invalid metadata cannot be trusted; fail safe instead of guessing a date.
       return { status: 'unrecognized', transaction: null, confidence: null };
     }
@@ -245,8 +246,8 @@ export class GeminiSmsFallbackAnalyzer implements SmsTransactionAnalyzer {
     }
 
     const data = parsed.data;
-    const amount = normalizeAmount(data.amount);
     const currency = normalizeCurrency(data.currency);
+    const amount = currency === null ? null : normalizeAmount(data.amount, currency);
     if (
       amount === null ||
       currency === null ||
@@ -261,7 +262,13 @@ export class GeminiSmsFallbackAnalyzer implements SmsTransactionAnalyzer {
 
     // Fail safe: only a complete, explicit parse may be "high".
     const confidence: SmsAnalysisConfidence =
-      data.confidence === 'high' && merchant !== null ? 'high' : 'low';
+      data.confidence === 'high' &&
+      merchant !== null &&
+      typeof data.amount === 'string' &&
+      typeof data.currency === 'string' &&
+      data.currency.trim() !== ''
+        ? 'high'
+        : 'low';
 
     return {
       status: 'recognized',
@@ -278,17 +285,30 @@ export class GeminiSmsFallbackAnalyzer implements SmsTransactionAnalyzer {
   }
 }
 
-function normalizeAmount(raw: string | number | null | undefined): string | null {
+function normalizeAmount(raw: string | number | null | undefined, currency: string): string | null {
   if (raw === null || raw === undefined) {
     return null;
   }
   // JSON numbers are accepted and normalized to the strict decimal string form.
-  const text = typeof raw === 'number' ? raw.toFixed(2) : raw.trim();
+  const text =
+    typeof raw === 'number' ? raw.toFixed(Math.min(2, getCurrencyExponent(currency))) : raw.trim();
+  // A numeric value may be formatted, but never rounded into a different value.
+  if (
+    typeof raw === 'number' &&
+    (!Number.isFinite(raw) || !new Decimal(text).eq(new Decimal(String(raw))))
+  )
+    return null;
   if (!AMOUNT_PATTERN.test(text)) {
     return null;
   }
   const value = Number(text);
-  if (!Number.isFinite(value) || value <= 0) {
+  const integerDigits = text.split('.')[0]!.replace(/^0+/, '').length;
+  if (
+    !Number.isFinite(value) ||
+    value <= 0 ||
+    integerDigits > 15 ||
+    !checkAmountForCurrency(text, currency).ok
+  ) {
     return null;
   }
   return text;
@@ -300,5 +320,5 @@ function normalizeCurrency(raw: string | number | null | undefined): string | nu
     return 'EGP';
   }
   const text = String(raw).trim().toUpperCase();
-  return CURRENCY_PATTERN.test(text) ? text : null;
+  return currencySchema.safeParse(text).success ? text : null;
 }

@@ -48,6 +48,26 @@ This is an **incomplete fix pass**, not a release certification. P0-1 has passin
 
 **Regression risk / residual:** Globally changing the parser affects every PostgreSQL DATE consumer; the full existing PostgreSQL integration suite passed, but the requested new relative-reminder and partial-goal HTTP acceptance tests were not added or run. Do not consider the P1 acceptance criteria satisfied until those are exercised, including existing DATE consumers.
 
+### P1-2 — completed task local-date filtering and OpenAPI
+
+**Root cause:** `completedFrom` and `completedTo` were converted to UTC midnights and the latter compared inclusively, excluding almost all of the requested last day and ignoring the user's timezone. The task-list OpenAPI query contract omitted both fields.
+
+**Fix:** `backend/src/features/tasks/tasks.service.ts:219-224` passes the user's timezone to the repository. `tasks.repository.pg.ts:272-298` compares each completion's PostgreSQL local civil date to the inclusive dates without truncating timestamp microseconds. Conservative half-open UTC bounds help narrow the scan; the exact civil-date predicate handles 23/25-hour days, repeated or missing midnights, and even skipped calendar dates. Unlike converting only local midnight with `AT TIME ZONE`, it includes both occurrences of Havana's repeated midnight. ISO offset zones are normalized by Node and passed to PostgreSQL as signed intervals, avoiding POSIX timezone sign reversal. `backend/src/docs/openapi-generator.ts:438-449` and regenerated `docs/api/openapi.yaml` document both parameters. `backend/tests/unit/tasks-openapi-query.test.ts` independently compares all accepted task-list query fields to both generated and checked-in specs.
+
+**Failing-first:** With disposable PostgreSQL 16.15, Redis 7.2.11, app role and isolated database, `DATABASE_URL=postgresql://lifestyle_app@127.0.0.1:55432/lifestyle_test REDIS_URL=redis://127.0.0.1:56379/15 ALLOW_DESTRUCTIVE_TESTS=isolated-resources-only npx vitest run tests/integration/task-completed-date.test.ts tests/unit/tasks-openapi-query.test.ts` from `backend/` before the fix produced:
+
+```text
+Test Files  2 failed (2)
+     Tests  9 failed (9)
+AssertionError: expected [ 'start' ] to deeply equal [ 'last', 'start' ]
+AssertionError: expected [] to deeply equal [ 'last', 'start' ]
+AssertionError: expected [ 'cursor', 'dueFrom', 'dueTo', …(9) ] to deeply equal [ 'completedFrom', …(13) ]
+```
+
+The seven HTTP cases then covered UTC, New York spring/fall transitions, Havana repeated midnight, Cairo skipped midnight and positive/negative offset zones; both OpenAPI tests also failed. **Passing-after:** the same command after the fix and three additional cases reported `Test Files 2 passed (2); Tests 12 passed (12)`. Authenticated real-PG tests also check start-only/end-only/unfiltered requests, one-microsecond edges, tenant isolation and invalid calendar days. Added after the initial failing run: compact offset forms, Samoa's entirely skipped date and invalid legacy timezone failure. The complete backend suite subsequently passed `74 files / 662 tests`; OpenAPI regeneration left the checked-in file unchanged.
+
+**Residual risk:** Civil-date evaluation is an extra per-row PostgreSQL operation after a conservative up-to-24-hour-expanded bound; no query-plan/performance benchmark was run. Correctness relies on the server's PostgreSQL timezone database being current, particularly when timezone legislation changes; Node and PostgreSQL can ship different timezone-data versions. An invalid nonempty legacy zone fails the filtered request rather than silently returning UTC results; the existing controller defaults empty/missing zones to UTC. Hosted CI for this change and device testing remain pending. This route-specific OpenAPI guard is not a complete all-routes gate.
+
 ### P1-3 — list cursors: partial
 
 **Root cause:** Three repositories silently ignored decode errors and permitted non-UUID IDs to reach PostgreSQL; SQLSTATE `22P02` fell through to 500.
@@ -82,11 +102,11 @@ This is an **incomplete fix pass**, not a release certification. P0-1 has passin
 
 - **P0-1 AI streaming and voice:** targeted Dart behavior tests and full hosted CI passed after the observed failing-first run; targeted widget and provider/device checks remain open; see details above.
 - **P0-2 money invariants:** backend scale policy, payment race and create/archive concurrency are implemented and passed hosted CI. Per user decision no mobile payment UI is planned; the API can record an explicit payment. Automatic Android renewal reminder code passed hosted Flutter/Kotlin tests and debug build; real-device and valid behavioral failing-before verification remain open, as described above.
-- **P1-2 completed date range/OpenAPI:** not changed; timezone-aware bounds and documentation/test are open.
+- **P1-2 completed date range/OpenAPI:** implementation and local real-PostgreSQL acceptance tests pass; hosted CI and the timezone-data/performance residuals above remain pending.
 - **P1-4 password reset:** not changed; lease release, reusable valid code, atomic attempt counting, SMTP throttling and delivery/retry tests remain open.
 - **P1-5 wallet queue/analyzer/sanitizer:** not changed; all five subissues and mobile/native tests remain open.
 - **P1-6/P1-7:** partial, as detailed above.
-- **Gate integrity:** no validation-schema-to-OpenAPI route coverage guard was added; AI source contract is supplemented by Dart behavior tests with a targeted passing run; full migration-to-snapshot column/constraint drift guard remains open.
+- **Gate integrity:** a validation-schema-to-OpenAPI query coverage guard was added for task listing only; a comprehensive all-route guard remains open; AI source contract is supplemented by Dart behavior tests with a targeted passing run; full migration-to-snapshot column/constraint drift guard remains open.
 - **P2:** ledger, analytics egress/consent, documentation, moderate advisories and test gaps remain open.
 
 ## Verification
@@ -96,7 +116,7 @@ This is an **incomplete fix pass**, not a release certification. P0-1 has passin
 | `npm --prefix backend ci` | EXECUTED | Passed; npm reported 9 moderate vulnerabilities across all dependencies. |
 | `npm run typecheck`, `npm run typecheck:tests`, `npm run lint`, `npm run format:check` (backend) | EXECUTED | All passed after formatting. |
 | `npm run test:unit` (backend) | EXECUTED | 46 files, 453 tests passed in the earlier run; the complete run below includes the unit suite. |
-| `npm test` (backend) | EXECUTED | With isolated local PostgreSQL 16.15 and Redis 7.2.11, `lifestyle_app` runtime role, dedicated `lifestyle_test` database and Redis database 15: 72 files, 650 tests passed after the additional P0 money, scale and category-race fixes. An earlier run before provisioning was blocked by the destructive-test safety guard; a first provisioned run with the superuser failed the least-privilege assertion, then passed using the runtime role. |
+| `npm test` (backend) | EXECUTED | With isolated local PostgreSQL 16.15 and Redis 7.2.11, `lifestyle_app` runtime role, dedicated `lifestyle_test` database and Redis database 15: 74 files, 662 tests passed after the completed-task date changes (earlier run: 72 files, 650 tests after P0 money, scale and category-race fixes). An earlier run before provisioning was blocked by the destructive-test safety guard; a first provisioned run with the superuser failed the least-privilege assertion, then passed using the runtime role. |
 | `node --test scripts/*.test.mjs` | EXECUTED | 150 passed, 0 failed after adding the subscription reminder source regression. These source checks supplement, but do not replace, the Dart behavioral tests. |
 | `npm run openapi:generate` | EXECUTED | Generated file had no diff; no generator changes were made. |
 | `npm audit --omit=dev --audit-level=high` | EXECUTED | Exit 0; 3 moderate production advisories remain. No threshold was lowered. |

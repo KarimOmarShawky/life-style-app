@@ -435,6 +435,18 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: completedFrom
+          in: query
+          description: Inclusive first completion date in the user's timezone
+          schema:
+            type: string
+            format: date
+        - name: completedTo
+          in: query
+          description: Inclusive last completion date in the user's timezone
+          schema:
+            type: string
+            format: date
         - name: sort
           in: query
           schema:

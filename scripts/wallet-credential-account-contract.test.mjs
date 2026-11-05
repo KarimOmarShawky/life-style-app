@@ -22,3 +22,12 @@ test('sign out invalidates delayed ingest-token issuance before logout begins', 
   assert.ok(signOut.indexOf('WalletIngestToken.invalidatePending()') >= 0);
   assert.ok(signOut.indexOf('WalletIngestToken.invalidatePending()') < signOut.indexOf('authRepositoryProvider).logout()'));
 });
+
+test('sign-out schedules wallet credential cleanup before awaiting remote logout', () => {
+  const auth = readFileSync(root + 'lib/features/auth/state/auth_provider.dart', 'utf8');
+  const signOut = auth.split('  Future<void> signOut() async {')[1].split('  Future<void> retryRestore()')[0];
+  const start = signOut.indexOf('WalletIngestToken.clearLocal(');
+  assert.ok(start >= 0);
+  assert.ok(start < signOut.indexOf('authRepositoryProvider).logout()'));
+  assert.equal(signOut.indexOf('WalletIngestToken.clearLocal(', start + 1), -1);
+});

@@ -15,6 +15,11 @@ final authRepositoryProvider = Provider<AuthRepository>(
   ),
 );
 
+// Kept injectable so sign-out ordering can be tested without a platform key.
+final walletCredentialStoreProvider = Provider<WalletCredentialStore>(
+  (ref) => PlatformWalletCredentialStore(),
+);
+
 final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(
   AuthController.new,
 );
@@ -92,6 +97,17 @@ class AuthController extends AsyncNotifier<AppUser?> {
     _signingOut = true;
     WalletIngestToken.invalidatePending();
     final account = state.asData?.value?.id;
+    // Schedule local cleanup now rather than waiting for network logout and
+    // unrelated native cleanup. The native operation is asynchronous: this is
+    // not an atomic fence with the SMS receiver, and may fail or stall.
+    Object? walletCleanupError;
+    StackTrace? walletCleanupStack;
+    final walletCleanup = WalletIngestToken.clearLocal(
+      credentials: ref.read(walletCredentialStoreProvider),
+    ).then<void>((_) {}, onError: (Object error, StackTrace stack) {
+      walletCleanupError = error;
+      walletCleanupStack = stack;
+    });
     try {
       await ref.read(authRepositoryProvider).logout();
     } finally {
@@ -120,7 +136,10 @@ class AuthController extends AsyncNotifier<AppUser?> {
         if (account != null) await SecureDetoxStore(account).clear();
       } finally {
         try {
-          await WalletIngestToken.clearLocal();
+          await walletCleanup;
+          if (walletCleanupError != null) {
+            Error.throwWithStackTrace(walletCleanupError!, walletCleanupStack!);
+          }
         } finally {
           await AiService.instance.setUserApiKey(null);
         }

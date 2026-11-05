@@ -15,6 +15,8 @@ Status: **work in progress; NO-GO for real SMS or release**. This design applies
 
 Flutter now serializes selected authentication transitions within one controller and suppresses older login/restore results after sign-out begins. This is not a native capture fence or a cross-engine lock, and pending network, storage, refresh and profile work can still race or stall.
 
+`WalletCaptureGate` is a separate, unwired process-local prototype: it begins inactive, issues one-use reservations for the active in-memory session, rejects a reservation after a transition, and orders its synchronous capture callback against invalidation. It cannot authenticate credentials, choose the correct SMS arrival boundary, preserve rejected captures, make writes durable or coordinate multiple instances/processes. Callback re-entry is rejected, but this is not a replacement for the required native authority, owner-bound storage or cross-runtime queue protocol. It must not be wired in isolation as a substitute for the requirements below.
+
 The Flutter API client also fences observed session transitions and requires a known same-client rotation lineage before retrying an expired request. It checks the token pair before refreshing or cleaning up, but its read/check/write and read/check/clear sequences are not atomic, already-started requests cannot be recalled, and other engines can bypass the in-memory generation. These checks do not establish message ownership.
 
 ## Requirements for wiring

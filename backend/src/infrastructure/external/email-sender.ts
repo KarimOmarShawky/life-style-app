@@ -35,7 +35,7 @@ export class SmtpEmailSender implements EmailSender {
     await this.sendRaw(
       to,
       'Your LifeStyle App Password Reset Code',
-      `Your 6-digit password reset code is: ${code}\n\nThis code is valid for 15 minutes.\nIf you did not request this reset, please ignore this email.`
+      `Your 6-digit password reset code is: ${code}\n\nThis code expires 15 minutes after it was first generated; a resent code does not extend that window.\nIf you did not request this reset, please ignore this email.`
     );
   }
 

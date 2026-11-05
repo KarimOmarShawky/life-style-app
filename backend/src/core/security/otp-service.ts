@@ -36,6 +36,36 @@ if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
 return redis.call('DEL', KEYS[1])
 `;
 
+// Durable request identity is represented only by a keyed digest, never by a
+// raw request id or OTP. A retry may only reuse the still-live generation it
+// owns, or start an issuance proven not to have reached SMTP.
+const DURABLE_ISSUE_SCRIPT = `-- otp-issue-v1-durable
+if redis.call('GET', KEYS[4]) ~= ARGV[3] then return -1 end
+local owner = redis.call('GET', KEYS[5])
+if ARGV[5] == '1' then
+  if owner == ARGV[4] and redis.call('GET', KEYS[1]) == ARGV[1] and redis.call('EXISTS', KEYS[3]) == 1 then
+    return 2
+  end
+  if owner or redis.call('EXISTS', KEYS[1]) == 1 or redis.call('GET', KEYS[6]) ~= ARGV[4] then return 0 end
+end
+redis.call('SET', KEYS[1], ARGV[1], 'EX', 900)
+redis.call('DEL', KEYS[2])
+redis.call('SET', KEYS[3], ARGV[2], 'EX', 900)
+redis.call('SET', KEYS[5], ARGV[4], 'EX', 900)
+redis.call('DEL', KEYS[6])
+return 1
+`;
+
+// The caller knows SMTP has not started. Prove this specific request can
+// safely retry if no issuance was committed, and release only its own lease.
+const RELEASE_PRE_DELIVERY_SCRIPT = `-- otp-release-pre-delivery-v1
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+if not redis.call('GET', KEYS[3]) and redis.call('EXISTS', KEYS[4]) == 0 then
+  redis.call('SET', KEYS[2], ARGV[2], 'EX', 900)
+end
+return redis.call('DEL', KEYS[1])
+`;
+
 // Bind the verified snapshot, attempt budgets, TTLs and consume/delete to one
 // atomic operation. A stale request must never mutate a replacement code.
 const VERIFY_SCRIPT = `-- otp-verify-v1
@@ -74,6 +104,14 @@ export interface OtpStore {
   /** Optional capability: both methods and issuance fencing must be implemented together. */
   acquireCooldown?(userId: string): Promise<string | null>;
   releaseCooldown?(userId: string, token: string): Promise<boolean>;
+  /** Optional durable capability; implemented together with ownership fencing. */
+  prepareDurableCode?(
+    userId: string,
+    requestId: string,
+    token: string,
+    retry: boolean
+  ): Promise<string | null>;
+  releasePreDelivery?(userId: string, requestId: string, token: string): Promise<boolean>;
 }
 
 export class RedisOtpStore implements OtpStore {
@@ -99,6 +137,76 @@ export class RedisOtpStore implements OtpStore {
 
   public async releaseCooldown(userId: string, token: string): Promise<boolean> {
     return (await this.redis.eval(RELEASE_COOLDOWN_SCRIPT, 1, `pwreset-cd:${userId}`, token)) === 1;
+  }
+
+  public async prepareDurableCode(
+    userId: string,
+    requestId: string,
+    token: string,
+    retry: boolean
+  ): Promise<string | null> {
+    const code = this.deriveDurableCode(userId, requestId);
+    const codeHmac = createHmac('sha256', this.hmacSecret)
+      .update(`${userId}:${code}`)
+      .digest('hex');
+    const result = await this.redis.eval(
+      DURABLE_ISSUE_SCRIPT,
+      6,
+      `pwreset:${userId}`,
+      this.attemptsKey(userId),
+      this.generationKey(userId),
+      `pwreset-cd:${userId}`,
+      `pwreset-request:${userId}`,
+      `pwreset-preissue:${userId}`,
+      codeHmac,
+      randomBytes(16).toString('hex'),
+      token,
+      this.requestDigest(userId, requestId),
+      retry ? '1' : '0'
+    );
+    if (result === -1) throw new Error('PASSWORD_RESET_COOLDOWN_OWNERSHIP_LOST');
+    if (result === 0) return null;
+    if (result !== 1 && result !== 2) throw new Error('PASSWORD_RESET_ISSUANCE_FAILED');
+    return code;
+  }
+
+  public async releasePreDelivery(
+    userId: string,
+    requestId: string,
+    token: string
+  ): Promise<boolean> {
+    return (
+      (await this.redis.eval(
+        RELEASE_PRE_DELIVERY_SCRIPT,
+        4,
+        `pwreset-cd:${userId}`,
+        `pwreset-preissue:${userId}`,
+        `pwreset-request:${userId}`,
+        `pwreset:${userId}`,
+        token,
+        this.requestDigest(userId, requestId)
+      )) === 1
+    );
+  }
+
+  private requestDigest(userId: string, requestId: string): string {
+    return createHmac('sha256', this.hmacSecret)
+      .update(JSON.stringify(['pwreset-request-v1', userId, requestId]))
+      .digest('hex');
+  }
+
+  private deriveDurableCode(userId: string, requestId: string): string {
+    // Rejection sampling avoids modulo bias. The domain-separated PRF permits
+    // crash-safe regeneration without storing a recoverable code in Redis/PG.
+    const limit = Math.floor(0x100000000 / 1_000_000) * 1_000_000;
+    for (let counter = 0; counter < 256; counter++) {
+      const digest = createHmac('sha256', this.hmacSecret)
+        .update(JSON.stringify(['pwreset-code-v1', userId, requestId, counter]))
+        .digest();
+      const candidate = digest.readUInt32BE(0);
+      if (candidate < limit) return (candidate % 1_000_000).toString().padStart(6, '0');
+    }
+    throw new Error('PASSWORD_RESET_CODE_DERIVATION_FAILED');
   }
 
   public async generateAndStoreCode(userId: string, cooldownToken?: string): Promise<string> {

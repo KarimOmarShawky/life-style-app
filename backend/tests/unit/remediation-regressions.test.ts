@@ -124,6 +124,20 @@ describe('R-02 / R-03 / R-09 reset delivery boundary', () => {
     expect(sendMail).toHaveBeenCalledOnce();
     expect(sendMail.mock.calls[0]).toBeDefined();
   });
+  it('does not promise a fresh lifetime when a reset email is retried', async () => {
+    const sendMail = vi.fn(async (_mail: { text: string }) => ({
+      accepted: ['test@example.com'],
+      rejected: []
+    }));
+    await new SmtpEmailSender({ sendMail } as unknown as Transporter).sendPasswordResetEmail(
+      'test@example.com',
+      '123456'
+    );
+    expect(sendMail.mock.calls[0]![0].text).toContain(
+      'expires 15 minutes after it was first generated'
+    );
+    expect(sendMail.mock.calls[0]![0].text).toContain('does not extend that window');
+  });
   it.each(['reject', 'timeout', 'network'])(
     'rejects and sanitizes %s failures so reminder retry can fire',
     async (failure) => {

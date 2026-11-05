@@ -251,7 +251,7 @@ const Map<String, String> trCatalog = {
       'Otomatik yakalamayı etkinleştirmek için SMS izni gereklidir.',
   'smsQuarantineTitle': 'İncelenmek üzere saklanan cüzdan mesajları',
   'smsQuarantineDesc':
-      'Bazı mesajlar dikkat gerektiriyor. Hepsi yeniden denenmez, kayıtlı öğelerin süresi dolabilir ve hangi hesaba ait oldukları doğrulanmaz.',
+      'Bazı mesajlar dikkat gerektiriyor. Hepsi yeniden denenmez, bazıları bu cihazda yedi günden uzun süre kalabilir ve hangi hesaba ait oldukları doğrulanmaz.',
   'smsStorageFaultTitle': 'Cüzdan depolama sorunu',
   'smsStorageFaultDesc':
       'Bir cüzdan mesajı bu cihaza kaydedilemedi. Hiçbir şey atılmadı; uygulama arka planda yeniden denemeye devam ediyor.',

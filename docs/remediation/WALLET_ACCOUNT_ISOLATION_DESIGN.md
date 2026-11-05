@@ -1,6 +1,6 @@
 # Wallet SMS account isolation: implementation boundaries
 
-Status: **work in progress; NO-GO for real SMS or release**. This design applies only to wallet and bank SMS data. Existing production capture, processing, review, notifications and retention still use ownerless records. Existing legacy records are **not locked yet** and may still be shown, sent or expired. The new cipher is not wired to those paths.
+Status: **work in progress; NO-GO for real SMS or release**. This design applies only to wallet and bank SMS data. Existing production capture, processing, review and notifications still use ownerless records. Existing legacy records are **not locked yet** and may still be shown, sent or removed by other paths. Age-based candidate/quarantine deletion was replaced with a hold for aged or undated records, but it does not lock recent records and depends on the device wall clock. The new cipher is not wired to those paths.
 
 ## Security boundary
 

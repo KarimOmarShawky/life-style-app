@@ -141,8 +141,9 @@ class WalletSmsFallbackStatus {
 ///
 /// The diagnostic covers unreadable, rejected and malformed candidates as well
 /// as unsupported results and exhausted retries. Some affected entries remain
-/// blocked in their original queue rather than in quarantine. Both are subject
-/// to existing retention; the warning is not an editable recovery interface.
+/// blocked in their original queue rather than in quarantine. Old or undated
+/// entries are held rather than expired; other legacy paths can still process or
+/// remove ownerless records. This is not an editable recovery interface.
 class WalletSmsQuarantineStatus {
   const WalletSmsQuarantineStatus._();
 
@@ -447,7 +448,8 @@ class PendingWalletCandidates {
   /// the user to resolve (bounded recovery, never an infinite loop).
   static const int _maxQuarantineAttempts = 2;
 
-  /// Sanitized SMS text is never retained longer than this (F-05).
+  /// Old or undated legacy entries are held, not deleted or retried by expiry.
+  /// This does not lock newer ownerless entries or guarantee overall retention.
   static const Duration retention = Duration(days: 7);
   static const Duration _backoffStep = Duration(minutes: 5);
 
@@ -494,16 +496,18 @@ class PendingWalletCandidates {
         await _quarantine(prefs, key, malformedReason);
         continue;
       }
+      final receivedAt = decoded['receivedAtMs'];
+      if (receivedAt is! int ||
+          receivedAt <= 0 ||
+          DateTime.now().millisecondsSinceEpoch - receivedAt >
+              retention.inMilliseconds) {
+        // Never delete or send an aged or undated legacy record based only on
+        // its age. Its account ownership is not authenticated.
+        continue;
+      }
       final candidate = WalletSmsCandidate.tryParse(raw);
       if (candidate == null) {
         await _quarantine(prefs, key, malformedReason);
-        continue;
-      }
-      final receivedAt = decoded['receivedAtMs'];
-      if (receivedAt is int &&
-          DateTime.now().millisecondsSinceEpoch - receivedAt >
-              retention.inMilliseconds) {
-        await _removeEntry(prefs, key);
         continue;
       }
       final nextAttempt = decoded['nextAttemptAtMs'];
@@ -752,8 +756,8 @@ class PendingWalletCandidates {
   /// `UNREADABLE` entries can heal, because a `MALFORMED` payload would fail to
   /// parse again and bounce between the two queues forever.
   ///
-  /// Quarantined entries also expire on the same retention window as queued
-  /// candidates (F-05), since they still contain the sanitized message.
+  /// Old or undated legacy quarantine entries are held in place. A timestamp
+  /// alone cannot establish ownership or authorize deletion or recovery.
   Future<void> _retryQuarantined(SharedPreferences prefs) async {
     final keys = prefs
         .getKeys()
@@ -772,10 +776,10 @@ class PendingWalletCandidates {
       if (decoded is! Map<String, dynamic>) continue;
 
       final quarantinedAt = decoded['quarantinedAtMs'];
-      if (quarantinedAt is int &&
+      if (quarantinedAt is! int ||
+          quarantinedAt <= 0 ||
           DateTime.now().millisecondsSinceEpoch - quarantinedAt >
               retention.inMilliseconds) {
-        await _removeEntry(prefs, key);
         continue;
       }
 

@@ -253,7 +253,7 @@ const Map<String, String> esCatalog = {
       'Se necesita el permiso de SMS para activar la captura automática.',
   'smsQuarantineTitle': 'Mensajes de billetera guardados para revisión',
   'smsQuarantineDesc':
-      'Algunos mensajes necesitan atención. No todos se reintentan, los elementos guardados pueden caducar y no se verifica a qué cuenta pertenecen.',
+      'Algunos mensajes necesitan atención. No todos se reintentan, algunos pueden permanecer en este dispositivo más de siete días y no se verifica a qué cuenta pertenecen.',
   'smsStorageFaultTitle': 'Problema de almacenamiento de la billetera',
   'smsStorageFaultDesc':
       'Un mensaje de billetera no se pudo guardar en este dispositivo. No se descartó nada; la aplicación sigue reintentando en segundo plano.',

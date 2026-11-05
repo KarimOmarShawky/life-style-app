@@ -63,9 +63,8 @@ String _reviewItem(
       'createdAt': createdAt,
     });
 
-/// One queued candidate. [receivedAtMs] defaults to a fresh timestamp: entries
-/// are dropped after the 7-day retention window (F-05), so a fixture frozen to
-/// a calendar date would age out of the suite.
+/// One queued candidate. [receivedAtMs] defaults to a fresh timestamp because
+/// older or undated legacy entries are held rather than retried.
 String _candidateItem(
   String id, {
   int attempts = 0,
@@ -648,29 +647,48 @@ void main() {
       expect(prefs.getString('pending_wallet_candidate.junk'), isNull);
     });
 
-    test('quarantined entries expire with the retention window', () async {
+    test(
+        'old or undated quarantine entries remain unchanged and are not revived',
+        () async {
+      final stale = jsonEncode({
+        'origin': PendingWalletCandidates.keyPrefix,
+        'reason': 'UNREADABLE',
+        'attempts': 0,
+        'payload': _candidateItem('stale'),
+        'quarantinedAtMs': DateTime.now().millisecondsSinceEpoch -
+            const Duration(days: 8).inMilliseconds,
+      });
+      final undated = jsonEncode({
+        'origin': PendingWalletCandidates.keyPrefix,
+        'reason': 'UNREADABLE',
+        'attempts': 0,
+        'payload': _candidateItem('undated'),
+      });
       SharedPreferences.setMockInitialValues({
-        'flutter.pending_wallet_quarantine.stale': jsonEncode({
-          'origin': PendingWalletCandidates.keyPrefix,
-          'reason': 'MALFORMED',
-          'attempts': 0,
-          'payload': 'not json',
-          'quarantinedAtMs': DateTime.now().millisecondsSinceEpoch -
-              const Duration(days: 8).inMilliseconds,
-        }),
+        'flutter.pending_wallet_quarantine.stale': stale,
+        'flutter.pending_wallet_quarantine.undated': undated,
         'flutter.wallet_sms_quarantined': '{"count":1,"lastAtMs":1}',
       });
+      var calls = 0;
       final candidates = PendingWalletCandidates(
-        _apiWith(MockClient((request) async => http.Response('', 200))),
+        _apiWith(MockClient((request) async {
+          calls++;
+          return http.Response('', 200);
+        })),
         MoneyRepository(
             _apiWith(MockClient((request) async => http.Response('', 201)))),
         codec: const PlainWalletQueueCodec(),
       );
 
       await candidates.flush();
+      await candidates.flush();
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('pending_wallet_quarantine.stale'), isNull);
-      expect(prefs.getString('wallet_sms_quarantined'), isNull);
+      expect(prefs.getString('pending_wallet_quarantine.stale'), stale);
+      expect(prefs.getString('pending_wallet_quarantine.undated'), undated);
+      expect(prefs.getString('pending_wallet_candidate.stale'), isNull);
+      expect(prefs.getString('pending_wallet_candidate.undated'), isNull);
+      expect(prefs.getString('wallet_sms_quarantined'), isNotNull);
+      expect(calls, 0);
     });
 
     test('an unavailable fallback keeps the candidate for a later attempt',
@@ -776,21 +794,26 @@ void main() {
       expect(prefs.getString('pending_wallet_candidate.soft'), isNotNull);
     });
 
-    test('candidates older than the retention window are dropped', () async {
-      SharedPreferences.setMockInitialValues({
-        'flutter.pending_wallet_candidate.stale': jsonEncode({
-          'id': 'stale',
-          'text': 'Debited 10 EGP',
-          'sender': '[PHONE]',
-          'receivedAtMs': DateTime.now().millisecondsSinceEpoch -
-              const Duration(days: 8).inMilliseconds,
-          'attempts': 0,
-        }),
+    test('old or undated candidates stay unchanged and are not sent', () async {
+      final stale = _candidateItem('stale',
+          receivedAtMs: DateTime.now().millisecondsSinceEpoch -
+              const Duration(days: 8).inMilliseconds);
+      final undated = jsonEncode({
+        'id': 'undated',
+        'text': 'Debited 10 EGP',
+        'sender': '[PHONE]',
+        'attempts': 0,
       });
-      var called = false;
+      final zero = _candidateItem('zero', receivedAtMs: 0);
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.stale': stale,
+        'flutter.pending_wallet_candidate.undated': undated,
+        'flutter.pending_wallet_candidate.zero': zero,
+      });
+      var calls = 0;
       final candidates = PendingWalletCandidates(
         _apiWith(MockClient((request) async {
-          called = true;
+          calls++;
           return http.Response('', 200);
         })),
         MoneyRepository(
@@ -799,10 +822,12 @@ void main() {
       );
 
       await candidates.flush();
-
-      expect(called, isFalse);
+      await candidates.flush();
+      expect(calls, 0);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('pending_wallet_candidate.stale'), isNull);
+      expect(prefs.getString('pending_wallet_candidate.stale'), stale);
+      expect(prefs.getString('pending_wallet_candidate.undated'), undated);
+      expect(prefs.getString('pending_wallet_candidate.zero'), zero);
     });
   });
 }

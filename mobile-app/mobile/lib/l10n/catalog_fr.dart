@@ -257,7 +257,7 @@ const Map<String, String> frCatalog = {
       'L\'autorisation SMS est requise pour activer la capture automatique.',
   'smsQuarantineTitle': 'Messages de portefeuille conservés pour vérification',
   'smsQuarantineDesc':
-      'Certains messages nécessitent votre attention. Ils ne sont pas tous réessayés, les éléments enregistrés peuvent expirer et leur compte propriétaire n’est pas vérifié.',
+      'Certains messages nécessitent votre attention. Ils ne sont pas tous réessayés, certains peuvent rester sur cet appareil plus de sept jours et leur compte propriétaire n’est pas vérifié.',
   'smsStorageFaultTitle': 'Problème de stockage du portefeuille',
   'smsStorageFaultDesc':
       'Un message de portefeuille n\'a pas pu être enregistré sur cet appareil. Rien n\'a été supprimé ; l\'application continue de réessayer en arrière-plan.',

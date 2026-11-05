@@ -105,10 +105,18 @@ test('F-05 queue entries are sealed with a device key, never stored plaintext', 
   assert.ok(cipher.includes('"AndroidKeyStore"'));
   assert.ok(cipher.includes('AES/GCM/NoPadding'));
   assert.ok(cipher.includes('GCMParameterSpec(TAG_BITS'));
-  // Retention: sanitized SMS text is not kept indefinitely.
-  assert.ok(receiver.includes('private const val CANDIDATE_RETENTION_MS = 7L * 24'));
-  assert.ok(receiver.includes('private fun dropExpiredCandidates('));
+  // The user chose preservation over automatic expiry for unknown ownership.
+  // This holds aged/undated records; newer ownerless paths are not isolated yet.
+  const retention = read(native + 'WalletLegacyRetention.kt');
+  assert.ok(retention.includes('const val WINDOW_MS = 7L * 24'));
+  assert.ok(receiver.includes('WalletLegacyRetention.hold(item.optLong("receivedAtMs", 0L)'));
+  assert.ok(!receiver.includes('dropExpiredCandidates('));
   assert.ok(dartReviews.includes('static const Duration retention = Duration(days: 7);'));
+  const dartAgeGuard = dartReviews.split("final receivedAt = decoded['receivedAtMs'];")[1].split('final candidate =')[0];
+  assert.ok(dartAgeGuard.includes('receivedAt <= 0'));
+  assert.ok(dartAgeGuard.includes('continue;'));
+  assert.ok(!dartAgeGuard.includes('_removeEntry'));
+  assert.ok(!dartAgeGuard.includes('_api.post'));
 });
 
 test('F-05 the Dart queue reads and writes through the shared codec', () => {
@@ -190,8 +198,12 @@ test('V-01/V-02 quarantined entries are kept, bounded and never revived forever'
   assert.ok(receiver.includes('publishQuarantineState(prefs, reason)'));
   // Only an unreadable payload may be restored: a malformed one would bounce.
   assert.ok(receiver.includes('if (entry.optString("reason") != QUARANTINE_UNREADABLE) continue'));
-  // Quarantined entries expire with the same retention window (F-05).
-  assert.ok(receiver.includes('JSONObject(raw).optLong("quarantinedAtMs", 0L)'));
+  // Aged/undated unknown-owner quarantine remains in place without recovery.
+  assert.ok(receiver.includes('WalletLegacyRetention.hold(entry.optLong("quarantinedAtMs", 0L)'));
+  const dartAgeGuard = dartReviews.split("final quarantinedAt = decoded['quarantinedAtMs'];")[1].split("if (decoded['reason']")[0];
+  assert.ok(dartAgeGuard.includes('quarantinedAt <= 0'));
+  assert.ok(dartAgeGuard.includes('continue;'));
+  assert.ok(!dartAgeGuard.includes('_removeEntry'));
   // Dart mirrors the envelope, the bound and the published state.
   assert.ok(dartReviews.includes("static const String quarantinePrefix = 'pending_wallet_quarantine.';"));
   assert.ok(dartReviews.includes("static const int _maxQuarantineAttempts = 2;"));

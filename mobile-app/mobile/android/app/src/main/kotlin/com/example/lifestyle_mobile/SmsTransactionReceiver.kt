@@ -85,8 +85,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         private const val QUARANTINE_MALFORMED = "MALFORMED"
         private const val QUARANTINE_REJECTED = "REJECTED"
 
-        // Candidates keep sanitized SMS text: never retain them longer than this.
-        private const val CANDIDATE_RETENTION_MS = 7L * 24 * 60 * 60 * 1000L
         // Retryable states back off between attempts instead of hammering the API.
         private const val CANDIDATE_BACKOFF_MS = 5L * 60 * 1000L
         // 503: the fallback provider is absent or down. Retryable, never a
@@ -498,7 +496,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         isIngest: Boolean
     ) {
         val cipher = WalletQueueCipher()
-        dropExpiredCandidates(prefs)
         retryQuarantined(prefs)
         val candidateKeys = prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }.sorted()
         for (key in candidateKeys) {
@@ -517,6 +514,9 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 quarantine(prefs, key, stored, QUARANTINE_MALFORMED, CANDIDATE_PREFIX)
                 continue
             }
+            // Ownership is not authenticated in this legacy queue. Hold old or
+            // undated records without deleting, transmitting or modifying them.
+            if (WalletLegacyRetention.hold(item.optLong("receivedAtMs", 0L), System.currentTimeMillis())) continue
             val attempts = item.optInt("attempts", 0)
             if (item.optBoolean("blocked", false)) continue
             if (item.optLong("nextAttemptAtMs", 0L) > System.currentTimeMillis()) continue
@@ -757,7 +757,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      * Only entries quarantined as `UNREADABLE` are candidates for restoration.
      * A `MALFORMED` payload is proven unparseable, so returning it to its queue
      * would loop forever (parse failure -> quarantine -> restore -> parse
-     * failure); it stays parked until retention expires or the user acts.
+     * failure); it stays parked rather than being automatically retried.
      */
     private fun retryQuarantined(prefs: SharedPreferences) {
         val cipher = WalletQueueCipher()
@@ -771,6 +771,9 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 continue
             }
+            // An old or undated unknown-owner entry must not be deleted or
+            // automatically revived into a live queue.
+            if (WalletLegacyRetention.hold(entry.optLong("quarantinedAtMs", 0L), System.currentTimeMillis())) continue
             if (entry.optString("reason") != QUARANTINE_UNREADABLE) continue
             val attempts = entry.optInt("attempts", 0)
             if (attempts >= MAX_QUARANTINE_ATTEMPTS) continue
@@ -794,45 +797,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             Log.i(TAG, "Quarantined wallet entry restored")
         }
         if (prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) || it.startsWith(REJECTED_TX_PREFIX) }) {
-            prefs.edit().remove(KEY_QUARANTINE).commit()
-        }
-    }
-
-    /**
-     * Retention: raw SMS text is never kept longer than the window (F-05).
-     *
-     * Quarantined entries still contain the sanitized message, so they expire on
-     * the same window (timestamped by `quarantinedAtMs`); otherwise a parked
-     * entry would defeat the retention guarantee.
-     */
-    private fun dropExpiredCandidates(prefs: SharedPreferences) {
-        val cipher = WalletQueueCipher()
-        val cutoff = System.currentTimeMillis() - CANDIDATE_RETENTION_MS
-        for (key in prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }) {
-            val raw = prefs.getString(key, null)?.let { cipher.decrypt(it) } ?: continue
-            val receivedAt = try {
-                JSONObject(raw).optLong("receivedAtMs", 0L)
-            } catch (e: Exception) {
-                0L
-            }
-            if (receivedAt <= 0L || receivedAt < cutoff) {
-                removeEntry(prefs, key)
-            }
-        }
-        var droppedQuarantine = 0
-        for (key in prefs.all.keys.filter { it.startsWith(QUARANTINE_PREFIX) }) {
-            val raw = prefs.getString(key, null)?.let { cipher.decrypt(it) } ?: continue
-            val quarantinedAt = try {
-                JSONObject(raw).optLong("quarantinedAtMs", 0L)
-            } catch (e: Exception) {
-                0L
-            }
-            if (quarantinedAt <= 0L || quarantinedAt < cutoff) {
-                removeEntry(prefs, key)
-                droppedQuarantine++
-            }
-        }
-        if (droppedQuarantine > 0 && prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) || it.startsWith(REJECTED_TX_PREFIX) }) {
             prefs.edit().remove(KEY_QUARANTINE).commit()
         }
     }

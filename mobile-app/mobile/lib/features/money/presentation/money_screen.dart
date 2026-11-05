@@ -1027,10 +1027,8 @@ class _TrustedSendersDialogState extends State<_TrustedSendersDialog> {
 
 /// Reports wallet messages and queue writes that failed on this device.
 ///
-/// The receiver quarantines instead of deleting, and clears the published state
-/// once nothing is left (V-01/V-02). Nothing here is actionable: entries are
-/// retried automatically and expire with the 7-day retention window, so the card
-/// only has to make the condition visible instead of leaving it silent.
+/// Some queue entries are parked rather than retried. The warning does not
+/// offer a recovery action or guarantee account isolation or retention.
 class _WalletCaptureNoticeCard extends ConsumerStatefulWidget {
   const _WalletCaptureNoticeCard();
 

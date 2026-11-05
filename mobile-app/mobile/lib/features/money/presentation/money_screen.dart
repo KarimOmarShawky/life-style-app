@@ -7,6 +7,7 @@ import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_reviews.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_work_guard.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 import 'package:lifestyle_mobile/features/money/presentation/subscriptions_screen.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
@@ -1102,8 +1103,18 @@ class _NeedsReviewCard extends ConsumerStatefulWidget {
   ConsumerState<_NeedsReviewCard> createState() => _NeedsReviewCardState();
 }
 
+class _WalletReviewSession {
+  const _WalletReviewSession(this.controller, this.account, this.generation);
+
+  final AuthController controller;
+  final String account;
+  final int generation;
+}
+
 class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
   List<WalletReviewItem> _items = <WalletReviewItem>[];
+  _WalletReviewSession? _loadedSession;
+  int _reloadSequence = 0;
   bool _loading = true;
   // True while the fallback analyzer cannot be reached: the affected messages
   // are kept for a later retry, so the queue can be empty *because* it is
@@ -1116,21 +1127,70 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
     _reload();
   }
 
-  Future<void> _reload() async {
-    final items = await PendingWalletReviews(
-      ref.read(moneyRepositoryProvider),
-    ).load();
-    final unavailable = await WalletSmsFallbackStatus.isUnavailable();
-    if (!mounted) return;
-    setState(() {
-      _items = items;
-      _fallbackUnavailable = unavailable;
-      _loading = false;
+  _WalletReviewSession? _captureSession() {
+    if (!mounted) return null;
+    final controller = ref.read(authProvider.notifier);
+    final account = controller.walletAccount;
+    if (account == null) return null;
+    return _WalletReviewSession(
+        controller, account, controller.walletGeneration);
+  }
+
+  bool _isSessionCurrent(_WalletReviewSession session) =>
+      mounted &&
+      identical(ref.read(authProvider.notifier), session.controller) &&
+      session.controller
+          .walletWorkIsCurrent(session.account, session.generation);
+
+  void _scheduleReload() {
+    // Run after the controller has completed its transition bookkeeping.
+    Future<void>.delayed(Duration.zero, () {
+      if (mounted) _reload();
     });
+  }
+
+  Future<void> _reload() async {
+    final sequence = ++_reloadSequence;
+    final session = _captureSession();
+    if (session == null) {
+      if (mounted) {
+        setState(() {
+          _loadedSession = null;
+          _items = <WalletReviewItem>[];
+          _fallbackUnavailable = false;
+          _loading = false;
+        });
+      }
+      return;
+    }
+    try {
+      final items = await PendingWalletReviews(
+        ref.read(moneyRepositoryProvider),
+        stillCurrent: () => _isSessionCurrent(session),
+      ).load();
+      final unavailable = await WalletSmsFallbackStatus.isUnavailable();
+      if (!_isSessionCurrent(session) || sequence != _reloadSequence) return;
+      setState(() {
+        _loadedSession = session;
+        _items = items;
+        _fallbackUnavailable = unavailable;
+        _loading = false;
+      });
+    } on WalletWorkEnded {
+      // A newer transition owns the next refresh; never publish these items.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authProvider, (_, __) => _scheduleReload());
+    ref.listen(walletTransitionSignalProvider, (_, __) => _scheduleReload());
+    ref.watch(authProvider);
+    ref.watch(walletTransitionSignalProvider);
+    final session = _loadedSession;
+    if (session == null || !_isSessionCurrent(session)) {
+      return const SizedBox.shrink();
+    }
     final AppLocalizations l10n = AppLocalizations.of(context);
     if (_loading) return const SizedBox.shrink();
     if (_items.isEmpty) {
@@ -1171,8 +1231,8 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
         trailing: const Icon(Icons.chevron_right),
         onTap: () async {
           for (final item in List<WalletReviewItem>.of(_items)) {
-            if (!context.mounted) return;
-            await _showReviewSheet(context, item);
+            if (!context.mounted || !_isSessionCurrent(session)) return;
+            await _showReviewSheet(context, item, session);
             await _reload();
           }
         },
@@ -1180,8 +1240,9 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
     );
   }
 
-  Future<void> _showReviewSheet(
-      BuildContext context, WalletReviewItem item) async {
+  Future<void> _showReviewSheet(BuildContext context, WalletReviewItem item,
+      _WalletReviewSession session) async {
+    if (!_isSessionCurrent(session)) return;
     final AppLocalizations l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     var kind = item.kind;
@@ -1192,157 +1253,172 @@ class _NeedsReviewCardState extends ConsumerState<_NeedsReviewCard> {
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-              ),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      l10n.smsReviewTitle,
-                      style: Theme.of(sheetContext).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    SegmentedButton<String>(
-                      segments: [
-                        ButtonSegment(
-                          value: 'expense',
-                          label: Text(l10n.smsReviewExpense),
-                          icon: const Icon(Icons.arrow_upward),
-                        ),
-                        ButtonSegment(
-                          value: 'income',
-                          label: Text(l10n.smsReviewIncome),
-                          icon: const Icon(Icons.arrow_downward),
-                        ),
-                      ],
-                      selected: <String>{kind},
-                      onSelectionChanged: (selection) {
-                        setSheetState(() => kind = selection.first);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: amountController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: l10n.smsReviewAmountLabel,
-                        border: const OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        final text = (value ?? '').trim();
-                        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text) ||
-                            !(DecimalAmount.tryParse(text)?.isPositive ??
-                                false)) {
-                          return l10n.smsReviewInvalidAmount;
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    if (item.merchant != null)
-                      Text(item.merchant!,
-                          style: Theme.of(sheetContext).textTheme.bodyMedium),
-                    if (item.description != null)
-                      Text(
-                        item.description!,
-                        style: Theme.of(sheetContext).textTheme.bodySmall,
-                      ),
-                    if (item.text != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '${l10n.smsReviewOriginalLabel}: ${item.text!}',
-                        style: Theme.of(sheetContext).textTheme.bodySmall,
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    Row(
+        return Consumer(
+          builder: (context, sheetRef, _) {
+            sheetRef.watch(authProvider);
+            sheetRef.watch(walletTransitionSignalProvider);
+            if (!_isSessionCurrent(session)) return const SizedBox.shrink();
+            return StatefulBuilder(
+              builder: (sheetContext, setSheetState) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+                  ),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.of(sheetContext).pop(),
-                            child: Text(l10n.cancel),
-                          ),
+                        Text(
+                          l10n.smsReviewTitle,
+                          style: Theme.of(sheetContext).textTheme.titleMedium,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              try {
-                                await PendingWalletReviews(
-                                  ref.read(moneyRepositoryProvider),
-                                ).discard(item.id);
-                                if (sheetContext.mounted) {
-                                  Navigator.of(sheetContext).pop();
-                                }
-                                messenger.showSnackBar(
-                                  SnackBar(
-                                      content: Text(l10n.smsReviewDiscarded)),
-                                );
-                              } on Exception {
-                                if (sheetContext.mounted) {
-                                  Navigator.of(sheetContext).pop();
-                                }
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text(l10n.errorTitle)),
-                                );
-                              }
-                            },
-                            child: Text(l10n.smsReviewDiscard),
-                          ),
+                        const SizedBox(height: 12),
+                        SegmentedButton<String>(
+                          segments: [
+                            ButtonSegment(
+                              value: 'expense',
+                              label: Text(l10n.smsReviewExpense),
+                              icon: const Icon(Icons.arrow_upward),
+                            ),
+                            ButtonSegment(
+                              value: 'income',
+                              label: Text(l10n.smsReviewIncome),
+                              icon: const Icon(Icons.arrow_downward),
+                            ),
+                          ],
+                          selected: <String>{kind},
+                          onSelectionChanged: (selection) {
+                            setSheetState(() => kind = selection.first);
+                          },
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () async {
-                              if (!(formKey.currentState?.validate() ??
-                                  false)) {
-                                return;
-                              }
-                              try {
-                                await PendingWalletReviews(
-                                  ref.read(moneyRepositoryProvider),
-                                ).confirm(
-                                  item: item,
-                                  kind: kind,
-                                  amount: amountController.text.trim(),
-                                  description: item.description,
-                                  merchant: item.merchant,
-                                );
-                                if (sheetContext.mounted) {
-                                  Navigator.of(sheetContext).pop();
-                                }
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text(l10n.smsReviewSaved)),
-                                );
-                                ref.invalidate(budgetsProvider);
-                              } on Exception {
-                                if (sheetContext.mounted) {
-                                  Navigator.of(sheetContext).pop();
-                                }
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text(l10n.errorTitle)),
-                                );
-                              }
-                            },
-                            child: Text(l10n.smsReviewConfirm),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                            labelText: l10n.smsReviewAmountLabel,
+                            border: const OutlineInputBorder(),
                           ),
+                          validator: (value) {
+                            final text = (value ?? '').trim();
+                            if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text) ||
+                                !(DecimalAmount.tryParse(text)?.isPositive ??
+                                    false)) {
+                              return l10n.smsReviewInvalidAmount;
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        if (item.merchant != null)
+                          Text(item.merchant!,
+                              style:
+                                  Theme.of(sheetContext).textTheme.bodyMedium),
+                        if (item.description != null)
+                          Text(
+                            item.description!,
+                            style: Theme.of(sheetContext).textTheme.bodySmall,
+                          ),
+                        if (item.text != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '${l10n.smsReviewOriginalLabel}: ${item.text!}',
+                            style: Theme.of(sheetContext).textTheme.bodySmall,
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () =>
+                                    Navigator.of(sheetContext).pop(),
+                                child: Text(l10n.cancel),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  try {
+                                    await PendingWalletReviews(
+                                      ref.read(moneyRepositoryProvider),
+                                      stillCurrent: () =>
+                                          _isSessionCurrent(session),
+                                    ).discard(item.id);
+                                    if (sheetContext.mounted) {
+                                      Navigator.of(sheetContext).pop();
+                                    }
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              Text(l10n.smsReviewDiscarded)),
+                                    );
+                                  } on Exception {
+                                    if (sheetContext.mounted) {
+                                      Navigator.of(sheetContext).pop();
+                                    }
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text(l10n.errorTitle)),
+                                    );
+                                  }
+                                },
+                                child: Text(l10n.smsReviewDiscard),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () async {
+                                  if (!(formKey.currentState?.validate() ??
+                                      false)) {
+                                    return;
+                                  }
+                                  try {
+                                    await PendingWalletReviews(
+                                      ref.read(moneyRepositoryProvider),
+                                      stillCurrent: () =>
+                                          _isSessionCurrent(session),
+                                    ).confirm(
+                                      item: item,
+                                      kind: kind,
+                                      amount: amountController.text.trim(),
+                                      description: item.description,
+                                      merchant: item.merchant,
+                                    );
+                                    if (sheetContext.mounted) {
+                                      Navigator.of(sheetContext).pop();
+                                    }
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                          content: Text(l10n.smsReviewSaved)),
+                                    );
+                                    ref.invalidate(budgetsProvider);
+                                  } on Exception {
+                                    if (sheetContext.mounted) {
+                                      Navigator.of(sheetContext).pop();
+                                    }
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text(l10n.errorTitle)),
+                                    );
+                                  }
+                                },
+                                child: Text(l10n.smsReviewConfirm),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         );

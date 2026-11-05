@@ -10,6 +10,7 @@ import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_reviews.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
+import 'package:lifestyle_mobile/features/money/data/wallet_work_guard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MemoryTokenStore implements TokenStore {
@@ -138,6 +139,18 @@ class _BlockingReviewCodec extends PlainWalletQueueCodec {
       await release.future;
     }
     await super.write(prefs, key, value);
+  }
+}
+
+class _BlockingReadCodec extends PlainWalletQueueCodec {
+  final started = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<String?> read(SharedPreferences prefs, String key) async {
+    started.complete();
+    await release.future;
+    return super.read(prefs, key);
   }
 }
 
@@ -327,6 +340,85 @@ void main() {
       expect(await reviews.load(), isEmpty);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('pending_wallet_review.mismatch'), original);
+    });
+
+    test('a session change during review read prevents publication', () async {
+      final original = _reviewItem('reading');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_review.reading': original,
+      });
+      final codec = _BlockingReadCodec();
+      var current = true;
+      final reviews = PendingWalletReviews(
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 500)))),
+        codec: codec,
+        stillCurrent: () => current,
+      );
+      final result = reviews.load();
+      final rejected = expectLater(result, throwsA(isA<WalletWorkEnded>()));
+      await codec.started.future;
+      current = false;
+      codec.release.complete();
+      await rejected;
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_review.reading'), original);
+    });
+
+    test('stale review actions do not send or discard', () async {
+      final original = _reviewItem('stale');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_review.stale': original,
+      });
+      var calls = 0;
+      var current = true;
+      final reviews = PendingWalletReviews(
+        MoneyRepository(_apiWith(MockClient((_) async {
+          calls++;
+          return http.Response('', 201);
+        }))),
+        codec: const PlainWalletQueueCodec(),
+        stillCurrent: () => current,
+      );
+      final item = (await reviews.load()).single;
+      current = false;
+      await expectLater(
+          reviews.confirm(item: item, kind: 'expense', amount: '1'),
+          throwsA(isA<WalletWorkEnded>()));
+      await expectLater(
+          reviews.discard(item.id), throwsA(isA<WalletWorkEnded>()));
+      expect(calls, 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_review.stale'), original);
+    });
+
+    test('a session change during confirmation preserves the local source',
+        () async {
+      final original = _reviewItem('sent');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_review.sent': original,
+      });
+      final requested = Completer<void>();
+      final response = Completer<http.Response>();
+      var current = true;
+      final reviews = PendingWalletReviews(
+        MoneyRepository(_apiWith(MockClient((_) {
+          requested.complete();
+          return response.future;
+        }))),
+        codec: const PlainWalletQueueCodec(),
+        stillCurrent: () => current,
+      );
+      final item = (await reviews.load()).single;
+      final result = reviews.confirm(item: item, kind: 'expense', amount: '1');
+      final rejected = expectLater(result, throwsA(isA<WalletWorkEnded>()));
+      await requested.future;
+      current = false;
+      response.complete(http.Response('', 201));
+      await rejected;
+      // The already-started request may still have been accepted remotely.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_review.sent'), original);
     });
 
     test('discard removes the entry without any API call', () async {

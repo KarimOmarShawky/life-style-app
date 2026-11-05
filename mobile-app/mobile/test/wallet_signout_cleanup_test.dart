@@ -211,7 +211,9 @@ void main() {
       final controller = container.read(authProvider.notifier);
       expect(controller.walletAccount, isNotNull);
 
+      final signalBefore = container.read(walletTransitionSignalProvider);
       final signingOut = controller.signOut();
+      expect(container.read(walletTransitionSignalProvider), signalBefore + 1);
       // Attach an error handler before releasing either asynchronous operation.
       final expectation =
           fail ? expectLater(signingOut, throwsStateError) : null;
@@ -292,8 +294,10 @@ void main() {
     final account = (await container.read(authProvider.future))!;
     final auth = container.read(authProvider.notifier);
     final originalGeneration = auth.walletGeneration;
+    final signalBefore = container.read(walletTransitionSignalProvider);
     expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isTrue);
     final login = auth.signIn(email: account.email, password: 'password');
+    expect(container.read(walletTransitionSignalProvider), signalBefore + 1);
     expect(auth.walletAccount, isNull);
     expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isFalse);
     await repo.loginStarted.future.timeout(const Duration(seconds: 1));

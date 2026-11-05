@@ -239,30 +239,37 @@ class WalletLegacyHeldException implements Exception {
 /// values through [MoneyRepository] with the review id as the Idempotency-Key,
 /// so a retry after a lost response can never create a duplicate.
 class PendingWalletReviews {
-  PendingWalletReviews(this._repository, {WalletQueueCodec? codec})
-      : _codec = codec ?? PlatformWalletQueueCodec();
+  PendingWalletReviews(this._repository,
+      {WalletQueueCodec? codec, bool Function()? stillCurrent})
+      : _codec = codec ?? PlatformWalletQueueCodec(),
+        _guard = WalletWorkGuard(stillCurrent);
 
   static const String keyPrefix = 'pending_wallet_review.';
   static const String _flutterPrefix = 'flutter.';
 
   final MoneyRepository _repository;
   final WalletQueueCodec _codec;
+  final WalletWorkGuard _guard;
 
   Future<List<WalletReviewItem>> load() async {
+    _guard.check();
     final prefs = await SharedPreferences.getInstance();
     // The native receiver writes this store from outside Dart.
     await prefs.reload();
+    _guard.check();
     final items = <WalletReviewItem>[];
     for (final key in prefs.getKeys().map(_withoutFlutterPrefix)) {
       if (!key.startsWith(keyPrefix)) continue;
       final id = key.substring(keyPrefix.length);
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey('${PendingWalletCandidates.legacyHoldPrefix}$id')) {
         continue;
       }
       final String? entry;
       try {
         entry = await _codec.read(prefs, key);
+        _guard.check();
       } on WalletQueueSecurityException {
         // Unreadable right now (no platform key): keep the entry instead of
         // deleting data on a transient failure.
@@ -277,17 +284,20 @@ class PendingWalletReviews {
         continue;
       }
       await prefs.reload();
+      _guard.check();
       if (prefs.containsKey('${PendingWalletCandidates.legacyHoldPrefix}$id')) {
         continue;
       }
       items.add(item);
     }
+    _guard.check();
     items.sort((a, b) => (a.createdAt ?? 0).compareTo(b.createdAt ?? 0));
     return items;
   }
 
   /// Publishes the quarantine flag without acknowledging the affected entry.
   Future<void> _publishQuarantineFlag(SharedPreferences prefs) async {
+    _guard.check();
     final String? previous = prefs.getString(WalletSmsQuarantineStatus.key);
     var count = 0;
     final decoded = previous == null ? null : _decodeOrNull(previous);
@@ -302,6 +312,7 @@ class PendingWalletReviews {
         'reason': 'MALFORMED_REVIEW',
       }),
     );
+    _guard.check();
     if (!wrote) {
       // The counter did not reach disk: report it instead of staying silent
       // (V-02, AUD-12).
@@ -329,8 +340,10 @@ class PendingWalletReviews {
     String? description,
     String? merchant,
   }) async {
+    _guard.check();
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
+    _guard.check();
     if (prefs
         .containsKey('${PendingWalletCandidates.legacyHoldPrefix}${item.id}')) {
       throw const WalletLegacyHeldException();
@@ -344,6 +357,7 @@ class PendingWalletReviews {
       description: description,
       merchant: merchant,
     );
+    _guard.check();
     await _remove(item.id);
   }
 
@@ -351,13 +365,16 @@ class PendingWalletReviews {
   Future<void> discard(String id) => _remove(id);
 
   Future<bool> _remove(String id) async {
+    _guard.check();
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
+    _guard.check();
     if (prefs.containsKey('${PendingWalletCandidates.legacyHoldPrefix}$id')) {
       throw const WalletLegacyHeldException();
     }
     final key = '$keyPrefix$id';
     final removed = await prefs.remove(key);
+    _guard.check();
     if (!removed) {
       // A silent failure would resurrect the entry on the next read, so the
       // failed removal is reported (V-02, AUD-12).

@@ -100,3 +100,18 @@ test('wallet queue work is scoped to the observed auth-transition generation', (
   const update = auth.split('Future<void> updateCurrency(')[1].split('Future<Map<String, dynamic>> exportUserData')[0];
   assert.ok(update.indexOf('_checkProfileWork(') < update.indexOf('state = AsyncData(updated)'));
 });
+
+test('wallet review loading and actions are checked against the initiating session', () => {
+  const review = readFileSync(root + 'lib/features/money/data/pending_wallet_reviews.dart', 'utf8');
+  const screen = readFileSync(root + 'lib/features/money/presentation/money_screen.dart', 'utf8');
+  const section = review.split('class PendingWalletReviews {')[1].split('class WalletSmsCandidate')[0];
+  assert.ok(section.includes('bool Function()? stillCurrent'));
+  assert.ok(section.includes('WalletWorkGuard(stillCurrent)'));
+  const confirm = section.split('Future<void> confirm(')[1].split('Future<void> discard(')[0];
+  assert.ok(confirm.indexOf('_guard.check();') >= 0);
+  assert.ok(confirm.lastIndexOf('_guard.check();') > confirm.indexOf('_repository.createTransaction('));
+  const ui = screen.split('class _NeedsReviewCardState')[1];
+  assert.ok(ui.includes('.walletWorkIsCurrent('));
+  assert.match(ui, /stillCurrent:\s*\(\) =>\s*_isSessionCurrent\(session\)/);
+  assert.ok(ui.includes('sheetRef.watch(authProvider)'));
+});

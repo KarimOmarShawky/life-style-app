@@ -29,6 +29,9 @@ final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(
   AuthController.new,
 );
 
+// A content-free UI invalidation signal; this is not an ownership credential.
+final walletTransitionSignalProvider = StateProvider<int>((ref) => 0);
+
 class AuthController extends AsyncNotifier<AppUser?> {
   bool _signingOut = false;
   int _authGeneration = 0;
@@ -61,6 +64,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
   void _beginWalletTransition() {
     _walletGeneration++;
     _pendingWalletTransitions++;
+    ref.read(walletTransitionSignalProvider.notifier).state++;
     WalletIngestToken.invalidatePending();
   }
 
@@ -165,6 +169,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
     _signingOut = true;
     _authGeneration++;
     _walletGeneration++;
+    ref.read(walletTransitionSignalProvider.notifier).state++;
     ref.read(authRepositoryProvider).invalidateSessionRetries();
     WalletIngestToken.invalidatePending();
     final account = state.asData?.value?.id;

@@ -275,6 +275,8 @@ const Map<String, String> trCatalog = {
   'aiSpeakTooltip': 'Bu yanıtı sesli oku',
   'aiSpeaking': 'Okunuyor...',
   'aiVoiceListening': 'Dinleniyor...',
+  'aiKeyStorageError':
+      'Güvenli anahtar depolama kullanılamıyor. Değişiklik doğrulanamadı.',
   'aiErrorMessage':
       'İsteğiniz işlenirken bir hata oluştu. Lütfen tekrar deneyin.',
 };

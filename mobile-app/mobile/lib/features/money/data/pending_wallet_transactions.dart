@@ -18,13 +18,16 @@ class PendingWalletTransactions {
       : _codec = codec ?? PlatformWalletQueueCodec();
 
   static const String keyPrefix = 'pending_wallet_tx.';
+  // Marker has no SMS content and is shared with the native receiver.
+  static const String blockedPrefix = 'wallet_tx_rejected.';
   static const String _flutterPrefix = 'flutter.';
 
   final MoneyRepository _repository;
   final WalletQueueCodec _codec;
 
-  /// Sends every queued transaction that the API accepts or permanently rejects.
-  /// Returns how many transactions were stored.
+  /// Sends queued transactions that are not blocked by a prior rejection.
+  /// Rejected entries remain parked; returns how many were stored.
+  /// Older entries may still use the legacy plaintext storage format.
   Future<int> flush() async {
     final prefs = await SharedPreferences.getInstance();
     // The native SMS receiver writes to this store from outside Dart, and the plugin
@@ -39,6 +42,9 @@ class PendingWalletTransactions {
 
     var stored = 0;
     for (final key in keys) {
+      await prefs.reload();
+      final blockedKey = '$blockedPrefix${key.substring(keyPrefix.length)}';
+      if (prefs.containsKey(blockedKey)) continue;
       // The native receiver stores this entry sealed with the device key.
       final String? entry;
       try {
@@ -49,7 +55,8 @@ class PendingWalletTransactions {
       }
       final item = PendingWalletTransaction.tryParse(entry);
       if (item == null) {
-        await prefs.remove(key);
+        // A damaged or temporarily unreadable entry may be the only copy.
+        // Do not delete it or infer its owner; leave it for safe recovery.
         continue;
       }
       try {
@@ -64,7 +71,8 @@ class PendingWalletTransactions {
         );
       } on ApiException catch (error) {
         if (_isPermanentRejection(error)) {
-          await prefs.remove(key);
+          // Preserve the original (legacy entries may be plaintext) and park it.
+          if (!await _markRejected(prefs, blockedKey)) break;
           continue;
         }
         // Expired session, network or server problem: keep the queue for later.
@@ -72,10 +80,50 @@ class PendingWalletTransactions {
       } on Exception {
         break;
       }
+      // Native processing may have parked this item while the request was in flight.
+      await prefs.reload();
+      if (prefs.containsKey(blockedKey)) continue;
       stored++;
       await prefs.remove(key);
     }
     return stored;
+  }
+
+  Future<void> _publishStorageFault(SharedPreferences prefs) async {
+    try {
+      await prefs.setString('wallet_storage_fault',
+          DateTime.now().millisecondsSinceEpoch.toString());
+    } on Object {
+      // The fault indicator is best effort when the preference store is broken.
+    }
+  }
+
+  Future<bool> _markRejected(SharedPreferences prefs, String blockedKey) async {
+    final bool committed;
+    try {
+      committed = await prefs.setString(blockedKey, 'REJECTED');
+    } on Object {
+      await _publishStorageFault(prefs);
+      return false;
+    }
+    if (!committed) {
+      await _publishStorageFault(prefs);
+      return false;
+    }
+    // The marker itself is authoritative if this best-effort notice fails.
+    try {
+      final published = await prefs.setString(
+          'wallet_sms_quarantined',
+          jsonEncode({
+            'reason': 'REJECTED_TRANSACTION',
+            'count': 1,
+            'lastAtMs': DateTime.now().millisecondsSinceEpoch,
+          }));
+      if (!published) await _publishStorageFault(prefs);
+    } on Object {
+      await _publishStorageFault(prefs);
+    }
+    return true;
   }
 
   static String _withoutFlutterPrefix(String key) =>
@@ -86,7 +134,7 @@ class PendingWalletTransactions {
   static bool _isPermanentRejection(ApiException error) =>
       error.statusCode == 400 ||
       error.statusCode == 422 ||
-      (error.statusCode == 409 && error.code == 'IDEMPOTENCY_KEY_REUSED');
+      error.statusCode == 409;
 }
 
 /// One transaction written by the native SMS receiver.

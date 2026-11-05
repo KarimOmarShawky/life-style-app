@@ -52,13 +52,27 @@ class MainActivity : FlutterActivity() {
         // Native Voice Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "hasWalletIngestToken", "storeWalletIngestToken", "clearWalletIngestToken" -> {
+                "hasWalletIngestToken", "storeWalletIngestToken", "clearWalletIngestToken",
+                "hasWalletIngestTokenFor", "storeBoundWalletIngestToken", "clearWalletIngestTokenIfMatches" -> {
                     try {
                         val credentials = WalletCredentialStore(this)
                         when (call.method) {
                             "hasWalletIngestToken" -> result.success(!credentials.read().isNullOrBlank())
                             "storeWalletIngestToken" -> {
                                 credentials.write(requireNotNull(call.argument<String>("token")))
+                                result.success(null)
+                            }
+                            "hasWalletIngestTokenFor" -> {
+                                val owner = requireNotNull(call.argument<String>("ownerId"))
+                                result.success(credentials.readBound()?.ownerId.equals(owner, ignoreCase = true))
+                            }
+                            "storeBoundWalletIngestToken" -> {
+                                credentials.writeBound(requireNotNull(call.argument<String>("token")),
+                                    requireNotNull(call.argument<String>("ownerId")))
+                                result.success(null)
+                            }
+                            "clearWalletIngestTokenIfMatches" -> {
+                                credentials.clear(expected = requireNotNull(call.argument<String>("token")))
                                 result.success(null)
                             }
                             else -> { credentials.clear(); result.success(null) }

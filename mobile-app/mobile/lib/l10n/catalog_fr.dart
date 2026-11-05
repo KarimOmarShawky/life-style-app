@@ -282,6 +282,8 @@ const Map<String, String> frCatalog = {
   'aiSpeakTooltip': 'Lire cette réponse à voix haute',
   'aiSpeaking': 'Lecture...',
   'aiVoiceListening': 'Écoute...',
+  'aiKeyStorageError':
+      'Le stockage sécurisé de la clé est indisponible. La modification n’a pas pu être confirmée.',
   'aiErrorMessage':
       'Une erreur est survenue lors du traitement de la demande. Veuillez réessayer.',
 };

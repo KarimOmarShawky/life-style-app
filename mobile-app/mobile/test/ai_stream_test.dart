@@ -1,3 +1,4 @@
+import 'support/fake_secure_storage.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -54,6 +55,9 @@ Future<_StreamResult> _collect(AiService service, http.Client client) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    FakeSecureStorage().install();
+  });
 
   final service = AiService.instance;
 

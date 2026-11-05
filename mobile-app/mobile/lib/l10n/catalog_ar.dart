@@ -408,5 +408,7 @@ const Map<String, String> arCatalog = {
   'aiSpeakTooltip': 'قراءة هذا الرد بصوت',
   'aiSpeaking': 'جارٍ القراءة...',
   'aiVoiceListening': 'جارٍ الاستماع...',
+  'aiKeyStorageError':
+      'تعذّر الوصول إلى التخزين الآمن للمفتاح. لم يتم تأكيد التغيير.',
   'aiErrorMessage': 'حدث خطأ أثناء معالجة الطلب. يرجى المحاولة مرة أخرى.',
 };

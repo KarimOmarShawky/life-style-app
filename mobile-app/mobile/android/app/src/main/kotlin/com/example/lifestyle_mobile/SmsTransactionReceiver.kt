@@ -53,6 +53,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         private const val INGEST_PATH = "/ingest/transactions"
         private const val ANALYZE_PATH = "/ingest/sms/analyze"
         const val PENDING_PREFIX = "flutter.pending_wallet_tx."
+        // Opaque marker: the original stays in its queue (legacy may be plaintext).
+        const val REJECTED_TX_PREFIX = "flutter.wallet_tx_rejected."
         const val CANDIDATE_PREFIX = "flutter.pending_wallet_candidate."
         const val REVIEW_PREFIX = "flutter.pending_wallet_review."
         // Non-retryable or unreadable entries are retained here in a sealed
@@ -375,7 +377,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     }
 
     /**
-     * Posts queued entries in order. An entry is removed when the backend accepts it or rejects it for good.
+     * Posts queued entries in order. Only accepted entries are removed; rejected ones stay parked.
      * On any other failure the rest stays queued. A revoked or expired ingest token is removed, so the app
      * issues a new one on its next start.
      */
@@ -383,6 +385,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val cipher = WalletQueueCipher()
         val pendingKeys = prefs.all.keys.filter { it.startsWith(PENDING_PREFIX) }.sorted()
         for (key in pendingKeys) {
+            val blockedKey = REJECTED_TX_PREFIX + key.removePrefix(PENDING_PREFIX)
+            if (prefs.contains(blockedKey)) continue
             val stored = prefs.getString(key, null) ?: continue
             // v2 entries are Keystore-encrypted; v1 entries migrate as-is.
             val raw = cipher.decrypt(stored)
@@ -393,12 +397,16 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 continue
             }
             val status = postTransaction(url, token, raw)
-            if (status in 200..299 || status in PERMANENT_REJECTIONS) {
-                // Remove only after the server answer is final; a failed commit
-                // leaves the entry queued (idempotency prevents a duplicate).
+            if (status in 200..299) {
+                // A different runtime may have parked this item during the request.
+                if (prefs.contains(blockedKey)) continue
                 if (!removeEntry(prefs, key)) {
                     Log.e(TAG, "Delivered wallet transaction could not be dequeued")
                 }
+            } else if (status in PERMANENT_REJECTIONS) {
+                // Keep the original, persist a content-free block before continuing.
+                if (!commitEntry(prefs, blockedKey, "REJECTED")) return
+                publishQuarantineState(prefs, "REJECTED_TRANSACTION")
             } else {
                 if (isIngest && (status == 401 || status == 403)) {
                     // Remove only the token that was rejected, in case the app has just replaced it.
@@ -695,7 +703,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             prefs.edit().remove(KEY_FALLBACK_UNAVAILABLE).commit()
         }
         if (prefs.contains(KEY_QUARANTINE)) {
-            val remaining = prefs.all.keys.count { it.startsWith(QUARANTINE_PREFIX) }
+            val remaining = prefs.all.keys.count { it.startsWith(QUARANTINE_PREFIX) || it.startsWith(REJECTED_TX_PREFIX) }
             if (remaining == 0) prefs.edit().remove(KEY_QUARANTINE).commit()
         }
     }
@@ -785,7 +793,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             if (!removeEntry(prefs, key)) continue
             Log.i(TAG, "Quarantined wallet entry restored")
         }
-        if (prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) }) {
+        if (prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) || it.startsWith(REJECTED_TX_PREFIX) }) {
             prefs.edit().remove(KEY_QUARANTINE).commit()
         }
     }
@@ -824,7 +832,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 droppedQuarantine++
             }
         }
-        if (droppedQuarantine > 0 && prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) }) {
+        if (droppedQuarantine > 0 && prefs.all.keys.none { it.startsWith(QUARANTINE_PREFIX) || it.startsWith(REJECTED_TX_PREFIX) }) {
             prefs.edit().remove(KEY_QUARANTINE).commit()
         }
     }

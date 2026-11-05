@@ -20,6 +20,11 @@ final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(
 );
 
 class AuthController extends AsyncNotifier<AppUser?> {
+  bool _signingOut = false;
+
+  // Wallet issuance must stop as soon as sign-out starts, even before logout I/O.
+  String? get walletAccount => _signingOut ? null : state.asData?.value?.id;
+
   @override
   Future<AppUser?> build() => ref.read(authRepositoryProvider).restoreSession();
 
@@ -42,7 +47,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> _authenticate(Future<AppUser> Function() operation) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(operation);
+    final result = await AsyncValue.guard(operation);
+    _signingOut = false;
+    state = result;
   }
 
   Future<void> requestPasswordReset(String email) =>
@@ -82,6 +89,8 @@ class AuthController extends AsyncNotifier<AppUser?> {
   }
 
   Future<void> signOut() async {
+    _signingOut = true;
+    WalletIngestToken.invalidatePending();
     final account = state.asData?.value?.id;
     try {
       await ref.read(authRepositoryProvider).logout();
@@ -121,8 +130,10 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> retryRestore() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
+    final result = await AsyncValue.guard(
       ref.read(authRepositoryProvider).restoreSession,
     );
+    _signingOut = false;
+    state = result;
   }
 }

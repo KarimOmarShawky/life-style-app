@@ -6,6 +6,7 @@ import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_assistant_screen.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/habits/presentation/habits_screen.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_reviews.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
@@ -84,7 +85,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
   /// Keeps the token that the SMS receiver uses in step with the SMS capture setting.
   Future<void> _ensureWalletIngestToken() async {
     try {
-      await WalletIngestToken(ref.read(apiClientProvider)).ensure();
+      await WalletIngestToken(ref.read(apiClientProvider)).ensure(
+        account: widget.user.id,
+        currentAccount: () => ref.read(authProvider.notifier).walletAccount,
+      );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

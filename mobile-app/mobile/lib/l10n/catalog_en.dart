@@ -446,6 +446,8 @@ const Map<String, String> enCatalog = {
   'aiSpeakTooltip': 'Speak this response',
   'aiSpeaking': 'Speaking...',
   'aiVoiceListening': 'Listening...',
+  'aiKeyStorageError':
+      'Secure key storage is unavailable. The change could not be confirmed.',
   'aiErrorMessage':
       'An error occurred while processing your request. Please try again.',
 };

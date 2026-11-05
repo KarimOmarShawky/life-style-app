@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/json_fields.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
+import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 
 /// Wallet SMS fallback results waiting for user confirmation.
@@ -151,6 +152,12 @@ class WalletSmsQuarantineStatus {
   /// True while at least one entry is quarantined.
   static Future<bool> isQuarantined() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    if (prefs.getKeys().any((entry) => entry
+        .replaceFirst(_flutterPrefix, '')
+        .startsWith(PendingWalletTransactions.blockedPrefix))) {
+      return true;
+    }
     final Object? value = prefs.get(key);
     if (value is bool) return value;
     if (value is String) {

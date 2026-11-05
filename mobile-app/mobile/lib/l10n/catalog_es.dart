@@ -278,6 +278,8 @@ const Map<String, String> esCatalog = {
   'aiSpeakTooltip': 'Leer esta respuesta en voz alta',
   'aiSpeaking': 'Leyendo...',
   'aiVoiceListening': 'Escuchando...',
+  'aiKeyStorageError':
+      'El almacenamiento seguro de la clave no está disponible. No se pudo confirmar el cambio.',
   'aiErrorMessage':
       'Ocurrió un error al procesar la solicitud. Inténtelo de nuevo.',
 };

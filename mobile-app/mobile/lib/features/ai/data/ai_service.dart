@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:lifestyle_mobile/config/app_config.dart';
@@ -52,8 +52,15 @@ List<String> _textFromSseEvent(String data) {
   return result;
 }
 
+/// Secure key operations failed; no secret or platform details are exposed.
+class AiSecureStorageException implements Exception {
+  const AiSecureStorageException();
+}
+
 class AiService {
   AiService._();
+  @visibleForTesting
+  AiService.forTesting();
   static final AiService instance = AiService._();
 
   static const String _model = 'gemini-3.5-flash-lite';
@@ -74,6 +81,8 @@ class AiService {
   String? _cachedUserKey;
   bool _loadedUserKey = false;
   int _consecutiveFailures = 0;
+  int _keyGeneration = 0;
+  Future<void> _keyWriteTail = Future<void>.value();
 
   bool get isKeyPaused => _consecutiveFailures >= maxConsecutiveFailures;
 
@@ -83,44 +92,48 @@ class AiService {
 
   /// Returns the user's personal BYOK Gemini API key stored in secure storage.
   Future<String> getUserApiKey() async {
-    if (_loadedUserKey) {
-      return _cachedUserKey ?? '';
-    }
+    if (_loadedUserKey) return _cachedUserKey ?? '';
+    final generation = _keyGeneration;
+    final String? stored;
     try {
-      final stored = await _secureStorage.read(key: _byokStorageKey);
-      _cachedUserKey = stored?.trim();
-    } on MissingPluginException {
-      // Unit/widget tests without platform channels fall back to in-memory cache.
-    } on PlatformException {
-      // Ignore platform read errors and fall back to in-memory cache.
+      stored = await _secureStorage.read(key: _byokStorageKey);
+    } on Object {
+      throw const AiSecureStorageException();
     }
+    // Do not resurrect a key if sign-out or a new write started during read.
+    if (generation != _keyGeneration) return _cachedUserKey ?? '';
+    _cachedUserKey = stored?.trim();
     _loadedUserKey = true;
     return _cachedUserKey ?? '';
   }
 
   /// Returns true when the user has saved a personal BYOK Gemini API key.
-  Future<bool> hasUserApiKey() async {
-    final key = await getUserApiKey();
-    return key.isNotEmpty;
-  }
+  Future<bool> hasUserApiKey() async => (await getUserApiKey()).isNotEmpty;
 
   /// Saves or clears the user's personal BYOK Gemini API key in secure storage.
-  Future<void> setUserApiKey(String? apiKey) async {
+  /// Failures are reported, and stale in-flight writes never restore the cache.
+  Future<void> setUserApiKey(String? apiKey) {
     final trimmed = apiKey?.trim() ?? '';
-    _cachedUserKey = trimmed.isEmpty ? null : trimmed;
+    final generation = ++_keyGeneration;
+    _cachedUserKey = null;
     _loadedUserKey = true;
     _consecutiveFailures = 0;
-    try {
-      if (trimmed.isEmpty) {
-        await _secureStorage.delete(key: _byokStorageKey);
-      } else {
-        await _secureStorage.write(key: _byokStorageKey, value: trimmed);
+    final result = _keyWriteTail.then((_) async {
+      try {
+        if (trimmed.isEmpty) {
+          await _secureStorage.delete(key: _byokStorageKey);
+        } else {
+          await _secureStorage.write(key: _byokStorageKey, value: trimmed);
+        }
+      } on Object {
+        throw const AiSecureStorageException();
       }
-    } on MissingPluginException {
-      // Unit/widget tests without platform channels keep the in-memory value.
-    } on PlatformException {
-      // Ignore platform write errors in non-device environments.
-    }
+      if (generation == _keyGeneration) {
+        _cachedUserKey = trimmed.isEmpty ? null : trimmed;
+      }
+    });
+    _keyWriteTail = result.catchError((Object _) {});
+    return result;
   }
 
   /// Resolves the active Gemini API key: user BYOK key first, then dev/test

@@ -9,8 +9,16 @@ import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/habits/data/habits_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 import 'package:lifestyle_mobile/features/money/data/pending_wallet_transactions.dart';
+import 'package:lifestyle_mobile/features/money/data/pending_wallet_reviews.dart';
 import 'package:lifestyle_mobile/features/money/data/wallet_queue_codec.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _UnreadableCodec extends PlainWalletQueueCodec {
+  const _UnreadableCodec();
+
+  @override
+  Future<String?> read(SharedPreferences prefs, String key) async => null;
+}
 
 class _MemoryTokenStore implements TokenStore {
   _MemoryTokenStore(this.tokens);
@@ -120,27 +128,101 @@ void main() {
       },
     );
 
-    test('drops entries that the API permanently rejects', () async {
+    test('keeps malformed and unreadable entries without sending them',
+        () async {
+      for (final unreadable in [false, true]) {
+        const value = 'damaged-data';
+        SharedPreferences.setMockInitialValues({
+          'flutter.pending_wallet_tx.damaged': value,
+        });
+        var requests = 0;
+        final queue = PendingWalletTransactions(
+          MoneyRepository(_apiWith(MockClient((_) async {
+            requests++;
+            return _jsonResponse(201, {});
+          }))),
+          codec: unreadable
+              ? const _UnreadableCodec()
+              : const PlainWalletQueueCodec(),
+        );
+        expect(await queue.flush(), 0);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('pending_wallet_tx.damaged'), value);
+        expect(requests, 0);
+      }
+    });
+
+    test('parks rejected transactions without deleting or retrying them',
+        () async {
+      for (final status in [400, 409, 422]) {
+        final original = _queuedItem('bad');
+        SharedPreferences.setMockInitialValues({
+          'flutter.pending_wallet_tx.bad': original,
+        });
+        var requests = 0;
+        final queue = PendingWalletTransactions(
+          MoneyRepository(_apiWith(MockClient((_) async {
+            requests++;
+            return _jsonResponse(status, {
+              'success': false,
+              'error': {'code': 'REJECTED', 'message': 'Rejected'},
+            });
+          }))),
+          codec: const PlainWalletQueueCodec(),
+        );
+        expect(await queue.flush(), 0);
+        expect(await queue.flush(), 0);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('pending_wallet_tx.bad'), original);
+        expect(prefs.getString('wallet_tx_rejected.bad'), 'REJECTED');
+        expect(await WalletSmsQuarantineStatus.isQuarantined(), isTrue);
+        expect(requests, 1);
+      }
+    });
+
+    test(
+        'honors the native rejected marker and keeps its protected transaction',
+        () async {
+      final original = _queuedItem('native');
       SharedPreferences.setMockInitialValues({
-        'flutter.pending_wallet_tx.bad': _queuedItem('bad'),
+        'flutter.pending_wallet_tx.native': original,
+        'flutter.wallet_tx_rejected.native': 'REJECTED',
       });
+      var requests = 0;
       final queue = PendingWalletTransactions(
-        MoneyRepository(
-          _apiWith(
-            MockClient(
-              (request) async => _jsonResponse(400, {
-                'success': false,
-                'error': {'code': 'VALIDATION_ERROR', 'message': 'Invalid'},
-              }),
-            ),
-          ),
-        ),
+        MoneyRepository(_apiWith(MockClient((_) async {
+          requests++;
+          return _jsonResponse(201, {});
+        }))),
         codec: const PlainWalletQueueCodec(),
       );
-
       expect(await queue.flush(), 0);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('pending_wallet_tx.bad'), isNull);
+      expect(requests, 0);
+      expect(
+          (await SharedPreferences.getInstance())
+              .getString('pending_wallet_tx.native'),
+          original);
+      expect(await WalletSmsQuarantineStatus.isQuarantined(), isTrue);
+    });
+
+    test('does not delete an item parked while upload was in flight', () async {
+      final original = _queuedItem('race');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_tx.race': original,
+      });
+      final queue = PendingWalletTransactions(
+        MoneyRepository(_apiWith(MockClient((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('wallet_tx_rejected.race', 'REJECTED');
+          return _jsonResponse(201, {});
+        }))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      expect(await queue.flush(), 0);
+      expect(
+          (await SharedPreferences.getInstance())
+              .getString('pending_wallet_tx.race'),
+          original);
     });
 
     test('keeps entries when the server fails, so they are retried', () async {

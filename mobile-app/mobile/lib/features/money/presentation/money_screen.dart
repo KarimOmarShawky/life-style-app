@@ -816,7 +816,13 @@ class _SmsSyncCard extends ConsumerWidget {
     final walletToken = WalletIngestToken(ref.read(apiClientProvider));
     try {
       if (enabled) {
-        await walletToken.ensure(force: true);
+        final account = ref.read(authProvider.notifier).walletAccount;
+        if (account == null) throw StateError('Sign in to enable wallet sync');
+        await walletToken.ensure(
+          account: account,
+          currentAccount: () => ref.read(authProvider.notifier).walletAccount,
+          force: true,
+        );
       } else {
         await walletToken.revoke();
       }

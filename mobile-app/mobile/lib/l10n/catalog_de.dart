@@ -281,6 +281,8 @@ const Map<String, String> deCatalog = {
   'aiSpeakTooltip': 'Diese Antwort vorlesen',
   'aiSpeaking': 'Wird vorgetragen...',
   'aiVoiceListening': 'Höre zu...',
+  'aiKeyStorageError':
+      'Der sichere Schlüsselspeicher ist nicht verfügbar. Die Änderung konnte nicht bestätigt werden.',
   'aiErrorMessage':
       'Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
 };

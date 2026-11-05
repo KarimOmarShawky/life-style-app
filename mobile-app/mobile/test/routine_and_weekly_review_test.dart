@@ -1,3 +1,4 @@
+import 'support/fake_secure_storage.dart';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -51,6 +52,9 @@ FocusSessionRecord _session(String id, DateTime endedAt,
         backendSessionId: backendId);
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    FakeSecureStorage().install();
+  });
   test('tomorrow is a local calendar date across month/year/leap boundaries',
       () {
     expect(tomorrowDateKey(DateTime(2026, 12, 31, 23, 59)), '2027-01-01');

@@ -105,6 +105,7 @@ const Map<String, Object?> _strictTransaction = {
 /// queue keeps working.
 class _FlakyCodec implements WalletQueueCodec {
   final Set<String> unreadableKeys = <String>{};
+  final Set<String> unwritableKeys = <String>{};
 
   @override
   Future<String?> read(SharedPreferences prefs, String key) async {
@@ -119,6 +120,9 @@ class _FlakyCodec implements WalletQueueCodec {
 
   @override
   Future<void> write(SharedPreferences prefs, String key, String value) async {
+    if (unwritableKeys.contains(key)) {
+      throw WalletQueueSecurityException('value cannot be protected');
+    }
     await prefs.setString(key, value);
   }
 }
@@ -414,7 +418,7 @@ void main() {
       expect(jsonDecode(stored!)['attempts'], 1);
     });
 
-    test('a permanent rejection is dropped but an unreadable entry is kept',
+    test('a rejected candidate and an unreadable entry are quarantined',
         () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.bad': _candidateItem('bad'),
@@ -434,16 +438,94 @@ void main() {
         codec: const PlainWalletQueueCodec(),
       );
 
-      expect(await candidates.flush(), 1);
+      expect(await candidates.flush(), 0);
       final prefs = await SharedPreferences.getInstance();
-      // The server rejected this specific payload: retrying cannot help.
+      // A rejected request says nothing about the transaction: park its
+      // original value instead of throwing the candidate away.
       expect(prefs.getString('pending_wallet_candidate.bad'), isNull);
+      final parked = jsonDecode(
+        prefs.getString('pending_wallet_quarantine.bad')!,
+      ) as Map<String, dynamic>;
+      expect(parked['reason'], PendingWalletCandidates.rejectedReason);
+      expect(jsonDecode(parked['payload'] as String)['id'], 'bad');
+      expect(jsonDecode(parked['payload'] as String)['text'],
+          'Debited 450 EGP at UNKNOWN SHOP');
 
       // Malformed content is not deleted any more: it is quarantined, still
       // present, and the state is published for the UI (V-02).
       expect(prefs.getString('pending_wallet_candidate.junk'), isNull);
       expect(prefs.getString('pending_wallet_quarantine.junk'), isNotNull);
       expect(prefs.getString('wallet_sms_quarantined'), isNotNull);
+    });
+
+    for (final status in [400, 409, 422]) {
+      test('HTTP $status retains the candidate without another request',
+          () async {
+        final original = _candidateItem('rejected');
+        SharedPreferences.setMockInitialValues({
+          'flutter.pending_wallet_candidate.rejected': original,
+        });
+        var calls = 0;
+        final candidates = PendingWalletCandidates(
+          _apiWith(MockClient((request) async {
+            calls++;
+            return http.Response(
+              jsonEncode({
+                'success': false,
+                'error': {'code': 'REJECTED', 'message': 'Rejected'},
+              }),
+              status,
+              headers: {'content-type': 'application/json'},
+            );
+          })),
+          MoneyRepository(
+              _apiWith(MockClient((request) async => http.Response('', 201)))),
+          codec: const PlainWalletQueueCodec(),
+        );
+
+        expect(await candidates.flush(), 0);
+        final prefs = await SharedPreferences.getInstance();
+        final parked = jsonDecode(
+          prefs.getString('pending_wallet_quarantine.rejected')!,
+        ) as Map<String, dynamic>;
+        expect(parked['reason'], PendingWalletCandidates.rejectedReason);
+        expect(parked['payload'], original);
+        expect(await WalletSmsQuarantineStatus.isQuarantined(), isTrue);
+        expect(await candidates.flush(), 0);
+        expect(calls, 1);
+        expect(prefs.getString('pending_wallet_candidate.rejected'), isNull);
+        expect(
+            prefs.getString('pending_wallet_quarantine.rejected'), isNotNull);
+      });
+    }
+
+    test('a rejected candidate stays put if quarantine encryption fails',
+        () async {
+      final original = _candidateItem('rejected');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.rejected': original,
+      });
+      final codec = _FlakyCodec();
+      codec.unwritableKeys.add('pending_wallet_quarantine.rejected');
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async => http.Response(
+              jsonEncode({
+                'success': false,
+                'error': {'code': 'REJECTED', 'message': 'Rejected'},
+              }),
+              400,
+              headers: {'content-type': 'application/json'},
+            ))),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: codec,
+      );
+
+      expect(await candidates.flush(), 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.rejected'), original);
+      expect(prefs.getString('pending_wallet_quarantine.rejected'), isNull);
+      expect(await WalletSmsQuarantineStatus.isQuarantined(), isTrue);
     });
 
     test(

@@ -324,6 +324,17 @@ test('AUD-12: review removal verifies disk and shares one permanent-rejection po
   assert.ok(receiver.includes('private val PERMANENT_REJECTIONS = setOf(400, 409, 422)'));
 });
 
+test('analyze request rejection parks the candidate rather than silently deleting it', () => {
+  const nativeFlush = receiver.split('private fun flushCandidates(')[1].split('private enum class')[0];
+  const nativeRejected = nativeFlush.split('status in PERMANENT_REJECTIONS -> {')[1].split('}')[0];
+  assert.ok(nativeRejected.includes('quarantine(prefs, key, stored, QUARANTINE_REJECTED, CANDIDATE_PREFIX)'));
+  assert.ok(!nativeRejected.includes('removeEntry('));
+  const dartFlush = dartReviews.split('Future<int> flush()')[1].split('Future<CandidateDecision> _applyResult')[0];
+  const dartRejected = dartFlush.split('if (_isPermanentRejection(error)) {')[1].split('}')[0];
+  assert.ok(dartRejected.includes('await _quarantine(prefs, key, rejectedReason)'));
+  assert.ok(!dartRejected.includes('_removeEntry('));
+});
+
 test('AUD-13: review notification creates its channel through a shared helper', () => {
   // A shared helper creates the channel before any notify() path.
   assert.ok(receiver.includes('private fun ensureNotificationChannel(context: Context)'));

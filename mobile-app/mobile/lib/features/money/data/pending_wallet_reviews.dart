@@ -138,10 +138,10 @@ class WalletSmsFallbackStatus {
 /// Mirrors the `wallet_sms_quarantined` state written by the native receiver
 /// (V-01/V-02).
 ///
-/// Entries land here when their content cannot be read, when the analyzer
-/// returns a status the client cannot interpret, or when the retry budget is
-/// spent. Nothing is deleted: the entry waits in the quarantine queue (still
-/// sealed) and the Money screen reports that something needs attention.
+/// The diagnostic covers unreadable, rejected and malformed candidates as well
+/// as unsupported results and exhausted retries. Some affected entries remain
+/// blocked in their original queue rather than in quarantine. Both are subject
+/// to existing retention; the warning is not an editable recovery interface.
 class WalletSmsQuarantineStatus {
   const WalletSmsQuarantineStatus._();
 
@@ -430,10 +430,11 @@ class PendingWalletCandidates {
   static const String _flutterPrefix = 'flutter.';
   static const int _maxAttempts = 5;
 
-  /// Quarantine reasons. Only an unreadable payload can heal; a malformed one is
-  /// proven unparseable and is never restored to its queue (no revive loop).
+  /// Only unreadable payloads can heal automatically. Malformed or rejected
+  /// entries stay parked rather than repeatedly sending the same payload.
   static const String unreadableReason = 'UNREADABLE';
   static const String malformedReason = 'MALFORMED';
+  static const String rejectedReason = 'REJECTED';
 
   /// A quarantined entry is retried this many times before it stays parked for
   /// the user to resolve (bounded recovery, never an infinite loop).
@@ -542,8 +543,9 @@ class PendingWalletCandidates {
         }
       } on ApiException catch (error) {
         if (_isPermanentRejection(error)) {
-          await _removeEntry(prefs, key);
-          resolved++;
+          // A rejected analyze request is not a verdict on the SMS. Preserve
+          // the sealed candidate instead of silently discarding it.
+          await _quarantine(prefs, key, rejectedReason);
           continue;
         }
         // 503 SMS_FALLBACK_UNAVAILABLE: the fallback is not configured or is
@@ -877,8 +879,8 @@ class PendingWalletCandidates {
     }
   }
 
-  /// Permanent rejections match the native receiver's policy (AUD-12):
-  /// 400/422 = invalid payload, 409 = idempotency key reused with other data.
+  /// Rejected analyze requests stop automatic retries, but do not prove that
+  /// the SMS was not a transaction. Match the native receiver's status set.
   bool _isPermanentRejection(ApiException error) =>
       error.statusCode == 400 ||
       error.statusCode == 409 ||

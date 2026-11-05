@@ -55,8 +55,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         const val PENDING_PREFIX = "flutter.pending_wallet_tx."
         const val CANDIDATE_PREFIX = "flutter.pending_wallet_candidate."
         const val REVIEW_PREFIX = "flutter.pending_wallet_review."
-        // Entries that must not be retried or silently dropped live here, still
-        // in their original (sealed) form, until the user resolves them (V-02).
+        // Non-retryable or unreadable entries are retained here in a sealed
+        // envelope until expiry. The diagnostic is not an editable review flow.
         const val QUARANTINE_PREFIX = "flutter.pending_wallet_quarantine."
         // AUD-10: no hard-coded production fallback — the API base must come
         // from SharedPreferences (published by the Flutter app). An unset
@@ -72,7 +72,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         // list means no sender is trusted (AUD-05).
         private const val KEY_TRUSTED_SENDERS = "flutter.wallet_trusted_senders"
 
-        // Candidates are dropped after this many failed delivery attempts.
+        // Candidates are blocked after this many failed analysis attempts.
         private const val MAX_CANDIDATE_ATTEMPTS = 5
         // A quarantined entry is retried this many times before it stays parked
         // for the user to discard (bounded recovery, never an infinite loop).
@@ -81,6 +81,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         // one is proven unparseable and is never restored to its queue.
         private const val QUARANTINE_UNREADABLE = "UNREADABLE"
         private const val QUARANTINE_MALFORMED = "MALFORMED"
+        private const val QUARANTINE_REJECTED = "REJECTED"
 
         // Candidates keep sanitized SMS text: never retain them longer than this.
         private const val CANDIDATE_RETENTION_MS = 7L * 24 * 60 * 60 * 1000L
@@ -104,8 +105,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         // User-visible state: a local write did not reach disk.
         const val KEY_STORAGE_FAULT = "flutter.wallet_storage_fault"
 
-        // 400 and 422: the payload is invalid. 409: the idempotency key was reused with other data.
-        // Retrying cannot succeed for these, so the queued entry is dropped.
+        // Stop automatic retries on these statuses. Transaction uploads retain
+        // their existing policy; rejected SMS analyses are parked in quarantine.
         private val PERMANENT_REJECTIONS = setOf(400, 409, 422)
 
         // One-time passwords are never transactions.
@@ -452,8 +453,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     }
 
     /**
-     * Stores one fallback candidate: sanitized text only, so a queued entry never
-     * contains raw financial identifiers even on disk beyond what the parser kept.
+     * Stores a pattern-redacted fallback candidate. Unrecognized sensitive
+     * content may remain, including in the encrypted queue.
      */
     private fun enqueueCandidate(context: Context, sender: String, body: String, receivedAtMs: Long) {
         val id = UUID.randomUUID().toString()
@@ -485,7 +486,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
      *  - 2xx + status "recognized"   -> queue for review, then remove
      *  - 2xx + status "unrecognized" -> final answer, remove
      *  - 503 (or "unavailable")      -> retryable: keep the candidate, back off
-     *  - permanent rejection         -> remove
+     *  - request rejection           -> quarantine, preserving the candidate
      *
      * The candidate is never deleted before its result has been handled.
      */
@@ -554,7 +555,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                     if (!retryCandidate(prefs, key, item, attempts, RetryReason.UNAVAILABLE)) return
                 }
                 status in PERMANENT_REJECTIONS -> {
-                    removeEntry(prefs, key)
+                    // Rejection of an analyze request is not a verdict on the SMS.
+                    quarantine(prefs, key, stored, QUARANTINE_REJECTED, CANDIDATE_PREFIX)
                 }
                 status == 401 || status == 403 -> {
                     if (isIngest) WalletCredentialStore(context).clear(expected = token)

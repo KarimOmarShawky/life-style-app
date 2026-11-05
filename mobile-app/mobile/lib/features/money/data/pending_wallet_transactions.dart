@@ -86,7 +86,9 @@ class PendingWalletTransactions {
       await prefs.reload();
       if (prefs.containsKey(blockedKey) ||
           prefs.containsKey(holdKey) ||
-          prefs.containsKey('pending_wallet_quarantine.$id')) continue;
+          prefs.containsKey('pending_wallet_quarantine.$id')) {
+        continue;
+      }
       try {
         await _repository.createTransaction(
           kind: item.kind,
@@ -112,7 +114,9 @@ class PendingWalletTransactions {
       await prefs.reload();
       if (prefs.containsKey(blockedKey) ||
           prefs.containsKey(holdKey) ||
-          prefs.containsKey('pending_wallet_quarantine.$id')) continue;
+          prefs.containsKey('pending_wallet_quarantine.$id')) {
+        continue;
+      }
       stored++;
       await prefs.remove(key);
     }

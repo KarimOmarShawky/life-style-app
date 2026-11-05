@@ -171,7 +171,9 @@ class WalletSmsQuarantineStatus {
       if (keys.contains('${PendingWalletCandidates.keyPrefix}$id') ||
           keys.contains('${PendingWalletCandidates.reviewPrefix}$id') ||
           keys.contains('${PendingWalletTransactions.keyPrefix}$id') ||
-          keys.contains('$quarantinePrefix$id')) return true;
+          keys.contains('$quarantinePrefix$id')) {
+        return true;
+      }
     }
     final Object? value = prefs.get(key);
     if (value is bool) return value;

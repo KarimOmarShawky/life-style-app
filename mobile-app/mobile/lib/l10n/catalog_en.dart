@@ -422,7 +422,7 @@ const Map<String, String> enCatalog = {
       'Some messages could not be analyzed right now. They are kept and retried automatically, so nothing is lost.',
   'smsQuarantineTitle': 'Wallet messages kept for review',
   'smsQuarantineDesc':
-      'Some wallet messages could not be processed. They were kept, not deleted, and are retried automatically. They expire after 7 days.',
+      'Some wallet messages need attention. Not all are retried, stored entries can expire, and their account ownership is not verified.',
   'smsStorageFaultTitle': 'Wallet storage problem',
   'smsStorageFaultDesc':
       'A wallet message could not be saved on this device. Nothing was discarded; the app keeps retrying in the background.',

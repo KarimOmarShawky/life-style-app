@@ -255,7 +255,7 @@ const Map<String, String> deCatalog = {
       'SMS-Berechtigung ist für die automatische Erfassung erforderlich.',
   'smsQuarantineTitle': 'Wallet-Nachrichten zur Prüfung aufbewahrt',
   'smsQuarantineDesc':
-      'Einige Wallet-Nachrichten konnten nicht verarbeitet werden. Sie wurden aufbewahrt, nicht gelöscht, und werden automatisch erneut versucht. Sie verfallen nach 7 Tagen.',
+      'Einige Nachrichten benötigen Aufmerksamkeit. Nicht alle werden erneut versucht, gespeicherte Einträge können verfallen und ihre Kontozuordnung ist nicht geprüft.',
   'smsStorageFaultTitle': 'Problem beim Speichern der Wallet-Daten',
   'smsStorageFaultDesc':
       'Eine Wallet-Nachricht konnte auf diesem Gerät nicht gespeichert werden. Es wurde nichts verworfen; die App versucht es im Hintergrund weiter.',

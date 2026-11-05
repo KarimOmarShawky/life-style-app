@@ -203,6 +203,7 @@ describe('SMS fallback analyze route', () => {
   it('validates metadata before the real analyzer and handles unsafe provider amounts over authenticated HTTP', async () => {
     let modelAmount: string | number = '250.00';
     let currency = 'EGP';
+    let rawOutput: string | undefined;
     const fetchImpl = vi.fn(
       async () =>
         new Response(
@@ -212,15 +213,17 @@ describe('SMS fallback analyze route', () => {
                 content: {
                   parts: [
                     {
-                      text: JSON.stringify({
-                        isTransaction: true,
-                        kind: 'expense',
-                        amount: modelAmount,
-                        currency,
-                        merchant: 'Wallet',
-                        description: 'Payment',
-                        confidence: 'high'
-                      })
+                      text:
+                        rawOutput ??
+                        JSON.stringify({
+                          isTransaction: true,
+                          kind: 'expense',
+                          amount: modelAmount,
+                          currency,
+                          merchant: 'Wallet',
+                          description: 'Payment',
+                          confidence: 'high'
+                        })
                     }
                   ]
                 }
@@ -252,8 +255,8 @@ describe('SMS fallback analyze route', () => {
 
     modelAmount = 1.239;
     let result = await send('2026-10-08T13:05:00Z', ingestToken);
-    expect(result.status).toBe(200);
-    expect(result.body.data.status).toBe('unrecognized');
+    expect(result.status).toBe(503);
+    expect(result.body.error.code).toBe('SMS_FALLBACK_UNAVAILABLE');
 
     modelAmount = 250;
     result = await send('2026-10-08T13:05:00Z');
@@ -264,13 +267,31 @@ describe('SMS fallback analyze route', () => {
     modelAmount = '250.00';
     currency = 'JPY';
     result = await send('2026-10-08T13:05:00Z');
-    expect(result.body.data.status).toBe('unrecognized');
+    expect(result.status).toBe(503);
+    expect(result.body.error.code).toBe('SMS_FALLBACK_UNAVAILABLE');
 
     currency = 'EGP';
     result = await send('2026-10-08T13:05:00Z');
     expect(result.body.data.status).toBe('recognized');
     expect(result.body.data.confidence).toBe('high');
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+
+    rawOutput = 'invalid response containing private.person@example.com';
+    result = await send('2026-10-08T13:05:00Z', ingestToken);
+    expect(result.status).toBe(503);
+    expect(result.body.error.code).toBe('SMS_FALLBACK_UNAVAILABLE');
+    expect(result.headers['cache-control']).toContain('no-store');
+    expect(JSON.stringify(result.body)).not.toContain('private.person@example.com');
+    expect(JSON.stringify(result.body)).not.toContain('test-key');
+
+    rawOutput = JSON.stringify({ isTransaction: false });
+    result = await send('2026-10-08T13:05:00Z');
+    expect(result.status).toBe(200);
+    expect(result.body.data).toEqual({
+      status: 'unrecognized',
+      transaction: null,
+      confidence: null
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(6);
   });
 
   it('rejects malformed bodies with a validation error', async () => {

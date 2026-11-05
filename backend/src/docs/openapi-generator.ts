@@ -3562,8 +3562,8 @@ paths:
         parser could not recognize. The phone sends sanitized candidate text; the
         server sanitizes it again, asks the model for a strict transaction parse,
         and returns the result. Nothing is stored, and raw SMS text never leaves
-        the phone unredacted. High confidence may auto-save on the phone; low
-        confidence must wait for user confirmation. The model key is server-side
+        the phone unredacted. The current phone clients queue all recognized
+        results for user confirmation, regardless of confidence. The model key is server-side
         only and is never part of a client build.
       security:
         - IngestToken: []
@@ -3586,7 +3586,7 @@ paths:
         '401':
           description: Ingest token or access token missing, invalid, revoked, or its session has ended
         '503':
-          description: SMS analysis is temporarily unavailable (stable error code SMS_FALLBACK_UNAVAILABLE); retry later
+          description: SMS analysis is temporarily unavailable or the provider response is invalid (SMS_FALLBACK_UNAVAILABLE), or the shared quota is unavailable (SERVICE_UNAVAILABLE); retain the candidate and retry later
 components:
   securitySchemes:
     BearerAuth:
@@ -5981,7 +5981,7 @@ components:
           type: string
           enum: [high, low]
           nullable: true
-          description: high may auto-save on the phone; low requires user confirmation in the Money review flow.
+          description: The current phone clients require user confirmation for both confidence levels.
       required:
         - status
 

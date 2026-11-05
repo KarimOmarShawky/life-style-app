@@ -11,10 +11,10 @@
  *   and is never written to logs, including in error messages.
  * - The Gemini key lives in server configuration (SMS_FALLBACK_GEMINI_KEY). It is
  *   never part of any client build or API response.
- * - Model output must match the strict transaction schema. Anything else is
- *   treated as unrecognized and dropped.
+ * - Only an explicit non-transaction is a terminal negative. Malformed or
+ *   incomplete model output is retryable and never discards a candidate.
  * - Confidence defaults to "low". Only a clean, complete parse may be "high".
- *   High confidence may auto-save; low confidence requires user confirmation.
+ *   Current phone clients require user confirmation for both confidence levels.
  */
 
 import { z } from 'zod';
@@ -236,12 +236,15 @@ export class GeminiSmsFallbackAnalyzer implements SmsTransactionAnalyzer {
     try {
       rawJson = JSON.parse(modelText);
     } catch {
-      // The model ignored the JSON instruction: nothing can be trusted.
-      return { status: 'unrecognized', transaction: null, confidence: null };
+      // Invalid model output is not evidence that the SMS is a non-transaction.
+      throw new SmsFallbackUnavailableError('SMS fallback returned invalid output');
     }
 
     const parsed = MODEL_OUTPUT_SCHEMA.safeParse(rawJson);
-    if (!parsed.success || !parsed.data.isTransaction) {
+    if (!parsed.success) {
+      throw new SmsFallbackUnavailableError('SMS fallback returned invalid output');
+    }
+    if (!parsed.data.isTransaction) {
       return { status: 'unrecognized', transaction: null, confidence: null };
     }
 
@@ -253,8 +256,8 @@ export class GeminiSmsFallbackAnalyzer implements SmsTransactionAnalyzer {
       currency === null ||
       (data.kind !== 'expense' && data.kind !== 'income')
     ) {
-      // Strict schema: an incomplete parse is not a transaction.
-      return { status: 'unrecognized', transaction: null, confidence: null };
+      // An incomplete or unsafe parse is not a reliable negative verdict.
+      throw new SmsFallbackUnavailableError('SMS fallback returned invalid output');
     }
 
     const description = sanitizeModelDescription(data.description);

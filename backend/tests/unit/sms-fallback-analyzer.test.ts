@@ -120,18 +120,20 @@ describe('GeminiSmsFallbackAnalyzer', () => {
       { ...VALID_MODEL_OUTPUT, isTransaction: 'yes' }
     ];
     for (const modelOutput of cases) {
-      const result = await analyzerWith(
-        vi.fn(async () => geminiResponse(modelOutput)) as unknown as typeof fetch
-      ).analyze({ text: 'paid something 250', receivedAt: '2026-10-08' });
-      expect(result.status, JSON.stringify(modelOutput)).toBe('unrecognized');
-      expect(result.transaction).toBeNull();
+      await expect(
+        analyzerWith(
+          vi.fn(async () => geminiResponse(modelOutput)) as unknown as typeof fetch
+        ).analyze({ text: 'paid something 250', receivedAt: '2026-10-08' }),
+        JSON.stringify(modelOutput)
+      ).rejects.toBeInstanceOf(SmsFallbackUnavailableError);
     }
 
     // Not JSON at all: the model ignored the instruction.
-    const notJson = await analyzerWith(
-      vi.fn(async () => geminiResponse('I think this is a payment!')) as unknown as typeof fetch
-    ).analyze({ text: 'paid 250', receivedAt: '2026-10-08' });
-    expect(notJson.status).toBe('unrecognized');
+    await expect(
+      analyzerWith(
+        vi.fn(async () => geminiResponse('I think this is a payment!')) as unknown as typeof fetch
+      ).analyze({ text: 'paid 250', receivedAt: '2026-10-08' })
+    ).rejects.toBeInstanceOf(SmsFallbackUnavailableError);
   });
 
   it('normalizes numeric amounts and defaults the currency to EGP', async () => {
@@ -261,13 +263,14 @@ describe('Gemini SMS output safety boundaries', () => {
       { amount: '250.00', currency: 'ZZZ' }
     ];
     for (const value of cases) {
-      const result = await analyzerWith(
-        vi.fn(async () =>
-          geminiResponse({ ...VALID_MODEL_OUTPUT, ...value })
-        ) as unknown as typeof fetch
-      ).analyze({ text: 'paid 250', receivedAt: '2026-10-08' });
-      expect(result.status, JSON.stringify(value)).toBe('unrecognized');
-      expect(result.transaction).toBeNull();
+      await expect(
+        analyzerWith(
+          vi.fn(async () =>
+            geminiResponse({ ...VALID_MODEL_OUTPUT, ...value })
+          ) as unknown as typeof fetch
+        ).analyze({ text: 'paid 250', receivedAt: '2026-10-08' }),
+        JSON.stringify(value)
+      ).rejects.toBeInstanceOf(SmsFallbackUnavailableError);
     }
   });
 
@@ -311,5 +314,39 @@ describe('Gemini SMS output safety boundaries', () => {
       expect(result.status, receivedAt).toBe('unrecognized');
       expect(fetchImpl).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe('malformed provider responses are not negative verdicts', () => {
+  it.each([
+    ['non-JSON', 'The private SMS for user@example.com is malformed'],
+    ['invalid schema', { ...VALID_MODEL_OUTPUT, isTransaction: 'yes' }],
+    ['missing amount', { ...VALID_MODEL_OUTPUT, amount: null }],
+    ['rounding', { ...VALID_MODEL_OUTPUT, amount: 1.239 }],
+    ['invalid currency scale', { ...VALID_MODEL_OUTPUT, amount: '250.00', currency: 'JPY' }],
+    ['invalid currency', { ...VALID_MODEL_OUTPUT, currency: 'ZZZ' }],
+    ['invalid kind', { ...VALID_MODEL_OUTPUT, kind: 'transfer' }]
+  ])('makes %s retryable without exposing model content', async (_name, output) => {
+    const analyzer = analyzerWith(
+      vi.fn(async () => geminiResponse(output)) as unknown as typeof fetch
+    );
+    try {
+      await analyzer.analyze({ text: 'paid 250 EGP', receivedAt: '2026-10-08' });
+      throw new Error('Expected retryable provider failure');
+    } catch (err) {
+      expect(err).toBeInstanceOf(SmsFallbackUnavailableError);
+      expect(String(err)).not.toContain('user@example.com');
+      expect(String(err)).not.toContain('paid 250');
+      expect(String(err)).not.toContain('test-sms-fallback-key');
+    }
+  });
+
+  it('continues to return a terminal negative only for an explicit non-transaction', async () => {
+    const analyzer = analyzerWith(
+      vi.fn(async () => geminiResponse({ isTransaction: false })) as unknown as typeof fetch
+    );
+    await expect(
+      analyzer.analyze({ text: 'Your OTP is 123456', receivedAt: '2026-10-08' })
+    ).resolves.toEqual({ status: 'unrecognized', transaction: null, confidence: null });
   });
 });

@@ -42,14 +42,15 @@ export class IngestController {
 
   /**
    * POST /ingest/sms/analyze: the Gemini fallback for likely transactions the
-   * local parser cannot recognize. High confidence may auto-save on the phone;
-   * low confidence must wait for user confirmation in the Money review flow.
+   * local parser cannot recognize. Current phone clients queue every recognized
+   * result for confirmation, regardless of confidence.
    */
   analyzeSms = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // Protect retryable failures and validation errors as well as successful results.
+      res.setHeader('Cache-Control', 'no-store');
       const input = analyzeSmsRequestSchema.parse(req.body);
       const result = await this.ingestService.analyzeCandidate(input);
-      res.setHeader('Cache-Control', 'no-store');
       // SMS fallback result contract (shared by the Android receiver and the
       // Dart review queue):
       //   200 + status 'recognized'   -> terminal, save or queue for review

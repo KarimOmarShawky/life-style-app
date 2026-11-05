@@ -632,6 +632,48 @@ void main() {
       expect(prefs.getString('wallet_sms_fallback_unavailable'), isNotNull);
     });
 
+    test('a fifth unavailable response keeps the candidate blocked and visible',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.limit':
+            _candidateItem('limit', attempts: 4),
+      });
+      var calls = 0;
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((request) async {
+          calls++;
+          return http.Response(
+            jsonEncode({
+              'success': false,
+              'error': {
+                'code': 'SMS_FALLBACK_UNAVAILABLE',
+                'message':
+                    'SMS analysis is temporarily unavailable; retry later',
+              },
+            }),
+            503,
+            headers: {'content-type': 'application/json'},
+          );
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((request) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+
+      expect(await candidates.flush(), 0);
+      expect(calls, 1);
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('pending_wallet_candidate.limit');
+      expect(stored, isNotNull);
+      final decoded = jsonDecode(stored!) as Map<String, dynamic>;
+      expect(decoded['attempts'], 5);
+      expect(decoded['blocked'], isTrue);
+      expect(decoded['retryReason'], 'unavailable');
+      expect(prefs.getString('wallet_sms_fallback_unavailable'), isNotNull);
+      expect(await candidates.flush(), 0);
+      expect(calls, 1);
+    });
+
     test('an unavailable status inside a 200 body is also retryable', () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.soft': _candidateItem('soft'),

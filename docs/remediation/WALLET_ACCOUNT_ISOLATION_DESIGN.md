@@ -1,5 +1,7 @@
 # Wallet SMS account isolation: implementation boundaries
 
+**Direction update:** The user has chosen an independent wallet account using phone number plus SMS verification, rather than binding wallet identity to the general app account. See [wallet phone identity plan](WALLET_PHONE_IDENTITY_PLAN.md). References below to the current app account describe existing partial fences, not the final wallet principal. No phone-login flow is wired yet.
+
 Status: **work in progress; NO-GO for real SMS or release**. This design applies only to wallet and bank SMS data. Existing production capture, processing, review and notifications still use ownerless records. Existing legacy records are **not locked yet** and may still be shown, sent or removed by other paths. Queue-key collisions and mismatched item IDs now receive partial holds rather than intentional overwrites, but check/write/remove is not atomic across runtimes and does not establish ownership. Age-based candidate/quarantine deletion was replaced with a hold for aged or undated records. A persisted content-free marker makes an observed hold sticky across later clock changes, but a backward clock change before first observation or a failed marker write can bypass it; checks and mutations are not atomic across runtimes. It does not lock recent records. The new cipher is not wired to those paths.
 
 ## Security boundary

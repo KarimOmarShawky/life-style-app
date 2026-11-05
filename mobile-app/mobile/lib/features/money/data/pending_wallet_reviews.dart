@@ -154,10 +154,24 @@ class WalletSmsQuarantineStatus {
   static Future<bool> isQuarantined() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
-    if (prefs.getKeys().any((entry) => entry
-        .replaceFirst(_flutterPrefix, '')
-        .startsWith(PendingWalletTransactions.blockedPrefix))) {
+    final keys = prefs
+        .getKeys()
+        .map((entry) => entry.replaceFirst(_flutterPrefix, ''))
+        .toSet();
+    if (keys.any(
+        (entry) => entry.startsWith(PendingWalletTransactions.blockedPrefix))) {
       return true;
+    }
+    // Markers carry no content and can outlive their source: show a notice
+    // only while a related wallet queue entry is still present.
+    for (final entry in keys) {
+      if (!entry.startsWith(PendingWalletCandidates.legacyHoldPrefix)) continue;
+      final id =
+          entry.substring(PendingWalletCandidates.legacyHoldPrefix.length);
+      if (keys.contains('${PendingWalletCandidates.keyPrefix}$id') ||
+          keys.contains('${PendingWalletCandidates.reviewPrefix}$id') ||
+          keys.contains('${PendingWalletTransactions.keyPrefix}$id') ||
+          keys.contains('$quarantinePrefix$id')) return true;
     }
     final Object? value = prefs.get(key);
     if (value is bool) return value;
@@ -419,6 +433,9 @@ enum CandidateOutcome {
 
   /// The candidate must be kept and retried (see [CandidateDecision.reason]).
   retry,
+
+  /// A collision was seen; keep the source unchanged even if the hold fails.
+  held,
 }
 
 /// The outcome of applying one analyze response, with the reason kept so the
@@ -427,6 +444,8 @@ class CandidateDecision {
   const CandidateDecision._(this.outcome, this.reason);
 
   const CandidateDecision.handled() : this._(CandidateOutcome.handled, null);
+
+  const CandidateDecision.held() : this._(CandidateOutcome.held, null);
 
   const CandidateDecision.retry(CandidateRetryReason reason)
       : this._(CandidateOutcome.retry, reason);
@@ -511,9 +530,16 @@ class PendingWalletCandidates {
 
     var resolved = 0;
     for (final key in keys) {
-      final holdKey = '$legacyHoldPrefix${key.substring(keyPrefix.length)}';
+      final id = key.substring(keyPrefix.length);
+      final holdKey = '$legacyHoldPrefix$id';
       await prefs.reload();
       if (prefs.containsKey(holdKey)) continue;
+      if (prefs.containsKey('$quarantinePrefix$id') ||
+          prefs.containsKey('$reviewPrefix$id')) {
+        // A second record with the same ID is not proof of duplication.
+        await _markLegacyHold(prefs, holdKey);
+        continue;
+      }
       final String? raw;
       try {
         raw = await _codec.read(prefs, key);
@@ -547,6 +573,10 @@ class PendingWalletCandidates {
         await _quarantine(prefs, key, malformedReason);
         continue;
       }
+      if (candidate.id != id) {
+        await _markLegacyHold(prefs, holdKey);
+        continue;
+      }
       final nextAttempt = decoded['nextAttemptAtMs'];
       if (decoded['blocked'] == true ||
           (nextAttempt is int &&
@@ -566,6 +596,11 @@ class PendingWalletCandidates {
 
       await prefs.reload();
       if (prefs.containsKey(holdKey)) continue;
+      if (prefs.containsKey('$quarantinePrefix$id') ||
+          prefs.containsKey('$reviewPrefix$id')) {
+        await _markLegacyHold(prefs, holdKey);
+        continue;
+      }
       try {
         final response = jsonObject(
           await _api.post(
@@ -581,9 +616,15 @@ class PendingWalletCandidates {
         await prefs.reload();
         // This cannot undo a provider request already sent before the hold.
         if (prefs.containsKey(holdKey)) continue;
+        if (prefs.containsKey('$quarantinePrefix$id') ||
+            prefs.containsKey('$reviewPrefix$id')) {
+          await _markLegacyHold(prefs, holdKey);
+          continue;
+        }
         final decision = await _applyResult(prefs, key, candidate, response);
         await prefs.reload();
         if (prefs.containsKey(holdKey)) continue;
+        if (decision.outcome == CandidateOutcome.held) continue;
         if (decision.outcome == CandidateOutcome.handled) {
           // The replacement record is durable; only now may the candidate go.
           if (await _removeEntry(prefs, key)) {
@@ -599,6 +640,11 @@ class PendingWalletCandidates {
       } on ApiException catch (error) {
         await prefs.reload();
         if (prefs.containsKey(holdKey)) continue;
+        if (prefs.containsKey('$quarantinePrefix$id') ||
+            prefs.containsKey('$reviewPrefix$id')) {
+          await _markLegacyHold(prefs, holdKey);
+          continue;
+        }
         if (_isPermanentRejection(error)) {
           // A rejected analyze request is not a verdict on the SMS. Preserve
           // the sealed candidate instead of silently discarding it.
@@ -616,6 +662,11 @@ class PendingWalletCandidates {
       } on Exception {
         await prefs.reload();
         if (prefs.containsKey(holdKey)) continue;
+        if (prefs.containsKey('$quarantinePrefix$id') ||
+            prefs.containsKey('$reviewPrefix$id')) {
+          await _markLegacyHold(prefs, holdKey);
+          continue;
+        }
         await _bumpAttempts(prefs, key, decoded);
         return resolved;
       }
@@ -683,10 +734,16 @@ class PendingWalletCandidates {
     // On a real device the plugin stores this as `flutter.pending_wallet_review.<id>`,
     // the same key format the native receiver uses. The candidate is only
     // dropped once that write is confirmed (V-02).
+    final reviewKey = '$reviewPrefix${review.id}';
+    await prefs.reload();
+    if (prefs.containsKey(reviewKey)) {
+      await _markLegacyHold(prefs, '$legacyHoldPrefix${review.id}');
+      return const CandidateDecision.held();
+    }
     try {
       await _codec.write(
         prefs,
-        '$reviewPrefix${review.id}',
+        reviewKey,
         reviewRaw,
       );
       return const CandidateDecision.handled();
@@ -781,7 +838,13 @@ class PendingWalletCandidates {
       'payload': stored,
       'quarantinedAtMs': DateTime.now().millisecondsSinceEpoch,
     });
-    final target = '$quarantinePrefix${key.substring(keyPrefix.length)}';
+    final id = key.substring(keyPrefix.length);
+    final target = '$quarantinePrefix$id';
+    await prefs.reload();
+    if (prefs.containsKey(target)) {
+      await _markLegacyHold(prefs, '$legacyHoldPrefix$id');
+      return;
+    }
     try {
       // Write the quarantine record first, remove the source after (V-02).
       await _codec.write(prefs, target, envelope);
@@ -846,7 +909,8 @@ class PendingWalletCandidates {
       final origin = decoded['origin'];
       if (payload is! String ||
           origin is! String ||
-          !origin.startsWith('pending_wallet_')) {
+          (origin != keyPrefix &&
+              origin != PendingWalletTransactions.keyPrefix)) {
         continue;
       }
 
@@ -874,6 +938,10 @@ class PendingWalletCandidates {
 
       // Readable again: hand the original sealed value back to its origin queue.
       final target = '$origin${key.substring(quarantinePrefix.length)}';
+      if (prefs.containsKey(target)) {
+        await _markLegacyHold(prefs, holdKey);
+        continue;
+      }
       if (!await prefs.setString(target, payload)) {
         await _publishQuarantine(prefs, 'WRITE_FAILED');
         continue;

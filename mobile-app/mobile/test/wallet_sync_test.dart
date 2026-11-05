@@ -152,6 +152,50 @@ void main() {
       }
     });
 
+    test('keeps a mismatched transaction ID locked without sending', () async {
+      final original = _queuedItem('different');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_tx.source': original,
+      });
+      var requests = 0;
+      final queue = PendingWalletTransactions(
+        MoneyRepository(_apiWith(MockClient((_) async {
+          requests++;
+          return _jsonResponse(201, {});
+        }))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      expect(await queue.flush(), 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_tx.source'), original);
+      expect(prefs.getString('wallet_legacy_hold.source'), 'HELD');
+      expect(requests, 0);
+    });
+
+    test('keeps a transaction and quarantine collision without uploading',
+        () async {
+      final original = _queuedItem('same');
+      const quarantined = 'different preserved opaque payload';
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_tx.same': original,
+        'flutter.pending_wallet_quarantine.same': quarantined,
+      });
+      var requests = 0;
+      final queue = PendingWalletTransactions(
+        MoneyRepository(_apiWith(MockClient((_) async {
+          requests++;
+          return _jsonResponse(201, {});
+        }))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      expect(await queue.flush(), 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_tx.same'), original);
+      expect(prefs.getString('pending_wallet_quarantine.same'), quarantined);
+      expect(prefs.getString('wallet_legacy_hold.same'), 'HELD');
+      expect(requests, 0);
+    });
+
     test('parks rejected transactions without deleting or retrying them',
         () async {
       for (final status in [400, 409, 422]) {

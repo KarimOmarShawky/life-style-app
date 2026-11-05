@@ -704,6 +704,135 @@ void main() {
       expect(prefs.getString('pending_wallet_candidate.sealed'), isNull);
     });
 
+    test('candidate collisions and mismatched IDs remain locked', () async {
+      for (final caseName in ['review', 'quarantine', 'mismatch']) {
+        final original =
+            _candidateItem(caseName == 'mismatch' ? 'other' : 'same');
+        final values = <String, Object>{
+          'flutter.pending_wallet_candidate.same': original,
+          if (caseName == 'review')
+            'flutter.pending_wallet_review.same': _reviewItem('same'),
+          if (caseName == 'quarantine')
+            'flutter.pending_wallet_quarantine.same': 'opaque conflict',
+        };
+        SharedPreferences.setMockInitialValues(values);
+        var calls = 0;
+        final candidates = PendingWalletCandidates(
+          _apiWith(MockClient((_) async {
+            calls++;
+            return http.Response(_analyzeResponse(status: 'unrecognized'), 200);
+          })),
+          MoneyRepository(
+              _apiWith(MockClient((_) async => http.Response('', 201)))),
+          codec: const PlainWalletQueueCodec(),
+        );
+        expect(await candidates.flush(), 0, reason: caseName);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('pending_wallet_candidate.same'), original);
+        if (caseName == 'review') {
+          expect(prefs.getString('pending_wallet_review.same'),
+              _reviewItem('same'));
+        }
+        if (caseName == 'quarantine') {
+          expect(prefs.getString('pending_wallet_quarantine.same'),
+              'opaque conflict');
+        }
+        expect(prefs.getString('wallet_legacy_hold.same'), 'HELD');
+        expect(await WalletSmsQuarantineStatus.isQuarantined(), isTrue);
+        expect(calls, 0);
+      }
+    });
+
+    test(
+        'a review arriving during analysis cannot be overwritten or delete its source',
+        () async {
+      final original = _candidateItem('race');
+      final existingReview = _reviewItem('race');
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_candidate.race': original,
+      });
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('pending_wallet_review.race', existingReview);
+          return http.Response(
+            _analyzeResponse(
+                status: 'recognized', transaction: _strictTransaction),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        })),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      expect(await candidates.flush(), 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_candidate.race'), original);
+      expect(prefs.getString('pending_wallet_review.race'), existingReview);
+      expect(prefs.getString('wallet_legacy_hold.race'), 'HELD');
+    });
+
+    test('recovery preserves an occupied destination and the quarantine source',
+        () async {
+      const existing = 'existing transaction';
+      final quarantine = jsonEncode({
+        'origin': 'pending_wallet_tx.',
+        'reason': 'UNREADABLE',
+        'attempts': 0,
+        'payload': 'another opaque record',
+        'quarantinedAtMs': DateTime.now().millisecondsSinceEpoch,
+      });
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_tx.same': existing,
+        'flutter.pending_wallet_quarantine.same': quarantine,
+      });
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) async => http.Response('', 200))),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      expect(await candidates.flush(), 0);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_tx.same'), existing);
+      expect(prefs.getString('pending_wallet_quarantine.same'), quarantine);
+      expect(prefs.getString('wallet_legacy_hold.same'), 'HELD');
+    });
+
+    test('an orphaned hold marker alone does not show a quarantine notice',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.wallet_legacy_hold.orphan': 'HELD',
+      });
+      expect(await WalletSmsQuarantineStatus.isQuarantined(), isFalse);
+    });
+
+    test('quarantine recovery refuses unrelated destination prefixes',
+        () async {
+      final quarantine = jsonEncode({
+        'origin': 'pending_wallet_unrelated.',
+        'reason': 'UNREADABLE',
+        'attempts': 0,
+        'payload': 'wrong destination data',
+        'quarantinedAtMs': DateTime.now().millisecondsSinceEpoch,
+      });
+      SharedPreferences.setMockInitialValues({
+        'flutter.pending_wallet_quarantine.same': quarantine,
+        'flutter.pending_wallet_unrelated.same': 'preserve me',
+      });
+      final candidates = PendingWalletCandidates(
+        _apiWith(MockClient((_) async => http.Response('', 200))),
+        MoneyRepository(
+            _apiWith(MockClient((_) async => http.Response('', 201)))),
+        codec: const PlainWalletQueueCodec(),
+      );
+      await candidates.flush();
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('pending_wallet_unrelated.same'), 'preserve me');
+      expect(prefs.getString('pending_wallet_quarantine.same'), quarantine);
+    });
+
     test('a malformed entry is never restored into a parse loop', () async {
       SharedPreferences.setMockInitialValues({
         'flutter.pending_wallet_candidate.junk': 'not json',

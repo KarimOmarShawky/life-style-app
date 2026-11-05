@@ -386,8 +386,15 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val cipher = WalletQueueCipher()
         val pendingKeys = prefs.all.keys.filter { it.startsWith(PENDING_PREFIX) }.sorted()
         for (key in pendingKeys) {
-            val blockedKey = REJECTED_TX_PREFIX + key.removePrefix(PENDING_PREFIX)
-            if (prefs.contains(blockedKey)) continue
+            val id = key.removePrefix(PENDING_PREFIX)
+            val blockedKey = REJECTED_TX_PREFIX + id
+            val holdKey = LEGACY_HOLD_PREFIX + id
+            if (prefs.contains(blockedKey) || prefs.contains(holdKey)) continue
+            if (prefs.contains(QUARANTINE_PREFIX + id)) {
+                // Preserve both records; matching IDs do not prove duplication.
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             val stored = prefs.getString(key, null) ?: continue
             // v2 entries are Keystore-encrypted; v1 entries migrate as-is.
             val raw = cipher.decrypt(stored)
@@ -397,10 +404,18 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 quarantine(prefs, key, stored, QUARANTINE_UNREADABLE, PENDING_PREFIX)
                 continue
             }
+            val itemId = try { JSONObject(raw).opt("id") as? String } catch (_: Exception) { null }
+            if (id.isEmpty() || itemId != id) {
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
+            if (prefs.contains(blockedKey) || prefs.contains(holdKey) ||
+                prefs.contains(QUARANTINE_PREFIX + id)) continue
             val status = postTransaction(url, token, raw)
             if (status in 200..299) {
                 // A different runtime may have parked this item during the request.
-                if (prefs.contains(blockedKey)) continue
+                if (prefs.contains(blockedKey) || prefs.contains(holdKey) ||
+                    prefs.contains(QUARANTINE_PREFIX + id)) continue
                 if (!removeEntry(prefs, key)) {
                     Log.e(TAG, "Delivered wallet transaction could not be dequeued")
                 }
@@ -502,8 +517,13 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         retryQuarantined(prefs)
         val candidateKeys = prefs.all.keys.filter { it.startsWith(CANDIDATE_PREFIX) }.sorted()
         for (key in candidateKeys) {
-            val holdKey = LEGACY_HOLD_PREFIX + key.removePrefix(CANDIDATE_PREFIX)
+            val id = key.removePrefix(CANDIDATE_PREFIX)
+            val holdKey = LEGACY_HOLD_PREFIX + id
             if (prefs.contains(holdKey)) continue
+            if (prefs.contains(QUARANTINE_PREFIX + id) || prefs.contains(REVIEW_PREFIX + id)) {
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             val stored = prefs.getString(key, null) ?: continue
             val raw = cipher.decrypt(stored)
             if (prefs.contains(holdKey)) continue
@@ -529,15 +549,27 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 commitEntry(prefs, holdKey, "HELD")
                 continue
             }
+            if (id.isEmpty() || (item.opt("id") as? String) != id) {
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             val attempts = item.optInt("attempts", 0)
             if (item.optBoolean("blocked", false)) continue
             if (item.optLong("nextAttemptAtMs", 0L) > System.currentTimeMillis()) continue
 
             if (prefs.contains(holdKey)) continue
+            if (prefs.contains(QUARANTINE_PREFIX + id) || prefs.contains(REVIEW_PREFIX + id)) {
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             val (status, body) = postAnalyze(analyzeUrl, token, item)
             // Another runtime may have marked the record during the request.
             // The remote call itself cannot be recalled.
             if (prefs.contains(holdKey)) continue
+            if (prefs.contains(QUARANTINE_PREFIX + id) || prefs.contains(REVIEW_PREFIX + id)) {
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             when {
                 status in 200..299 && body != null -> {
                     // Handle first, delete after: a recognized result is queued
@@ -564,6 +596,7 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                         CandidateOutcome.RETRY_NOT_FINAL -> {
                             if (!retryCandidate(prefs, key, item, attempts, RetryReason.NOT_FINAL)) return
                         }
+                        CandidateOutcome.HELD -> continue
                     }
                 }
                 // The fallback is not configured or is down. This says nothing
@@ -596,7 +629,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         HANDLED,
         RETRY_UNAVAILABLE,
         RETRY_UNKNOWN_STATUS,
-        RETRY_NOT_FINAL
+        RETRY_NOT_FINAL,
+        HELD
     }
 
     /** Why an entry was retried; drives the user-visible diagnostic (V-01). */
@@ -755,6 +789,11 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             publishStorageFault(prefs)
             return
         }
+        // A collision is not proof that the two payloads are the same.
+        if (prefs.contains(target)) {
+            commitEntry(prefs, LEGACY_HOLD_PREFIX + id, "HELD")
+            return
+        }
         // Write the quarantine record first, then remove the source (V-02).
         if (!commitEntry(prefs, target, sealed)) return
         if (!removeEntry(prefs, key)) {
@@ -814,10 +853,15 @@ class SmsTransactionReceiver : BroadcastReceiver() {
                 continue
             }
             // Readable again: restore it to its origin queue with a fresh budget.
-            val origin = entry.optString("origin", CANDIDATE_PREFIX)
+            val origin = entry.optString("origin")
+            if (origin != CANDIDATE_PREFIX && origin != PENDING_PREFIX) continue
             val restored = payload
             val target = origin + key.removePrefix(QUARANTINE_PREFIX)
             if (prefs.contains(holdKey)) continue
+            if (prefs.contains(target)) {
+                commitEntry(prefs, holdKey, "HELD")
+                continue
+            }
             if (!commitEntry(prefs, target, restored)) continue
             if (prefs.contains(holdKey)) continue
             if (!removeEntry(prefs, key)) continue
@@ -904,8 +948,13 @@ class SmsTransactionReceiver : BroadcastReceiver() {
             publishStorageFault(prefs)
             return CandidateOutcome.RETRY_NOT_FINAL
         }
+        val reviewKey = REVIEW_PREFIX + id
+        if (prefs.contains(reviewKey)) {
+            commitEntry(prefs, LEGACY_HOLD_PREFIX + id, "HELD")
+            return CandidateOutcome.HELD
+        }
         // The candidate may only disappear once the review item is on disk (V-02).
-        if (!commitEntry(prefs, REVIEW_PREFIX + id, stored)) return CandidateOutcome.RETRY_NOT_FINAL
+        if (!commitEntry(prefs, reviewKey, stored)) return CandidateOutcome.RETRY_NOT_FINAL
         showReviewNotification(context)
         return CandidateOutcome.HANDLED
     }

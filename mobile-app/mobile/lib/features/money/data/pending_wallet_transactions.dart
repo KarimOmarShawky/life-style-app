@@ -43,8 +43,21 @@ class PendingWalletTransactions {
     var stored = 0;
     for (final key in keys) {
       await prefs.reload();
-      final blockedKey = '$blockedPrefix${key.substring(keyPrefix.length)}';
-      if (prefs.containsKey(blockedKey)) continue;
+      final id = key.substring(keyPrefix.length);
+      final blockedKey = '$blockedPrefix$id';
+      final holdKey = 'wallet_legacy_hold.$id';
+      if (prefs.containsKey(blockedKey) || prefs.containsKey(holdKey)) continue;
+      if (prefs.containsKey('pending_wallet_quarantine.$id')) {
+        // Two records with the same ID may be unrelated; keep both locked.
+        try {
+          if (!await prefs.setString(holdKey, 'HELD')) {
+            await _publishStorageFault(prefs);
+          }
+        } on Object {
+          await _publishStorageFault(prefs);
+        }
+        continue;
+      }
       // The native receiver stores this entry sealed with the device key.
       final String? entry;
       try {
@@ -59,6 +72,21 @@ class PendingWalletTransactions {
         // Do not delete it or infer its owner; leave it for safe recovery.
         continue;
       }
+      if (item.id != id) {
+        // A misplaced payload cannot safely supply the idempotency key.
+        try {
+          if (!await prefs.setString(holdKey, 'HELD')) {
+            await _publishStorageFault(prefs);
+          }
+        } on Object {
+          await _publishStorageFault(prefs);
+        }
+        continue;
+      }
+      await prefs.reload();
+      if (prefs.containsKey(blockedKey) ||
+          prefs.containsKey(holdKey) ||
+          prefs.containsKey('pending_wallet_quarantine.$id')) continue;
       try {
         await _repository.createTransaction(
           kind: item.kind,
@@ -82,7 +110,9 @@ class PendingWalletTransactions {
       }
       // Native processing may have parked this item while the request was in flight.
       await prefs.reload();
-      if (prefs.containsKey(blockedKey)) continue;
+      if (prefs.containsKey(blockedKey) ||
+          prefs.containsKey(holdKey) ||
+          prefs.containsKey('pending_wallet_quarantine.$id')) continue;
       stored++;
       await prefs.remove(key);
     }

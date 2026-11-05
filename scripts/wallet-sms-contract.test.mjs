@@ -85,7 +85,7 @@ test('F-02 unavailable is retryable and is never collapsed with unrecognized', (
 });
 
 test('F-05 queue entries are sealed with a device key, never stored plaintext', () => {
-  for (const marker of ['PENDING_PREFIX', 'CANDIDATE_PREFIX', 'REVIEW_PREFIX']) {
+  for (const marker of ['PENDING_PREFIX', 'CANDIDATE_PREFIX']) {
     // Every queue write goes through commitEntry, which verifies the write
     // reached disk instead of assuming it did (V-02).
     assert.ok(
@@ -93,6 +93,8 @@ test('F-05 queue entries are sealed with a device key, never stored plaintext', 
       `${marker} must still be written`
     );
   }
+  assert.ok(receiver.includes('val reviewKey = REVIEW_PREFIX + id'));
+  assert.ok(receiver.includes('commitEntry(prefs, reviewKey, stored)'));
   assert.ok(receiver.includes('private fun commitEntry(prefs: SharedPreferences, key: String, stored: String): Boolean'));
   // Every queue write goes through the cipher; no raw JSON is put into prefs.
   assert.ok(receiver.includes('private fun writeCandidate('));

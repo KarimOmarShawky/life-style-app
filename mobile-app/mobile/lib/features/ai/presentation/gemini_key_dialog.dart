@@ -4,12 +4,14 @@ import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 /// Opens a dialog allowing the user to save or clear their personal BYOK
 /// Gemini API key in encrypted device storage (`FlutterSecureStorage`).
-Future<bool> showGeminiApiKeyDialog(BuildContext context) async {
+Future<bool> showGeminiApiKeyDialog(BuildContext context,
+    {AiService? service}) async {
+  final ai = service ?? AiService.instance;
   final l10n = AppLocalizations.of(context);
   final isAr = l10n.isArabic;
   final String currentKey;
   try {
-    currentKey = await AiService.instance.getUserApiKey();
+    currentKey = await ai.getUserApiKey();
   } on AiSecureStorageException {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +94,7 @@ Future<bool> showGeminiApiKeyDialog(BuildContext context) async {
                         storageError = false;
                       });
                       try {
-                        await AiService.instance.setUserApiKey(null);
+                        await ai.setUserApiKey(null);
                         if (dialogContext.mounted) {
                           Navigator.of(dialogContext).pop(true);
                         }
@@ -124,7 +126,7 @@ Future<bool> showGeminiApiKeyDialog(BuildContext context) async {
                       storageError = false;
                     });
                     try {
-                      await AiService.instance.setUserApiKey(controller.text);
+                      await ai.setUserApiKey(controller.text);
                       if (dialogContext.mounted) {
                         Navigator.of(dialogContext).pop(true);
                       }
@@ -146,7 +148,7 @@ Future<bool> showGeminiApiKeyDialog(BuildContext context) async {
 
   controller.dispose();
   if (saved == true && context.mounted) {
-    final hasKey = await AiService.instance.hasUserApiKey();
+    final hasKey = await ai.hasUserApiKey();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

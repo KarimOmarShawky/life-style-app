@@ -82,6 +82,9 @@ void main() {
       (tester) async {
     storage.failWrite = true;
     storage.writeStarted = Completer<void>();
+    // The singleton may carry a Future created in another test's async zone.
+    // Keep this widget's real storage behavior isolated to its own service.
+    final widgetAi = AiService.forTesting();
     await tester.pumpWidget(MaterialApp(
       locale: const Locale('en'),
       supportedLocales: AppLocalizations.supportedLocales,
@@ -94,13 +97,16 @@ void main() {
       home: Scaffold(
           body: Builder(
               builder: (context) => FilledButton(
-                    onPressed: () => showGeminiApiKeyDialog(context),
+                    onPressed: () =>
+                        showGeminiApiKeyDialog(context, service: widgetAi),
                     child: const Text('Open'),
                   ))),
     ));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'test-secret');
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'test-secret');
     final save = find.widgetWithText(FilledButton, 'Save');
     await tester.ensureVisible(save);
     await tester.pumpAndSettle();
@@ -129,6 +135,6 @@ void main() {
     expect(error, findsOneWidget,
         reason:
             'The failed save must show the localized error; dialog text: $dialogTexts');
-    expect(await ai.getUserApiKey(), isEmpty);
+    expect(await widgetAi.getUserApiKey(), isEmpty);
   });
 }

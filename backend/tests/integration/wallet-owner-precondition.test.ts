@@ -72,6 +72,57 @@ describe('wallet owner precondition with real authentication and persistence', (
       expect(denied.body.error.code).toBe('WALLET_OWNER_MISMATCH');
     }
     expect(Number((await pool.query('SELECT count(*) AS n FROM transactions')).rows[0].n)).toBe(0);
+    // These new wallet-only routes reject a missing owner as well as a different
+    // one, before invoking the provider or transaction controller.
+    for (const [path, credential, payload] of [
+      ['/api/v1/ingest/wallet/sms/analyze', ingestToken, candidate],
+      ['/api/v1/ingest/wallet/sms/analyze', second.tokens.accessToken, candidate],
+      ['/api/v1/ingest/wallet/transactions', ingestToken, body],
+      ['/api/v1/money/wallet/transactions', second.tokens.accessToken, body]
+    ] as const) {
+      const unauthenticated = await request(app).post(path).send(payload);
+      expect(unauthenticated.status).toBe(401);
+      const missing = await request(app)
+        .post(path)
+        .set('Authorization', `Bearer ${credential}`)
+        .set('Idempotency-Key', randomUUID())
+        .send(payload);
+      expect(missing.status).toBe(428);
+      expect(missing.body.error.code).toBe('WALLET_OWNER_MISMATCH');
+      expect(missing.headers['cache-control']).toContain('no-store');
+      const wrongOwner = await request(app)
+        .post(path)
+        .set('Authorization', `Bearer ${credential}`)
+        .set('Idempotency-Key', randomUUID())
+        .set('X-Wallet-Owner', first.user.id)
+        .send(payload);
+      expect(wrongOwner.status).toBe(428);
+    }
+    expect(analyze).not.toHaveBeenCalled();
+    expect(Number((await pool.query('SELECT count(*) AS n FROM transactions')).rows[0].n)).toBe(0);
+    for (const credential of [ingestToken, second.tokens.accessToken]) {
+      const analyzed = await request(app)
+        .post('/api/v1/ingest/wallet/sms/analyze')
+        .set('Authorization', `Bearer ${credential}`)
+        .set('X-Wallet-Owner', second.user.id)
+        .send(candidate);
+      expect(analyzed.status).toBe(200);
+    }
+    expect(analyze).toHaveBeenCalledTimes(2);
+    analyze.mockClear();
+    for (const [path, credential] of [
+      ['/api/v1/ingest/wallet/transactions', ingestToken],
+      ['/api/v1/money/wallet/transactions', second.tokens.accessToken]
+    ]) {
+      const saved = await request(app)
+        .post(path!)
+        .set('Authorization', `Bearer ${credential}`)
+        .set('Idempotency-Key', randomUUID())
+        .set('X-Wallet-Owner', second.user.id)
+        .send(body);
+      expect(saved.status).toBe(201);
+    }
+    expect(Number((await pool.query('SELECT count(*) AS n FROM transactions')).rows[0].n)).toBe(2);
     const ok = await request(app)
       .post('/api/v1/ingest/sms/analyze')
       .set('Authorization', `Bearer ${ingestToken}`)

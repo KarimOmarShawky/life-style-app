@@ -30,6 +30,27 @@ describe('wallet owner precondition API contract', () => {
       schema: { type: 'string', format: 'uuid' }
     });
     expect(parameter.description).toContain('does not establish ownership');
+    const required = spec.components.parameters.RequiredWalletOwner;
+    expect(required).toMatchObject({
+      name: 'X-Wallet-Owner',
+      in: 'header',
+      required: true,
+      schema: { type: 'string', format: 'uuid' }
+    });
+    expect(required.description).toContain('does not establish ownership');
+    for (const path of [
+      '/ingest/wallet/transactions',
+      '/ingest/wallet/sms/analyze',
+      '/money/wallet/transactions'
+    ]) {
+      const operation = spec.paths[path].post;
+      expect(operation.parameters).toContainEqual({
+        $ref: '#/components/parameters/RequiredWalletOwner'
+      });
+      expect(operation.responses['428']).toEqual({
+        $ref: '#/components/responses/WalletOwnerMismatch'
+      });
+    }
     const mismatch = spec.components.responses.WalletOwnerMismatch;
     expect(mismatch.description).toContain('WALLET_OWNER_MISMATCH');
     expect(mismatch.headers['Cache-Control'].example).toBe('no-store');

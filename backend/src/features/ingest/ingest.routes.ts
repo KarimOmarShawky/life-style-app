@@ -8,7 +8,10 @@
  */
 
 import { Router, type RequestHandler } from 'express';
-import { walletOwnerPrecondition } from '../../core/middleware/wallet-owner-precondition.js';
+import {
+  strictWalletOwnerPrecondition,
+  walletOwnerPrecondition
+} from '../../core/middleware/wallet-owner-precondition.js';
 import type { IngestController } from './ingest.controller.js';
 import { type RateLimiter, createRateLimitMiddleware } from '../../core/middleware/rate-limiter.js';
 
@@ -62,6 +65,22 @@ export function createIngestRouter(options: {
     walletOwnerPrecondition,
     transactionRateLimiter,
     createTransaction
+  );
+  // New clients use wallet-only routes with a mandatory owner precondition.
+  // This compares the authenticated principal; it does not prove SMS ownership.
+  router.post(
+    '/wallet/transactions',
+    authenticateIngest,
+    strictWalletOwnerPrecondition,
+    transactionRateLimiter,
+    createTransaction
+  );
+  router.post(
+    '/wallet/sms/analyze',
+    authenticateIngestOrUser,
+    strictWalletOwnerPrecondition,
+    analyzeRateLimiter,
+    controller.analyzeSms
   );
   router.post(
     '/sms/analyze',

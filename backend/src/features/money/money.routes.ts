@@ -5,7 +5,10 @@
  */
 
 import { Router, type RequestHandler } from 'express';
-import { walletOwnerPrecondition } from '../../core/middleware/wallet-owner-precondition.js';
+import {
+  strictWalletOwnerPrecondition,
+  walletOwnerPrecondition
+} from '../../core/middleware/wallet-owner-precondition.js';
 import type { MoneyController } from './money.controller.js';
 import { type RateLimiter, createRateLimitMiddleware } from '../../core/middleware/rate-limiter.js';
 
@@ -37,6 +40,7 @@ export function createMoneyRouter(options: {
   // 2. Transactions
   router.get('/transactions', controller.listTransactions);
   router.post('/transactions', walletOwnerPrecondition, controller.createTransaction);
+  router.post('/wallet/transactions', strictWalletOwnerPrecondition, controller.createTransaction);
   router.get('/transactions/:id', controller.getTransaction);
   router.patch('/transactions/:id', controller.updateTransaction);
   router.delete('/transactions/:id', controller.deleteTransaction);

@@ -12,6 +12,7 @@ import {
   strictWalletOwnerPrecondition,
   walletOwnerPrecondition
 } from '../../core/middleware/wallet-owner-precondition.js';
+import { walletTransactionSession } from '../../core/middleware/wallet-transaction-session.js';
 import type { IngestController } from './ingest.controller.js';
 import { type RateLimiter, createRateLimitMiddleware } from '../../core/middleware/rate-limiter.js';
 
@@ -72,6 +73,7 @@ export function createIngestRouter(options: {
     '/wallet/transactions',
     authenticateIngest,
     strictWalletOwnerPrecondition,
+    walletTransactionSession(true),
     transactionRateLimiter,
     createTransaction
   );

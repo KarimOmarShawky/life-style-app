@@ -3046,7 +3046,7 @@ paths:
       summary: Create owner-checked wallet transaction
       security:
         - BearerAuth: []
-      description: Creates a wallet transaction with a mandatory owner precondition. The header compares against the authenticated account, but does not establish SMS ownership. Requires Idempotency-Key header.
+      description: Creates a wallet transaction with a mandatory owner precondition. The header compares against the authenticated account, but does not establish SMS ownership. For a new insertion the session is rechecked under a database row lock that orders it against logout; idempotent replays use the earlier authentication check. Requires Idempotency-Key header.
       parameters:
         - $ref: '#/components/parameters/RequiredWalletOwner'
         - name: Idempotency-Key
@@ -3086,6 +3086,8 @@ paths:
                   - transaction
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Authentication missing, invalid, or session ended before the insertion boundary
         '409':
           description: Idempotency key reused or quota exceeded
         '428':
@@ -3618,7 +3620,7 @@ paths:
   /ingest/wallet/transactions:
     post:
       summary: Create owner-checked wallet transaction with ingest token
-      description: Same body as POST /money/transactions, with a mandatory owner precondition. The header compares against the authenticated account, but does not establish SMS ownership. Accepts only an ingest token. Requires Idempotency-Key header.
+      description: Same body as POST /money/transactions, with a mandatory owner precondition. The header compares against the authenticated account, but does not establish SMS ownership. For a new insertion the session and ingest token are rechecked under the session row lock that orders it against logout and token revocation; idempotent replays use the earlier authentication check. Accepts only an ingest token. Requires Idempotency-Key header.
       security:
         - IngestToken: []
       parameters:

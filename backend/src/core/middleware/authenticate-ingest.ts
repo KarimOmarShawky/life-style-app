@@ -62,6 +62,8 @@ export function createIngestAuthenticateMiddleware(
 
       req.user = user;
       req.sessionId = session.sessionId;
+      // Server-derived token row identity, used by strict wallet commit fencing.
+      req.ingestTokenId = record.id;
 
       const currentStore = requestContextStore.getStore();
       if (currentStore) {

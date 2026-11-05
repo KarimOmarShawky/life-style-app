@@ -51,6 +51,11 @@ describe('wallet owner precondition API contract', () => {
         $ref: '#/components/responses/WalletOwnerMismatch'
       });
     }
+    for (const path of ['/ingest/wallet/transactions', '/money/wallet/transactions']) {
+      expect(spec.paths[path].post.description).toContain('session');
+      expect(spec.paths[path].post.description).toContain('idempotent replays');
+      expect(spec.paths[path].post.responses['401']).toBeDefined();
+    }
     const mismatch = spec.components.responses.WalletOwnerMismatch;
     expect(mismatch.description).toContain('WALLET_OWNER_MISMATCH');
     expect(mismatch.headers['Cache-Control'].example).toBe('no-store');

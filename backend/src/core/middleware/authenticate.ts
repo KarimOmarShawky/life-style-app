@@ -22,6 +22,8 @@ declare global {
     interface Request {
       user?: AuthenticatedUserContext;
       sessionId?: string;
+      ingestTokenId?: string;
+      walletTransactionSession?: import('./wallet-transaction-session.js').WalletTransactionSession;
     }
   }
 }

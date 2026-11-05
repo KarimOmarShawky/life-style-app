@@ -11,11 +11,13 @@ import { AppError } from '../../src/core/errors/app-error.js';
 const account = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const different = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
-function setup() {
+function setup(options: { session?: boolean; ingest?: boolean } = {}) {
   const app = express();
   app.use(express.json());
   const auth: RequestHandler = (req, _res, next) => {
     req.user = { id: account } as NonNullable<typeof req.user>;
+    if (options.session !== false) req.sessionId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    if (options.ingest !== false) req.ingestTokenId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
     next();
   };
   const analyze = vi.fn((_req, res) => res.json({ ok: true }));
@@ -94,5 +96,34 @@ describe('strict wallet routes require an owner precondition', () => {
       .send({});
     expect(result.status).toBeLessThan(300);
     expect(analyze.mock.calls.length + create.mock.calls.length).toBe(1);
+  });
+  it('attaches only server-derived transaction identities to strict routes', async () => {
+    const { app, create } = setup();
+    const sessionId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const ingestTokenId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    for (const [path, expected] of [
+      ['/ingest/wallet/transactions', { sessionId, ingestTokenId }],
+      ['/money/wallet/transactions', { sessionId }],
+      ['/ingest/transactions', undefined],
+      ['/money/transactions', undefined]
+    ] as const) {
+      create.mockClear();
+      const result = await request(app).post(path).set('X-Wallet-Owner', account).send({});
+      expect(result.status).toBe(201);
+      expect(create.mock.calls[0]![0].walletTransactionSession).toEqual(expected);
+    }
+  });
+
+  it('rejects strict transaction calls missing their authenticated session or ingest row', async () => {
+    for (const [path, options] of [
+      ['/ingest/wallet/transactions', { session: false }],
+      ['/ingest/wallet/transactions', { ingest: false }],
+      ['/money/wallet/transactions', { session: false }]
+    ] as const) {
+      const { app, create } = setup(options);
+      const result = await request(app).post(path).set('X-Wallet-Owner', account).send({});
+      expect(result.status).toBe(401);
+      expect(create).not.toHaveBeenCalled();
+    }
   });
 });

@@ -143,7 +143,8 @@ export class MoneyController {
         {
           requestId: req.id,
           ip: req.ip,
-          userAgent: req.headers['user-agent']
+          userAgent: req.headers['user-agent'],
+          walletTransactionSession: req.walletTransactionSession
         },
         userTimezone
       );

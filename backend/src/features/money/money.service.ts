@@ -9,6 +9,7 @@ import { Decimal } from 'decimal.js';
 import { AppError } from '../../core/errors/app-error.js';
 import { getUserTodayDate } from '../../core/time/date-utils.js';
 import type { MoneyRepository } from './money.repository.js';
+import type { WalletTransactionSession } from '../../core/middleware/wallet-transaction-session.js';
 import type { ReminderCancellationPort } from '../reminders/reminder-cancellation.port.js';
 import {
   assertSubscriptionPaymentInvariants,
@@ -57,6 +58,7 @@ export interface RequestContext {
   requestId?: string | undefined;
   ip?: string | undefined;
   userAgent?: string | undefined;
+  walletTransactionSession?: WalletTransactionSession | undefined;
 }
 
 export function computeTransactionFingerprint(input: {
@@ -266,7 +268,8 @@ export class MoneyService {
           requestId: context.requestId,
           ip: context.ip,
           userAgent: context.userAgent
-        }
+        },
+        context.walletTransactionSession
       );
 
       return { transaction: toTransactionDto(tx), isReplay: false };

@@ -30,6 +30,7 @@ import type {
   BudgetPeriod
 } from './money.types.js';
 import { AppError } from '../../core/errors/app-error.js';
+import type { WalletTransactionSession } from '../../core/middleware/wallet-transaction-session.js';
 import { isValidCalendarDate } from '../../core/validation/date-only.js';
 import { calculateNextBillingDate } from './money.cycle.js';
 import {
@@ -451,9 +452,49 @@ export class PgMoneyRepository implements MoneyRepository {
   async createTransaction(
     userId: string,
     input: CreateTransactionInput,
-    auditData: AuditLogData
+    auditData: AuditLogData,
+    walletSession?: WalletTransactionSession | undefined
   ): Promise<TransactionEntity> {
     return await this.db.transaction().execute(async (trx) => {
+      if (walletSession) {
+        // Logout, ingest revocation and token rotation use this same row lock.
+        // Check expiry only after the lock is acquired, not transaction start.
+        const locked = await trx
+          .selectFrom('auth_sessions')
+          .select('id')
+          .where('id', '=', walletSession.sessionId)
+          .where('user_id', '=', userId)
+          .forUpdate()
+          .executeTakeFirst();
+        const active =
+          locked &&
+          (await trx
+            .selectFrom('auth_sessions')
+            .select('id')
+            .where('id', '=', walletSession.sessionId)
+            .where('revoked_at', 'is', null)
+            .where('absolute_expires_at', '>', sql<Date>`clock_timestamp()`)
+            .executeTakeFirst());
+        if (!active) {
+          throw AppError.unauthenticated(
+            'Session is invalid or has been revoked',
+            'UNAUTHENTICATED'
+          );
+        }
+        if (walletSession.ingestTokenId) {
+          const token = await sql<{ id: string }>`
+            SELECT id FROM ingest_tokens WHERE id = ${walletSession.ingestTokenId}
+            AND user_id = ${userId} AND session_id = ${walletSession.sessionId}
+            AND revoked_at IS NULL
+          `.execute(trx);
+          if (token.rows.length !== 1) {
+            throw AppError.unauthenticated(
+              'Ingest token is invalid or has been revoked',
+              'UNAUTHENTICATED'
+            );
+          }
+        }
+      }
       await assertCreateCategory(trx, userId, input.categoryId, input.kind);
       const row = (await trx
         .insertInto('transactions')

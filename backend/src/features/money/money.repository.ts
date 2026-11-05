@@ -1,3 +1,4 @@
+import type { WalletTransactionSession } from '../../core/middleware/wallet-transaction-session.js';
 /**
  * src/features/money/money.repository.ts
  *
@@ -67,7 +68,8 @@ export interface MoneyRepository {
   createTransaction(
     userId: string,
     input: CreateTransactionInput,
-    auditData: AuditLogData
+    auditData: AuditLogData,
+    walletSession?: WalletTransactionSession | undefined
   ): Promise<TransactionEntity>;
   findTransactionById(userId: string, transactionId: string): Promise<TransactionEntity | null>;
   findTransactionByIdempotencyKey(

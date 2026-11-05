@@ -24,7 +24,12 @@ class InMemoryRedis {
     const args = values.slice(count).map(String);
     const run = this.scriptQueue.then(async () => {
       const [code, attempts, account, generation] = keys as [string, string, string, string];
+      if (script.startsWith('-- otp-release-cooldown-v1')) {
+        if ((await this.get(code)) !== args[0]) return 0;
+        return this.del(code);
+      }
       if (script.startsWith('-- otp-issue-v1')) {
+        if (args[2] && (await this.get(generation)) !== args[2]) return 0;
         await this.set(code, args[0]!, 'EX', 900);
         await this.del(attempts);
         await this.set(account, args[1]!, 'EX', 900); // third issuance key is the generation

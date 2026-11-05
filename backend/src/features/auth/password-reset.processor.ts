@@ -104,7 +104,17 @@ export class PasswordResetProcessor {
       }
     }
 
-    const allowed = await this.otpStore.checkCooldown(user.id);
+    // An owned lease can be safely released if issuance fails before SMTP.
+    // Legacy stores without the capability retain the original TTL-only behavior.
+    let cooldownToken: string | undefined;
+    let allowed: boolean;
+    if (this.otpStore.acquireCooldown && this.otpStore.releaseCooldown) {
+      const token = await this.otpStore.acquireCooldown(user.id);
+      allowed = token !== null;
+      cooldownToken = token ?? undefined;
+    } else {
+      allowed = await this.otpStore.checkCooldown(user.id);
+    }
     if (!allowed) {
       // The 60-second cooldown throttles request admission, not delivery.
       // On the first attempt of a newly admitted request, this is a terminal
@@ -129,7 +139,24 @@ export class PasswordResetProcessor {
       throw new PasswordResetThrottledError();
     }
 
-    const code = await this.otpStore.generateAndStoreCode(user.id);
+    let code: string;
+    try {
+      code =
+        cooldownToken === undefined
+          ? await this.otpStore.generateAndStoreCode(user.id)
+          : await this.otpStore.generateAndStoreCode(user.id, cooldownToken);
+    } catch (err) {
+      // SMTP has not started, so no code from this attempt could have been sent.
+      // A compare-and-delete release cannot cancel a newer owner's cooldown.
+      if (cooldownToken !== undefined && this.otpStore.releaseCooldown) {
+        try {
+          await this.otpStore.releaseCooldown(user.id, cooldownToken);
+        } catch {
+          logger.warn('Password reset cooldown release failed');
+        }
+      }
+      throw err;
+    }
     let deliveryOutcome: 'success' | 'failure' = 'success';
     let deliveryError: unknown = null;
     try {

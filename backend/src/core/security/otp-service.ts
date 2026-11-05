@@ -23,10 +23,17 @@ const ACCOUNT_ATTEMPT_WINDOW_SECONDS = 3600;
 // Issuance and the per-code counter reset are one Redis operation. The random
 // generation tag distinguishes rotations even when the same six digits recur.
 const ISSUE_SCRIPT = `-- otp-issue-v1
+if ARGV[3] ~= '' and redis.call('GET', KEYS[4]) ~= ARGV[3] then return 0 end
 redis.call('SET', KEYS[1], ARGV[1], 'EX', 900)
 redis.call('DEL', KEYS[2])
 redis.call('SET', KEYS[3], ARGV[2], 'EX', 900)
 return 1
+`;
+
+// Only the owner that acquired the cooldown can release it.
+const RELEASE_COOLDOWN_SCRIPT = `-- otp-release-cooldown-v1
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+return redis.call('DEL', KEYS[1])
 `;
 
 // Bind the verified snapshot, attempt budgets, TTLs and consume/delete to one
@@ -61,9 +68,12 @@ return 0
 `;
 
 export interface OtpStore {
-  generateAndStoreCode(userId: string): Promise<string>;
+  generateAndStoreCode(userId: string, cooldownToken?: string): Promise<string>;
   verifyAndConsumeCode(userId: string, code: string): Promise<boolean>;
   checkCooldown(userId: string): Promise<boolean>;
+  /** Optional capability: both methods and issuance fencing must be implemented together. */
+  acquireCooldown?(userId: string): Promise<string | null>;
+  releaseCooldown?(userId: string, token: string): Promise<boolean>;
 }
 
 export class RedisOtpStore implements OtpStore {
@@ -81,7 +91,17 @@ export class RedisOtpStore implements OtpStore {
     return result === 'OK'; // true if set (cooldown started), false if key already existed
   }
 
-  public async generateAndStoreCode(userId: string): Promise<string> {
+  public async acquireCooldown(userId: string): Promise<string | null> {
+    const token = randomBytes(16).toString('hex');
+    const result = await this.redis.set(`pwreset-cd:${userId}`, token, 'EX', 60, 'NX');
+    return result === 'OK' ? token : null;
+  }
+
+  public async releaseCooldown(userId: string, token: string): Promise<boolean> {
+    return (await this.redis.eval(RELEASE_COOLDOWN_SCRIPT, 1, `pwreset-cd:${userId}`, token)) === 1;
+  }
+
+  public async generateAndStoreCode(userId: string, cooldownToken?: string): Promise<string> {
     const rawNumber = randomInt(0, 1_000_000);
     const code = rawNumber.toString().padStart(6, '0');
 
@@ -90,15 +110,18 @@ export class RedisOtpStore implements OtpStore {
       .digest('hex');
 
     const redisKey = `pwreset:${userId}`;
-    await this.redis.eval(
+    const issued = await this.redis.eval(
       ISSUE_SCRIPT,
-      3,
+      4,
       redisKey,
       this.attemptsKey(userId),
       this.generationKey(userId),
+      `pwreset-cd:${userId}`,
       codeHmac,
-      randomBytes(16).toString('hex')
+      randomBytes(16).toString('hex'),
+      cooldownToken ?? ''
     );
+    if (issued !== 1) throw new Error('PASSWORD_RESET_COOLDOWN_OWNERSHIP_LOST');
     return code;
   }
 

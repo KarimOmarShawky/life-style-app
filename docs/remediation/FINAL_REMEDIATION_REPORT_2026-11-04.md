@@ -79,15 +79,28 @@ The seven HTTP cases then covered UTC, New York spring/fall transitions, Havana 
 
 **Residual risk:** Civil-date evaluation is an extra per-row PostgreSQL operation after a conservative up-to-24-hour-expanded bound; no query-plan/performance benchmark was run. Correctness relies on the server's PostgreSQL timezone database being current, particularly when timezone legislation changes; Node and PostgreSQL can ship different timezone-data versions. An invalid nonempty legacy zone fails the filtered request rather than silently returning UTC results; the existing controller defaults empty/missing zones to UTC. User-triggered [hosted CI 42003434662](https://github.com/KarimOmarShawky/life-style-app/actions/runs/42003434662) passed on `b9ed8b0`; device testing remains pending. This route-specific OpenAPI guard is not a complete all-routes gate.
 
-### P1-3 — list cursors: partial
+### P1-3 — list cursors: real-PostgreSQL traversal and precision fix
 
 **Root cause:** Three repositories silently ignored decode errors and permitted non-UUID IDs to reach PostgreSQL; SQLSTATE `22P02` fell through to 500.
 
 **Fix:** `backend/src/core/http/created-at-cursor.ts:4` validates the emitted base64 JSON format, UUID and ISO timestamp; habits, projects and recurring-task list repositories call it before execution (`habits.repository.pg.ts:245`, `projects.repository.pg.ts:184`, `recurring-tasks.repository.pg.ts:317`). `backend/src/core/middleware/error-handler.ts:174` maps `22P02` to a safe 400.
 
-**Failing-first proof:** `npm --prefix backend test -- tests/unit/list-cursor-regression.test.ts` before: `4 failed`, with all three invalid cursor cases resolving instead of rejecting and the SQLSTATE handler returning 500 instead of 400. After: `4 passed`. Tests use stub query builders and a real Express error-handler request; they do not exercise authenticated endpoints with PostgreSQL.
+**Failing-first proof:** `npm --prefix backend test -- tests/unit/list-cursor-regression.test.ts` before: `4 failed`, with all three invalid cursor cases resolving instead of rejecting and the SQLSTATE handler returning 500 instead of 400. After: `4 passed`. Those original tests use stub query builders and a real Express error-handler request.
 
-**Regression risk / residual:** Invalid or old cursors that were previously ignored now produce 400, intentionally. The decoder accepts the canonical timestamps emitted by these repositories; verify successful pagination and malformed-cursor HTTP responses against a real database before release.
+**Additional failing-first pagination defect:** Authenticated real-PostgreSQL page-by-page tests exposed a further issue: the repositories serialized `created_at` through JavaScript `Date`, truncating PostgreSQL microseconds. Descending keyset pagination therefore skipped rows within the same millisecond. `DATABASE_URL=postgresql://lifestyle_app@127.0.0.1:55432/lifestyle_test REDIS_URL=redis://127.0.0.1:56379/15 ALLOW_DESTRUCTIVE_TESTS=isolated-resources-only npx vitest run tests/integration/created-at-cursor-http.test.ts` from `backend/` before the precision fix:
+
+```text
+Test Files  1 failed (1)
+     Tests  3 failed | 4 passed (7)
+traverses every habits / projects / recurring_tasks row once:
+AssertionError: expected [ Array(1) ] to deeply equal [ …(4) ]
+```
+
+The four passing cases already checked malformed cursors at the three authenticated endpoints and mapped a real PostgreSQL `22P02` through a test Express error handler to a safe 400. The three failing traversals use page size one, sub-millisecond differences, a timestamp tie broken by ID and a foreign-tenant row. After the fix, the same integration file plus `tests/unit/list-cursor-regression.test.ts` reported `2 passed` files / `12 passed` tests. The additional unit case checks exact six-digit precision, old three-digit cursor acceptance and invalid calendar dates. The full backend run passed `76 files / 673 tests`.
+
+**Precision fix:** The three repository selects format the database timestamp in UTC with all six fractional digits (`habits.repository.pg.ts:232-240`, `projects.repository.pg.ts:171-179`, `recurring-tasks.repository.pg.ts:304-312`). `created-at-cursor.ts:4-21` strictly validates both old millisecond and new microsecond formats without converting the query boundary through `Date`; the repositories use a parameterized `timestamptz` for the keyset predicate. Existing fake-builder tests were updated only to support the added `.select` method; no assertions were removed.
+
+**Regression risk / residual:** Invalid cursors now deliberately produce 400. Previously issued three-digit cursors remain accepted, but their lost microseconds cannot be recovered from the cursor alone: clients with an in-flight old cursor should restart pagination. Old server instances reject new six-digit cursors, so rolling deployments need coordinated upgrade or compatible routing. The real `22P02` mapping was exercised through a test Express endpoint backed by PostgreSQL, not induced through an authenticated production route. Hosted CI for the precision fix remains pending.
 
 ### P1-6 — reset schema snapshots: partial
 
@@ -127,7 +140,7 @@ The seven HTTP cases then covered UTC, New York spring/fall transitions, Havana 
 | `npm --prefix backend ci` | EXECUTED | Passed; npm reported 9 moderate vulnerabilities across all dependencies. |
 | `npm run typecheck`, `npm run typecheck:tests`, `npm run lint`, `npm run format:check` (backend) | EXECUTED | All passed after formatting. |
 | `npm run test:unit` (backend) | EXECUTED | 46 files, 453 tests passed in the earlier run; the complete run below includes the unit suite. |
-| `npm test` (backend) | EXECUTED | With isolated local PostgreSQL 16.15 and Redis 7.2.11, `lifestyle_app` runtime role, dedicated `lifestyle_test` database and Redis database 15: 75 files, 665 tests passed after the DATE endpoint proof (earlier runs: 74 files / 662 tests after completed-task date changes, and 72 files / 650 tests after P0 money, scale and category-race fixes). An earlier run before provisioning was blocked by the destructive-test safety guard; a first provisioned run with the superuser failed the least-privilege assertion, then passed using the runtime role. |
+| `npm test` (backend) | EXECUTED | With isolated local PostgreSQL 16.15 and Redis 7.2.11, `lifestyle_app` runtime role, dedicated `lifestyle_test` database and Redis database 15: 76 files, 673 tests passed after the cursor precision fix (earlier runs: 75 files / 665 tests after DATE endpoint proof, 74 files / 662 tests after completed-task date changes, and 72 files / 650 tests after P0 money, scale and category-race fixes). An earlier run before provisioning was blocked by the destructive-test safety guard; a first provisioned run with the superuser failed the least-privilege assertion, then passed using the runtime role. |
 | `node --test scripts/*.test.mjs` | EXECUTED | 150 passed, 0 failed after adding the subscription reminder source regression. These source checks supplement, but do not replace, the Dart behavioral tests. |
 | `npm run openapi:generate` | EXECUTED | Generated file had no diff; no generator changes were made. |
 | `npm audit --omit=dev --audit-level=high` | EXECUTED | Exit 0; 3 moderate production advisories remain. No threshold was lowered. |

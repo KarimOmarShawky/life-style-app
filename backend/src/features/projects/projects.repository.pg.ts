@@ -171,6 +171,12 @@ export class PgProjectsRepository implements ProjectsRepository {
     let query = this.db
       .selectFrom('projects')
       .selectAll()
+      // PostgreSQL preserves microseconds that the JS Date parser truncates.
+      .select(
+        sql<string>`to_char(projects.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as(
+          'created_at_cursor'
+        )
+      )
       .where('user_id', '=', userId)
       .where('deleted_at', 'is', null);
 
@@ -182,10 +188,11 @@ export class PgProjectsRepository implements ProjectsRepository {
 
     if (cursor !== undefined) {
       const { id, createdAt } = decodeCreatedAtCursor(cursor);
+      const cursorInstant = sql<Date>`${createdAt}::timestamptz`;
       query = query.where((eb) =>
         eb.or([
-          eb('created_at', '<', createdAt),
-          eb.and([eb('created_at', '=', createdAt), eb('id', '<', id)])
+          eb('created_at', '<', cursorInstant),
+          eb.and([eb('created_at', '=', cursorInstant), eb('id', '<', id)])
         ])
       );
     }
@@ -199,7 +206,7 @@ export class PgProjectsRepository implements ProjectsRepository {
     if (hasMore && lastItem) {
       const payload = {
         id: lastItem.id,
-        createdAt: (lastItem.created_at as Date).toISOString()
+        createdAt: lastItem.created_at_cursor
       };
       nextCursor = Buffer.from(JSON.stringify(payload)).toString('base64');
     }

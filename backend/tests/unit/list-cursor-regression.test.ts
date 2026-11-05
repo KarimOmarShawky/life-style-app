@@ -5,10 +5,11 @@ import { PgHabitsRepository } from '../../src/features/habits/habits.repository.
 import { PgProjectsRepository } from '../../src/features/projects/projects.repository.pg.js';
 import { PgRecurringTasksRepository } from '../../src/features/recurring-tasks/recurring-tasks.repository.pg.js';
 import { globalErrorHandler } from '../../src/core/middleware/error-handler.js';
+import { decodeCreatedAtCursor } from '../../src/core/http/created-at-cursor.js';
 
 function database() {
   const builder: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const method of ['selectAll', 'where', 'orderBy', 'limit']) {
+  for (const method of ['selectAll', 'select', 'where', 'orderBy', 'limit']) {
     builder[method] = vi.fn(() => builder);
   }
   builder.execute = vi.fn(async () => []);
@@ -16,6 +17,17 @@ function database() {
 }
 
 describe('list cursor validation', () => {
+  it('preserves microseconds and accepts previously issued millisecond cursors', () => {
+    const id = 'd9b73678-75f1-432a-bc91-231362095cb7';
+    for (const createdAt of ['2026-01-01T00:00:00.123Z', '2026-01-01T00:00:00.123456Z']) {
+      const raw = Buffer.from(JSON.stringify({ id, createdAt })).toString('base64');
+      expect(decodeCreatedAtCursor(raw)).toEqual({ id, createdAt });
+    }
+    const invalidDay = Buffer.from(
+      JSON.stringify({ id, createdAt: '2026-02-30T00:00:00.123456Z' })
+    ).toString('base64');
+    expect(() => decodeCreatedAtCursor(invalidDay)).toThrow();
+  });
   for (const [name, Repository] of [
     ['habits', PgHabitsRepository],
     ['projects', PgProjectsRepository],

@@ -20,18 +20,36 @@ final walletCredentialStoreProvider = Provider<WalletCredentialStore>(
   (ref) => PlatformWalletCredentialStore(),
 );
 
+// Production uses the shared service; tests can isolate async storage state.
+final signOutAiServiceProvider = Provider<AiService>(
+  (ref) => AiService.instance,
+);
+
 final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(
   AuthController.new,
 );
 
 class AuthController extends AsyncNotifier<AppUser?> {
   bool _signingOut = false;
+  int _authGeneration = 0;
+  Future<void> _authTail = Future<void>.value();
+
+  // One controller serializes session-changing operations. This is not a
+  // cross-engine or native-receiver lock, and a stalled operation can delay
+  // the next transition.
+  Future<T> _serializeAuth<T>(Future<T> Function() action) {
+    final result = _authTail.then((_) => action());
+    _authTail =
+        result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
 
   // Wallet issuance must stop as soon as sign-out starts, even before logout I/O.
   String? get walletAccount => _signingOut ? null : state.asData?.value?.id;
 
   @override
-  Future<AppUser?> build() => ref.read(authRepositoryProvider).restoreSession();
+  Future<AppUser?> build() =>
+      _serializeAuth(() => ref.read(authRepositoryProvider).restoreSession());
 
   Future<void> signIn({required String email, required String password}) =>
       _authenticate(
@@ -50,11 +68,17 @@ class AuthController extends AsyncNotifier<AppUser?> {
             email: email, password: password, displayName: displayName),
       );
 
-  Future<void> _authenticate(Future<AppUser> Function() operation) async {
-    state = const AsyncLoading();
-    final result = await AsyncValue.guard(operation);
-    _signingOut = false;
-    state = result;
+  Future<void> _authenticate(Future<AppUser> Function() operation) {
+    final generation = _authGeneration;
+    return _serializeAuth(() async {
+      if (generation != _authGeneration) return;
+      state = const AsyncLoading();
+      final result = await AsyncValue.guard(operation);
+      // A sign-out that started during the request owns the next transition.
+      if (generation != _authGeneration) return;
+      _signingOut = false;
+      state = result;
+    });
   }
 
   Future<void> requestPasswordReset(String email) =>
@@ -95,6 +119,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> signOut() async {
     _signingOut = true;
+    _authGeneration++;
     WalletIngestToken.invalidatePending();
     final account = state.asData?.value?.id;
     // Schedule local cleanup now rather than waiting for network logout and
@@ -108,51 +133,59 @@ class AuthController extends AsyncNotifier<AppUser?> {
       walletCleanupError = error;
       walletCleanupStack = stack;
     });
-    try {
-      await ref.read(authRepositoryProvider).logout();
-    } finally {
-      // Revoke account-driven widget sync before clearing its native snapshot.
-      state = const AsyncData(null);
+    await _serializeAuth(() async {
       try {
-        await MethodChannelFocusShieldPlatform().invoke('stopShield');
-      } catch (_) {/* Native support is optional. */}
-      try {
-        await MethodChannelFocusShieldPlatform().invoke('updateHomeWidget', {
-          'clarityScore': null,
-          'level': 1,
-          'xp': 0,
-          'pendingTasksCount': 0,
-          'topTaskTitle': '',
-        });
-      } catch (_) {/* Native support is optional. */}
-      try {
-        await SubscriptionReminders.clear();
-      } catch (_) {
-        /* Sign-out must still clear credentials if native cleanup fails. */
-      }
-      // Signing out revokes the session, so both the SMS receiver's ingest token
-      // and any user-specific BYOK Gemini key are cleared from local storage.
-      try {
-        if (account != null) await SecureDetoxStore(account).clear();
+        await ref.read(authRepositoryProvider).logout();
       } finally {
+        // Revoke account-driven widget sync before clearing its native snapshot.
+        state = const AsyncData(null);
         try {
-          await walletCleanup;
-          if (walletCleanupError != null) {
-            Error.throwWithStackTrace(walletCleanupError!, walletCleanupStack!);
-          }
+          await MethodChannelFocusShieldPlatform().invoke('stopShield');
+        } catch (_) {/* Native support is optional. */}
+        try {
+          await MethodChannelFocusShieldPlatform().invoke('updateHomeWidget', {
+            'clarityScore': null,
+            'level': 1,
+            'xp': 0,
+            'pendingTasksCount': 0,
+            'topTaskTitle': '',
+          });
+        } catch (_) {/* Native support is optional. */}
+        try {
+          await SubscriptionReminders.clear();
+        } catch (_) {
+          /* Sign-out must still clear credentials if native cleanup fails. */
+        }
+        // Signing out revokes the session, so both the SMS receiver's ingest token
+        // and any user-specific BYOK Gemini key are cleared from local storage.
+        try {
+          if (account != null) await SecureDetoxStore(account).clear();
         } finally {
-          await AiService.instance.setUserApiKey(null);
+          try {
+            await walletCleanup;
+            if (walletCleanupError != null) {
+              Error.throwWithStackTrace(
+                  walletCleanupError!, walletCleanupStack!);
+            }
+          } finally {
+            await ref.read(signOutAiServiceProvider).setUserApiKey(null);
+          }
         }
       }
-    }
+    });
   }
 
-  Future<void> retryRestore() async {
-    state = const AsyncLoading();
-    final result = await AsyncValue.guard(
-      ref.read(authRepositoryProvider).restoreSession,
-    );
-    _signingOut = false;
-    state = result;
+  Future<void> retryRestore() {
+    final generation = _authGeneration;
+    return _serializeAuth(() async {
+      if (generation != _authGeneration) return;
+      state = const AsyncLoading();
+      final result = await AsyncValue.guard(
+        ref.read(authRepositoryProvider).restoreSession,
+      );
+      if (generation != _authGeneration) return;
+      _signingOut = false;
+      state = result;
+    });
   }
 }

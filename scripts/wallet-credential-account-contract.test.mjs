@@ -31,3 +31,19 @@ test('sign-out schedules wallet credential cleanup before awaiting remote logout
   assert.ok(start < signOut.indexOf('authRepositoryProvider).logout()'));
   assert.equal(signOut.indexOf('WalletIngestToken.clearLocal(', start + 1), -1);
 });
+
+test('authentication transitions are serialized and sign-out supersedes older account results', () => {
+  const auth = readFileSync(root + 'lib/features/auth/state/auth_provider.dart', 'utf8');
+  assert.ok(auth.includes('Future<T> _serializeAuth<T>('));
+  assert.ok(auth.includes('int _authGeneration = 0;'));
+  const authenticate = auth.split('Future<void> _authenticate(')[1].split('Future<void> requestPasswordReset')[0];
+  assert.ok(authenticate.includes('_serializeAuth('));
+  assert.ok(authenticate.includes('generation != _authGeneration'));
+  const signOut = auth.split('Future<void> signOut() async {')[1].split('Future<void> retryRestore()')[0];
+  assert.ok(signOut.includes('_authGeneration++;'));
+  assert.ok(signOut.includes('await _serializeAuth('));
+  assert.ok(signOut.indexOf('WalletIngestToken.clearLocal(') < signOut.indexOf('await _serializeAuth('));
+  const restore = auth.split('Future<void> retryRestore()')[1];
+  assert.ok(restore.includes('_serializeAuth('));
+  assert.ok(restore.includes('generation != _authGeneration'));
+});

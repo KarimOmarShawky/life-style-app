@@ -9,6 +9,7 @@ class FakeSecureStorage {
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   final values = <String, String>{};
   bool failRead = false;
+  int writeAttempts = 0;
   bool failWrite = false;
   bool failDelete = false;
   Completer<void>? writeStarted;
@@ -25,10 +26,13 @@ class FakeSecureStorage {
           if (failRead) throw PlatformException(code: 'read-failed');
           return key == null ? null : values[key];
         case 'write':
+          writeAttempts++;
+          if (writeStarted != null && !writeStarted!.isCompleted) {
+            writeStarted!.complete();
+          }
           if (failWrite) throw PlatformException(code: 'write-failed');
           final value = args['value'] as String?;
           if (key != null && value != null) values[key] = value;
-          writeStarted?.complete();
           if (finishWrite != null) await finishWrite!.future;
           return null;
         case 'delete':

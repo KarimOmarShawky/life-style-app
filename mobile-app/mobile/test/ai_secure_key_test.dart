@@ -81,6 +81,7 @@ void main() {
   testWidgets('failed key save stays in dialog and shows error',
       (tester) async {
     storage.failWrite = true;
+    storage.writeStarted = Completer<void>();
     await tester.pumpWidget(MaterialApp(
       locale: const Locale('en'),
       supportedLocales: AppLocalizations.supportedLocales,
@@ -100,13 +101,34 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'test-secret');
-    await tester.tap(find.text('Save'));
+    final save = find.widgetWithText(FilledButton, 'Save');
+    await tester.ensureVisible(save);
     await tester.pumpAndSettle();
+    expect(save.hitTestable(), findsOneWidget,
+        reason: 'The dialog save control must be reachable before tapping.');
+    await tester.tap(save);
+    // pumpAndSettle only observes scheduled frames, not a pending platform call.
+    // Pump until the fake secure store observes the request, then render its
+    // failure state. Keep a bounded wait so a broken callback fails clearly.
+    for (var i = 0; i < 30 && !storage.writeStarted!.isCompleted; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(storage.writeStarted!.isCompleted, isTrue,
+        reason: 'Save did not reach the mocked secure storage write.');
+    await tester.pumpAndSettle();
+    expect(storage.writeAttempts, 1);
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(
-        find.text(
-            'Secure key storage is unavailable. The change could not be confirmed.'),
-        findsOneWidget);
+    final error = find.text(
+        'Secure key storage is unavailable. The change could not be confirmed.');
+    final dialogTexts = tester
+        .widgetList<Text>(find.descendant(
+            of: find.byType(AlertDialog), matching: find.byType(Text)))
+        .map((widget) => widget.data)
+        .whereType<String>()
+        .toList();
+    expect(error, findsOneWidget,
+        reason:
+            'The failed save must show the localized error; dialog text: $dialogTexts');
     expect(await ai.getUserApiKey(), isEmpty);
   });
 }

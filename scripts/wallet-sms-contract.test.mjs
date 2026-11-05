@@ -279,15 +279,17 @@ test('AUD-05 wallet SMS auto-save requires a trusted sender; fallback results al
   // Native: a trusted-sender allow-list gate exists and defaults to empty.
   assert.ok(receiver.includes('private const val KEY_TRUSTED_SENDERS = "flutter.wallet_trusted_senders"'));
   assert.ok(receiver.includes('private fun isTrustedSender(context: Context, sender: String): Boolean'));
-  assert.ok(receiver.includes('private fun normalizeSender(sender: String): String'));
-  assert.ok(receiver.includes('trimmed.uppercase(Locale.ROOT)'));
+  const scopeSource = read(native + 'WalletSenderScope.kt');
+  assert.ok(scopeSource.includes('fun normalize(sender: String): String'));
+  assert.ok(scopeSource.includes('trimmed.uppercase(Locale.ROOT)'));
+  assert.ok(receiver.includes('val trustedSender = isTrustedSender(context, sender)'));
   // An absent/empty list trusts no sender (default deny).
   assert.ok(receiver.includes('prefs.getString(KEY_TRUSTED_SENDERS, null) ?: return false'));
   // Auto-save is gated on the trusted sender, never on a body match alone.
   const onReceive = receiver
     .split('val transaction = parseSmsTransaction(sender, body)')[1]
     .split('flushPending(context)')[0];
-  assert.ok(/transaction != null && isTrustedSender\(context, sender\)/.test(onReceive));
+  assert.ok(/transaction != null && trustedSender/.test(onReceive));
   assert.ok(onReceive.includes('else if (looksLikeCandidate(body))'));
   // handleAnalysisResult no longer auto-saves a high-confidence parse.
   const handler = receiver.split('private fun handleAnalysisResult(')[1].split('\n    }')[0];
@@ -350,4 +352,28 @@ test('AUD-13: review notification creates its channel through a shared helper', 
   assert.ok(txBlock.includes('ensureNotificationChannel(context)'));
   // No inline `NotificationChannel(` construction (the helper owns it).
   assert.ok(!/NotificationChannel\(\s*\n/.test(txBlock));
+});
+
+test('wallet SMS capture checks sender scope before parsing, notifying or queueing', () => {
+  const thread = receiver.split('Thread {')[1].split('} finally {')[0];
+  const scope = thread.indexOf('WalletSenderScope.isEligible(sender, trustedSender)');
+  assert.ok(scope >= 0, 'sender scope check must be present');
+  for (const action of ['parseSmsTransaction(', 'showTransactionNotification(', 'enqueueTransaction(', 'enqueueCandidate(']) {
+    assert.ok(thread.indexOf(action) > scope, `${action} must follow the scope check`);
+  }
+  const scopeSource = read(native + 'WalletSenderScope.kt');
+  assert.ok(scopeSource.includes('normalized in knownSenderIds'));
+  assert.ok(!scopeSource.includes('contains('), 'known IDs must not match arbitrary substrings');
+});
+
+test('bound ingest credentials are sealed together and legacy credentials stay unbound', () => {
+  const store = read(native + 'WalletCredentialStore.kt');
+  const record = read(native + 'WalletBoundCredential.kt');
+  assert.ok(store.includes('writePlain(WalletBoundCredential.encode(token, ownerId))'));
+  assert.ok(store.includes('readPlain()?.let(WalletBoundCredential::decode)'));
+  assert.ok(store.includes('cipher.doFinal(value.toByteArray(Charsets.UTF_8))'));
+  assert.ok(!store.includes('putString("ownerId"'));
+  assert.ok(record.includes('if (!value.startsWith("wallet-bound-")) return null'));
+  assert.ok(record.includes('require(value.startsWith(PREFIX))'));
+  // This storage foundation does not bind queued records or activate a client.
 });

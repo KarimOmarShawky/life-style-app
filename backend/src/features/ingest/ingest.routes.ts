@@ -8,6 +8,7 @@
  */
 
 import { Router, type RequestHandler } from 'express';
+import { walletOwnerPrecondition } from '../../core/middleware/wallet-owner-precondition.js';
 import type { IngestController } from './ingest.controller.js';
 import { type RateLimiter, createRateLimitMiddleware } from '../../core/middleware/rate-limiter.js';
 
@@ -55,8 +56,20 @@ export function createIngestRouter(options: {
 
   router.post('/token', authenticate, tokenRateLimiter, controller.issueToken);
   router.delete('/token', authenticate, controller.revokeToken);
-  router.post('/transactions', authenticateIngest, transactionRateLimiter, createTransaction);
-  router.post('/sms/analyze', authenticateIngestOrUser, analyzeRateLimiter, controller.analyzeSms);
+  router.post(
+    '/transactions',
+    authenticateIngest,
+    walletOwnerPrecondition,
+    transactionRateLimiter,
+    createTransaction
+  );
+  router.post(
+    '/sms/analyze',
+    authenticateIngestOrUser,
+    walletOwnerPrecondition,
+    analyzeRateLimiter,
+    controller.analyzeSms
+  );
 
   return router;
 }

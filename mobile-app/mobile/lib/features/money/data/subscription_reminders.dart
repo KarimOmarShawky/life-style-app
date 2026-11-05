@@ -1,5 +1,4 @@
 import 'package:flutter/services.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 
 /// One Android alarm represents the next renewal across a complete account snapshot.
@@ -8,16 +7,6 @@ class SubscriptionReminders {
   static const _channel =
       MethodChannel('com.example.lifestyle_mobile/native_voice');
   static int _generation = 0;
-
-  /// Checks the notification permission before promising that reminders are available.
-  static Future<void> checkPermission() async {
-    final plugin = FlutterLocalNotificationsPlugin()
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    if (plugin == null || await plugin.areNotificationsEnabled() != true) {
-      throw StateError('Notification permission unavailable');
-    }
-  }
 
   static Future<void> sync({
     required String account,

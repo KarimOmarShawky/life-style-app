@@ -2998,6 +2998,7 @@ paths:
         - BearerAuth: []
       description: Creates a financial transaction. Requires Idempotency-Key header.
       parameters:
+        - $ref: '#/components/parameters/WalletOwner'
         - name: Idempotency-Key
           in: header
           required: true
@@ -3037,6 +3038,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '409':
           description: Idempotency key reused or quota exceeded
+        '428':
+          $ref: '#/components/responses/WalletOwnerMismatch'
 
   /money/transactions/{id}:
     get:
@@ -3492,8 +3495,13 @@ paths:
                   token:
                     type: string
                     description: Opaque token with the prefix lsi_
+                  ownerId:
+                    type: string
+                    format: uuid
+                    description: Authenticated account for which this session-bound token was issued; not proof of ownership of older queue entries.
                 required:
                   - token
+                  - ownerId
         '401':
           description: Access token missing, invalid, or expired
     delete:
@@ -3513,6 +3521,7 @@ paths:
       security:
         - IngestToken: []
       parameters:
+        - $ref: '#/components/parameters/WalletOwner'
         - name: Idempotency-Key
           in: header
           required: true
@@ -3554,6 +3563,8 @@ paths:
           description: Ingest token missing, invalid, revoked, or its session has ended
         '409':
           description: Idempotency key reused or quota exceeded
+        '428':
+          $ref: '#/components/responses/WalletOwnerMismatch'
   /ingest/sms/analyze:
     post:
       summary: Analyze a likely SMS transaction
@@ -3561,13 +3572,15 @@ paths:
         Backend-only Gemini fallback for wallet/bank SMS that the local, on-device
         parser could not recognize. The phone sends sanitized candidate text; the
         server sanitizes it again, asks the model for a strict transaction parse,
-        and returns the result. Nothing is stored, and raw SMS text never leaves
-        the phone unredacted. The current phone clients queue all recognized
+        and returns the result. Redaction covers selected patterns only and cannot
+        guarantee that all sensitive information has been removed. The current phone clients queue all recognized
         results for user confirmation, regardless of confidence. The model key is server-side
         only and is never part of a client build.
       security:
         - IngestToken: []
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WalletOwner'
       requestBody:
         required: true
         content:
@@ -3585,6 +3598,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           description: Ingest token or access token missing, invalid, revoked, or its session has ended
+        '428':
+          $ref: '#/components/responses/WalletOwnerMismatch'
         '503':
           description: SMS analysis is temporarily unavailable or the provider response is invalid (SMS_FALLBACK_UNAVAILABLE), or the shared quota is unavailable (SERVICE_UNAVAILABLE); retain the candidate and retry later
 components:
@@ -3598,6 +3613,21 @@ components:
       type: http
       scheme: bearer
       description: Opaque ingest token (prefix lsi_). Accepted only by the ingest transaction and SMS analyze routes.
+
+  parameters:
+    WalletOwner:
+      name: X-Wallet-Owner
+      in: header
+      required: false
+      description: >
+        Optional owner UUID carried by an already owner-bound wallet item. If present,
+        it must match the authenticated account. Missing headers remain accepted for
+        compatibility, so this precondition does not establish ownership, protect
+        legacy queues, or authenticate the caller. A mismatch must not cause the
+        item to be reassigned or discarded.
+      schema:
+        type: string
+        format: uuid
 
   schemas:
     RegisterRequest:
@@ -6450,6 +6480,17 @@ components:
         - nextCursor
 
   responses:
+    WalletOwnerMismatch:
+      description: Invalid or different wallet owner (WALLET_OWNER_MISMATCH); retain the item and do not process it under the current account.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+          example: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
     ValidationError:
       description: Request validation failed
       content:

@@ -55,7 +55,7 @@ class FocusShieldSessionStore(context: Context) {
     fun start(id: String, title: String, end: Long, packages: Set<String>) = synchronized(lock) {
         require(id.isNotBlank() && end > System.currentTimeMillis() && end <= System.currentTimeMillis() + 24 * 60 * 60 * 1000) { "Invalid session duration" }
         check(!current().active) { "A shield session is already active" }
-        prefs.edit().putBoolean("active", true).putString("sessionId", id).putString("taskTitle", title.take(300))
+        val saved = prefs.edit().putBoolean("active", true).putString("sessionId", id).putString("taskTitle", title.take(300))
             .putLong("elapsedStart", SystemClock.elapsedRealtime())
             .putLong("elapsedEnd", SystemClock.elapsedRealtime() + end - System.currentTimeMillis())
             .putInt("bootCount", Settings.Global.getInt(context.contentResolver, "boot_count", -1))
@@ -63,6 +63,14 @@ class FocusShieldSessionStore(context: Context) {
             .putStringSet("allowlistedPackages", safePackages()).remove("tempBypassPackage")
             .putLong("tempBypassUntilMs", 0).putInt("blockedAttemptsCount", 0)
             .putInt("manualBypassesCount", 0).putString("endReason", "").commit()
+        if (!saved) {
+            // A failed SharedPreferences commit can still update the in-memory
+            // snapshot. Revert it before returning a failure; no alarm or
+            // notification has been scheduled yet. Disk rollback is best effort.
+            prefs.edit().putBoolean("active", false).remove("tempBypassPackage")
+                .putLong("tempBypassUntilMs", 0).putString("endReason", "failed").commit()
+            throw IllegalStateException("Could not persist shield session")
+        }
         try {
             scheduleExpiration(end)
             postNotification(end)
@@ -74,7 +82,7 @@ class FocusShieldSessionStore(context: Context) {
     }
     fun stop(reason: String = "manual") = synchronized(lock) {
         if (!prefs.getBoolean("active", false)) return@synchronized
-        prefs.edit().putBoolean("active", false).remove("tempBypassPackage").putLong("tempBypassUntilMs", 0)
+        val saved = prefs.edit().putBoolean("active", false).remove("tempBypassPackage").putLong("tempBypassUntilMs", 0)
             .putString("endReason", reason)
             .putInt("manualBypassesCount", prefs.getInt("manualBypassesCount", 0) + if (reason == "manual") 1 else 0).commit()
         expiryHandler.removeCallbacksAndMessages(null)
@@ -83,6 +91,7 @@ class FocusShieldSessionStore(context: Context) {
         FocusShieldEvents.endSession()
         refreshWidget()
         FocusShieldEvents.emit(snapshotWithoutExpiry() + mapOf("type" to "stopped", "reason" to reason))
+        check(saved) { "Could not persist shield stop" }
     }
     private fun snapshotWithoutExpiry(): Map<String, Any?> = mapOf(
         "active" to false, "sessionId" to prefs.getString("sessionId", ""),
@@ -104,9 +113,16 @@ class FocusShieldSessionStore(context: Context) {
     fun grantTemporaryBypass(packageName: String) = synchronized(lock) {
         check(current().active) { "No active session" }
         val until = System.currentTimeMillis() + 60000
-        prefs.edit().putString("tempBypassPackage", packageName)
+        val previousBypasses = prefs.getInt("manualBypassesCount", 0)
+        val saved = prefs.edit().putString("tempBypassPackage", packageName)
             .putLong("tempBypassUntilMs", until)
-            .putInt("manualBypassesCount", prefs.getInt("manualBypassesCount", 0) + 1).commit()
+            .putInt("manualBypassesCount", previousBypasses + 1).commit()
+        if (!saved) {
+            // Do not leave the failed bypass active in the in-memory snapshot.
+            prefs.edit().remove("tempBypassPackage").putLong("tempBypassUntilMs", 0)
+                .putInt("manualBypassesCount", previousBypasses).commit()
+            throw IllegalStateException("Could not persist shield bypass")
+        }
         FocusShieldAccessibilityService.scheduleBypassRecheck(packageName, until)
     }
     fun safePackages(): Set<String> {

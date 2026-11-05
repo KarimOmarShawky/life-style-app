@@ -181,8 +181,13 @@ class SmsTransactionReceiver : BroadcastReceiver() {
         val goAsyncHolder = goAsync()
         Thread {
             try {
+                val trustedSender = isTrustedSender(context, sender)
+                // Do not capture arbitrary messages merely because their body
+                // contains payment-like words. Sender labels are a scope filter,
+                // not proof of authenticity or account ownership.
+                if (!WalletSenderScope.isEligible(sender, trustedSender)) return@Thread
                 val transaction = parseSmsTransaction(sender, body)
-                if (transaction != null && isTrustedSender(context, sender)) {
+                if (transaction != null && trustedSender) {
                     // Auto-save only when the sender is on the trusted allow-list.
                     // A body match alone never grants trust: an untrusted sender
                     // goes to the review flow instead (AUD-05).
@@ -207,8 +212,8 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     /**
      * A weaker gate than [parseSmsTransaction]: the message talks about a money
      * movement and carries a number, but the strict parser could not fully
-     * understand it (unknown sender, unusual amount format, ...). Only these are
-     * worth a fallback call.
+     * understand it (for example, an unusual amount format). The caller first
+     * checks the sender scope; this body check alone is not sufficient.
      */
     private fun looksLikeCandidate(body: String): Boolean {
         if (OTP_PATTERN.containsMatchIn(body)) return false
@@ -226,19 +231,6 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     )
 
     /**
-     * Normalizes phone numbers to digits and alphanumeric sender IDs to uppercase
-     * letters/digits, matching the Flutter trusted-sender settings.
-     */
-    private fun normalizeSender(sender: String): String {
-        val trimmed = sender.trim()
-        return if (trimmed.any { it in 'A'..'Z' || it in 'a'..'z' }) {
-            trimmed.uppercase(Locale.ROOT).filter { it in 'A'..'Z' || it in '0'..'9' }
-        } else {
-            trimmed.filter { it in '0'..'9' }
-        }
-    }
-
-    /**
      * True only when the sender is on the trusted allow-list stored under
      * [KEY_TRUSTED_SENDERS] (a JSON array of normalized phone numbers or sender IDs). An absent
      * or empty list trusts no sender, so auto-save is off until the user adds one
@@ -247,12 +239,12 @@ class SmsTransactionReceiver : BroadcastReceiver() {
     private fun isTrustedSender(context: Context, sender: String): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val raw = prefs.getString(KEY_TRUSTED_SENDERS, null) ?: return false
-        val normalizedSender = normalizeSender(sender)
+        val normalizedSender = WalletSenderScope.normalize(sender)
         if (normalizedSender.isEmpty()) return false
         return try {
             val list = JSONArray(raw)
             for (i in 0 until list.length()) {
-                if (normalizeSender(list.optString(i)) == normalizedSender) return true
+                if (WalletSenderScope.normalize(list.optString(i)) == normalizedSender) return true
             }
             false
         } catch (e: Exception) {

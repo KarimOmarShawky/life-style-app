@@ -112,6 +112,27 @@ void main() {
     expect(jsonEncode(payload), isNot(contains('10.00')));
   });
 
+  test('automatic sync reports a native scheduling failure', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      throw PlatformException(code: 'reminders_unavailable');
+    });
+    final repo = _repository(
+      MockClient((_) async => _page([_subscription('first')], hasMore: false)),
+    );
+
+    await expectLater(
+      SubscriptionReminders.sync(
+        account: account,
+        repository: repo,
+        currentAccount: () => account,
+      ),
+      throwsA(isA<PlatformException>()),
+    );
+    expect(calls.single.method, 'replaceSubscriptionReminders');
+  });
+
   test('a malformed later page does not replace an existing reminder snapshot',
       () async {
     final repo = _repository(MockClient((request) async {

@@ -20,9 +20,10 @@ export class IngestController {
       if (!req.user || !req.sessionId) {
         throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
       }
-      const token = await this.ingestService.issueForSession(req.user.id, req.sessionId);
+      const ownerId = req.user.id;
+      const token = await this.ingestService.issueForSession(ownerId, req.sessionId);
       res.setHeader('Cache-Control', 'no-store');
-      res.status(201).json({ token });
+      res.status(201).json({ token, ownerId });
     } catch (err) {
       next(err);
     }

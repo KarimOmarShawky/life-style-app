@@ -221,31 +221,34 @@ class DetoxSession {
     await _move(DetoxState.FOCUS_PENDING);
     try {
       restriction = await enforcer.apply(id, mode, packages, endAt!);
-      if (_closed) {
-        await _release();
+    } catch (_) {
+      restriction = const RestrictionResult(
+        RestrictionStatus.unavailable,
+        'Cannot confirm the requested restriction',
+      );
+    }
+    if (_closed) {
+      await _release();
+      return;
+    }
+    if (restriction.status == RestrictionStatus.off ||
+        restriction.status == RestrictionStatus.unavailable) {
+      // An unsuccessful apply can still have changed native state. Confirm its
+      // release before failing or continuing as a user-approved timer only.
+      if (!await _release()) return;
+      if (!allowUnenforced) {
+        await _fail(
+          'Focus restriction was not confirmed. Stop and explicitly choose an unenforced timer if desired.',
+        );
         return;
       }
-      if (restriction.status == RestrictionStatus.off ||
-          restriction.status == RestrictionStatus.unavailable) {
-        if (!allowUnenforced) {
-          throw StateError(
-            'Restrictions unavailable. Stop and explicitly choose an unenforced timer if desired.',
-          );
-        }
-      }
-      await _move(_focusState(restriction));
-      _anchorClock();
-    } catch (_) {
-      if (allowUnenforced && await _release()) {
-        restriction = const RestrictionResult(RestrictionStatus.unavailable,
-            'Requested restrictions unavailable. You explicitly allowed an unenforced timer.');
-        await _move(DetoxState.FOCUS_UNENFORCED);
-        _anchorClock();
-      } else if (state != DetoxState.ERROR) {
-        await _fail(
-            'Focus restriction was not confirmed. Check authorization or stop and retry.');
-      }
+      restriction = const RestrictionResult(
+        RestrictionStatus.unavailable,
+        'Requested restrictions unavailable. You explicitly allowed an unenforced timer.',
+      );
     }
+    await _move(_focusState(restriction));
+    _anchorClock();
   }
 
   DetoxState _focusState(RestrictionResult result) => switch (result.status) {
@@ -296,20 +299,36 @@ class DetoxSession {
       return;
     }
     _anchorClock();
-    if (phase == 'focus') {
+    final focusExpired = endAt != null && !now().isBefore(endAt!);
+    // At the deadline, release normally before entering break. Android may
+    // already have expired the shield; that is not early permission loss.
+    if (phase == 'focus' && !focusExpired) {
+      RestrictionResult observed;
       try {
-        restriction = await enforcer.query(id);
-        final actual = _focusState(restriction);
-        if (actual != state) await _move(actual);
+        observed = await enforcer.query(id);
       } catch (_) {
-        restriction = const RestrictionResult(
+        observed = const RestrictionResult(
           RestrictionStatus.unavailable,
           'Cannot verify platform restriction',
         );
-        if (state != DetoxState.FOCUS_UNENFORCED) {
-          await _move(DetoxState.FOCUS_UNENFORCED);
-        }
       }
+      if (observed.status == RestrictionStatus.off ||
+          observed.status == RestrictionStatus.unavailable) {
+        // A failed query may hide an active native restriction. Confirm release
+        // before reporting an error or continuing as an unenforced timer.
+        if (state != DetoxState.FOCUS_UNENFORCED && !await _release()) return;
+        restriction = observed;
+        if (!allowUnenforced) {
+          await _fail(
+            'Focus restriction was lost. Stop and explicitly choose an unenforced timer if desired.',
+          );
+          return;
+        }
+      } else {
+        restriction = observed;
+      }
+      final actual = _focusState(restriction);
+      if (actual != state) await _move(actual);
     }
     if (endAt != null && !now().isBefore(endAt!)) {
       if (phase == 'focus') {

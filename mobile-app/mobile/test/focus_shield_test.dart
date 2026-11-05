@@ -9,6 +9,18 @@ import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart'
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_platform.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 
+class _DisconnectedShieldPlatform extends FakeFocusShieldPlatform {
+  @override
+  Future<Map<String, dynamic>> invoke(String method,
+      [Map<String, Object?> arguments = const {}]) async {
+    if (method == 'startShield') {
+      calls.add(method);
+      throw PlatformException(code: 'FOCUS_SHIELD_UNAVAILABLE');
+    }
+    return super.invoke(method, arguments);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -198,6 +210,66 @@ void main() {
     expect(fake.calls.where((method) => method == 'stopShield').length, 1);
     expect(data.badges, isNot(contains(FocusBadge.ironWill)));
   });
+  test('disconnected shield reports failure while the focus timer continues',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final fake = _DisconnectedShieldPlatform();
+    final container = ProviderContainer(overrides: [
+      focusAccountIdProvider.overrideWithValue('disconnected-test'),
+      focusShieldPlatformProvider.overrideWithValue(fake),
+    ]);
+    addTearDown(container.dispose);
+    addTearDown(fake.dispose);
+    await container.read(focusShieldProvider.future);
+    final controller = container.read(focusShieldProvider.notifier);
+    await controller.setEnabled(true);
+    await controller.beginTimer(
+        id: 'session', taskTitle: 'Study', seconds: 1500);
+
+    final data = container.read(focusShieldProvider).requireValue;
+    expect(fake.calls, contains('startShield'));
+    expect(data.shield.active, isFalse);
+    expect(data.platformError, contains('Shield could not start'));
+    await controller.finishTimer(completed: true);
+    final finished = container.read(focusShieldProvider).requireValue;
+    expect(finished.history.single.completed, isTrue);
+    expect(finished.history.single.shieldCompleted, isFalse);
+    expect(finished.ledger.totalXp, 40);
+  });
+
+  test('accessibility loss ends the shield and prevents a shield bonus',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final fake = FakeFocusShieldPlatform();
+    final container = ProviderContainer(overrides: [
+      focusAccountIdProvider.overrideWithValue('accessibility-lost-test'),
+      focusShieldPlatformProvider.overrideWithValue(fake),
+    ]);
+    addTearDown(container.dispose);
+    addTearDown(fake.dispose);
+    await container.read(focusShieldProvider.future);
+    final controller = container.read(focusShieldProvider.notifier);
+    await controller.setEnabled(true);
+    await controller.beginTimer(
+        id: 'session', taskTitle: 'Study', seconds: 1500);
+    await Future<void>.delayed(Duration.zero);
+    fake.controller.add({
+      'schemaVersion': 1,
+      'type': 'stopped',
+      'reason': 'accessibility_lost',
+      'endReason': 'accessibility_lost',
+      'sessionId': 'session',
+      'active': false,
+    });
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(focusShieldProvider).requireValue.shield.active,
+        isFalse);
+    await controller.finishTimer(completed: true);
+    final data = container.read(focusShieldProvider).requireValue;
+    expect(data.history.single.shieldCompleted, isFalse);
+    expect(data.ledger.totalXp, 40);
+  });
+
   test('cancellation awards no focus XP and records no invented attempts',
       () async {
     SharedPreferences.setMockInitialValues({});

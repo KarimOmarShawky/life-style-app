@@ -1,16 +1,20 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
 import 'package:lifestyle_mobile/features/money/presentation/subscriptions_screen.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
+import 'package:lifestyle_mobile/l10n/app_localizations.dart';
+
+class _SignedOutAuth extends AuthController {
+  @override
+  Future<AppUser?> build() async => null;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  const notificationChannel =
-      MethodChannel('dexterous.com/flutter/local_notifications');
   const subscription = Subscription(
     id: '6f1c2d3e-0000-4000-8000-000000000001',
     name: 'Sample',
@@ -25,42 +29,41 @@ void main() {
     daysUntilNextBilling: 30,
     version: 1,
   );
-  final calls = <String>[];
+  testWidgets('subscription reminders have no manual action', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        subscriptionsProvider.overrideWith((ref) async => [subscription]),
+      ],
+      child: const MaterialApp(home: SubscriptionsScreen()),
+    ));
+    await tester.pumpAndSettle();
 
-  setUp(() {
-    calls.clear();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(notificationChannel, (call) async {
-      calls.add(call.method);
-      throw PlatformException(code: 'notifications_unavailable');
-    });
+    expect(find.text('Sample'), findsOneWidget);
+    expect(find.byTooltip('Remind before renewal'), findsNothing);
+    expect(find.byIcon(Icons.alarm_on_outlined), findsNothing);
+    expect(find.text('Renewal reminder set!'), findsNothing);
   });
 
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(notificationChannel, null);
-  });
-
-  testWidgets('a failed notification attempt cannot report a reminder was set',
+  testWidgets('failed automatic sync is reported, not shown as success',
       (tester) async {
-    final previousPlatform = debugDefaultTargetPlatformOverride;
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    try {
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          subscriptionsProvider.overrideWith((ref) async => [subscription]),
-        ],
-        child: const MaterialApp(home: SubscriptionsScreen()),
-      ));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Remind before renewal'));
-      await tester.pumpAndSettle();
-
-      expect(calls, isNotEmpty);
-      expect(find.text('Renewal reminder set!'), findsNothing);
-    } finally {
-      // Flutter verifies debug globals before package:test runs tearDown.
-      debugDefaultTargetPlatformOverride = previousPlatform;
-    }
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        authProvider.overrideWith(_SignedOutAuth.new),
+        subscriptionsProvider.overrideWith((ref) async => [subscription]),
+      ],
+      child: const MaterialApp(home: SubscriptionsScreen()),
+    ));
+    await tester.pumpAndSettle();
+    final refresh = tester
+        .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+        .show();
+    await tester.pumpAndSettle();
+    await refresh;
+    expect(
+      find.text(
+          const AppLocalizations(Locale('en')).subscriptionReminderUnavailable),
+      findsOneWidget,
+    );
+    expect(find.text('Renewal reminder set!'), findsNothing);
   });
 }

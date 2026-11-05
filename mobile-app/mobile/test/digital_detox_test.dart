@@ -21,6 +21,7 @@ class TestEnforcer implements DetoxEnforcer {
   RestrictionStatus applyResult = RestrictionStatus.partial;
   RestrictionStatus actual = RestrictionStatus.off;
   bool failApply = false;
+  bool failQuery = false;
   bool failRelease = false;
   int applies = 0;
   int releases = 0;
@@ -39,8 +40,11 @@ class TestEnforcer implements DetoxEnforcer {
   }
 
   @override
-  Future<RestrictionResult> query(String id) async =>
-      RestrictionResult(actual, 'Queried native state');
+  Future<RestrictionResult> query(String id) async {
+    if (failQuery) throw StateError('query failed');
+    return RestrictionResult(actual, 'Queried native state');
+  }
+
   @override
   Future<RestrictionResult> release(String id) async {
     releases++;
@@ -182,24 +186,65 @@ void main() {
       expect(session.state, DetoxState.STOPPED);
     },
   );
-  test('permission revocation is reflected as unenforced', () async {
+  test('permission revocation releases and reports an error without consent',
+      () async {
     await start();
     enforcer.actual = RestrictionStatus.unavailable;
     await session.reconcile();
+    expect(enforcer.actual, RestrictionStatus.off);
+    expect(enforcer.releases, 1);
+    expect(session.state, DetoxState.ERROR);
+    expect(session.error, contains('restriction was lost'));
+  });
+
+  test(
+      'explicit timer-only consent permits continuation after restriction loss',
+      () async {
+    await session.start(
+      selectedMode: DetoxMode.strictFocus,
+      focus: 1,
+      rest: 1,
+      timerOnlyAllowed: true,
+    );
+    enforcer.actual = RestrictionStatus.unavailable;
+    await session.reconcile();
+    expect(enforcer.releases, 1);
+    expect(enforcer.actual, RestrictionStatus.off);
     expect(session.state, DetoxState.FOCUS_UNENFORCED);
   });
+
+  test('unverifiable native state with failed release cannot continue',
+      () async {
+    await start();
+    enforcer.failQuery = true;
+    enforcer.failRelease = true;
+    await session.reconcile();
+    expect(session.state, DetoxState.ERROR);
+    expect(session.error, contains('Release not confirmed'));
+    expect(enforcer.actual, RestrictionStatus.partial);
+  });
+
   test(
-    'restart derives remaining time, queries actual state rather than stored enforcement',
-    () async {
-      await start();
-      now = now.add(const Duration(seconds: 25));
-      enforcer.actual = RestrictionStatus.off;
-      final recovered = DetoxSession(enforcer, store, now: () => now);
-      await recovered.recover();
-      expect(recovered.remainingSeconds, 35);
-      expect(recovered.state, DetoxState.FOCUS_UNENFORCED);
-    },
-  );
+      'restart with lost restriction does not silently continue without consent',
+      () async {
+    await start();
+    now = now.add(const Duration(seconds: 25));
+    enforcer.actual = RestrictionStatus.off;
+    final recovered = DetoxSession(enforcer, store, now: () => now);
+    await recovered.recover();
+    expect(recovered.state, DetoxState.ERROR);
+    expect(recovered.error, contains('restriction was lost'));
+  });
+
+  test('a naturally expired native restriction still enters a confirmed break',
+      () async {
+    await start();
+    now = now.add(const Duration(seconds: 61));
+    enforcer.actual = RestrictionStatus.off;
+    await session.reconcile();
+    expect(session.state, DetoxState.BREAK_ACTIVE);
+    expect(enforcer.releases, 1);
+  });
   test(
     'expiry while terminated starts a real break only after confirmed release',
     () async {

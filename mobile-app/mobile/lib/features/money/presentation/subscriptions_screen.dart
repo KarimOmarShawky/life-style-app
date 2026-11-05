@@ -236,34 +236,6 @@ class _SubscriptionTile extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: l10n.remindSubscription,
-              icon: const Icon(Icons.alarm_on_outlined, size: 20),
-              onPressed: subscription.status != 'active'
-                  ? null
-                  : () async {
-                      try {
-                        await SubscriptionReminders.checkPermission();
-                        await syncSubscriptionReminders(ref,
-                            requiredSubscriptionId: subscription.id);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(l10n.subscriptionReminderSet)),
-                          );
-                        }
-                      } catch (_) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text(l10n.subscriptionReminderUnavailable)),
-                          );
-                        }
-                      }
-                    },
-            ),
             IconButton(
               tooltip: l10n.deleteSubscription,
               icon: Icon(Icons.delete_outline,

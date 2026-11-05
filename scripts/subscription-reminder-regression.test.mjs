@@ -11,3 +11,10 @@ test('subscription reminder controls do not claim scheduling after an immediate 
       'an immediate notification is not a scheduled renewal reminder');
   }
 });
+
+test('subscription reminders are automatic and have no per-subscription reminder button', () => {
+  assert.doesNotMatch(screen, /tooltip:\s*l10n\.remindSubscription/);
+  assert.doesNotMatch(screen, /Icons\.alarm_on_outlined/);
+  assert.match(screen, /await syncSubscriptionReminders\(ref\)/);
+  assert.match(screen, /reminderDaysBefore:\s*2/);
+});

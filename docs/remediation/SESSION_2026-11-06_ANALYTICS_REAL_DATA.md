@@ -78,6 +78,38 @@ This session did **not** rebuild the app and did **not** touch production.
 - Hosted CI must pass for the exact release commit before anything is
   called ready. Release verdict remains **NO-GO**.
 
+## Addendum — "delete what you can" (same day)
+
+Checked for any reachable production data from this environment: no
+`.env`, no `DATABASE_URL`/Neon/Railway variables, and sandbox egress is
+limited to GitHub/npm/PyPI hosts. **Zero production rows are deletable
+from here**, and credentials must not be pasted into chat (per the
+original instruction). What was done instead:
+
+- Added `drafts/neon-observed-schema-erasure.sql`: the erasure adapted
+  to the observed Neon catalog (the main draft fails there — it locks
+  absent wallet tables and requires the absent `lifestyle_app` role).
+  One transaction; aborts on unexpected FKs; deletes transactions,
+  budgets, categories, ingest tokens, wallet rows if present, and
+  financial audit classes; detaches (never deletes) subscriptions;
+  verifies emptiness before COMMIT. It is still a **draft**: it does
+  not fix the table-owner runtime identity, and must be rehearsed on
+  an isolated clone with backups tested before any real run.
+- Added `backend/tests/integration/neon-erasure-draft.test.ts`
+  (opt-in `TEST_DRAFT_ERASURE=1`, rollback-only) so hosted CI rehearses
+  this exact file on real PostgreSQL: retired rows erased, wallet rows
+  erased where present, subscription category detached, reminders /
+  notes / tasks / non-financial audit preserved.
+- Local in-memory rehearsal was attempted; the simulator lacks
+  `LOCK TABLE`, `to_regclass` and plpgsql, so full proof is delegated
+  to the CI PostgreSQL rehearsal above — not claimed locally.
+
+To actually delete production data, the remaining step is a controlled
+window run by whoever holds Neon access: drain Railway writers, take
+and test a backup on an isolated clone, run the adapted draft there,
+then run it once on production and verify counts. Nothing in this
+session performed that run.
+
 ## Local verification performed
 - Backend: `tsc --noEmit` (src + tests) OK; unit suite 443 passed;
   new analytics unit tests 4 passed; ESLint and Prettier checks pass;

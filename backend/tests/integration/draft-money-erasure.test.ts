@@ -13,6 +13,8 @@ const draft =
   require('../../../docs/remediation/drafts/1792800000000_erase_retired_money.cjs') as DraftMigration & {
     down(): never;
   };
+const amountScaleMigration =
+  require('../../src/infrastructure/database/postgres/migrations/1792500000000_money_input_scale.cjs') as DraftMigration;
 const walletAccountsMigration =
   require('../../src/infrastructure/database/postgres/migrations/1792600000000_wallet_account_sessions.cjs') as DraftMigration;
 const walletRecordsMigration =
@@ -172,6 +174,9 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
       // absent: its exclusive lock fails and its transaction must be rolled back.
       await db.query('SAVEPOINT old_catalog');
       await db.query('DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts');
+      for (const table of ['transactions', 'budgets', 'subscriptions']) {
+        await db.query(`ALTER TABLE ${table} DROP COLUMN amount_scale`);
+      }
       await db.query('SAVEPOINT before_old_catalog_draft');
       await expect(db.query(statements[0]!)).rejects.toMatchObject({ code: '42P01' });
       await db.query('ROLLBACK TO SAVEPOINT before_old_catalog_draft');
@@ -188,12 +193,17 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
       ).toBe(2);
 
       // REHEARSAL ONLY: with a separately provisioned restricted runtime role,
-      // reproduce the older catalog's absent wallet function, then create the
-      // exact empty historical wallet schema and invoke the unchanged draft.
+      // simulate the historical source snapshot's absent amount-scale columns
+      // and wallet schema. Neon has not yet been compared to that snapshot.
       // This does not reconcile a missing migration history, configure Neon
       // roles, drain old writers, or approve this sequence for production.
       await db.query('DROP FUNCTION public.wallet_session_revocation_is_final()');
-      for (const migration of [walletAccountsMigration, walletRecordsMigration, draft]) {
+      for (const migration of [
+        amountScaleMigration,
+        walletAccountsMigration,
+        walletRecordsMigration,
+        draft
+      ]) {
         const bridgeStatements: string[] = [];
         migration.up({ sql: (statement) => bridgeStatements.push(statement) });
         for (const statement of bridgeStatements) await db.query(statement);

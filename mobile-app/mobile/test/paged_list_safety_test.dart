@@ -40,7 +40,7 @@ void main() {
         'meta': {'nextCursor': ''}
       },
       {
-        'data': [{}],
+        'data': [<String, dynamic>{}],
         'meta': {'nextCursor': null}
       },
     ]) {

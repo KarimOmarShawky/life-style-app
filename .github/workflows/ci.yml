@@ -42,6 +42,22 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      role-rehearsal-postgres:
+        # A separate empty *instance*: the role rehearsal creates cluster-wide
+        # roles and changes ownership of its dedicated synthetic database.
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lifestyle_test_role_rehearsal
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
       redis:
         image: redis:7-alpine
         ports:
@@ -165,6 +181,19 @@ jobs:
           export DATABASE_MIGRATION_URL="$(node -e "const u=new URL(process.env.DATABASE_MIGRATION_URL);u.pathname='/lifestyle_test_erasure_commit';process.stdout.write(u.href)")"
           npm run migrate:up
           npx vitest run tests/integration/draft-money-erasure-committed.test.ts
+
+      - name: Restricted role sequencing on a separate disposable PostgreSQL instance
+        working-directory: backend
+        env:
+          ALLOW_DESTRUCTIVE_TESTS: isolated-resources-only
+          TEST_RESTRICTED_ROLE_SEQUENCE: '1'
+          ROLE_REHEARSAL_ACK: dedicated-disposable-postgres-instance-only
+          ROLE_REHEARSAL_ADMIN_URL: postgresql://postgres@localhost:5433/lifestyle_test_role_rehearsal
+          DATABASE_MIGRATION_URL: postgresql://lifestyle_rehearsal_owner@localhost:5433/lifestyle_test_role_rehearsal
+          DATABASE_URL: postgresql://lifestyle_app@localhost:5433/lifestyle_test_role_rehearsal
+          REDIS_URL: redis://localhost:6379/15
+          LOG_LEVEL: silent
+        run: npx vitest run tests/integration/restricted-role-sequence.test.ts
 
       - name: Production dependency security audit
         working-directory: backend

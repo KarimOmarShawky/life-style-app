@@ -207,6 +207,13 @@ void main() {
     expect(metrics.averageClarity, isNull);
     expect(metrics.report(), contains('Brain Clarity Score: No data'));
     expect(metrics.offlineSummary(), metrics.offlineSummary());
+    expect(metrics.offlineSummary(), contains('Task data is unavailable'));
+    expect(
+        metrics.offlineSummary(), contains('Habit consistency is unavailable'));
+    expect(metrics.offlineSummary(),
+        contains('server focus history is unavailable'));
+    expect(metrics.offlineSummary(),
+        isNot(contains('Keep your habit cue consistent')));
     expect(metrics.aggregates(), isNot(contains('netSpending')));
   });
   test(

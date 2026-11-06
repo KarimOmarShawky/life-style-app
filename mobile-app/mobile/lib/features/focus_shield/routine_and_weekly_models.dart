@@ -63,9 +63,9 @@ Blocked distraction attempts: $attempts
 Brain Clarity Score: ${averageClarity?.toStringAsFixed(1) ?? 'No data'}
 Estimated time saved: $estimatedMinutesSaved minutes (estimate: $estimatedMinutesSavedPerAttempt minutes per blocked attempt, not measured)''';
   String offlineSummary() => '''Offline coaching · No data sent to AI.
-${sessionCount == 0 ? 'Start with one 25-minute focus session.' : 'Protect a daily focus block; you tracked $sessionCount sessions this week.'}
-${(tasksPending ?? 0) > 3 ? 'Choose three priorities rather than carrying the whole backlog.' : 'Pick one meaningful task to finish tomorrow.'}
-${(habitRate ?? 100) < 70 ? 'Make the least consistent habit smaller and easier to start.' : 'Keep your habit cue consistent.'}
+${sessionCount == 0 ? (localFocusOnly ? 'No local focus sessions found; server focus history is unavailable.' : 'Start with one 25-minute focus session.') : 'Protect a daily focus block; you tracked $sessionCount sessions this week${localFocusOnly ? ' (local history only)' : ''}.'}
+${tasksPending == null ? 'Task data is unavailable; choose a priority when it is available.' : tasksPending! > 3 ? 'Choose three priorities rather than carrying the whole backlog.' : 'Pick one meaningful task to finish tomorrow.'}
+${habitRate == null ? 'Habit consistency is unavailable for this period.' : habitRate! < 70 ? 'Make the least consistent habit smaller and easier to start.' : 'Keep your habit cue consistent.'}
 ${attempts > 0 ? 'Review your triggers and keep distracting apps blocked during focus.' : 'Maintain a calm environment and take deliberate breaks.'}''';
 }
 

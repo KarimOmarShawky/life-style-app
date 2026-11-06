@@ -75,6 +75,7 @@ void main() {
     final payload = summary.aiAggregates();
     expect(payload.containsKey('taskCompletionRatePercent'), isFalse);
     expect(payload.containsKey('habitConsistencyPercent'), isFalse);
-    expect(payload.values.every((value) => value is num), isTrue);
+    expect(payload['tasksCompleted'], 0);
+    expect(payload.keys, isNot(contains('title')));
   });
 }

@@ -18,7 +18,7 @@
  *   over active numeric goals; null when the user has none.
  */
 
-import { sql, type Kysely } from 'kysely';
+import type { Kysely } from 'kysely';
 import type { DatabaseSchema } from '../../infrastructure/database/postgres/kysely.js';
 import type { Clock } from '../../core/time/clock.js';
 import {
@@ -112,16 +112,15 @@ export class AnalyticsService {
       tasksOverdue,
       habitCheckins,
       activeHabits,
-      focusAggregate,
+      focusRows,
       goalsActive,
       goalsAchievedTotal,
       goalsAchievedInRange,
       numericGoals,
       activeSubscriptions,
       dueSoon,
-      dailyTaskRows,
-      dailyCheckinRows,
-      dailyFocusRows
+      completedTaskRows,
+      dailyCheckinRows
     ] = await Promise.all([
       count(
         this.db
@@ -175,14 +174,11 @@ export class AnalyticsService {
       ),
       this.db
         .selectFrom('timer_sessions')
-        .select([
-          (eb) => eb.fn.countAll<number>().as('sessions'),
-          sql<string>`coalesce(sum(extract(epoch from (ended_at - started_at))), 0)`.as('seconds')
-        ])
+        .select(['started_at', 'ended_at'])
         .where('user_id', '=', userId)
         .where('ended_at', '>=', startUtc)
         .where('ended_at', '<', endUtc)
-        .executeTakeFirst(),
+        .execute(),
       count(
         this.db
           .selectFrom('goals')
@@ -223,18 +219,12 @@ export class AnalyticsService {
       this.money.listSubscriptionsDueBetween(userId, today, in7),
       this.db
         .selectFrom('tasks')
-        .select([
-          sql<string>`to_char((completed_at at time zone ${timezone})::date, 'YYYY-MM-DD')`.as(
-            'day'
-          ),
-          (eb) => eb.fn.countAll<number>().as('count')
-        ])
+        .select(['completed_at'])
         .where('user_id', '=', userId)
         .where('deleted_at', 'is', null)
         .where('status', '=', 'done')
         .where('completed_at', '>=', startUtc)
         .where('completed_at', '<', endUtc)
-        .groupBy(sql`(completed_at at time zone ${timezone})::date`)
         .execute(),
       this.db
         .selectFrom('habit_checkins')
@@ -244,17 +234,6 @@ export class AnalyticsService {
         .where('checkin_date', '>=', from as never)
         .where('checkin_date', '<=', today as never)
         .groupBy('checkin_date')
-        .execute(),
-      this.db
-        .selectFrom('timer_sessions')
-        .select([
-          sql<string>`to_char((ended_at at time zone ${timezone})::date, 'YYYY-MM-DD')`.as('day'),
-          sql<string>`coalesce(sum(extract(epoch from (ended_at - started_at))), 0)`.as('seconds')
-        ])
-        .where('user_id', '=', userId)
-        .where('ended_at', '>=', startUtc)
-        .where('ended_at', '<', endUtc)
-        .groupBy(sql`(ended_at at time zone ${timezone})::date`)
         .execute()
     ]);
 
@@ -300,13 +279,27 @@ export class AnalyticsService {
       daily.set(date, created);
       return created;
     };
-    for (const row of dailyTaskRows) ensure(row.day).tasksCompleted = Number(row.count);
+    // Bucket timestamps by user-local date in JS; this keeps the SQL
+    // portable and the timezone rules identical to the dashboard's.
+    let focusTotalMinutes = 0;
+    for (const row of completedTaskRows) {
+      if (!row.completed_at) continue;
+      const date = getUserTodayDate(timezone, new Date(row.completed_at));
+      ensure(date).tasksCompleted += 1;
+    }
     for (const row of dailyCheckinRows) {
       const date = formatDateOnly(row.checkin_date as unknown as Date | string);
       if (date) ensure(date).habitCheckins = Number(row.count);
     }
-    for (const row of dailyFocusRows) {
-      ensure(row.day).focusMinutes = Math.round((Number(row.seconds) / 60) * 10) / 10;
+    for (const row of focusRows) {
+      if (!row.ended_at || !row.started_at) continue;
+      const minutes =
+        (new Date(row.ended_at).getTime() - new Date(row.started_at).getTime()) / 60_000;
+      if (!Number.isFinite(minutes) || minutes <= 0) continue;
+      focusTotalMinutes += minutes;
+      const date = getUserTodayDate(timezone, new Date(row.ended_at));
+      const bucket = ensure(date);
+      bucket.focusMinutes = Math.round((bucket.focusMinutes + minutes) * 10) / 10;
     }
 
     return {
@@ -327,8 +320,8 @@ export class AnalyticsService {
         consistencyPercent
       },
       focus: {
-        sessionsInRange: Number(focusAggregate?.sessions ?? 0),
-        totalMinutes: Math.round((Number(focusAggregate?.seconds ?? 0) / 60) * 10) / 10
+        sessionsInRange: focusRows.length,
+        totalMinutes: Math.round(focusTotalMinutes * 10) / 10
       },
       goals: {
         active: goalsActive,

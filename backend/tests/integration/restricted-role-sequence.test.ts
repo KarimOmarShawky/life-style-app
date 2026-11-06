@@ -177,6 +177,100 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
           `INSERT INTO audit_logs(actor_type,event_type,outcome,entity_type) VALUES ('system','transaction.created','success','transaction'),('system','fixture.keep','success',NULL)`
         );
 
+        // The inventory is a single read-only catalog query. Exercise it with
+        // the role absent, then with deliberately risky synthetic privileges,
+        // and ensure customer data and function bodies never appear in output.
+        const inventory = await readFile(
+          new URL(
+            '../../../docs/remediation/drafts/security-inventory-readonly.sql',
+            import.meta.url
+          ),
+          'utf8'
+        );
+        await owner.query('BEGIN READ ONLY');
+        const absentInventory = await owner.query<{
+          kind: string;
+          object: string;
+          detail: Record<string, unknown>;
+        }>(inventory);
+        expect(
+          absentInventory.rows.find((row) => row.kind === 'environment')!.detail.runtime_role_exists
+        ).toBe(false);
+        await owner.query('ROLLBACK');
+        await owner.query('BEGIN');
+        await owner.query('CREATE SCHEMA security_fixture');
+        await owner.query(
+          `CREATE TABLE security_fixture.external_reference (id uuid, user_id uuid, payload text, FOREIGN KEY(id,user_id) REFERENCES public.categories(id,user_id))`
+        );
+        await owner.query(`CREATE TABLE security_fixture.private_rows (payload text)`);
+        await owner.query(
+          `INSERT INTO security_fixture.private_rows VALUES ('fixture_customer_data_not_to_export')`
+        );
+        await owner.query(
+          `CREATE FUNCTION security_fixture.test_definer() RETURNS text LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog AS $$ SELECT 'fixture_function_body_not_to_export'::text $$`
+        );
+        await owner.query('GRANT UPDATE(name) ON categories TO PUBLIC');
+        await owner.query(
+          'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO PUBLIC'
+        );
+        await owner.query(
+          `ALTER ROLE lifestyle_rehearsal_owner SET application_name = 'fixture_setting_value_not_to_export'`
+        );
+        const riskInventory = await owner.query<{
+          kind: string;
+          object: string;
+          detail: Record<string, unknown>;
+        }>(inventory);
+        expect(
+          riskInventory.rows.some(
+            (row) =>
+              row.kind === 'column_acl' &&
+              row.detail.column === 'name' &&
+              row.detail.grantee === 'PUBLIC' &&
+              row.detail.privilege === 'UPDATE'
+          )
+        ).toBe(true);
+        expect(
+          riskInventory.rows.some(
+            (row) =>
+              row.kind === 'default_acl' &&
+              row.detail.grantee === 'PUBLIC' &&
+              row.detail.privilege === 'SELECT'
+          )
+        ).toBe(true);
+        expect(
+          riskInventory.rows.some(
+            (row) =>
+              row.kind === 'security_definer' &&
+              row.detail.name === 'test_definer' &&
+              row.detail.public_execute === true
+          )
+        ).toBe(true);
+        expect(
+          riskInventory.rows.some(
+            (row) =>
+              row.kind === 'function_acl' &&
+              row.detail.name === 'test_definer' &&
+              row.detail.grantee === 'PUBLIC' &&
+              row.detail.privilege === 'EXECUTE'
+          )
+        ).toBe(true);
+        expect(
+          riskInventory.rows.some(
+            (row) => row.kind === 'incoming_fk' && row.detail.child_schema === 'security_fixture'
+          )
+        ).toBe(true);
+        expect(
+          riskInventory.rows.some(
+            (row) => row.kind === 'role_setting' && row.detail.setting_name === 'application_name'
+          )
+        ).toBe(true);
+        const serializedInventory = JSON.stringify(riskInventory.rows);
+        expect(serializedInventory).not.toContain('fixture_customer_data_not_to_export');
+        expect(serializedInventory).not.toContain('fixture_function_body_not_to_export');
+        expect(serializedInventory).not.toContain('fixture_setting_value_not_to_export');
+        await owner.query('ROLLBACK');
+
         await owner.query('BEGIN');
         await owner.query("SET LOCAL lock_timeout = '5s'");
         // Compatibility additions are applied while the runtime role is absent,
@@ -221,6 +315,24 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         await execute(owner, erasure);
         await execute(owner, grants);
         await owner.query('COMMIT');
+        await owner.query('BEGIN READ ONLY');
+        const liveInventory = await owner.query<{
+          kind: string;
+          object: string;
+          detail: Record<string, unknown>;
+        }>(inventory);
+        expect(
+          liveInventory.rows.find((row) => row.kind === 'environment')!.detail.runtime_role_exists
+        ).toBe(true);
+        const runtimeTransactionRights = liveInventory.rows.find(
+          (row) =>
+            row.kind === 'target_effective' &&
+            row.detail.name === 'transactions' &&
+            row.detail.role === 'lifestyle_app'
+        )!.detail;
+        expect(runtimeTransactionRights.table_insert).toBe(false);
+        expect(runtimeTransactionRights.column_update).toBe(false);
+        await owner.query('ROLLBACK');
 
         for (const table of [
           'transactions',

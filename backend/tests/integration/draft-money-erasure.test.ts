@@ -159,9 +159,31 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
           `SELECT to_regclass('public.financial_retirement_state')::text AS oid`
         )
       ).rows[0]!.oid;
-      await db.query('SAVEPOINT before_erasure');
       const statements: string[] = [];
       draft.up({ sql: (statement) => statements.push(statement) });
+
+      // Simulate the older catalog observed on Neon without touching that DB.
+      // The current draft must not silently proceed when wallet tables are
+      // absent: its exclusive lock fails and its transaction must be rolled back.
+      await db.query('SAVEPOINT old_catalog');
+      await db.query('DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts');
+      await db.query('SAVEPOINT before_old_catalog_draft');
+      await expect(db.query(statements[0]!)).rejects.toMatchObject({ code: '42P01' });
+      await db.query('ROLLBACK TO SAVEPOINT before_old_catalog_draft');
+      expect(
+        (
+          await db.query<{ count: number }>(
+            'SELECT count(*)::int AS count FROM transactions WHERE user_id=ANY($1::uuid[])',
+            [users]
+          )
+        ).rows[0]!.count
+      ).toBe(2);
+      expect(
+        (await db.query('SELECT id FROM subscriptions WHERE id=ANY($1::uuid[])', [subs])).rowCount
+      ).toBe(2);
+      await db.query('ROLLBACK TO SAVEPOINT old_catalog');
+
+      await db.query('SAVEPOINT before_erasure');
       for (const sql of statements) await db.query(sql);
       for (const table of [
         'transactions',

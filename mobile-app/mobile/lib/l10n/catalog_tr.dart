@@ -1,5 +1,9 @@
 // App string catalog for the LifeStyle mobile client — locale: tr (Turkish).
 const Map<String, String> trCatalog = {
+  'aiEgressTitle': 'Konuşma Google Gemini’ye gönderilsin mi?',
+  'aiEgressDescription':
+      'Mesajınız ve konuşma geçmişiniz API anahtarınız kullanılarak Google’a gönderilir. Finansal kayıtlar otomatik olarak eklenmez. Gizli veya hassas bilgiler yazmayın. Google kendi veri politikalarını uygular.',
+  'aiEgressAgree': 'Kabul et ve gönder',
   'appTitle': 'LifeStyle',
   'signIn': 'Giriş yap',
   'createAccount': 'Hesap oluştur',
@@ -73,6 +77,7 @@ const Map<String, String> trCatalog = {
   'amount': 'Tutar',
   'currency': 'Para birimi',
   'merchant': 'Satıcı (isteğe bağlı)',
+  'subscriptionSaved': 'Abonelik başarıyla kaydedildi!',
   'transactionSaved': 'İşlem başarıyla kaydedildi!',
   'enterAmount': 'Tutar gir',
   'amountMustBePositive': '0\'dan büyük olmalı',
@@ -85,6 +90,8 @@ const Map<String, String> trCatalog = {
   'budgetWarning': 'Uyarı: bütçe limitine yaklaşıyorsun!',
   'budgetExceeded': 'Uyarı: bütçe limiti aşıldı!',
   'remindSubscription': 'Yenilemeden önce hatırlat',
+  'subscriptionReminderUnavailable':
+      "Abonelik hatırlatıcıları etkinleştirilemedi. Bildirim ve kesin alarm izinlerini kontrol edip tekrar deneyin.",
   'subscriptionReminderSet': 'Yenileme hatırlatıcısı ayarlandı!',
   'renewalSoon': 'Yakında yenilenecek!',
   'subscriptionsTitle': 'Abonelikler ve Faturalar',
@@ -245,7 +252,7 @@ const Map<String, String> trCatalog = {
       'Otomatik yakalamayı etkinleştirmek için SMS izni gereklidir.',
   'smsQuarantineTitle': 'İncelenmek üzere saklanan cüzdan mesajları',
   'smsQuarantineDesc':
-      'Bazı cüzdan mesajları işlenemedi. Silinmedi, saklandı ve otomatik olarak yeniden denenecek. 7 gün sonra sona erer.',
+      'Bazı mesajlar dikkat gerektiriyor. Hepsi yeniden denenmez, bazıları bu cihazda yedi günden uzun süre kalabilir ve hangi hesaba ait oldukları doğrulanmaz.',
   'smsStorageFaultTitle': 'Cüzdan depolama sorunu',
   'smsStorageFaultDesc':
       'Bir cüzdan mesajı bu cihaza kaydedilemedi. Hiçbir şey atılmadı; uygulama arka planda yeniden denemeye devam ediyor.',
@@ -269,6 +276,8 @@ const Map<String, String> trCatalog = {
   'aiSpeakTooltip': 'Bu yanıtı sesli oku',
   'aiSpeaking': 'Okunuyor...',
   'aiVoiceListening': 'Dinleniyor...',
+  'aiKeyStorageError':
+      'Güvenli anahtar depolama kullanılamıyor. Değişiklik doğrulanamadı.',
   'aiErrorMessage':
       'İsteğiniz işlenirken bir hata oluştu. Lütfen tekrar deneyin.',
 };

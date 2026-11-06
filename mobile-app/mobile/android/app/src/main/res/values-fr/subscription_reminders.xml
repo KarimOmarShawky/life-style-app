@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subscription_reminder_channel">Rappels d’abonnement</string>
+    <string name="subscription_reminder_title">Rappel d’abonnement</string>
+    <string name="subscription_reminder_body">Un abonnement peut être renouvelé bientôt. Ouvrez LifeStyle pour vérifier.</string>
+</resources>

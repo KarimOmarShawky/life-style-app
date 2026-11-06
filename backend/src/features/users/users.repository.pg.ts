@@ -359,21 +359,12 @@ export class PgUsersRepository implements UsersRepository {
       [userId]
     );
 
-    const categoriesRes = await this.pool.query(
-      `SELECT id, kind, name, color FROM categories WHERE user_id = $1 ORDER BY created_at ASC, id LIMIT ${LEGACY_METADATA_ROW_LIMIT + 1}`,
-      [userId]
-    );
-
     const pushRes = await this.pool.query(
       `SELECT platform, last_seen_at, created_at FROM push_devices WHERE user_id = $1 ORDER BY id LIMIT ${LEGACY_METADATA_ROW_LIMIT + 1}`,
       [userId]
     );
 
-    if (
-      [sessionsRes, categoriesRes, pushRes].some(
-        (result) => result.rows.length > LEGACY_METADATA_ROW_LIMIT
-      )
-    ) {
+    if ([sessionsRes, pushRes].some((result) => result.rows.length > LEGACY_METADATA_ROW_LIMIT)) {
       throw AppError.payloadTooLarge(
         'Metadata export exceeds its limit; use the domain archive endpoint'
       );
@@ -400,12 +391,8 @@ export class PgUsersRepository implements UsersRepository {
         createdAt: new Date(s.created_at).toISOString(),
         lastUsedAt: new Date(s.last_used_at).toISOString()
       })),
-      categories: categoriesRes.rows.map((c) => ({
-        id: c.id,
-        kind: c.kind,
-        name: c.name,
-        color: c.color
-      })),
+      // Keep the legacy response shape without reading retired financial data.
+      categories: [],
       pushDevices: pushRes.rows.map((p) => ({
         platform: p.platform,
         lastSeenAt: new Date(p.last_seen_at).toISOString(),

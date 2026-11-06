@@ -8,8 +8,6 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Wallet/banking SMS auto-capture (opt-in from the Money screen). -->
-    <uses-permission android:name="android.permission.RECEIVE_SMS" />
 
     <application
         android:allowBackup="false"
@@ -44,6 +42,16 @@
             </intent-filter>
         </activity>
 
+        <receiver android:exported="false" android:name="com.example.lifestyle_mobile.SubscriptionReminderReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
@@ -72,22 +80,6 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.example.lifestyle_mobile.DISMISS_ALARM" />
-            </intent-filter>
-        </receiver>
-
-        <!--
-          Wallet / banking SMS auto-capture. exported=true is required because
-          the broadcast originates from the Android telephony system; the
-          BROADCAST_SMS permission restricts delivery to system-sent SMS only.
-          The receiver itself re-checks the in-app opt-in flag and the runtime
-          permission before doing any work.
-        -->
-        <receiver
-            android:name=".SmsTransactionReceiver"
-            android:exported="true"
-            android:permission="android.permission.BROADCAST_SMS">
-            <intent-filter android:priority="999">
-                <action android:name="android.provider.telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
 

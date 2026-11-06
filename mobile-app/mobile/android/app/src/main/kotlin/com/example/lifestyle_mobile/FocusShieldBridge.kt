@@ -79,15 +79,23 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                     "openAccessibilitySettings" -> { activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); result.success(ok()) }
                     "openNotificationListenerSettings" -> { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); result.success(ok()) }
                     "openBatteryOptimizationSettings" -> { activity.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); result.success(ok()) }
-                    "getShieldState" -> result.success(store.snapshot())
+                    "getShieldState" -> {
+                        reconcileAccessibilityConnection()
+                        result.success(store.snapshot())
+                    }
                     "startShield" -> {
-                        check(permissionStatus()["accessibility"] == true) { "Accessibility permission required" }
+                        // A configured permission is not enough if Android has not
+                        // connected the service (or has already disconnected it).
+                        check(permissionStatus()["accessibility"] == true && FocusShieldAccessibilityService.isConnected()) {
+                            "Accessibility service unavailable"
+                        }
                         store.start(requireNotNull(call.argument<String>("sessionId")), call.argument<String>("taskTitle") ?: "Focus",
                             requireNotNull(call.argument<Number>("endTimestampMs")).toLong(),
                             call.argument<List<String>>("blockedPackages")?.toSet() ?: emptySet())
                         result.success(store.snapshot())
                     }
                     "stopShield" -> {
+                        reconcileAccessibilityConnection()
                         val requested = call.argument<String>("reason")
                         val reason = if (requested == "completed" || requested == "cancelled") requested else "manual"
                         store.stop(reason); result.success(store.snapshot())
@@ -134,6 +142,7 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
             .sortedBy { it["label"] }
     }
     private fun detoxStatus(id: String): Map<String, Any?> {
+        reconcileAccessibilityConnection()
         val snapshot = store.snapshot()
         val owns = id.isNotEmpty() && snapshot["sessionId"] == id && snapshot["active"] == true
         val connected = permissionStatus()["accessibility"] == true && FocusShieldAccessibilityService.isConnected()
@@ -144,6 +153,14 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                 else if (owns) "Accessibility is disconnected. Restrictions are not verified."
                 else "No restriction owned by this Digital Detox session",
             "packages" to if (owns) store.selectedPackages().toList() else emptyList<String>())
+    }
+    private fun reconcileAccessibilityConnection() {
+        val available = try {
+            permissionStatus()["accessibility"] == true && FocusShieldAccessibilityService.isConnected()
+        } catch (_: RuntimeException) {
+            false // An unverifiable connection is not confirmed protection.
+        }
+        if (store.current().active && !available) store.stop("accessibility_lost")
     }
     fun onPermissionResult(requestCode: Int) {
         if (requestCode == REQUEST_NOTIFICATIONS) {

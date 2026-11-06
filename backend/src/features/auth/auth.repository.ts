@@ -42,7 +42,6 @@ export interface AuthRepository {
   findUserByEmail(email: string): Promise<UserRow | null>;
   findUserById(id: string): Promise<UserRow | null>;
   createUser(data: CreateUserData, client?: pg.PoolClient): Promise<UserRow>;
-  createDefaultCategories(userId: string, client?: pg.PoolClient): Promise<void>;
   createSession(data: CreateSessionData, client?: pg.PoolClient): Promise<AuthSession>;
   createRefreshToken(
     data: CreateRefreshTokenData,

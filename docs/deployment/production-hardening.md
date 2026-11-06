@@ -9,6 +9,7 @@ When `NODE_ENV=production`, backend configuration now requires:
 - `DATABASE_SSL=true` (certificate verification remains enabled by the PostgreSQL pool).
 - Values for `JWT_ACCESS_SECRET` and `OTP_HMAC_SECRET` that do not match known development or test examples.
 - `DATABASE_URL` using the documented least-privilege `lifestyle_app` role.
+- A committed retirement marker and safe runtime privileges, verified before API/worker startup. The draft erasure is not yet approved or in normal migrations; see the [NO-GO retirement/recovery plan](../remediation/drafts/FINANCIAL_ERASURE_RUNBOOK.md). Production startup intentionally fails until this is resolved; do not disable or bypass the guard.
 
 Use a managed secret store or an equivalent runtime secret injector. Never reuse values from `.env.example` or `docker-compose.yml`. Keep migration and maintenance connections separate from the API role. Do not pass production secrets as Docker build arguments or bake them into the image.
 

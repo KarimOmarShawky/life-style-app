@@ -26,8 +26,9 @@ import { createHabitsRouter } from './features/habits/habits.routes.js';
 import { createCalendarRouter } from './features/calendar/calendar.routes.js';
 import { createGoalsRouter } from './features/goals/goals.routes.js';
 import { createNotesRouter } from './features/notes/notes.routes.js';
-import { createMoneyRouter } from './features/money/money.routes.js';
-import { createIngestRouter } from './features/ingest/ingest.routes.js';
+import { createSubscriptionRouter } from './features/money/subscription.routes.js';
+import { createRetiredIngestRouter } from './features/ingest/retired-ingest.routes.js';
+import { retiredIngestGuard, retiredMoneyGuard } from './core/middleware/retired-money-features.js';
 import {
   createEntityRemindersRouter,
   createUnifiedRemindersRouter
@@ -232,26 +233,24 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     })
   );
 
-  // Mount Money routes
+  // Retain subscriptions; retire wallet, budgeting and transaction HTTP routes.
   v1Router.use(
     '/money',
-    createMoneyRouter({
-      controller: container.moneyController,
+    retiredMoneyGuard,
+    createSubscriptionRouter({
+      controller: container.subscriptionController,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })
   );
 
-  // Mount Ingest routes: session-bound tokens for background SMS capture (see ingest.routes.ts)
+  // Retain only token revocation for old clients; retire SMS ingestion.
   v1Router.use(
     '/ingest',
-    createIngestRouter({
-      controller: container.ingestController,
-      authenticate: container.authenticate,
-      authenticateIngest: container.authenticateIngest,
-      authenticateIngestOrUser: container.authenticateIngestOrUser,
-      createTransaction: container.moneyController.createTransaction,
-      rateLimiter: container.rateLimiter
+    retiredIngestGuard,
+    createRetiredIngestRouter({
+      pool: container.pgPool,
+      authenticate: container.authenticate
     })
   );
 

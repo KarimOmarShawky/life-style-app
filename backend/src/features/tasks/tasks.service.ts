@@ -216,7 +216,12 @@ export class TasksService {
       cursor: query.cursor
     };
 
-    const { tasks, nextCursor } = await this.tasksRepository.list(userId, filter, userToday);
+    const { tasks, nextCursor } = await this.tasksRepository.list(
+      userId,
+      filter,
+      userToday,
+      userTimezone
+    );
 
     return {
       data: tasks.map((t) => toTaskDto(t)),

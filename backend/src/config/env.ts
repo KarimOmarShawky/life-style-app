@@ -38,6 +38,9 @@ const baseEnvSchema = z.object({
     .url({ message: 'DATABASE_URL must be a valid PostgreSQL connection URL' }),
   DATABASE_MIGRATION_URL: z.string().url().optional(),
   DATABASE_MAINTENANCE_URL: z.string().url().optional(),
+  // Production always requires the erasure marker. This flag also enables the
+  // fail-closed startup guard in non-production restore rehearsals.
+  REQUIRE_FINANCIAL_RETIREMENT: z.enum(['true', 'false']).default('false'),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   // Per-statement safety ceiling for every pooled connection (ms).
   // 15s default; raise for deployments with legitimately long
@@ -76,17 +79,7 @@ const baseEnvSchema = z.object({
   EMAIL_FROM: z.string().email().default('no-reply@lifestyle.app'),
 
   // Push Notifications (FCM credentials JSON, optional in Phase P1)
-  FCM_CREDENTIALS: z.string().optional(),
-
-  // SMS auto-capture fallback (backend-only Gemini). Optional: without a key the
-  // fallback is disabled and only the local, on-device parser runs. The key must
-  // never be shipped in a mobile build or written to logs.
-  SMS_FALLBACK_GEMINI_KEY: z
-    .string()
-    .min(8, { message: 'SMS_FALLBACK_GEMINI_KEY must be at least 8 characters long' })
-    .optional(),
-  SMS_FALLBACK_GEMINI_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
-  SMS_FALLBACK_TIMEOUT_MS: z.coerce.number().int().positive().max(30000).default(6000)
+  FCM_CREDENTIALS: z.string().optional()
 });
 
 const envSchema = baseEnvSchema.superRefine((env, context) => {

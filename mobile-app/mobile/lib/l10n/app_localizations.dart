@@ -196,6 +196,7 @@ class AppLocalizations {
   String get currency => _s('currency');
   String get merchant => _s('merchant');
   String get transactionSaved => _s('transactionSaved');
+  String get subscriptionSaved => _s('subscriptionSaved');
   String get enterAmount => _s('enterAmount');
   String get amountMustBePositive => _s('amountMustBePositive');
   String get descHint => _s('descHint');
@@ -208,6 +209,8 @@ class AppLocalizations {
   String get budgetExceeded => _s('budgetExceeded');
   String get remindSubscription => _s('remindSubscription');
   String get subscriptionReminderSet => _s('subscriptionReminderSet');
+  String get subscriptionReminderUnavailable =>
+      _s('subscriptionReminderUnavailable');
   String get renewalSoon => _s('renewalSoon');
   String get subscriptionsTitle => _s('subscriptionsTitle');
   String get addSubscription => _s('addSubscription');
@@ -342,6 +345,10 @@ class AppLocalizations {
 
   String get noSpeechDetected => _s('noSpeechDetected');
   String get aiErrorMessage => _s('aiErrorMessage');
+  String get aiKeyStorageError => _s('aiKeyStorageError');
+  String get aiEgressTitle => _s('aiEgressTitle');
+  String get aiEgressDescription => _s('aiEgressDescription');
+  String get aiEgressAgree => _s('aiEgressAgree');
   String get smsSyncTitle => _s('smsSyncTitle');
   String get smsTrustedSendersTitle => _s('smsTrustedSendersTitle');
   String get smsTrustedSendersDesc => _s('smsTrustedSendersDesc');

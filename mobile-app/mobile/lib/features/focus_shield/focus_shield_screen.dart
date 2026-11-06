@@ -84,7 +84,7 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
               builder: (context) => AlertDialog(
                     title: const Text('Enable Focus Shield?'),
                     content: const Text(
-                        'LifeStyle can return you from selected apps during focus and read message notifications from supported messaging apps into a temporary inbox. Messages stay in memory, are never sent to AI, and are cleared when the session ends. You can end the shield at any time. Android permissions are optional and can be revoked in Settings.'),
+                        'LifeStyle can return you from selected apps during focus and read message notifications from supported non-SMS messaging apps into a temporary inbox. SMS apps are excluded. Messages stay in memory, are never sent to AI, and are cleared when the session ends. You can end the shield at any time. Android permissions are optional and can be revoked in Settings.'),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(context, false),

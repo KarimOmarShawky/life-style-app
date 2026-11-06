@@ -27,8 +27,6 @@ class WeeklyMetrics {
       required this.sessionCount,
       required this.attempts,
       this.averageClarity,
-      this.netSpending,
-      this.currency,
       this.localFocusOnly = false});
   final DateTime from;
   final DateTime to;
@@ -41,14 +39,12 @@ class WeeklyMetrics {
   final int sessionCount;
   final int attempts;
   final double? averageClarity;
-  final double? netSpending;
-  final String? currency;
   final bool localFocusOnly;
   double? get habitRate => habitsDue == null || habitsDue == 0
       ? null
       : 100 * (habitsDone ?? 0) / habitsDue!;
   int get estimatedMinutesSaved => attempts * estimatedMinutesSavedPerAttempt;
-  Map<String, num> aggregates({bool includeSpending = false}) => {
+  Map<String, num> aggregates() => {
         if (tasksCompleted != null) 'tasksCompleted': tasksCompleted!,
         if (tasksPending != null) 'tasksPending': tasksPending!,
         if (habitRate != null) 'habitConsistencyPercent': habitRate!,
@@ -57,7 +53,6 @@ class WeeklyMetrics {
         'focusSessions': sessionCount,
         'blockedAttempts': attempts,
         if (averageClarity != null) 'averageClarity': averageClarity!,
-        if (includeSpending && netSpending != null) 'netSpending': netSpending!,
       };
   String report() =>
       '''Weekly Brain Report · ${localDateKey(from)} — ${localDateKey(to.subtract(const Duration(microseconds: 1)))}
@@ -66,12 +61,11 @@ Habit consistency: ${habitRate?.toStringAsFixed(1) ?? 'No data'}${habitRate == n
 Focus: ${(focusSeconds / 60).toStringAsFixed(1)} minutes · $sessionCount sessions${localFocusOnly ? ' (local history only)' : ''}
 Blocked distraction attempts: $attempts
 Brain Clarity Score: ${averageClarity?.toStringAsFixed(1) ?? 'No data'}
-Estimated time saved: $estimatedMinutesSaved minutes (estimate: $estimatedMinutesSavedPerAttempt minutes per blocked attempt, not measured)
-Net spending (expense − income): ${netSpending?.toStringAsFixed(2) ?? 'No data'} ${currency ?? ''}''';
+Estimated time saved: $estimatedMinutesSaved minutes (estimate: $estimatedMinutesSavedPerAttempt minutes per blocked attempt, not measured)''';
   String offlineSummary() => '''Offline coaching · No data sent to AI.
-${sessionCount == 0 ? 'Start with one 25-minute focus session.' : 'Protect a daily focus block; you tracked $sessionCount sessions this week.'}
-${(tasksPending ?? 0) > 3 ? 'Choose three priorities rather than carrying the whole backlog.' : 'Pick one meaningful task to finish tomorrow.'}
-${(habitRate ?? 100) < 70 ? 'Make the least consistent habit smaller and easier to start.' : 'Keep your habit cue consistent.'}
+${sessionCount == 0 ? (localFocusOnly ? 'No local focus sessions found; server focus history is unavailable.' : 'Start with one 25-minute focus session.') : 'Protect a daily focus block; you tracked $sessionCount sessions this week${localFocusOnly ? ' (local history only)' : ''}.'}
+${tasksPending == null ? 'Task data is unavailable; choose a priority when it is available.' : tasksPending! > 3 ? 'Choose three priorities rather than carrying the whole backlog.' : 'Pick one meaningful task to finish tomorrow.'}
+${habitRate == null ? 'Habit consistency is unavailable for this period.' : habitRate! < 70 ? 'Make the least consistent habit smaller and easier to start.' : 'Keep your habit cue consistent.'}
 ${attempts > 0 ? 'Review your triggers and keep distracting apps blocked during focus.' : 'Maintain a calm environment and take deliberate breaks.'}''';
 }
 
@@ -82,9 +76,7 @@ WeeklyMetrics calculateWeeklyMetrics(
     List<Task>? tasks,
     int? habitsDue,
     int? habitsDone,
-    int? activeStreaks,
-    double? netSpending,
-    String? currency}) {
+    int? activeStreaks}) {
   final local = now.toLocal();
   final from = DateTime(local.year, local.month, local.day - 6);
   final to = DateTime(local.year, local.month, local.day + 1);
@@ -123,7 +115,5 @@ WeeklyMetrics calculateWeeklyMetrics(
           ? null
           : sessions.fold<int>(0, (sum, s) => sum + s.clarityScore) /
               sessions.length,
-      netSpending: netSpending,
-      currency: currency,
       localFocusOnly: backendSessions == null);
 }

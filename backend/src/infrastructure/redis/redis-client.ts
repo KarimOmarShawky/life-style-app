@@ -30,8 +30,8 @@ export function getRedisClient(): Redis {
     }
   });
 
-  redisInstance.on('error', (err) => {
-    logger.warn('Redis connection event error', { err: String(err) });
+  redisInstance.on('error', () => {
+    logger.warn('Redis connection event error');
   });
 
   redisInstance.on('connect', () => {
@@ -51,8 +51,8 @@ export async function checkRedisHealth(client?: Redis, timeoutMs = 1000): Promis
 
     const result = await Promise.race([pingPromise, timeoutPromise]);
     return result === 'PONG';
-  } catch (err) {
-    logger.warn('Redis health check probe failed', { err: String(err) });
+  } catch {
+    logger.warn('Redis health check probe failed');
     return false;
   }
 }

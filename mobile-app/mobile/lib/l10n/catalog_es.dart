@@ -1,5 +1,9 @@
 // App string catalog for the LifeStyle mobile client — locale: es (Spanish).
 const Map<String, String> esCatalog = {
+  'aiEgressTitle': '¿Enviar la conversación a Google Gemini?',
+  'aiEgressDescription':
+      'Tu mensaje y el historial de la conversación se envían a Google usando tu clave API. Los datos financieros no se incluyen automáticamente. No escribas secretos ni información sensible. Google aplica sus propias políticas de datos.',
+  'aiEgressAgree': 'Aceptar y enviar',
   'appTitle': 'LifeStyle',
   'signIn': 'Iniciar sesión',
   'createAccount': 'Crear cuenta',
@@ -74,6 +78,7 @@ const Map<String, String> esCatalog = {
   'amount': 'Importe',
   'currency': 'Moneda',
   'merchant': 'Comercio (opcional)',
+  'subscriptionSaved': '¡Suscripción guardada con éxito!',
   'transactionSaved': '¡Transacción guardada con éxito!',
   'enterAmount': 'Introduce un importe',
   'amountMustBePositive': 'Debe ser > 0',
@@ -86,6 +91,8 @@ const Map<String, String> esCatalog = {
   'budgetWarning': 'Aviso: ¡te acercas al límite del presupuesto!',
   'budgetExceeded': 'Aviso: ¡presupuesto superado!',
   'remindSubscription': 'Avisar antes de la renovación',
+  'subscriptionReminderUnavailable':
+      "No se pudieron activar los recordatorios. Comprueba los permisos de notificaciones y alarmas exactas e inténtalo de nuevo.",
   'subscriptionReminderSet': '¡Recordatorio de renovación programado!',
   'renewalSoon': '¡Renovación próxima!',
   'subscriptionsTitle': 'Suscripciones y facturas',
@@ -247,7 +254,7 @@ const Map<String, String> esCatalog = {
       'Se necesita el permiso de SMS para activar la captura automática.',
   'smsQuarantineTitle': 'Mensajes de billetera guardados para revisión',
   'smsQuarantineDesc':
-      'No se pudieron procesar algunos mensajes de billetera. Se conservaron, no se eliminaron, y se reintentarán automáticamente. Caducan a los 7 días.',
+      'Algunos mensajes necesitan atención. No todos se reintentan, algunos pueden permanecer en este dispositivo más de siete días y no se verifica a qué cuenta pertenecen.',
   'smsStorageFaultTitle': 'Problema de almacenamiento de la billetera',
   'smsStorageFaultDesc':
       'Un mensaje de billetera no se pudo guardar en este dispositivo. No se descartó nada; la aplicación sigue reintentando en segundo plano.',
@@ -272,6 +279,8 @@ const Map<String, String> esCatalog = {
   'aiSpeakTooltip': 'Leer esta respuesta en voz alta',
   'aiSpeaking': 'Leyendo...',
   'aiVoiceListening': 'Escuchando...',
+  'aiKeyStorageError':
+      'El almacenamiento seguro de la clave no está disponible. No se pudo confirmar el cambio.',
   'aiErrorMessage':
       'Ocurrió un error al procesar la solicitud. Inténtelo de nuevo.',
 };

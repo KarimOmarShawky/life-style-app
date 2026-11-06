@@ -1,3 +1,4 @@
+import 'support/fake_secure_storage.dart';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +39,9 @@ class _MemoryTokenStore implements TokenStore {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    FakeSecureStorage().install();
+  });
 
   group('AiService BYOK lifecycle & circuit breaker', () {
     setUp(() async {

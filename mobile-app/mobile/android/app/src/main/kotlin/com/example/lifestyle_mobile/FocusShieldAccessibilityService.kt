@@ -49,7 +49,13 @@ class FocusShieldAccessibilityService : AccessibilityService() {
     }
     override fun onInterrupt() { lastEvents.clear() }
     override fun onDestroy() {
-        if (instance?.get() === this) instance = null
+        if (instance?.get() === this) {
+            instance = null
+            // Do not report continued protection after the enforcing service
+            // disconnects. An old instance must never stop a newer connection.
+            try { FocusShieldSessionStore(this).stop("accessibility_lost") }
+            catch (_: RuntimeException) { /* Status reconciliation will retry. */ }
+        }
         super.onDestroy()
     }
     companion object {

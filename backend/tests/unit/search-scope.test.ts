@@ -136,7 +136,12 @@ describe('Global search domain coverage (F-07)', () => {
     ]) {
       expect(reader).toHaveBeenCalledWith('user-42', 'rent', 3);
     }
-    expect(fakes.money.searchSubscriptions).toHaveBeenCalledWith('user-42', 'rent', 3);
+    expect(fakes.money.searchSubscriptions).toHaveBeenCalledWith(
+      'user-42',
+      'rent',
+      3,
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
+    );
   });
 
   it('never exposes a transactions search surface on the money reader', () => {

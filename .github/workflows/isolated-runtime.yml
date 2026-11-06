@@ -95,3 +95,37 @@ jobs:
       # Deliberately no continue-on-error, no down migration, no external database,
       # no environment dump, secret-bearing logs/artifacts, deployment or production approval.
       # Existing policy/format/unit/mobile workflows remain independent and mandatory.
+
+  ai-stream-behavior:
+    name: AI streaming behavioral diagnostic
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Exercise mocked HTTP streaming round-trips
+        run: flutter test test/ai_stream_test.dart
+
+  subscription-reminder-diagnostic:
+    name: Subscription reminder behavioral diagnostic
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Check subscription reminder behavior
+        run: flutter test test/subscription_reminder_widget_test.dart test/subscription_reminders_test.dart

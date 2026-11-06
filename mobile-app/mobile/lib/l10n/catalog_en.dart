@@ -1,6 +1,10 @@
 // GENERATED CATALOG — locale: en
 // App string catalog for the LifeStyle mobile client.
 const Map<String, String> enCatalog = {
+  'aiEgressTitle': 'Send conversation to Google Gemini?',
+  'aiEgressDescription':
+      'Your message and conversation history are sent to Google using your API key. Financial records are not included automatically. Do not type secrets or sensitive information. Google applies its own data policies.',
+  'aiEgressAgree': 'Agree and send',
   'appTitle': 'LifeStyle',
   'signIn': 'Sign in',
   'createAccount': 'Create account',
@@ -108,6 +112,7 @@ const Map<String, String> enCatalog = {
   'amount': 'Amount',
   'currency': 'Currency',
   'merchant': 'Merchant (optional)',
+  'subscriptionSaved': 'Subscription saved successfully!',
   'transactionSaved': 'Transaction saved successfully!',
   'enterAmount': 'Enter amount',
   'amountMustBePositive': 'Must be > 0',
@@ -120,6 +125,8 @@ const Map<String, String> enCatalog = {
   'budgetWarning': 'Warning: approaching budget limit!',
   'budgetExceeded': 'Warning: budget exceeded!',
   'remindSubscription': 'Remind before renewal',
+  'subscriptionReminderUnavailable':
+      "Could not enable subscription reminders. Check notification and exact alarm permissions, then retry.",
   'subscriptionReminderSet': 'Renewal reminder set!',
   'renewalSoon': 'Renewal soon!',
   'subscriptionsTitle': 'Subscriptions & Bills',
@@ -416,7 +423,7 @@ const Map<String, String> enCatalog = {
       'Some messages could not be analyzed right now. They are kept and retried automatically, so nothing is lost.',
   'smsQuarantineTitle': 'Wallet messages kept for review',
   'smsQuarantineDesc':
-      'Some wallet messages could not be processed. They were kept, not deleted, and are retried automatically. They expire after 7 days.',
+      'Some wallet messages need attention. Not all are retried, some may remain on this device beyond seven days, and their account ownership is not verified.',
   'smsStorageFaultTitle': 'Wallet storage problem',
   'smsStorageFaultDesc':
       'A wallet message could not be saved on this device. Nothing was discarded; the app keeps retrying in the background.',
@@ -440,6 +447,8 @@ const Map<String, String> enCatalog = {
   'aiSpeakTooltip': 'Speak this response',
   'aiSpeaking': 'Speaking...',
   'aiVoiceListening': 'Listening...',
+  'aiKeyStorageError':
+      'Secure key storage is unavailable. The change could not be confirmed.',
   'aiErrorMessage':
       'An error occurred while processing your request. Please try again.',
 };

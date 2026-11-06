@@ -69,10 +69,8 @@ test('AUD-21: AI service uses BYOK key resolution with release gating', () => {
 });
 
 test('AUD-21: AI service exposes the advanced analysis and planning methods', () => {
-  // Money insights from transaction history.
-  assert.match(aiService, /Future<String\?> getMoneyInsights\(/);
-  assert.match(aiService, /required List<Map<String, dynamic>> transactions/);
-  assert.match(aiService, /required String currency/);
+  // Money insights are retired; unrelated AI functions remain.
+  assert.doesNotMatch(aiService, /Future<String\?> getMoneyInsights\(/);
 
   // Personalised habit coaching.
   assert.match(aiService, /Future<String\?> getHabitCoaching\(/);
@@ -105,17 +103,14 @@ test('AUD-21: AI service exposes the advanced analysis and planning methods', ()
   assert.match(aiService, /required List<Map<String, dynamic>> highlights/);
 });
 
-test('AUD-21: AI service exposes streaming and voice methods', () => {
-  // Streaming chat with real-time token delivery.
-  assert.match(aiService, /Stream<String> streamMessage\(/);
-  assert.match(aiService, /required List<ChatMessage> conversationHistory/);
-  assert.match(aiService, /Accept.*text\/event-stream/);
-  assert.match(aiService, /data: /);
-  assert.match(aiService, /[DONE]/);
-
-  // Voice synthesis from text.
-  assert.match(aiService, /Future<List<int>> speakText\(/);
-  assert.match(aiService, /required String text/);
+test('AI chat streams from the SSE endpoint and does not expose fake speech', () => {
+  const stream = aiService.slice(aiService.indexOf('Stream<String> streamMessage('), aiService.indexOf('/// Generates a cumulative lifestyle analysis'));
+  assert.match(aiService, /:streamGenerateContent\?alt=sse/);
+  assert.match(stream, /client\.send\(request\)/);
+  assert.doesNotMatch(stream, /\.post\(/);
+  assert.match(stream, /response\.stream/);
+  assert.match(stream, /\[DONE\]/);
+  assert.doesNotMatch(aiService, /synthesizeSpeech|Future<List<int>> speakText/);
 });
 
 test('AUD-21: AI service exposes cumulative analysis and performance dashboard methods', () => {

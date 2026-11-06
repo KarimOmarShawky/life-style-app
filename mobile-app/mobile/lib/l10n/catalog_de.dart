@@ -1,5 +1,9 @@
 // App string catalog for the LifeStyle mobile client — locale: de (German).
 const Map<String, String> deCatalog = {
+  'aiEgressTitle': 'Unterhaltung an Google Gemini senden?',
+  'aiEgressDescription':
+      'Deine Nachricht und der Gesprächsverlauf werden mit deinem API-Schlüssel an Google gesendet. Finanzdaten werden nicht automatisch aufgenommen. Gib keine Geheimnisse oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
+  'aiEgressAgree': 'Zustimmen und senden',
   'appTitle': 'LifeStyle',
   'signIn': 'Anmelden',
   'createAccount': 'Konto erstellen',
@@ -76,6 +80,7 @@ const Map<String, String> deCatalog = {
   'amount': 'Betrag',
   'currency': 'Währung',
   'merchant': 'Anbieter (optional)',
+  'subscriptionSaved': 'Abonnement erfolgreich gespeichert!',
   'transactionSaved': 'Transaktion erfolgreich gespeichert!',
   'enterAmount': 'Betrag eingeben',
   'amountMustBePositive': 'Muss > 0 sein',
@@ -88,6 +93,8 @@ const Map<String, String> deCatalog = {
   'budgetWarning': 'Warnung: Budgetlimit fast erreicht!',
   'budgetExceeded': 'Warnung: Budget überschritten!',
   'remindSubscription': 'Vor Verlängerung erinnern',
+  'subscriptionReminderUnavailable':
+      "Abo-Erinnerungen konnten nicht aktiviert werden. Prüfe die Berechtigungen für Benachrichtigungen und genaue Alarme und versuche es erneut.",
   'subscriptionReminderSet': 'Verlängerungserinnerung eingerichtet!',
   'renewalSoon': 'Baldige Verlängerung!',
   'subscriptionsTitle': 'Abonnements & Rechnungen',
@@ -249,7 +256,7 @@ const Map<String, String> deCatalog = {
       'SMS-Berechtigung ist für die automatische Erfassung erforderlich.',
   'smsQuarantineTitle': 'Wallet-Nachrichten zur Prüfung aufbewahrt',
   'smsQuarantineDesc':
-      'Einige Wallet-Nachrichten konnten nicht verarbeitet werden. Sie wurden aufbewahrt, nicht gelöscht, und werden automatisch erneut versucht. Sie verfallen nach 7 Tagen.',
+      'Einige Nachrichten benötigen Aufmerksamkeit. Nicht alle werden erneut versucht, manche können länger als sieben Tage auf diesem Gerät bleiben und ihre Kontozuordnung ist nicht geprüft.',
   'smsStorageFaultTitle': 'Problem beim Speichern der Wallet-Daten',
   'smsStorageFaultDesc':
       'Eine Wallet-Nachricht konnte auf diesem Gerät nicht gespeichert werden. Es wurde nichts verworfen; die App versucht es im Hintergrund weiter.',
@@ -275,6 +282,8 @@ const Map<String, String> deCatalog = {
   'aiSpeakTooltip': 'Diese Antwort vorlesen',
   'aiSpeaking': 'Wird vorgetragen...',
   'aiVoiceListening': 'Höre zu...',
+  'aiKeyStorageError':
+      'Der sichere Schlüsselspeicher ist nicht verfügbar. Die Änderung konnte nicht bestätigt werden.',
   'aiErrorMessage':
       'Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
 };

@@ -8,8 +8,12 @@
 import pg from 'pg';
 import { getEnv } from '../../../config/env.js';
 import { logger } from '../../../core/logger/logger.js';
+import { summarizeErrorForLog } from '../../../core/logger/log-minimization.js';
 
 const { Pool } = pg;
+
+// DATE is a civil day, not an instant. Keep it consistent with Kysely's string types.
+pg.types.setTypeParser(1082, (value) => value);
 
 let pool: pg.Pool | null = null;
 
@@ -30,7 +34,7 @@ export function getPgPool(): pg.Pool {
   });
 
   pool.on('error', (err) => {
-    logger.error('Unexpected error on idle PostgreSQL client pool', err);
+    logger.error('Unexpected error on idle PostgreSQL client pool', summarizeErrorForLog(err));
   });
 
   return pool;
@@ -58,7 +62,7 @@ export async function checkPgHealth(timeoutMs = 1000): Promise<boolean> {
       client.release();
     }
   } catch (err) {
-    logger.warn('PostgreSQL health check probe failed', { err: String(err) });
+    logger.warn('PostgreSQL health check probe failed', { ...summarizeErrorForLog(err) });
     return false;
   }
 }

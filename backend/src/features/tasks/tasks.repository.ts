@@ -55,7 +55,8 @@ export interface TasksRepository {
   list(
     userId: string,
     filter: ListTasksFilter,
-    userToday: string
+    userToday: string,
+    userTimezone: string
   ): Promise<{ tasks: TaskRow[]; nextCursor: string | null }>;
   unfocusAllForDate(userId: string, plannedDate: string, excludeTaskId?: string): Promise<void>;
   cancelRemindersForTask(userId: string, taskId: string): Promise<void>;

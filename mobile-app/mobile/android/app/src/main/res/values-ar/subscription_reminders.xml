@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subscription_reminder_channel">تذكيرات الاشتراكات</string>
+    <string name="subscription_reminder_title">تذكير باشتراك</string>
+    <string name="subscription_reminder_body">قد يتجدد اشتراك قريبًا. افتح LifeStyle للمراجعة.</string>
+</resources>

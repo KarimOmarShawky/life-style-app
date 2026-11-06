@@ -1,6 +1,10 @@
 // GENERATED CATALOG — locale: ar
 // App string catalog for the LifeStyle mobile client.
 const Map<String, String> arCatalog = {
+  'aiEgressTitle': 'إرسال المحادثة إلى Google Gemini؟',
+  'aiEgressDescription':
+      'تُرسل رسالتك وسجل المحادثة إلى Google باستخدام مفتاح API الخاص بك. لا تُرسل السجلات المالية تلقائياً. لا تكتب أسراراً أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
+  'aiEgressAgree': 'أوافق وأرسل',
   'appTitle': 'لايف ستايل',
   'signIn': 'تسجيل الدخول',
   'createAccount': 'إنشاء حساب جديد',
@@ -72,6 +76,7 @@ const Map<String, String> arCatalog = {
   'amount': 'المبلغ',
   'currency': 'العملة',
   'merchant': 'المتجر / الجهة',
+  'subscriptionSaved': 'تم حفظ الاشتراك بنجاح!',
   'transactionSaved': 'تم حفظ المعاملة بنجاح!',
   'enterAmount': 'يرجى إدخال المبلغ',
   'amountMustBePositive': 'يجب أن يكون المبلغ أكبر من 0',
@@ -84,6 +89,8 @@ const Map<String, String> arCatalog = {
   'budgetWarning': 'تنبيه: اقتربت من الحد الأقصى للميزانية!',
   'budgetExceeded': 'تنبيه: لقد تجاوزت الميزانية المحددة!',
   'remindSubscription': 'تذكير قبل التجديد',
+  'subscriptionReminderUnavailable':
+      "تعذر تفعيل تذكيرات الاشتراكات. تحقق من أذونات الإشعارات والمنبهات الدقيقة ثم أعد المحاولة.",
   'subscriptionReminderSet': 'تم ضبط تذكير قبل التجديد بنجاح!',
   'renewalSoon': 'تجديد قريب!',
   'subscriptionsTitle': 'الاشتراكات والفواتير',
@@ -379,7 +386,7 @@ const Map<String, String> arCatalog = {
       'تعذّر تحليل بعض الرسائل الآن. تم الاحتفاظ بها وستُعاد المحاولة تلقائيًا دون فقد أي شيء.',
   'smsQuarantineTitle': 'رسائل محفظة محفوظة للمراجعة',
   'smsQuarantineDesc':
-      'تعذّرت معالجة بعض رسائل المحفظة. تم الاحتفاظ بها ولم تُحذف، وستُعاد المحاولة تلقائيًا، وتنتهي صلاحيتها بعد ٧ أيام.',
+      'بعض رسائل المحفظة تحتاج إلى انتباه. لا تُعاد محاولة كل الرسائل، وقد يبقى بعضها على الجهاز لأكثر من سبعة أيام، ولم يتم التحقق من الحساب المرتبط بها.',
   'smsStorageFaultTitle': 'مشكلة في تخزين بيانات المحفظة',
   'smsStorageFaultDesc':
       'تعذّر حفظ رسالة محفظة على هذا الجهاز. لم يُحذف أي شيء، وسيواصل التطبيق المحاولة في الخلفية.',
@@ -402,5 +409,7 @@ const Map<String, String> arCatalog = {
   'aiSpeakTooltip': 'قراءة هذا الرد بصوت',
   'aiSpeaking': 'جارٍ القراءة...',
   'aiVoiceListening': 'جارٍ الاستماع...',
+  'aiKeyStorageError':
+      'تعذّر الوصول إلى التخزين الآمن للمفتاح. لم يتم تأكيد التغيير.',
   'aiErrorMessage': 'حدث خطأ أثناء معالجة الطلب. يرجى المحاولة مرة أخرى.',
 };

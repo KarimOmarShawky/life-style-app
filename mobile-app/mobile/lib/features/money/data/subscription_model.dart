@@ -6,6 +6,7 @@ class Subscription {
     required this.currency,
     required this.billingUnit,
     required this.billingInterval,
+    required this.anchorDate,
     required this.nextBillingDate,
     required this.status,
     required this.monthlyEquivalent,
@@ -19,6 +20,7 @@ class Subscription {
   final String currency;
   final String billingUnit;
   final int billingInterval;
+  final String anchorDate;
   final String nextBillingDate;
   final String status;
   final String monthlyEquivalent;
@@ -32,6 +34,7 @@ class Subscription {
         currency: _string(json, 'currency'),
         billingUnit: _string(json, 'billingUnit'),
         billingInterval: _int(json, 'billingInterval'),
+        anchorDate: _string(json, 'anchorDate'),
         nextBillingDate: _string(json, 'nextBillingDate'),
         status: _string(json, 'status'),
         monthlyEquivalent: _string(json, 'monthlyEquivalent'),

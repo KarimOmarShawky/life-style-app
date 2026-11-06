@@ -41,6 +41,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _hasGeminiKey = false;
+  bool _geminiStorageUnavailable = false;
   bool _busyAction = false;
   ArchiveCancellation? _archiveCancel;
   String? _archiveUserId;
@@ -80,9 +81,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _refreshGeminiKeyStatus() async {
-    final hasKey = await AiService.instance.hasUserApiKey();
-    if (!mounted) return;
-    setState(() => _hasGeminiKey = hasKey);
+    try {
+      final hasKey = await AiService.instance.hasUserApiKey();
+      if (!mounted) return;
+      setState(() {
+        _hasGeminiKey = hasKey;
+        _geminiStorageUnavailable = false;
+      });
+    } on AiSecureStorageException {
+      if (!mounted) return;
+      setState(() => _geminiStorageUnavailable = true);
+    }
   }
 
   Future<void> _changeCurrency(
@@ -560,11 +569,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ? 'مفتاح Gemini API الشخصي (BYOK)'
                 : 'Personal Gemini API Key (BYOK)'),
             subtitle: Text(
-              _hasGeminiKey
-                  ? (isAr
-                      ? 'مُعَدّ ومشفر على الجهاز'
-                      : 'Configured & encrypted on device')
-                  : localization.notSet,
+              _geminiStorageUnavailable
+                  ? localization.aiKeyStorageError
+                  : _hasGeminiKey
+                      ? (isAr
+                          ? 'مُعَدّ ومشفر على الجهاز'
+                          : 'Configured & encrypted on device')
+                      : localization.notSet,
             ),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () async {
@@ -611,10 +622,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               try {
                 await ref.read(authProvider.notifier).signOut();
+              } on AiSecureStorageException {
+                if (messenger.mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(localization.aiKeyStorageError)),
+                  );
+                }
               } catch (_) {
-                // Local credentials are cleared even if the network is down.
+                // Logout and other local cleanup may fail independently.
+                // Do not claim that every credential was removed.
               }
             },
             icon: const Icon(Icons.logout),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -72,25 +71,6 @@ class SubscriptionCard extends StatelessWidget {
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
               ],
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: l10n.remindSubscription,
-              icon: const Icon(Icons.alarm_on_outlined, size: 20),
-              onPressed: () async {
-                final notifId = subscription.id.hashCode;
-                await NotificationService.instance.showInstantNotification(
-                  id: notifId,
-                  title: subscription.name,
-                  body:
-                      '${l10n.remindSubscription}: ${subscription.amount} ${subscription.currency}',
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.subscriptionReminderSet)),
-                  );
-                }
-              },
             ),
           ],
         ),

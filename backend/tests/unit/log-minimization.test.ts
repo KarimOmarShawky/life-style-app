@@ -10,7 +10,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { correlationId, summarizeErrorForLog } from '../../src/core/logger/log-minimization.js';
-import { logger } from '../../src/core/logger/logger.js';
+import { baseLogger, logger, logProcessFailure } from '../../src/core/logger/logger.js';
+import { AppError } from '../../src/core/errors/app-error.js';
+import { PgAuditLogger } from '../../src/infrastructure/database/postgres/audit-logger.js';
+import { PgTransactionRunner } from '../../src/infrastructure/database/postgres/transaction-runner.js';
 import { createRateLimitMiddleware } from '../../src/core/middleware/rate-limiter.js';
 import { globalErrorHandler } from '../../src/core/middleware/error-handler.js';
 
@@ -22,6 +25,23 @@ afterEach(() => {
 });
 
 describe('Log minimization (V-10)', () => {
+  it('does not leak provider values from audit and after-commit failures', async () => {
+    const sink = vi.spyOn(baseLogger, 'error').mockImplementation(() => undefined as never);
+    const err = new Error(`secret value ${EMAIL}`);
+    const audit = new PgAuditLogger({ query: vi.fn().mockRejectedValue(err) } as never);
+    await audit.log({ actorType: 'system', eventType: 'test', outcome: 'failure' });
+    const runner = new PgTransactionRunner({
+      transaction: () => ({ execute: async (fn: (tx: unknown) => Promise<unknown>) => fn({}) })
+    } as never);
+    await runner.run(async (ctx) => {
+      ctx.afterCommit(() => {
+        throw err;
+      });
+    });
+    expect(sink).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sink.mock.calls)).not.toContain(EMAIL);
+  });
+
   it('replaces a sensitive key with a keyed, non-reversible correlation id', () => {
     const key = `login:${EMAIL}:${IP}`;
     const first = correlationId(key);
@@ -41,14 +61,83 @@ describe('Log minimization (V-10)', () => {
     const summary = summarizeErrorForLog(error);
     expect(summary).toMatchObject({
       errorName: 'Error',
-      errorCode: '23505',
-      constraint: 'users_email_key',
-      table: 'users'
+      errorCode: '23505'
     });
     const serialized = JSON.stringify(summary);
     expect(serialized).not.toContain(EMAIL);
     expect(serialized).not.toContain(IP);
     expect(serialized).not.toContain('duplicate key');
+  });
+
+  it('does not trust error name, stack, constraint, table or message as log-safe', () => {
+    const error = Object.assign(new Error(`first line\n${EMAIL}`), {
+      name: EMAIL,
+      code: '23514',
+      constraint: EMAIL,
+      table: EMAIL,
+      detail: EMAIL
+    });
+    error.stack = `Error: first line\n${EMAIL}`;
+    const summary = summarizeErrorForLog(error);
+    expect(summary).toEqual({ errorName: 'Error', errorCode: '23514' });
+    expect(JSON.stringify(summary)).not.toContain(EMAIL);
+  });
+
+  it('does not serialize a raw Error passed to error or fatal wrappers', () => {
+    const errorSink = vi.spyOn(baseLogger, 'error').mockImplementation(() => undefined as never);
+    const fatalSink = vi.spyOn(baseLogger, 'fatal').mockImplementation(() => undefined as never);
+    const failure = new Error(`sensitive payload ${EMAIL}`);
+    logger.error('safe diagnostic', failure);
+    logger.fatal('safe diagnostic', failure);
+    expect(errorSink).toHaveBeenCalledOnce();
+    expect(fatalSink).toHaveBeenCalledOnce();
+    expect(JSON.stringify([...errorSink.mock.calls, ...fatalSink.mock.calls])).not.toContain(EMAIL);
+  });
+
+  it('redacts process-failure reasons even when they are strings or arbitrary objects', () => {
+    const sink = vi.spyOn(baseLogger, 'fatal').mockImplementation(() => undefined as never);
+    logProcessFailure('uncaughtException', new Error(`value ${EMAIL}`));
+    logProcessFailure('unhandledRejection', `value ${EMAIL}`);
+    logProcessFailure('unhandledRejection', { nested: { payload: EMAIL } });
+    expect(sink).toHaveBeenCalledTimes(3);
+    expect(JSON.stringify(sink.mock.calls)).not.toContain(EMAIL);
+  });
+
+  it('tolerates hostile error getters and never logs their values', () => {
+    const error = new Error('not safe');
+    Object.defineProperty(error, 'name', {
+      get() {
+        throw new Error(EMAIL);
+      }
+    });
+    expect(summarizeErrorForLog(error)).toEqual({ errorName: 'unknown' });
+  });
+
+  it('does not log AppError messages or internal causes', async () => {
+    const sink = vi.spyOn(baseLogger, 'error').mockImplementation(() => undefined as never);
+    const app = express();
+    app.use(() => {
+      throw AppError.database(new Error(`row is ${EMAIL}`));
+    });
+    app.use(globalErrorHandler);
+    const response = await request(app).get(`/sensitive/${EMAIL}`);
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(response.body)).not.toContain(EMAIL);
+    expect(sink).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sink.mock.calls)).not.toContain(EMAIL);
+  });
+
+  it('does not include a client-visible operational message in warning logs', async () => {
+    const sink = vi.spyOn(baseLogger, 'warn').mockImplementation(() => undefined as never);
+    const app = express();
+    app.use(() => {
+      throw AppError.forbidden(`sensitive ${EMAIL}`);
+    });
+    app.use(globalErrorHandler);
+    const response = await request(app).get(`/sensitive/${EMAIL}`);
+    expect(response.status).toBe(403);
+    expect(sink).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sink.mock.calls)).not.toContain(EMAIL);
   });
 
   it('never logs a raw rate-limit key when a request is throttled', async () => {
@@ -96,7 +185,7 @@ describe('Log minimization (V-10)', () => {
     });
     app.use(globalErrorHandler);
 
-    const res = await request(app).get('/api/v1/users');
+    const res = await request(app).get(`/api/v1/users/${EMAIL}`);
     expect(res.status).toBe(400);
     expect(JSON.stringify(res.body)).not.toContain(EMAIL);
 
@@ -114,7 +203,7 @@ describe('Log minimization (V-10)', () => {
     });
     app.use(globalErrorHandler);
 
-    const res = await request(app).get('/api/v1/money/transactions');
+    const res = await request(app).get(`/api/v1/money/transactions/${EMAIL}`);
     expect(res.status).toBe(500);
     expect(res.body.error.message).toBe('Internal server error');
 

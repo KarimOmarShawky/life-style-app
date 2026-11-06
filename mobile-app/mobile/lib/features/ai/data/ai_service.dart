@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:lifestyle_mobile/config/app_config.dart';
@@ -17,13 +17,57 @@ class ChatMessage {
   final DateTime? timestamp;
 }
 
+/// A provider or transport failure, separate from model-generated text.
+class AiStreamingException implements Exception {
+  const AiStreamingException(this.code);
+
+  final String code;
+
+  @override
+  String toString() => 'AiStreamingException($code)';
+}
+
+List<String> _textFromSseEvent(String data) {
+  final decoded = jsonDecode(data);
+  if (decoded is! Map<String, dynamic> || decoded.containsKey('error')) {
+    throw const AiStreamingException('invalid_event');
+  }
+  final candidates = decoded['candidates'];
+  if (candidates is! List || candidates.isEmpty) return const [];
+  final candidate = candidates.first;
+  if (candidate is! Map<String, dynamic>) {
+    throw const AiStreamingException('invalid_event');
+  }
+  final content = candidate['content'];
+  if (content is! Map<String, dynamic>) return const [];
+  final parts = content['parts'];
+  if (parts is! List) return const [];
+  final result = <String>[];
+  for (final part in parts) {
+    if (part is Map<String, dynamic> && part['text'] is String) {
+      final text = part['text'] as String;
+      if (text.isNotEmpty) result.add(text);
+    }
+  }
+  return result;
+}
+
+/// Secure key operations failed; no secret or platform details are exposed.
+class AiSecureStorageException implements Exception {
+  const AiSecureStorageException();
+}
+
 class AiService {
   AiService._();
+  @visibleForTesting
+  AiService.forTesting();
   static final AiService instance = AiService._();
 
   static const String _model = 'gemini-3.5-flash-lite';
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
+  static const String _streamUrl =
+      'https://generativelanguage.googleapis.com/v1beta/models/$_model:streamGenerateContent?alt=sse';
   static const String _byokStorageKey = 'lifestyle.byok.gemini_api_key.v1';
   static const int maxConsecutiveFailures = 3;
 
@@ -37,6 +81,8 @@ class AiService {
   String? _cachedUserKey;
   bool _loadedUserKey = false;
   int _consecutiveFailures = 0;
+  int _keyGeneration = 0;
+  Future<void> _keyWriteTail = Future<void>.value();
 
   bool get isKeyPaused => _consecutiveFailures >= maxConsecutiveFailures;
 
@@ -46,44 +92,48 @@ class AiService {
 
   /// Returns the user's personal BYOK Gemini API key stored in secure storage.
   Future<String> getUserApiKey() async {
-    if (_loadedUserKey) {
-      return _cachedUserKey ?? '';
-    }
+    if (_loadedUserKey) return _cachedUserKey ?? '';
+    final generation = _keyGeneration;
+    final String? stored;
     try {
-      final stored = await _secureStorage.read(key: _byokStorageKey);
-      _cachedUserKey = stored?.trim();
-    } on MissingPluginException {
-      // Unit/widget tests without platform channels fall back to in-memory cache.
-    } on PlatformException {
-      // Ignore platform read errors and fall back to in-memory cache.
+      stored = await _secureStorage.read(key: _byokStorageKey);
+    } on Object {
+      throw const AiSecureStorageException();
     }
+    // Do not resurrect a key if sign-out or a new write started during read.
+    if (generation != _keyGeneration) return _cachedUserKey ?? '';
+    _cachedUserKey = stored?.trim();
     _loadedUserKey = true;
     return _cachedUserKey ?? '';
   }
 
   /// Returns true when the user has saved a personal BYOK Gemini API key.
-  Future<bool> hasUserApiKey() async {
-    final key = await getUserApiKey();
-    return key.isNotEmpty;
-  }
+  Future<bool> hasUserApiKey() async => (await getUserApiKey()).isNotEmpty;
 
   /// Saves or clears the user's personal BYOK Gemini API key in secure storage.
-  Future<void> setUserApiKey(String? apiKey) async {
+  /// Failures are reported, and stale in-flight writes never restore the cache.
+  Future<void> setUserApiKey(String? apiKey) {
     final trimmed = apiKey?.trim() ?? '';
-    _cachedUserKey = trimmed.isEmpty ? null : trimmed;
+    final generation = ++_keyGeneration;
+    _cachedUserKey = null;
     _loadedUserKey = true;
     _consecutiveFailures = 0;
-    try {
-      if (trimmed.isEmpty) {
-        await _secureStorage.delete(key: _byokStorageKey);
-      } else {
-        await _secureStorage.write(key: _byokStorageKey, value: trimmed);
+    final result = _keyWriteTail.then((_) async {
+      try {
+        if (trimmed.isEmpty) {
+          await _secureStorage.delete(key: _byokStorageKey);
+        } else {
+          await _secureStorage.write(key: _byokStorageKey, value: trimmed);
+        }
+      } on Object {
+        throw const AiSecureStorageException();
       }
-    } on MissingPluginException {
-      // Unit/widget tests without platform channels keep the in-memory value.
-    } on PlatformException {
-      // Ignore platform write errors in non-device environments.
-    }
+      if (generation == _keyGeneration) {
+        _cachedUserKey = trimmed.isEmpty ? null : trimmed;
+      }
+    });
+    _keyWriteTail = result.catchError((Object _) {});
+    return result;
   }
 
   /// Resolves the active Gemini API key: user BYOK key first, then dev/test
@@ -122,8 +172,7 @@ Tone: Friendly, motivating, professional, concise, and focused on execution. Avo
       'focusMinutes',
       'focusSessions',
       'blockedAttempts',
-      'averageClarity',
-      'netSpending'
+      'averageClarity'
     };
     if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
     final numbers = <String, num>{
@@ -335,7 +384,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
 
   /// Context-aware chat that injects the user's current life state into the
   /// conversation. The model receives structured context (pending tasks,
-  /// habits, goals, spending) so replies are personalised, not generic.
+  /// habits and goals) so replies are personalised, not generic.
   Future<String> sendMessageWithContext({
     required List<ChatMessage> conversationHistory,
     required String newMessage,
@@ -430,7 +479,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
   }
 
   /// Answers a question using the user's own data (tasks, notes, habits,
-  /// goals, spending). Falls back to generic advice when no data is provided.
+  /// goals). Falls back to generic advice when no data is provided.
   Future<String> answerWithData({
     required String question,
     Map<String, dynamic> data = const {},
@@ -452,25 +501,6 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
       languageName: languageName,
       httpClient: httpClient,
     );
-  }
-
-  /// Analyses spending patterns and returns personalised budget advice
-  /// based on the user's transaction history.
-  Future<String?> getMoneyInsights({
-    required List<Map<String, dynamic>> transactions,
-    required String currency,
-    String languageName = 'Arabic',
-    http.Client? httpClient,
-  }) async {
-    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Analyse these transactions and produce a spending insight report. Identify the top 3 spending categories, flag any unusual patterns, and give 2 concrete budget suggestions.\n\nTransactions (JSON): ${jsonEncode(transactions)}\nCurrency: $currency',
-      languageName: languageName,
-      httpClient: httpClient,
-    );
-    return result.isNotEmpty ? result : null;
   }
 
   /// Generates a personalised habit coaching plan based on the user's
@@ -589,8 +619,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     return result.isNotEmpty ? result : null;
   }
 
-  /// Streams a chat response token-by-token for real-time display.
-  /// Uses Gemini's streaming endpoint with Server-Sent Events.
+  /// Streams model text as SSE events arrive. Failures use the error channel.
   Stream<String> streamMessage({
     required List<ChatMessage> conversationHistory,
     required String newMessage,
@@ -598,21 +627,9 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     Duration timeout = const Duration(seconds: 30),
     http.Client? httpClient,
   }) async* {
-    final isArabic = languageName == 'Arabic';
     final key = await getEffectiveApiKey();
-    if (key.isEmpty) {
-      yield isArabic
-          ? 'يرجى إضافة مفتاح Gemini API الشخصي من أيقونة المفتاح أعلى الشاشة أو من الملف الشخصي لتفعيل المساعد الذكي.'
-          : 'Please add your personal Gemini API key via the key icon above or in Profile settings to enable the AI Assistant.';
-      return;
-    }
-
-    if (isKeyPaused) {
-      yield isArabic
-          ? 'تم إيقاف طلبات الذكاء الاصطناعي مؤقتاً بعد عدة محاولات فاشلة. يرجى التحقق من صلاحية مفتاح Gemini API أو تحديثه.'
-          : 'AI requests are temporarily paused after repeated provider errors. Please verify or update your Gemini API key.';
-      return;
-    }
+    if (key.isEmpty) throw const AiStreamingException('missing_key');
+    if (isKeyPaused) throw const AiStreamingException('paused');
 
     final client = httpClient ?? http.Client();
     try {
@@ -635,129 +652,67 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
         ],
       });
 
-      final request = client
-          .post(
-            Uri.parse(_baseUrl),
-            headers: {
-              'Content-Type': 'application/json',
-              'X-goog-api-key': key,
-              'Accept': 'text/event-stream',
-            },
-            body: jsonEncode({
-              'generationConfig': {
-                'temperature': 0.7,
-                'maxOutputTokens': 800,
-              },
-              'contents': contents,
-            }),
-          )
-          .timeout(timeout);
-
-      final response = await request;
+      final request = http.Request('POST', Uri.parse(_streamUrl));
+      request.headers.addAll({
+        'Content-Type': 'application/json',
+        'X-goog-api-key': key,
+        'Accept': 'text/event-stream',
+      });
+      request.body = jsonEncode({
+        'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 800},
+        'contents': contents,
+      });
+      final response = await client.send(request).timeout(timeout);
       if (response.statusCode != 200) {
-        if (response.statusCode == 401 ||
-            response.statusCode == 403 ||
-            response.statusCode == 429 ||
-            response.statusCode >= 500) {
-          _consecutiveFailures++;
-        }
-        yield isArabic
-            ? 'عذراً، لم أتمكن من معالجة الطلب حالياً. يرجى المحاولة بعد لحظات.'
-            : 'Sorry, I could not process your request right now. Please try again shortly.';
-        return;
+        throw const AiStreamingException('provider_error');
+      }
+      final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+      if (!contentType.startsWith('text/event-stream')) {
+        throw const AiStreamingException('invalid_content_type');
       }
 
-      _consecutiveFailures = 0;
-      final body = utf8.decode(response.bodyBytes);
-
-      final lines = body.split('\n');
-      for (final line in lines) {
-        final trimmed = line.trim();
-        if (trimmed.isEmpty || !trimmed.startsWith('data: ')) continue;
-        final data = trimmed.substring(6);
-        if (data == '[DONE]') break;
-        try {
-          final json = jsonDecode(data) as Map<String, dynamic>;
-          final candidates = json['candidates'] as List<dynamic>?;
-          if (candidates != null && candidates.isNotEmpty) {
-            final first = candidates[0] as Map<String, dynamic>?;
-            final content = first?['content'] as Map<String, dynamic>?;
-            final parts = content?['parts'] as List<dynamic>?;
-            if (parts != null && parts.isNotEmpty) {
-              final firstPart = parts[0] as Map<String, dynamic>?;
-              final text = firstPart?['text'] as String?;
-              if (text != null && text.isNotEmpty) {
-                yield text;
-              }
-            }
+      var sawText = false;
+      var done = false;
+      final dataLines = <String>[];
+      await for (final line in response.stream
+          .timeout(timeout)
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (line.isEmpty) {
+          if (dataLines.isEmpty) continue;
+          final data = dataLines.join('\n');
+          dataLines.clear();
+          if (data == '[DONE]') {
+            done = true;
+            break;
           }
-        } catch (_) {
-          // Skip malformed JSON chunks.
+          for (final text in _textFromSseEvent(data)) {
+            sawText = true;
+            yield text;
+          }
+        } else if (line.startsWith('data:')) {
+          var data = line.substring(5);
+          if (data.startsWith(' ')) data = data.substring(1);
+          dataLines.add(data);
         }
       }
-    } catch (_) {
-      yield isArabic
-          ? 'تعذر الاتصال بالذكاء الاصطناعي. يرجى التحقق من اتصال الإنترنت.'
-          : 'Could not connect to AI. Please check your internet connection.';
+      if (!done && dataLines.isNotEmpty) {
+        final data = dataLines.join('\n');
+        if (data != '[DONE]') {
+          for (final text in _textFromSseEvent(data)) {
+            sawText = true;
+            yield text;
+          }
+        }
+      }
+      if (!sawText) throw const AiStreamingException('empty_response');
+      _consecutiveFailures = 0;
+    } catch (error) {
+      _consecutiveFailures++;
+      if (error is AiStreamingException) rethrow;
+      throw const AiStreamingException('stream_failed');
     } finally {
-      if (httpClient == null) {
-        client.close();
-      }
-    }
-  }
-
-  /// Synthesises speech from text using Gemini's TTS endpoint.
-  /// Returns the audio bytes as a `List<int>` for playback.
-  Future<List<int>> speakText({
-    required String text,
-    String languageName = 'Arabic',
-    http.Client? httpClient,
-  }) async {
-    final key = await getEffectiveApiKey();
-    if (key.isEmpty || isKeyPaused) return [];
-
-    final client = httpClient ?? http.Client();
-    try {
-      // Gemini TTS endpoint (synthesizeSpeech returns raw audio bytes).
-      final ttsUrl =
-          'https://generativelanguage.googleapis.com/v1beta/models/$_model:synthesizeSpeech';
-      final response = await client
-          .post(
-            Uri.parse(ttsUrl),
-            headers: {
-              'Content-Type': 'application/json',
-              'X-goog-api-key': key,
-            },
-            body: jsonEncode({
-              'contents': [
-                {
-                  'parts': [
-                    {
-                      'text': text,
-                    }
-                  ],
-                }
-              ],
-              'generationConfig': {
-                'temperature': 0.5,
-                'maxOutputTokens': 800,
-              },
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        _consecutiveFailures = 0;
-        // The response body is raw audio bytes (e.g. MP3), not JSON.
-        return response.bodyBytes;
-      }
-      return [];
-    } catch (_) {
-      return [];
-    } finally {
-      if (httpClient == null) {
-        client.close();
-      }
+      if (httpClient == null) client.close();
     }
   }
 
@@ -774,7 +729,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     final result = await sendMessage(
       conversationHistory: const [],
       newMessage:
-          'Generate a comprehensive cumulative lifestyle analysis for the period: $timeRange. Cover task completion rates, habit consistency, goal progress, spending patterns, and overall productivity. Identify the top 3 strengths and 3 areas needing improvement. Provide actionable recommendations.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nWeekly trends (JSON): ${jsonEncode(weeklyTrends)}',
+          'Generate a comprehensive cumulative lifestyle analysis for the period: $timeRange. Cover task completion rates, habit consistency, goal progress and overall productivity. Identify the top 3 strengths and 3 areas needing improvement. Provide actionable recommendations.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nWeekly trends (JSON): ${jsonEncode(weeklyTrends)}',
       languageName: languageName,
       httpClient: httpClient,
     );
@@ -832,7 +787,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     final result = await sendMessage(
       conversationHistory: const [],
       newMessage:
-          'Compare this week performance with last week across tasks, habits, goals, and spending. Highlight improvements, declines, and one key takeaway.\n\nThis week (JSON): ${jsonEncode(thisWeek)}\nLast week (JSON): ${jsonEncode(lastWeek)}',
+          'Compare this week performance with last week across tasks, habits and goals. Highlight improvements, declines, and one key takeaway.\n\nThis week (JSON): ${jsonEncode(thisWeek)}\nLast week (JSON): ${jsonEncode(lastWeek)}',
       languageName: languageName,
       httpClient: httpClient,
     );

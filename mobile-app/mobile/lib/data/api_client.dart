@@ -51,7 +51,50 @@ class ApiClient {
   final http.Client Function() _archiveClientFactory;
   Future<void>? _refreshFlight;
 
-  void close() => _httpClient.close();
+  // Only this client's completed rotations prove a token belongs to the same
+  // retry chain. Never replay a request merely because storage has a new token:
+  // it could belong to a different account. This is not a cross-engine fence.
+  final Map<String, String> _rotationSuccessors = <String, String>{};
+  static const int _maxRotationHistory = 16;
+  int _sessionGeneration = 0;
+
+  /// Invalidate pending retry/refresh work when an identity transition starts.
+  /// A secure-storage write already in progress cannot be atomically cancelled.
+  void invalidateSessionRetries() {
+    _sessionGeneration++;
+    _rotationSuccessors.clear();
+  }
+
+  void _checkSessionGeneration(int generation) {
+    if (generation != _sessionGeneration) throw _sessionChanged;
+  }
+
+  bool _sameTokenPair(SessionTokens? a, SessionTokens b) =>
+      a != null &&
+      a.accessToken == b.accessToken &&
+      a.refreshToken == b.refreshToken;
+
+  bool _isRotationSuccessor(String previous, String current) {
+    var token = previous;
+    for (var i = 0; i < _maxRotationHistory; i++) {
+      final next = _rotationSuccessors[token];
+      if (next == null || next == token) return false;
+      if (next == current) return true;
+      token = next;
+    }
+    return false;
+  }
+
+  static const _sessionChanged = ApiException(
+    statusCode: 401,
+    code: 'SESSION_CHANGED',
+    message: 'Your session changed. Please retry after signing in.',
+  );
+
+  void close() {
+    invalidateSessionRetries();
+    _httpClient.close();
+  }
 
   Future<Object?> get(
     String path, {
@@ -97,7 +140,9 @@ class ApiClient {
     bool authenticated = true,
   }) async {
     final uri = _uri(path, query);
+    final generation = _sessionGeneration;
     final initialTokens = authenticated ? await _tokenStore.read() : null;
+    if (authenticated) _checkSessionGeneration(generation);
     var response = await _send(
       method,
       uri,
@@ -105,20 +150,31 @@ class ApiClient {
       initialTokens?.accessToken,
       headers: headers,
     );
+    // Do not deliver a response from an earlier identity transition to the UI.
+    // The server may already have acted on the request.
+    if (authenticated) _checkSessionGeneration(generation);
     var exception = _exceptionFor(response);
 
     if (authenticated &&
         initialTokens != null &&
         exception?.statusCode == 401 &&
         exception?.code == 'TOKEN_EXPIRED') {
-      await _refreshAfterExpiry(initialTokens.accessToken);
+      _checkSessionGeneration(generation);
+      await _refreshAfterExpiry(initialTokens, generation);
       final refreshedTokens = await _tokenStore.read();
+      _checkSessionGeneration(generation);
       if (refreshedTokens == null) {
         throw const ApiException(
           statusCode: 401,
           code: 'INVALID_REFRESH_TOKEN',
           message: 'Your session has expired. Please sign in again.',
         );
+      }
+      if (!_isRotationSuccessor(
+        initialTokens.accessToken,
+        refreshedTokens.accessToken,
+      )) {
+        throw _sessionChanged;
       }
       response = await _send(
         method,
@@ -127,6 +183,7 @@ class ApiClient {
         refreshedTokens.accessToken,
         headers: headers,
       );
+      _checkSessionGeneration(generation);
       exception = _exceptionFor(response);
     }
 
@@ -140,6 +197,7 @@ class ApiClient {
       String password, ArchiveCancellation cancel) async* {
     cancel.check();
     final client = _archiveClientFactory();
+    final generation = _sessionGeneration;
     var closed = false;
     void close() {
       if (!closed) {
@@ -152,8 +210,10 @@ class ApiClient {
     final deadline = Timer(const Duration(seconds: 90), cancel.cancel);
     try {
       var tokens = await cancel.bind(_tokenStore.read());
+      _checkSessionGeneration(generation);
       for (var attempt = 0; attempt < 2; attempt++) {
         cancel.check();
+        _checkSessionGeneration(generation);
         final currentTokens = tokens;
         if (currentTokens == null) {
           throw const ApiException(
@@ -173,6 +233,7 @@ class ApiClient {
         request.body = jsonEncode({'currentPassword': password});
         final response = await cancel
             .bind(client.send(request).timeout(const Duration(seconds: 30)));
+        _checkSessionGeneration(generation);
         if (response.statusCode != 200) {
           // Error bodies are also bounded; do not use Response.fromStream or log raw bodies.
           final body = BytesBuilder(copy: false);
@@ -197,8 +258,15 @@ class ApiClient {
           if (response.statusCode == 401 &&
               code == 'TOKEN_EXPIRED' &&
               attempt == 0) {
-            await cancel.bind(_refreshAfterExpiry(currentTokens.accessToken));
+            _checkSessionGeneration(generation);
+            await cancel.bind(_refreshAfterExpiry(currentTokens, generation));
             tokens = await cancel.bind(_tokenStore.read());
+            _checkSessionGeneration(generation);
+            if (tokens == null ||
+                !_isRotationSuccessor(
+                    currentTokens.accessToken, tokens.accessToken)) {
+              throw _sessionChanged;
+            }
             continue;
           }
           throw ApiException(
@@ -218,6 +286,7 @@ class ApiClient {
         await for (final chunk
             in response.stream.timeout(const Duration(seconds: 15))) {
           cancel.check();
+          _checkSessionGeneration(generation);
           // Bound codec/verifier input even if a transport yields a larger buffer.
           for (var start = 0; start < chunk.length; start += 32 * 1024) {
             cancel.check();
@@ -245,14 +314,21 @@ class ApiClient {
   /// must consume each refresh token because the backend intentionally has no
   /// grace window and revokes a session on token reuse.
   Future<SessionTokens?> restoreSession() async {
+    final generation = _sessionGeneration;
     final current = await _tokenStore.read();
+    _checkSessionGeneration(generation);
     if (current == null) return null;
-    await _ensureRefresh(current);
-    return _tokenStore.read();
+    await _ensureRefresh(current, generation);
+    final restored = await _tokenStore.read();
+    _checkSessionGeneration(generation);
+    return restored;
   }
 
-  Future<void> _refreshAfterExpiry(String accessTokenUsed) async {
+  Future<void> _refreshAfterExpiry(
+      SessionTokens tokensUsed, int generation) async {
+    _checkSessionGeneration(generation);
     final stored = await _tokenStore.read();
+    _checkSessionGeneration(generation);
     if (stored == null) {
       throw const ApiException(
         statusCode: 401,
@@ -263,18 +339,27 @@ class ApiClient {
     // Another request may already have completed a rotation while this 401 was
     // in flight. Reuse its new access token; never submit its refresh token a
     // second time.
-    if (stored.accessToken != accessTokenUsed) return;
-    await _ensureRefresh(stored);
+    if (stored.accessToken != tokensUsed.accessToken) {
+      if (!_isRotationSuccessor(tokensUsed.accessToken, stored.accessToken)) {
+        throw _sessionChanged;
+      }
+      return;
+    }
+    if (!_sameTokenPair(stored, tokensUsed)) throw _sessionChanged;
+    await _ensureRefresh(stored, generation);
   }
 
-  Future<void> _ensureRefresh(SessionTokens current) async {
+  Future<void> _ensureRefresh(SessionTokens current, int generation) async {
+    _checkSessionGeneration(generation);
     final inFlight = _refreshFlight;
     if (inFlight != null) {
       await inFlight;
+      _checkSessionGeneration(generation);
       return;
     }
 
     final latest = await _tokenStore.read();
+    _checkSessionGeneration(generation);
     if (latest == null) {
       throw const ApiException(
         statusCode: 401,
@@ -282,15 +367,23 @@ class ApiClient {
         message: 'Your session has expired. Please sign in again.',
       );
     }
-    if (latest.accessToken != current.accessToken) return;
+    if (latest.accessToken != current.accessToken) {
+      if (!_isRotationSuccessor(current.accessToken, latest.accessToken)) {
+        throw _sessionChanged;
+      }
+      return;
+    }
+
+    if (!_sameTokenPair(latest, current)) throw _sessionChanged;
 
     final existingFlight = _refreshFlight;
     if (existingFlight != null) {
       await existingFlight;
+      _checkSessionGeneration(generation);
       return;
     }
 
-    final flight = _rotate(latest);
+    final flight = _rotate(latest, generation);
     _refreshFlight = flight;
     try {
       await flight;
@@ -299,7 +392,7 @@ class ApiClient {
     }
   }
 
-  Future<void> _rotate(SessionTokens current) async {
+  Future<void> _rotate(SessionTokens current, int generation) async {
     try {
       final response = await _send(
           'POST',
@@ -315,12 +408,31 @@ class ApiClient {
       final tokenData = data['tokens'] is Map<String, dynamic>
           ? data['tokens'] as Map<String, dynamic>
           : data;
-      await _tokenStore.write(SessionTokens.fromJson(tokenData));
+      final rotated = SessionTokens.fromJson(tokenData);
+      _checkSessionGeneration(generation);
+      final latest = await _tokenStore.read();
+      _checkSessionGeneration(generation);
+      if (!_sameTokenPair(latest, current)) throw _sessionChanged;
+      await _tokenStore.write(rotated);
+      // The write may already have completed when a transition begins. This
+      // check avoids publishing a retry lineage, but is not atomic storage CAS.
+      _checkSessionGeneration(generation);
+      _rotationSuccessors[current.accessToken] = rotated.accessToken;
+      while (_rotationSuccessors.length > _maxRotationHistory) {
+        _rotationSuccessors.remove(_rotationSuccessors.keys.first);
+      }
     } catch (error) {
       // If the response was lost after the server committed rotation, retrying
       // the old opaque token would trigger strict reuse detection. Discard the
       // uncertain pair and require a fresh login instead.
-      await _tokenStore.clear();
+      if (generation == _sessionGeneration &&
+          !(error is ApiException && error.code == 'SESSION_CHANGED')) {
+        final latest = await _tokenStore.read();
+        if (generation == _sessionGeneration &&
+            _sameTokenPair(latest, current)) {
+          await _tokenStore.clear();
+        }
+      }
       if (error is ApiException) rethrow;
       throw const ApiException(
         statusCode: 0,

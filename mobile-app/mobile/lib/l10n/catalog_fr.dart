@@ -1,5 +1,9 @@
 // App string catalog for the LifeStyle mobile client — locale: fr (French).
 const Map<String, String> frCatalog = {
+  'aiEgressTitle': 'Envoyer la conversation à Google Gemini ?',
+  'aiEgressDescription':
+      'Votre message et l’historique de la conversation sont envoyés à Google avec votre clé API. Les données financières ne sont pas incluses automatiquement. Ne saisissez pas de secrets ni de données sensibles. Google applique ses propres règles de confidentialité.',
+  'aiEgressAgree': 'Accepter et envoyer',
   'appTitle': 'LifeStyle',
   'signIn': 'Se connecter',
   'createAccount': 'Créer un compte',
@@ -76,6 +80,7 @@ const Map<String, String> frCatalog = {
   'amount': 'Montant',
   'currency': 'Devise',
   'merchant': 'Commerce (facultatif)',
+  'subscriptionSaved': 'Abonnement enregistré avec succès !',
   'transactionSaved': 'Transaction enregistrée avec succès !',
   'enterAmount': 'Saisissez un montant',
   'amountMustBePositive': 'Doit être > 0',
@@ -88,6 +93,8 @@ const Map<String, String> frCatalog = {
   'budgetWarning': 'Attention : approche du plafond du budget !',
   'budgetExceeded': 'Attention : budget dépassé !',
   'remindSubscription': 'Rappeler avant le renouvellement',
+  'subscriptionReminderUnavailable':
+      "Impossible d’activer les rappels. Vérifiez les autorisations de notification et d’alarme exacte, puis réessayez.",
   'subscriptionReminderSet': 'Rappel de renouvellement programmé !',
   'renewalSoon': 'Renouvellement proche !',
   'subscriptionsTitle': 'Abonnements et factures',
@@ -251,7 +258,7 @@ const Map<String, String> frCatalog = {
       'L\'autorisation SMS est requise pour activer la capture automatique.',
   'smsQuarantineTitle': 'Messages de portefeuille conservés pour vérification',
   'smsQuarantineDesc':
-      'Certains messages de portefeuille n\'ont pas pu être traités. Ils ont été conservés, et non supprimés, et sont réessayés automatiquement. Ils expirent après 7 jours.',
+      'Certains messages nécessitent votre attention. Ils ne sont pas tous réessayés, certains peuvent rester sur cet appareil plus de sept jours et leur compte propriétaire n’est pas vérifié.',
   'smsStorageFaultTitle': 'Problème de stockage du portefeuille',
   'smsStorageFaultDesc':
       'Un message de portefeuille n\'a pas pu être enregistré sur cet appareil. Rien n\'a été supprimé ; l\'application continue de réessayer en arrière-plan.',
@@ -276,6 +283,8 @@ const Map<String, String> frCatalog = {
   'aiSpeakTooltip': 'Lire cette réponse à voix haute',
   'aiSpeaking': 'Lecture...',
   'aiVoiceListening': 'Écoute...',
+  'aiKeyStorageError':
+      'Le stockage sécurisé de la clé est indisponible. La modification n’a pas pu être confirmée.',
   'aiErrorMessage':
       'Une erreur est survenue lors du traitement de la demande. Veuillez réessayer.',
 };

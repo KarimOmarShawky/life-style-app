@@ -91,7 +91,13 @@ export function calculateNextBillingDate(
 
   let cycleIndex = 1;
 
-  if (unit === 'month') {
+  if (unit === 'week') {
+    const diffDays =
+      (Date.parse(`${currentBillingDateStr}T00:00:00Z`) -
+        Date.parse(`${anchorDateStr}T00:00:00Z`)) /
+      86400000;
+    cycleIndex = Math.max(1, Math.floor(diffDays / (7 * interval)));
+  } else if (unit === 'month') {
     const diffMonths = (curYear - ancYear) * 12 + (curMonth - ancMonth);
     cycleIndex = Math.max(1, Math.floor(diffMonths / interval));
   } else if (unit === 'year') {
@@ -131,7 +137,11 @@ export function calculateInitialNextBillingDate(
 
   let cycleIndex = 1;
 
-  if (unit === 'month') {
+  if (unit === 'week') {
+    const diffDays =
+      (Date.parse(`${todayStr}T00:00:00Z`) - Date.parse(`${anchorDateStr}T00:00:00Z`)) / 86400000;
+    cycleIndex = Math.max(1, Math.floor(diffDays / (7 * interval)));
+  } else if (unit === 'month') {
     const diffMonths = (todayYear - ancYear) * 12 + (todayMonth - ancMonth);
     cycleIndex = Math.max(1, Math.floor(diffMonths / interval));
   } else if (unit === 'year') {
@@ -146,6 +156,24 @@ export function calculateInitialNextBillingDate(
   }
 
   return cycleDate;
+}
+
+/**
+ * Project the next scheduled renewal without recording payment or mutating a row.
+ * The explicitly stored next date is authoritative until it passes; subsequent
+ * dates follow the original anchor, just like the device reminder scheduler.
+ * Paused/cancelled subscriptions keep their stored date unchanged.
+ */
+export function projectedNextBillingDate(
+  anchor: string,
+  firstBilling: string,
+  unit: BillingUnit,
+  interval: number,
+  status: 'active' | 'paused' | 'cancelled',
+  today: string
+): string {
+  if (status !== 'active' || firstBilling >= today) return firstBilling;
+  return calculateInitialNextBillingDate(anchor, today, unit, interval);
 }
 
 /**

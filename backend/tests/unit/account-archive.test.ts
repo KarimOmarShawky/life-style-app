@@ -136,6 +136,7 @@ describe('Bounded domain archive (SQL harness, not PostgreSQL execution)', () =>
       new Set(['users', ...ownedInMigrations.filter((table) => !archiveExcluded.has(table))])
     );
     for (const source of ACCOUNT_ARCHIVE_SOURCES) {
+      if ('retired' in source) continue;
       const start = migrations.indexOf(`CREATE TABLE ${source.table} (`);
       expect(start).toBeGreaterThan(-1);
       const ddl = migrations.slice(start, migrations.indexOf('\n    );', start));
@@ -186,21 +187,41 @@ describe('Bounded domain archive (SQL harness, not PostgreSQL execution)', () =>
 
   it('preserves high precision monetary values as strings rather than JS floating point', async () => {
     for (const [table, field] of [
-      ['transactions', 'amount'],
       ['subscriptions', 'amount'],
-      ['budgets', 'amount_limit'],
       ['goals', 'target_value'],
       ['goals', 'current_value']
     ]) {
-      expect(ACCOUNT_ARCHIVE_SOURCES.find((s) => s.table === table)?.columns).toContain(
+      const source = ACCOUNT_ARCHIVE_SOURCES.find((s) => s.table === table);
+      expect(source && 'columns' in source ? source.columns : undefined).toContain(
         `${field}::text AS ${field}`
       );
     }
     const f = fixture({
-      transactions: [{ id: 'tx', amount: '900719925474099.1234', currency: 'KWD' }]
+      subscriptions: [{ id: 'sub', amount: '900719925474099.1234', currency: 'KWD' }]
     });
     const { lines } = await collect(streamAccountArchive(f.pool, 'money-user', signal()));
     expect(lines.join('')).toContain('"amount":"900719925474099.1234"');
+  });
+
+  it('keeps retired sections empty without querying their tables, even when old data exists', async () => {
+    const f = fixture({
+      transactions: [{ id: 'private-transaction' }],
+      categories: [{ id: 'private-category' }],
+      budgets: [{ id: 'private-budget' }],
+      ingest_tokens: [{ id: 'private-ingest' }],
+      subscriptions: [{ id: 'keep-subscription' }],
+      notes: [{ id: 'keep-note' }]
+    });
+    const { lines, summary } = await collect(streamAccountArchive(f.pool, 'user-a', signal()));
+    const output = lines.join('');
+    expect(output).toContain('keep-subscription');
+    expect(output).toContain('keep-note');
+    expect(output).not.toMatch(/private-(transaction|category|budget|ingest)/);
+    for (const section of ['transactions', 'categories', 'budgets', 'ingestDevices']) {
+      expect(summary?.counts[section]).toBe(0);
+    }
+    const sql = f.query.mock.calls.map(([statement]) => statement).join(' ');
+    expect(sql).not.toMatch(/FROM public\.(transactions|categories|budgets|ingest_tokens)\b/);
   });
 
   it('returns controlled missing-account failure before any archive line and rolls back', async () => {

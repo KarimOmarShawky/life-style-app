@@ -1,3 +1,4 @@
+import { summarizeErrorForLog } from './core/logger/log-minimization.js';
 /**
  * src/worker.ts
  *
@@ -16,6 +17,7 @@ import { validateEnv, getEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 import { SystemClock } from './core/time/clock.js';
 import { closePgPool, getPgPool } from './infrastructure/database/postgres/pool.js';
+import { assertFinancialRetirement } from './infrastructure/database/postgres/financial-retirement-guard.js';
 import { getKyselyDb, type DatabaseSchema } from './infrastructure/database/postgres/kysely.js';
 import { closeRedisClient, getRedisClient } from './infrastructure/redis/redis-client.js';
 import { SmtpEmailSender } from './infrastructure/external/email-sender.js';
@@ -46,6 +48,12 @@ import {
 validateEnv();
 const env = getEnv();
 
+// Check before creating BullMQ consumers, schedulers, or processing any jobs.
+await assertFinancialRetirement(
+  getPgPool(),
+  env.NODE_ENV === 'production' || env.REQUIRE_FINANCIAL_RETIREMENT === 'true'
+);
+
 logger.info(`Starting LifeStyle Worker process [NODE_ENV=${env.NODE_ENV}]...`);
 
 const clock = new SystemClock();
@@ -74,7 +82,7 @@ if (env.DATABASE_MAINTENANCE_URL) {
     statement_timeout: env.DATABASE_STATEMENT_TIMEOUT_MS
   });
   maintenancePool.on('error', (err) => {
-    logger.error('Unexpected error on idle maintenance PostgreSQL pool', err);
+    logger.error('Unexpected error on idle maintenance PostgreSQL pool', summarizeErrorForLog(err));
   });
   auditRetentionStore = new PgAuditRetentionStore(
     new Kysely<DatabaseSchema>({ dialect: new PostgresDialect({ pool: maintenancePool }) })
@@ -292,7 +300,7 @@ async function handleWorkerShutdown(signal: string, exitCode = 0): Promise<void>
     logger.info('Worker shutdown complete. Exiting cleanly.');
     process.exit(exitCode);
   } catch (err) {
-    logger.error('Worker shutdown encountered error', err);
+    logger.error('Worker shutdown encountered error', summarizeErrorForLog(err));
     process.exit(1);
   }
 }
@@ -301,12 +309,15 @@ process.on('SIGTERM', () => void handleWorkerShutdown('SIGTERM'));
 process.on('SIGINT', () => void handleWorkerShutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
-  logger.fatal('Worker uncaught exception', err);
+  logger.fatal('Worker uncaught exception', summarizeErrorForLog(err));
   void handleWorkerShutdown('uncaughtException', 1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.fatal('Worker unhandled rejection', reason);
+  // Rejection reasons can be arbitrary objects or provider strings containing secrets.
+  logger.fatal('Worker unhandled rejection', {
+    errorType: reason instanceof Error ? 'Error' : typeof reason
+  });
   void handleWorkerShutdown('unhandledRejection', 1);
 });
 

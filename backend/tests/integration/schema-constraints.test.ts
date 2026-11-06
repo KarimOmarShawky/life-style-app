@@ -109,7 +109,7 @@ describe('Phase P3 SQL Constraint & Schema Integrity Test Suite', () => {
     // Verify task survived, recurring_task_id is NULL, and occurrence_date is preserved
     const taskAfter = await pool.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
     expect(taskAfter.rows[0].recurring_task_id).toBeNull();
-    expect(taskAfter.rows[0].occurrence_date.toISOString().slice(0, 10)).toBe('2026-09-27');
+    expect(taskAfter.rows[0].occurrence_date).toBe('2026-09-27');
 
     // 2. Subscription purge case:
     // When subscription is purged (SET NULL), transaction.subscription_id becomes NULL,
@@ -142,7 +142,7 @@ describe('Phase P3 SQL Constraint & Schema Integrity Test Suite', () => {
     // Verify transaction survived, subscription_id is NULL, and billing_date is preserved
     const txAfter = await pool.query('SELECT * FROM transactions WHERE id = $1', [txId]);
     expect(txAfter.rows[0].subscription_id).toBeNull();
-    expect(txAfter.rows[0].billing_date.toISOString().slice(0, 10)).toBe('2026-09-01');
+    expect(txAfter.rows[0].billing_date).toBe('2026-09-01');
   });
 
   it('Enforces ON DELETE RESTRICT on categories when referenced by transactions or budgets', async () => {

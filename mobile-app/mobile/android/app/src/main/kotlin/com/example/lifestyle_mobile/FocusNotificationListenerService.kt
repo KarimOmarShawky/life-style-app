@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.provider.Telephony
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
@@ -28,10 +27,11 @@ class FocusNotificationListenerService : NotificationListenerService() {
         FocusShieldSessionStore(this).withActiveSession { sessionId -> captureActive(sbn, sessionId) }
     }
     private fun captureActive(sbn: StatusBarNotification, sessionId: String) {
+        // Reject unsupported packages, including all SMS apps, before reading
+        // any notification content or retaining a reply action.
+        if (sbn.packageName == packageName || !FocusMessageSources.isSupported(sbn.packageName)) return
         val notification = sbn.notification
-        if (sbn.packageName == packageName ||
-            (sbn.packageName !in MESSAGING_PACKAGES && sbn.packageName != Telephony.Sms.getDefaultSmsPackage(this)) ||
-            (notification.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT)) != 0) return
+        if ((notification.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT)) != 0) return
         val messaging = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
         if (notification.category != Notification.CATEGORY_MESSAGE && messaging == null) return
         val action = notification.actions?.firstOrNull { candidate -> candidate.remoteInputs?.any { it.allowFreeFormInput } == true }
@@ -62,9 +62,6 @@ class FocusNotificationListenerService : NotificationListenerService() {
         private data class CachedReply(val sessionId: String, val action: Notification.Action?, val capturedAt: Long)
         private val replies = BoundedMemoryCache<String, CachedReply>(100)
         private const val MAX_REPLY_AGE_MS = 5 * 60 * 1000L
-        private val MESSAGING_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b", "com.instagram.android",
-            "com.instagram.lite", "com.facebook.orca", "com.facebook.mlite", "org.telegram.messenger",
-            "org.telegram.messenger.web", "com.google.android.apps.messaging", "com.android.mms", "com.samsung.android.messaging")
         enum class ReplyResult { sent, stale, noReplyAction, failed }
 
         fun sendInlineReply(context: Context, key: String, text: String): ReplyResult {

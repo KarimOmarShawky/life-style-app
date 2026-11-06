@@ -11,6 +11,63 @@ import { RedisOtpStore } from '../../src/core/security/otp-service.js';
 
 class InMemoryRedis {
   private readonly store = new Map<string, { value: string; expiresAt: number | null }>();
+  private scriptQueue: Promise<void> = Promise.resolve();
+
+  public async mget(...keys: string[]): Promise<(string | null)[]> {
+    return Promise.all(keys.map((key) => this.get(key)));
+  }
+
+  // The production atomic Lua is separately exercised against real Redis.
+  // This fake serializes script calls to retain the existing fast unit suite.
+  public eval(script: string, count: number, ...values: Array<string | number>): Promise<number> {
+    const keys = values.slice(0, count).map(String);
+    const args = values.slice(count).map(String);
+    const run = this.scriptQueue.then(async () => {
+      const [code, attempts, account, generation] = keys as [string, string, string, string];
+      if (script.startsWith('-- otp-release-cooldown-v1')) {
+        if ((await this.get(code)) !== args[0]) return 0;
+        return this.del(code);
+      }
+      if (script.startsWith('-- otp-issue-v1')) {
+        if (args[2] && (await this.get(generation)) !== args[2]) return 0;
+        await this.set(code, args[0]!, 'EX', 900);
+        await this.del(attempts);
+        await this.set(account, args[1]!, 'EX', 900); // third issuance key is the generation
+        return 1;
+      }
+      if (!script.startsWith('-- otp-verify-v1')) throw new Error('Unknown test script');
+      const current = await this.get(code);
+      if (!current || current !== args[0] || ((await this.get(generation)) ?? '') !== args[1])
+        return 0;
+      const accountCount = await this.incr(account);
+      if (accountCount === 1 || (await this.ttl(account)) < 0)
+        await this.expire(account, Number(args[3]));
+      if (accountCount > Number(args[2])) {
+        await this.del(code, attempts, generation);
+        return 0;
+      }
+      const countForCode = await this.incr(attempts);
+      if (countForCode === 1 || (await this.ttl(attempts)) < 0) {
+        const ttl = await this.ttl(code);
+        await this.expire(attempts, ttl > 0 ? ttl : 900);
+      }
+      if (countForCode > 5) {
+        await this.del(code, attempts, generation);
+        return 0;
+      }
+      if (args[4] === '1') {
+        await this.del(code, attempts, generation);
+        return 1;
+      }
+      if (countForCode >= 5) await this.del(code, attempts, generation);
+      return 0;
+    });
+    this.scriptQueue = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
 
   private purgeIfExpired(key: string): void {
     const entry = this.store.get(key);
@@ -105,6 +162,7 @@ describe('RedisOtpStore', () => {
     await redis.del(
       `pwreset:${testUserId}`,
       `pwreset-cd:${testUserId}`,
+      `pwreset-generation:${testUserId}`,
       `pwreset-attempts:${testUserId}`,
       `pwreset-acct-attempts:${testUserId}`
     );

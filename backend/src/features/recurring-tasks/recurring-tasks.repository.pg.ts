@@ -1,3 +1,4 @@
+import { decodeCreatedAtCursor } from '../../core/http/created-at-cursor.js';
 /**
  * src/features/recurring-tasks/recurring-tasks.repository.pg.ts
  *
@@ -303,6 +304,12 @@ export class PgRecurringTasksRepository implements RecurringTasksRepository {
     let query = this.db
       .selectFrom('recurring_tasks')
       .selectAll()
+      // PostgreSQL preserves microseconds that the JS Date parser truncates.
+      .select(
+        sql<string>`to_char(recurring_tasks.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as(
+          'created_at_cursor'
+        )
+      )
       .where('user_id', '=', userId)
       .where('deleted_at', 'is', null);
 
@@ -312,22 +319,15 @@ export class PgRecurringTasksRepository implements RecurringTasksRepository {
 
     query = query.orderBy('created_at', 'desc').orderBy('id', 'desc');
 
-    if (cursor) {
-      try {
-        const decoded = Buffer.from(cursor, 'base64').toString('utf8');
-        const { id: cId, createdAt } = JSON.parse(decoded);
-        if (cId && createdAt) {
-          const cursorDate = new Date(createdAt);
-          query = query.where((eb) =>
-            eb.or([
-              eb('created_at', '<', cursorDate),
-              eb.and([eb('created_at', '=', cursorDate), eb('id', '<', cId)])
-            ])
-          );
-        }
-      } catch {
-        // ignore invalid cursor
-      }
+    if (cursor !== undefined) {
+      const { id, createdAt } = decodeCreatedAtCursor(cursor);
+      const cursorInstant = sql<Date>`${createdAt}::timestamptz`;
+      query = query.where((eb) =>
+        eb.or([
+          eb('created_at', '<', cursorInstant),
+          eb.and([eb('created_at', '=', cursorInstant), eb('id', '<', id)])
+        ])
+      );
     }
 
     const rows = await query.limit(limit + 1).execute();
@@ -358,7 +358,7 @@ export class PgRecurringTasksRepository implements RecurringTasksRepository {
     if (hasMore && lastItem) {
       const payload = {
         id: lastItem.id,
-        createdAt: (lastItem.created_at as Date).toISOString()
+        createdAt: lastItem.created_at_cursor
       };
       nextCursor = Buffer.from(JSON.stringify(payload)).toString('base64');
     }

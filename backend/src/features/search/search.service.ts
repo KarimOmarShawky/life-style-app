@@ -11,6 +11,7 @@
  * product, and adding one through search would silently change that decision.
  */
 
+import { getUserTodayDate } from '../../core/time/date-utils.js';
 import type { TaskReader } from '../tasks/tasks.reader.js';
 import type { HabitReader } from '../habits/habits.reader.js';
 import type { CalendarReader } from '../calendar/calendar.reader.js';
@@ -32,7 +33,11 @@ export class SearchService {
     private readonly money: MoneyReader
   ) {}
 
-  public async search(userId: string, query: SearchQuery): Promise<SearchResults> {
+  public async search(
+    userId: string,
+    query: SearchQuery,
+    timezone = 'UTC'
+  ): Promise<SearchResults> {
     const { q, limit } = query;
     const [tasks, notes, habits, projects, events, goals, subscriptions] = await Promise.all([
       this.tasks.search(userId, q, limit),
@@ -41,7 +46,7 @@ export class SearchService {
       this.projects.search(userId, q, limit),
       this.calendar.search(userId, q, limit),
       this.goals.search(userId, q, limit),
-      this.money.searchSubscriptions(userId, q, limit)
+      this.money.searchSubscriptions(userId, q, limit, getUserTodayDate(timezone))
     ]);
 
     return { query: q, tasks, notes, habits, projects, events, goals, subscriptions };

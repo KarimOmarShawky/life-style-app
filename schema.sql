@@ -569,6 +569,7 @@ CREATE TABLE subscriptions (
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name VARCHAR(120) NOT NULL CHECK (char_length(btrim(name)) >= 1),
       amount NUMERIC(19,4) NOT NULL CHECK (amount > 0),
+      amount_scale SMALLINT CHECK (amount_scale IS NULL OR (amount_scale BETWEEN 0 AND 4 AND amount = trunc(amount, amount_scale))),
       currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
       billing_unit TEXT NOT NULL CHECK (billing_unit IN ('week', 'month', 'year')),
       billing_interval SMALLINT NOT NULL DEFAULT 1 CHECK (billing_interval BETWEEN 1 AND 12),
@@ -606,6 +607,7 @@ CREATE TABLE transactions (
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       kind TEXT NOT NULL CHECK (kind IN ('expense', 'income')),
       amount NUMERIC(19,4) NOT NULL CHECK (amount > 0),
+      amount_scale SMALLINT CHECK (amount_scale IS NULL OR (amount_scale BETWEEN 0 AND 4 AND amount = trunc(amount, amount_scale))),
       currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
       occurred_on DATE NOT NULL,
       category_id UUID,
@@ -665,6 +667,7 @@ CREATE TABLE budgets (
       category_kind TEXT GENERATED ALWAYS AS ('expense') STORED,
       category_id UUID,
       amount_limit NUMERIC(19,4) NOT NULL CHECK (amount_limit > 0),
+      amount_scale SMALLINT CHECK (amount_scale IS NULL OR (amount_scale BETWEEN 0 AND 4 AND amount_limit = trunc(amount_limit, amount_scale))),
       currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
       period TEXT NOT NULL DEFAULT 'monthly' CHECK (period IN ('monthly')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -760,9 +763,12 @@ CREATE TABLE password_reset_requests (
       user_agent VARCHAR(512),
       processing_started_at TIMESTAMPTZ,
       lease_expires_at TIMESTAMPTZ,
+      lease_token UUID,
+      user_id UUID,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       completed_at TIMESTAMPTZ,
+      CONSTRAINT password_reset_requests_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       CHECK (status <> 'processing' OR lease_expires_at IS NOT NULL),
       CHECK (status NOT IN ('sent', 'dead_letter') OR completed_at IS NOT NULL)
     );
@@ -778,6 +784,14 @@ CREATE TABLE password_reset_requests (
     CREATE INDEX idx_password_reset_retention
       ON password_reset_requests (COALESCE(completed_at, updated_at))
       WHERE status IN ('sent', 'dead_letter');
+
+    CREATE INDEX idx_password_reset_user
+      ON password_reset_requests (user_id)
+      WHERE user_id IS NOT NULL;
+
+    CREATE INDEX idx_password_reset_abandoned
+      ON password_reset_requests (updated_at)
+      WHERE status IN ('pending', 'failed');
 
 CREATE TABLE ingest_tokens (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -801,3 +815,61 @@ DO $body$ BEGIN IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app')
       tasks, timer_sessions, habit_checkins, notes, note_links, events,
       subscriptions, transactions, budgets, reminders
     TO lifestyle_app; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO lifestyle_app; END IF; END $body$;
+
+-- Independent wallet-session groundwork, not phone login.
+CREATE TABLE wallet_accounts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+    );
+
+    CREATE TABLE wallet_account_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      wallet_account_id UUID NOT NULL REFERENCES wallet_accounts(id),
+      token_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      revoked_at TIMESTAMPTZ,
+      CHECK (expires_at > created_at)
+    );
+    CREATE INDEX idx_wallet_account_sessions_account ON wallet_account_sessions(wallet_account_id);
+    CREATE INDEX idx_wallet_account_sessions_expiry ON wallet_account_sessions(expires_at);
+
+    -- Revocation is irreversible even if a runtime caller issues raw SQL.
+    CREATE FUNCTION wallet_session_revocation_is_final() RETURNS trigger
+    LANGUAGE plpgsql AS $body$
+    BEGIN
+      IF OLD.revoked_at IS NOT NULL AND NEW.revoked_at IS DISTINCT FROM OLD.revoked_at THEN
+        RAISE EXCEPTION 'wallet session revocation is final';
+      END IF;
+      RETURN NEW;
+    END;
+    $body$;
+    CREATE TRIGGER wallet_session_revocation_final
+      BEFORE UPDATE OF revoked_at ON wallet_account_sessions
+      FOR EACH ROW EXECUTE FUNCTION wallet_session_revocation_is_final();
+
+    -- The runtime may revoke, but cannot reassign an existing session, change
+    -- its digest/expiry, erase a principal, or silently resurrect a session.
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT ON wallet_accounts, wallet_account_sessions TO lifestyle_app;
+        GRANT UPDATE (revoked_at) ON wallet_account_sessions TO lifestyle_app;
+      END IF;
+    END $grant$;
+
+-- Unwired immutable wallet envelope storage.
+CREATE TABLE wallet_owned_records (
+      wallet_account_id UUID NOT NULL REFERENCES wallet_accounts(id),
+      id UUID NOT NULL,
+      kind TEXT NOT NULL CHECK (kind IN ('candidate', 'review', 'transaction', 'quarantine')),
+      envelope BYTEA NOT NULL CHECK (octet_length(envelope) BETWEEN 1 AND 90000),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+      PRIMARY KEY (wallet_account_id, id)
+    );
+    -- Runtime cannot reassign, rewrite, or delete saved envelopes. A future
+    -- lifecycle/erasure mechanism requires a separately reviewed design.
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT ON wallet_owned_records TO lifestyle_app;
+      END IF;
+    END $grant$;

@@ -88,6 +88,86 @@ describe('Boot-Time Database DDL & Schema Drift Guard (B-09)', () => {
     expect(rootSchemaTables).toEqual(migrationTables);
   });
 
+  it('keeps the wallet session constraints, irreversible revocation and narrow grants in snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      const table = snapshot.match(
+        /CREATE TABLE wallet_account_sessions \(([\s\S]*?)\n\s*\);/i
+      )?.[1];
+      expect(table).toBeDefined();
+      expect(table).toMatch(/wallet_account_id UUID NOT NULL REFERENCES wallet_accounts\(id\)/i);
+      expect(table).toMatch(
+        /token_hash BYTEA NOT NULL UNIQUE CHECK \(octet_length\(token_hash\) = 32\)/i
+      );
+      expect(table).toMatch(/CHECK \(expires_at > created_at\)/i);
+      expect(snapshot).toMatch(/CREATE TRIGGER wallet_session_revocation_final/i);
+      expect(snapshot).toMatch(
+        /OLD\.revoked_at IS NOT NULL AND NEW\.revoked_at IS DISTINCT FROM OLD\.revoked_at/i
+      );
+      expect(snapshot).toMatch(
+        /GRANT UPDATE \(revoked_at\) ON wallet_account_sessions TO lifestyle_app/i
+      );
+      expect(snapshot).not.toMatch(/GRANT\s+[^;]*DELETE[^;]*\bwallet_account_sessions\b/i);
+    }
+  });
+
+  it('keeps wallet record owner keys and append-only runtime grants in both snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      const table = snapshot.match(/CREATE TABLE wallet_owned_records \(([\s\S]*?)\n\s*\);/i)?.[1];
+      expect(table).toBeDefined();
+      expect(table).toMatch(/wallet_account_id UUID NOT NULL REFERENCES wallet_accounts\(id\)/i);
+      expect(table).toMatch(/PRIMARY KEY \(wallet_account_id, id\)/i);
+      expect(table).toMatch(/octet_length\(envelope\) BETWEEN 1 AND 90000/i);
+      expect(snapshot).toMatch(/GRANT SELECT, INSERT ON wallet_owned_records TO lifestyle_app/i);
+      expect(snapshot).not.toMatch(/GRANT\s+[^;]*(?:UPDATE|DELETE)[^;]*\bwallet_owned_records\b/i);
+    }
+  });
+
+  it('keeps reset ownership and fencing columns, foreign key, and indexes in both snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      const table = snapshot.match(
+        /CREATE TABLE password_reset_requests \(([\s\S]*?)\n\s*\);/i
+      )?.[1];
+      expect(table).toBeDefined();
+      expect(table).toMatch(/\blease_token\s+UUID\b/i);
+      expect(table).toMatch(/\buser_id\s+UUID\b/i);
+      expect(table).toMatch(
+        /CONSTRAINT\s+password_reset_requests_user_fk\s+FOREIGN KEY\s*\(user_id\)\s+REFERENCES\s+users\s*\(id\)\s+ON DELETE CASCADE/i
+      );
+      expect(snapshot).toMatch(
+        /CREATE INDEX(?: IF NOT EXISTS)? idx_password_reset_user\s+ON password_reset_requests\s*\(user_id\)/i
+      );
+      expect(snapshot).toMatch(
+        /CREATE INDEX(?: IF NOT EXISTS)? idx_password_reset_abandoned\s+ON password_reset_requests\s*\(updated_at\)/i
+      );
+    }
+  });
+
+  it('preserves the optional original monetary scale and its integrity constraint in both snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      for (const [tableName, column] of [
+        ['transactions', 'amount'],
+        ['subscriptions', 'amount'],
+        ['budgets', 'amount_limit']
+      ]) {
+        const table = snapshot.match(
+          new RegExp(`CREATE TABLE ${tableName} \\(([\\s\\S]*?)\\n\\s*\\);`, 'i')
+        )?.[1];
+        expect(table).toBeDefined();
+        expect(table).toMatch(/\bamount_scale\s+SMALLINT\b/i);
+        expect(table).toMatch(
+          new RegExp(
+            `amount_scale BETWEEN 0 AND 4 AND ${column} = trunc\\(${column}, amount_scale\\)`,
+            'i'
+          )
+        );
+      }
+    }
+  });
+
   it('keeps the approved optional timer task nullable in the reference schema', () => {
     const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
     const timer = root.slice(root.indexOf('CREATE TABLE timer_sessions'));

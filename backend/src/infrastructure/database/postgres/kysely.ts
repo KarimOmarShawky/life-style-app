@@ -41,6 +41,29 @@ export interface AuthSessionsTable {
   created_ip: string | null;
 }
 
+// Independent wallet principals are not app users and have no phone binding yet.
+export interface WalletAccountsTable {
+  id: Generated<string>;
+  created_at: Generated<Date>;
+}
+
+export interface WalletAccountSessionsTable {
+  id: Generated<string>;
+  wallet_account_id: string;
+  token_hash: Buffer;
+  created_at: Generated<Date>;
+  expires_at: Date;
+  revoked_at: Date | null;
+}
+
+export interface WalletOwnedRecordsTable {
+  wallet_account_id: string;
+  id: string;
+  kind: 'candidate' | 'review' | 'transaction' | 'quarantine';
+  envelope: Buffer;
+  created_at: Generated<Date>;
+}
+
 export interface RefreshTokensTable {
   id: Generated<string>;
   session_id: string;
@@ -271,6 +294,7 @@ export interface SubscriptionsTable {
   user_id: string;
   name: string;
   amount: string;
+  amount_scale: number | null;
   currency: string;
   billing_unit: 'week' | 'month' | 'year';
   billing_interval: Generated<number>;
@@ -293,6 +317,7 @@ export interface TransactionsTable {
   user_id: string;
   kind: 'expense' | 'income';
   amount: string;
+  amount_scale: number | null;
   currency: string;
   occurred_on: string;
   category_id: string | null;
@@ -315,6 +340,7 @@ export interface BudgetsTable {
   category_kind: Generated<'expense'>;
   category_id: string | null;
   amount_limit: string;
+  amount_scale: number | null;
   currency: string;
   period: Generated<'monthly'>;
   created_at: Generated<Date>;
@@ -389,6 +415,9 @@ export interface PasswordResetRequestsTable {
 export interface DatabaseSchema {
   users: UsersTable;
   auth_sessions: AuthSessionsTable;
+  wallet_accounts: WalletAccountsTable;
+  wallet_account_sessions: WalletAccountSessionsTable;
+  wallet_owned_records: WalletOwnedRecordsTable;
   refresh_tokens: RefreshTokensTable;
   push_devices: PushDevicesTable;
   categories: CategoriesTable;

@@ -87,9 +87,6 @@ export class AuthService {
         client
       );
 
-      // Seed default categories
-      await this.repo.createDefaultCategories(user.id, client);
-
       // Create session (90 days absolute cap)
       const now = new Date();
       const absoluteExpiresAt = new Date(

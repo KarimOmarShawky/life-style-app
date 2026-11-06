@@ -1,189 +1,47 @@
-/**
- * tests/unit/money-validation.test.ts
- *
- * Implements Section 7.2, 14.11 & AC-MON-01: Unit tests for Money validation schemas.
- */
-
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  createCategorySchema,
-  createTransactionSchema,
   createSubscriptionSchema,
-  createBudgetSchema,
-  reportSummaryQuerySchema
+  updateSubscriptionSchema
 } from '../../src/features/money/money.validation.js';
 
-describe('Money Validation Schemas', () => {
-  describe('AC-MON-01: Monetary Amount & Currency Exponents', () => {
-    it('accepts valid decimal string with scale matching currency exponent', () => {
-      // USD has exponent 2
-      const usdTx = createTransactionSchema.parse({
-        kind: 'expense',
-        amount: '12.50',
-        currency: 'USD',
-        occurredOn: '2026-09-28'
-      });
-      expect(usdTx.amount).toBe('12.50');
+const base = { name: 'Cloud Hosting', billingUnit: 'month', anchorDate: '2026-01-01' };
 
-      // JPY has exponent 0
-      const jpyTx = createTransactionSchema.parse({
-        kind: 'expense',
-        amount: '1500',
-        currency: 'JPY',
-        occurredOn: '2026-09-28'
-      });
-      expect(jpyTx.amount).toBe('1500');
-
-      // KWD has exponent 3
-      const kwdTx = createTransactionSchema.parse({
-        kind: 'expense',
-        amount: '1.250',
-        currency: 'KWD',
-        occurredOn: '2026-09-28'
-      });
-      expect(kwdTx.amount).toBe('1.250');
-    });
-
-    it('rejects scale exceeding currency exponent', () => {
-      // USD rejects 3 decimal places
-      expect(() =>
-        createTransactionSchema.parse({
-          kind: 'expense',
-          amount: '12.505',
-          currency: 'USD',
-          occurredOn: '2026-09-28'
-        })
-      ).toThrow(/Amount scale exceeds maximum allowed/);
-
-      // JPY rejects decimal places
-      expect(() =>
-        createTransactionSchema.parse({
-          kind: 'expense',
-          amount: '1500.5',
-          currency: 'JPY',
-          occurredOn: '2026-09-28'
-        })
-      ).toThrow(/Amount scale exceeds maximum allowed/);
-    });
-
-    it('rejects JSON numbers for monetary amounts (must be decimal string)', () => {
-      expect(() =>
-        createTransactionSchema.parse({
-          kind: 'expense',
-          amount: 12.5,
-          currency: 'USD',
-          occurredOn: '2026-09-28'
-        })
-      ).toThrow();
-    });
-
-    it('rejects zero or negative monetary amounts', () => {
-      expect(() =>
-        createTransactionSchema.parse({
-          kind: 'expense',
-          amount: '0.00',
-          currency: 'USD',
-          occurredOn: '2026-09-28'
-        })
-      ).toThrow();
-
-      expect(() =>
-        createTransactionSchema.parse({
-          kind: 'expense',
-          amount: '-10.00',
-          currency: 'USD',
-          occurredOn: '2026-09-28'
-        })
-      ).toThrow();
-    });
+describe('subscription validation', () => {
+  it('accepts exact decimal strings at the currency scale', () => {
+    for (const [amount, currency] of [
+      ['12.50', 'USD'],
+      ['1500', 'JPY'],
+      ['1.250', 'KWD']
+    ]) {
+      expect(createSubscriptionSchema.parse({ ...base, amount, currency }).amount).toBe(amount);
+    }
   });
-
-  describe('Categories Validation', () => {
-    it('accepts valid category parameters', () => {
-      const cat = createCategorySchema.parse({
-        kind: 'expense',
-        name: 'Dining Out',
-        icon: 'utensils',
-        color: '#FF5733'
-      });
-      expect(cat.name).toBe('Dining Out');
-      expect(cat.color).toBe('#FF5733');
-    });
-
-    it('rejects empty or overly long category names (>60 chars)', () => {
-      expect(() =>
-        createCategorySchema.parse({
-          kind: 'expense',
-          name: '   '
-        })
-      ).toThrow();
-
-      expect(() =>
-        createCategorySchema.parse({
-          kind: 'expense',
-          name: 'a'.repeat(61)
-        })
-      ).toThrow();
-    });
-
-    it('rejects invalid hex colors', () => {
-      expect(() =>
-        createCategorySchema.parse({
-          kind: 'expense',
-          name: 'Groceries',
-          color: 'blue'
-        })
-      ).toThrow();
-    });
+  it('rejects excess scale, non-string amounts, zero and negative values', () => {
+    for (const [amount, currency] of [
+      ['12.505', 'USD'],
+      ['1500.5', 'JPY'],
+      [12.5, 'USD'],
+      ['0.00', 'USD'],
+      ['-10.00', 'USD']
+    ]) {
+      expect(createSubscriptionSchema.safeParse({ ...base, amount, currency }).success).toBe(false);
+    }
   });
-
-  describe('Subscriptions & Budgets Validation', () => {
-    it('validates subscription parameters', () => {
-      const sub = createSubscriptionSchema.parse({
-        name: 'Cloud Hosting',
-        amount: '29.99',
-        currency: 'USD',
-        billingUnit: 'month',
-        billingInterval: 1,
-        anchorDate: '2026-01-01'
-      });
-      expect(sub.name).toBe('Cloud Hosting');
-      expect(sub.billingInterval).toBe(1);
+  it('validates subscriptions and disallows unexpected fields', () => {
+    const sub = createSubscriptionSchema.parse({
+      ...base,
+      amount: '29.99',
+      currency: 'USD',
+      billingInterval: 1
     });
-
-    it('validates budget parameters', () => {
-      const budget = createBudgetSchema.parse({
-        amountLimit: '500.00',
-        currency: 'USD'
-      });
-      expect(budget.amountLimit).toBe('500.00');
-      expect(budget.period).toBe('monthly');
-    });
-  });
-
-  describe('Reports Validation', () => {
-    it('validates report date span (<= 366 days)', () => {
-      const valid = reportSummaryQuerySchema.parse({
-        from: '2026-01-01',
-        to: '2026-12-31'
-      });
-      expect(valid.from).toBe('2026-01-01');
-
-      // More than 366 days
-      expect(() =>
-        reportSummaryQuerySchema.parse({
-          from: '2025-01-01',
-          to: '2026-01-15'
-        })
-      ).toThrow(/Report date span cannot exceed 366 days/);
-
-      // to < from
-      expect(() =>
-        reportSummaryQuerySchema.parse({
-          from: '2026-05-01',
-          to: '2026-04-01'
-        })
-      ).toThrow(/to date must be greater than or equal to from date/);
-    });
+    expect(sub.name).toBe('Cloud Hosting');
+    expect(sub.billingInterval).toBe(1);
+    expect(updateSubscriptionSchema.safeParse({ amount: '1.2345', currency: 'KWD' }).success).toBe(
+      false
+    );
+    expect(
+      createSubscriptionSchema.safeParse({ ...base, amount: '1.00', currency: 'USD', extra: true })
+        .success
+    ).toBe(false);
   });
 });

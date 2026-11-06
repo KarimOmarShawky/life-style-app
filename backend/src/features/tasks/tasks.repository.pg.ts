@@ -217,7 +217,8 @@ export class PgTasksRepository implements TasksRepository {
   async list(
     userId: string,
     filter: ListTasksFilter,
-    userToday: string
+    userToday: string,
+    userTimezone = 'UTC'
   ): Promise<{ tasks: TaskRow[]; nextCursor: string | null }> {
     const limit = filter.limit ?? 25;
     let query = this.db
@@ -268,11 +269,33 @@ export class PgTasksRepository implements TasksRepository {
         .where('status', 'not in', ['done', 'cancelled']);
     }
 
-    if (filter.completedFrom) {
-      query = query.where('completed_at', '>=', new Date(filter.completedFrom));
-    }
-    if (filter.completedTo) {
-      query = query.where('completed_at', '<=', new Date(filter.completedTo));
+    if (filter.completedFrom || filter.completedTo) {
+      // Fail closed on invalid legacy zones. Normalize numeric ISO offsets so
+      // PostgreSQL treats their sign as an interval, not a POSIX zone name.
+      const timezone = new Intl.DateTimeFormat('en', { timeZone: userTimezone }).resolvedOptions()
+        .timeZone;
+      const localCompletedAt = /^[+-]/.test(timezone)
+        ? sql`timezone(${timezone}::interval, tasks.completed_at)`
+        : sql`timezone(${timezone}::text, tasks.completed_at)`;
+
+      // Conservative UTC bounds preserve index use; the civil-date predicate
+      // is exact, including repeated or skipped local midnights. A single
+      // local-midnight AT TIME ZONE conversion chooses the *later* instant
+      // for overlaps (e.g. Havana), which would lose valid completions.
+      if (filter.completedFrom) {
+        query = query
+          .where(
+            sql<boolean>`tasks.completed_at >= (timezone('UTC', ${filter.completedFrom}::date::timestamp) - interval '24 hours')`
+          )
+          .where(sql<boolean>`${localCompletedAt}::date >= ${filter.completedFrom}::date`);
+      }
+      if (filter.completedTo) {
+        query = query
+          .where(
+            sql<boolean>`tasks.completed_at < (timezone('UTC', (${filter.completedTo}::date + 1)::timestamp) + interval '24 hours')`
+          )
+          .where(sql<boolean>`${localCompletedAt}::date <= ${filter.completedTo}::date`);
+      }
     }
 
     // Sort order

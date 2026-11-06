@@ -230,33 +230,23 @@ describe('Users Flow Integration Tests', () => {
 
   it('B-07: Purges expired pending_deletion account with categories/transactions without touching other users', async () => {
     const { user: userA, tokens: tokensA } = await registerUser('purge-a@example.com');
-    const { user: userB, tokens: tokensB } = await registerUser('purge-b@example.com');
+    const { user: userB } = await registerUser('purge-b@example.com');
 
-    // Create category + transaction for both users (exercises ON DELETE RESTRICT on categories)
-    const catARes = await request(app)
-      .post('/api/v1/money/categories')
-      .set('Authorization', `Bearer ${tokensA.accessToken}`)
-      .send({ kind: 'expense', name: 'Groceries' });
-    expect(catARes.status).toBe(201);
-
-    const txARes = await request(app)
-      .post('/api/v1/money/transactions')
-      .set('Authorization', `Bearer ${tokensA.accessToken}`)
-      .set('Idempotency-Key', '00000000-0000-4000-8000-000000000001')
-      .send({
-        kind: 'expense',
-        amount: '45.00',
-        currency: 'USD',
-        occurredOn: '2026-01-15',
-        categoryId: catARes.body.data.category.id
-      });
-    expect(txARes.status).toBe(201);
-
-    const catBRes = await request(app)
-      .post('/api/v1/money/categories')
-      .set('Authorization', `Bearer ${tokensB.accessToken}`)
-      .send({ kind: 'expense', name: 'Rent' });
-    expect(catBRes.status).toBe(201);
+    // Seed historical rows directly: the financial creation routes are retired,
+    // but account deletion must still safely handle their ON DELETE RESTRICT.
+    const catA = await pool.query<{ id: string }>(
+      `INSERT INTO categories (user_id, kind, name) VALUES ($1, 'expense', 'Groceries') RETURNING id`,
+      [userA.id]
+    );
+    await pool.query(
+      `INSERT INTO transactions (user_id, kind, amount, currency, occurred_on, category_id)
+       VALUES ($1, 'expense', '45.00', 'USD', '2026-01-15', $2)`,
+      [userA.id, catA.rows[0]!.id]
+    );
+    const catB = await pool.query<{ id: string }>(
+      `INSERT INTO categories (user_id, kind, name) VALUES ($1, 'expense', 'Rent') RETURNING id`,
+      [userB.id]
+    );
 
     // Schedule deletion for userA; second HTTP request is blocked by pending_deletion guard
     const sched1 = await request(app)
@@ -297,7 +287,7 @@ describe('Users Flow Integration Tests', () => {
 
     const remB = await pool.query(
       'SELECT count(*)::int AS cnt FROM categories WHERE user_id = $1 AND id = $2',
-      [userB.id, catBRes.body.data.category.id]
+      [userB.id, catB.rows[0]!.id]
     );
     expect(remB.rows[0]?.cnt).toBe(1);
   });

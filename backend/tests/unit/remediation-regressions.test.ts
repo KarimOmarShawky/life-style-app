@@ -20,7 +20,7 @@ import { literalContainsPattern } from '../../src/core/pagination/search-pattern
 import { assertTestTargets } from '../test-safety.js';
 import { currencySchema, timezoneSchema } from '../../src/core/security/profile-validation.js';
 import { passwordSchema } from '../../src/features/auth/auth.validation.js';
-import { createTransactionSchema } from '../../src/features/money/money.validation.js';
+import { createSubscriptionSchema } from '../../src/features/money/money.validation.js';
 import { SmtpEmailSender } from '../../src/infrastructure/external/email-sender.js';
 import {
   PgTimerMaintenanceStore,
@@ -124,6 +124,20 @@ describe('R-02 / R-03 / R-09 reset delivery boundary', () => {
     expect(sendMail).toHaveBeenCalledOnce();
     expect(sendMail.mock.calls[0]).toBeDefined();
   });
+  it('does not promise a fresh lifetime when a reset email is retried', async () => {
+    const sendMail = vi.fn(async (_mail: { text: string }) => ({
+      accepted: ['test@example.com'],
+      rejected: []
+    }));
+    await new SmtpEmailSender({ sendMail } as unknown as Transporter).sendPasswordResetEmail(
+      'test@example.com',
+      '123456'
+    );
+    expect(sendMail.mock.calls[0]![0].text).toContain(
+      'expires 15 minutes after it was first generated'
+    );
+    expect(sendMail.mock.calls[0]![0].text).toContain('does not extend that window');
+  });
   it.each(['reject', 'timeout', 'network'])(
     'rejects and sanitizes %s failures so reminder retry can fire',
     async (failure) => {
@@ -185,17 +199,18 @@ describe('R-13 / R-14 / B-17 / B-26 / B-29 validation', () => {
       })
     ).not.toThrow();
   });
-  it('rejects invalid timezone/currency, blank passwords, and extra transaction keys', () => {
+  it('rejects invalid timezone/currency, blank passwords, and extra subscription keys', () => {
     expect(timezoneSchema.safeParse('Not/AZone').success).toBe(false);
     expect(currencySchema.safeParse('ZZZ').success).toBe(false);
     expect(currencySchema.parse('KWD')).toBe('KWD');
     expect(passwordSchema.safeParse('          ').success).toBe(false);
     expect(
-      createTransactionSchema.safeParse({
-        kind: 'expense',
+      createSubscriptionSchema.safeParse({
+        name: 'Subscription',
         amount: '1.00',
         currency: 'USD',
-        occurredOn: '2026-10-15',
+        billingUnit: 'month',
+        anchorDate: '2026-10-15',
         injected: true
       }).success
     ).toBe(false);
@@ -235,7 +250,6 @@ describe('B-28 session TTL configuration', () => {
     validateEnv({ ...process.env, SESSION_ABSOLUTE_TTL_DAYS: '5', REFRESH_TOKEN_TTL_DAYS: '2' });
     const repo = {
       createUser: vi.fn(async () => ({ id: 'user', created_at: new Date(now) })),
-      createDefaultCategories: vi.fn(),
       createSession: vi.fn(async () => ({ id: 'session' })),
       createRefreshToken: vi.fn()
     };

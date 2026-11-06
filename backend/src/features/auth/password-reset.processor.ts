@@ -62,10 +62,8 @@ export class PasswordResetThrottledError extends Error {
 }
 
 /**
- * Admission-time suppression: the 60-second cooldown is active on the first
- * attempt of a newly admitted request. This is a terminal outcome (the user
- * already has a valid code), not a delivery failure that should be retried.
- * Retrying would generate a new code and invalidate the one already sent.
+ * Terminal suppression: a new request is within cooldown, or an old retry no
+ * longer owns a live code. Do not invalidate a newer code or revive a used one.
  */
 export class PasswordResetSuppressedError extends Error {
   public readonly code = 'PASSWORD_RESET_SUPPRESSED';
@@ -104,14 +102,21 @@ export class PasswordResetProcessor {
       }
     }
 
-    const allowed = await this.otpStore.checkCooldown(user.id);
+    // An owned lease can be safely released if issuance fails before SMTP.
+    // Legacy stores without the capability retain the original TTL-only behavior.
+    let cooldownToken: string | undefined;
+    let allowed: boolean;
+    if (this.otpStore.acquireCooldown && this.otpStore.releaseCooldown) {
+      const token = await this.otpStore.acquireCooldown(user.id);
+      allowed = token !== null;
+      cooldownToken = token ?? undefined;
+    } else {
+      allowed = await this.otpStore.checkCooldown(user.id);
+    }
     if (!allowed) {
-      // The 60-second cooldown throttles request admission, not delivery.
-      // On the first attempt of a newly admitted request, this is a terminal
-      // suppression: the user already has a valid code from the previous
-      // request. Retrying would generate a new code and invalidate the one
-      // already sent (NR-03). Only delivery-time throttles (SMTP rate limits)
-      // are retryable as THROTTLED.
+      // A first attempt within cooldown is suppressed to avoid replacing a
+      // potentially delivered code. Delivery itself may still be uncertain.
+      // A retry within cooldown remains THROTTLED and is never marked sent.
       const isFirstAttempt = !meta?.recordId || meta.attempt === 1;
       await this.auditLogger.log({
         actorType: 'user',
@@ -129,7 +134,57 @@ export class PasswordResetProcessor {
       throw new PasswordResetThrottledError();
     }
 
-    const code = await this.otpStore.generateAndStoreCode(user.id);
+    let code: string;
+    try {
+      if (
+        cooldownToken !== undefined &&
+        meta?.recordId &&
+        this.otpStore.prepareDurableCode &&
+        this.otpStore.releasePreDelivery
+      ) {
+        const prepared = await this.otpStore.prepareDurableCode(
+          user.id,
+          meta.recordId,
+          cooldownToken,
+          (meta.attempt ?? 1) > 1
+        );
+        if (prepared === null) {
+          // A retry cannot replace a newer generation or resurrect an expired/consumed code.
+          await this.otpStore.releaseCooldown?.(user.id, cooldownToken);
+          throw new PasswordResetSuppressedError();
+        }
+        code = prepared;
+      } else {
+        code =
+          cooldownToken === undefined
+            ? await this.otpStore.generateAndStoreCode(user.id)
+            : await this.otpStore.generateAndStoreCode(user.id, cooldownToken);
+      }
+    } catch (err) {
+      // SMTP has not started, so no code from this attempt could have been sent.
+      // A compare-and-delete release cannot cancel a newer owner's cooldown.
+      if (
+        cooldownToken !== undefined &&
+        this.otpStore.releaseCooldown &&
+        !(err instanceof PasswordResetSuppressedError)
+      ) {
+        try {
+          if (
+            meta?.recordId &&
+            (meta.attempt ?? 1) === 1 &&
+            this.otpStore.prepareDurableCode &&
+            this.otpStore.releasePreDelivery
+          ) {
+            await this.otpStore.releasePreDelivery(user.id, meta.recordId, cooldownToken);
+          } else {
+            await this.otpStore.releaseCooldown(user.id, cooldownToken);
+          }
+        } catch {
+          logger.warn('Password reset cooldown release failed');
+        }
+      }
+      throw err;
+    }
     let deliveryOutcome: 'success' | 'failure' = 'success';
     let deliveryError: unknown = null;
     try {

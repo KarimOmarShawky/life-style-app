@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifestyle_mobile/data/notification_service.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_summary.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -21,24 +22,26 @@ class SubscriptionsScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(subscriptionsProvider);
+          try {
+            await syncSubscriptionReminders(ref);
+          } catch (_) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.subscriptionReminderUnavailable)),
+              );
+            }
+          }
         },
         child: subsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => Center(child: Text('${l10n.errorTitle}: $err')),
           data: (subs) {
-            double monthlyTotal = 0;
-            String currency = 'EGP';
-            for (final s in subs) {
-              final amt = double.tryParse(s.amount) ?? 0;
-              currency = s.currency;
-              if (s.billingUnit == 'year') {
-                monthlyTotal += (amt / 12);
-              } else if (s.billingUnit == 'week') {
-                monthlyTotal += (amt * 4.33);
-              } else {
-                monthlyTotal += amt;
-              }
-            }
+            final monthlyTotals = monthlySubscriptionTotals(subs);
+            final sortedSubscriptions = subs.toList()
+              ..sort((a, b) {
+                final date = a.nextBillingDate.compareTo(b.nextBillingDate);
+                return date != 0 ? date : a.id.compareTo(b.id);
+              });
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -73,14 +76,18 @@ class SubscriptionsScreen extends ConsumerWidget {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                '${monthlyTotal.toStringAsFixed(2)} $currency',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.deepOrange,
-                                ),
-                              ),
+                              if (monthlyTotals.isEmpty)
+                                const Text('—')
+                              else
+                                for (final entry in monthlyTotals.entries)
+                                  Text(
+                                    '${entry.value} ${entry.key}',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.deepOrange,
+                                    ),
+                                  ),
                             ],
                           ),
                         ),
@@ -129,7 +136,8 @@ class SubscriptionsScreen extends ConsumerWidget {
                     ),
                   )
                 else
-                  ...subs.map((s) => _SubscriptionTile(subscription: s)),
+                  ...sortedSubscriptions
+                      .map((s) => _SubscriptionTile(subscription: s)),
               ],
             );
           },
@@ -153,7 +161,8 @@ class _SubscriptionTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final daysLeft = subscription.daysUntilNextBilling;
-    final isSoon = daysLeft <= 3 && daysLeft >= 0;
+    final isSoon =
+        subscription.status == 'active' && daysLeft <= 3 && daysLeft >= 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -164,7 +173,7 @@ class _SubscriptionTile extends ConsumerWidget {
           children: [
             CircleAvatar(
               backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: const Icon(Icons.payment, size: 20),
+              child: const Icon(Icons.subscriptions_outlined, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -227,25 +236,6 @@ class _SubscriptionTile extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: l10n.remindSubscription,
-              icon: const Icon(Icons.alarm_on_outlined, size: 20),
-              onPressed: () async {
-                final notifId = subscription.id.hashCode;
-                await NotificationService.instance.showInstantNotification(
-                  id: notifId,
-                  title: subscription.name,
-                  body:
-                      '${l10n.remindSubscription}: ${subscription.amount} ${subscription.currency}',
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.subscriptionReminderSet)),
-                  );
-                }
-              },
-            ),
             IconButton(
               tooltip: l10n.deleteSubscription,
               icon: Icon(Icons.delete_outline,
@@ -273,6 +263,22 @@ class _SubscriptionTile extends ConsumerWidget {
                       .read(moneyRepositoryProvider)
                       .deleteSubscription(subscription.id);
                   ref.invalidate(subscriptionsProvider);
+                  try {
+                    final account = ref.read(authProvider).asData?.value?.id;
+                    if (account != null) {
+                      await SubscriptionReminders.remove(
+                          account, subscription.id);
+                      if (context.mounted) await syncSubscriptionReminders(ref);
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text(l10n.subscriptionReminderUnavailable)),
+                      );
+                    }
+                  }
                 }
               },
             ),
@@ -284,6 +290,7 @@ class _SubscriptionTile extends ConsumerWidget {
 }
 
 Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
+  final parentContext = context;
   final l10n = AppLocalizations.of(context);
   final user = ref.read(authProvider).asData?.value;
   final defaultCurr = user?.defaultCurrency ?? 'EGP';
@@ -351,13 +358,22 @@ Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
                 );
 
             ref.invalidate(subscriptionsProvider);
-
+            var remindersAvailable = true;
+            try {
+              await syncSubscriptionReminders(ref);
+            } catch (_) {
+              remindersAvailable = false;
+            }
             if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
             }
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.transactionSaved)),
+            if (parentContext.mounted) {
+              ScaffoldMessenger.of(parentContext).showSnackBar(
+                SnackBar(
+                  content: Text(remindersAvailable
+                      ? l10n.subscriptionSaved
+                      : l10n.subscriptionReminderUnavailable),
+                ),
               );
             }
           } catch (e) {

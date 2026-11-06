@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subscription_reminder_channel">Recordatorios de suscripciones</string>
+    <string name="subscription_reminder_title">Recordatorio de suscripción</string>
+    <string name="subscription_reminder_body">Una suscripción podría renovarse pronto. Abre LifeStyle para revisarla.</string>
+</resources>

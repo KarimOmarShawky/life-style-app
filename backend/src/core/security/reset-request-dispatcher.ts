@@ -468,8 +468,8 @@ export class ResetRequestDispatcher {
       // Coarse code only: never persist provider text or account details.
       // Throttling is a distinct outcome from a delivery failure so the two
       // stay observable; a throttled retry must never be recorded as delivered
-      // (AUD-01). Admission-time suppression (NR-03) is a terminal outcome:
-      // the user already has a valid code, so retrying would invalidate it.
+      // (AUD-01). Suppression is terminal: it can mean an active cooldown or
+      // an older retry that no longer owns a live code.
       const errorCode =
         err instanceof Error && (err as { code?: string }).code === 'PASSWORD_RESET_THROTTLED'
           ? 'THROTTLED'

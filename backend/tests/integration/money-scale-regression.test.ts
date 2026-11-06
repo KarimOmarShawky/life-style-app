@@ -2,7 +2,8 @@ import '../infrastructure-safety.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
-import { createApp } from '../../src/app.js';
+// Historical components only; the real application retires these routes.
+import { createLegacyMoneyTestApp as createApp } from '../support/legacy-money-test-app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
 import { getContainer } from '../../src/container.js';

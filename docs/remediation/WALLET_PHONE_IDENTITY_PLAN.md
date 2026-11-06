@@ -1,5 +1,8 @@
 # Independent phone sign-in for wallet and bank data
 
+> **Superseded — 2026-11-06:** The user canceled the entire money feature, including wallet/bank SMS capture and the separate phone account, while retaining subscriptions and their automatic reminders. The sections below are historical design notes, not an active implementation plan. No OTP provider or account was selected or activated. See `MONEY_FEATURE_RETIREMENT_2026-11-06.md` for the current boundary and remaining validation.
+
+
 Status: **implementation groundwork only; NO-GO for real SMS or release**. The user chose a wallet account independent of the main app account, entered using a phone number and SMS confirmation code. This decision applies only to wallet and bank data; it does not link goals, habits, tasks or other app data. Existing app sign-in remains separate. The user did not approve a blanket pause in SMS capture/processing.
 
 The present code **does not implement phone sign-in**. There is no phone-login screen, provider integration, authentication endpoint, verified phone-to-wallet binding, active independent wallet session, or newly isolated capture path. An unwired account/session schema and store exist only as groundwork. Current mobile SMS capture/processing still uses the older ownerless queues and legacy routes. In particular the user's requirement that ownerless old messages remain locked and never automatically shown/sent/deleted is **not yet met**. Do not use real messages to test this work.

@@ -4,7 +4,6 @@ abstract final class DeepLinkParser {
   static const _routes = {
     '/tasks',
     '/habits',
-    '/money',
     '/notes',
     '/profile',
     '/focus',

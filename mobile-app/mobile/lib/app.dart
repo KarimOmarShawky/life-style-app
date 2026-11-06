@@ -95,8 +95,7 @@ class LifeStyleApp extends ConsumerWidget {
     int initialIndex = 0;
     if (path == '/habits') initialIndex = 1;
     if (path == '/ai') initialIndex = 2;
-    if (path == '/money') initialIndex = 3;
-    if (path == '/notes') initialIndex = 4;
+    if (path == '/notes') initialIndex = 3;
     return HomeShell(user: user, initialIndex: initialIndex);
   }
 }

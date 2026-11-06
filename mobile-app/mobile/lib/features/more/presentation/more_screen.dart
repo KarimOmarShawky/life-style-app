@@ -9,6 +9,7 @@ import 'package:lifestyle_mobile/features/calendar/presentation/calendar_screen.
 import 'package:lifestyle_mobile/features/goals/presentation/goals_screen.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
 import 'package:lifestyle_mobile/features/more/presentation/daily_plan_screen.dart';
+import 'package:lifestyle_mobile/features/money/presentation/subscriptions_screen.dart';
 import 'package:lifestyle_mobile/features/projects/presentation/projects_screen.dart';
 import 'package:lifestyle_mobile/features/recurring/presentation/recurring_tasks_screen.dart';
 import 'package:lifestyle_mobile/features/timer/presentation/focus_history_screen.dart';
@@ -23,6 +24,14 @@ class MoreScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final isAr = l10n.isArabic;
     final items = <_MoreItem>[
+      _MoreItem(
+        icon: Icons.event_repeat,
+        title: l10n.subscriptionsTitle,
+        subtitle: isAr
+            ? 'الاشتراكات ومواعيد التجديد'
+            : 'Subscriptions and renewal dates',
+        builder: (_) => const SubscriptionsScreen(),
+      ),
       _MoreItem(
         icon: Icons.phonelink_lock,
         title: 'Digital Detox',

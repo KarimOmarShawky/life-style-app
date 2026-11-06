@@ -10,7 +10,8 @@ import '../infrastructure-safety.js';
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+// Historical components only; the real application retires these routes.
+import { createLegacyMoneyTestApp as createApp } from '../support/legacy-money-test-app.js';
 import { getPgPool } from '../../src/infrastructure/database/postgres/pool.js';
 import { getRedisClient } from '../../src/infrastructure/redis/redis-client.js';
 import {

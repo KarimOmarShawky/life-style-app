@@ -6668,6 +6668,18 @@ components:
       >
     >;
   };
+  // The wallet, SMS ingestion and finance surfaces are retired. Subscription
+  // management and legacy ingest-token revocation remain available.
+  for (const route of Object.keys(parsed.paths)) {
+    if (
+      (route.startsWith('/money/') &&
+        !['/money/subscriptions', '/money/subscriptions/{id}'].includes(route)) ||
+      (route.startsWith('/ingest/') && route !== '/ingest/token')
+    ) {
+      delete parsed.paths[route];
+    }
+  }
+  delete parsed.paths['/ingest/token']?.post;
   for (const [route, pathItem] of Object.entries(parsed.paths)) {
     if (route.startsWith('/health/') || route.startsWith('/users/me/export')) continue;
     for (const [method, operation] of Object.entries(pathItem)) {

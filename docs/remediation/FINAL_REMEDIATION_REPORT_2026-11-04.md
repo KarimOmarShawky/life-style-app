@@ -1,5 +1,8 @@
 # Remediation progress — 2026-11-04
 
+> **Scope update — 2026-11-06:** The user canceled the entire money feature and wallet/bank SMS capture, retaining subscriptions and renewal reminders. Earlier wallet implementation plans below are historical; see `MONEY_FEATURE_RETIREMENT_2026-11-06.md` for the new decommissioning boundary and validation still required. The overall release remains NO-GO pending the remaining checks.
+
+
 ## Release verdict: NO-GO
 
 This is an **incomplete fix pass**, not a release certification. P0-1 has passing mocked streaming tests and hosted Flutter/CI gates, with provider/device and UI behavioral coverage still unverified, and P0-2 is partially remediated, with remaining limitations described below. Several P1 families remain open or lack their required end-to-end proof. The independent audit report named in the request is absent from this checkout, so its §5 R-1…R-12 mapping cannot be verified; the prompt's P0/P1 identifiers are used below rather than inventing a mapping. Base: `9448f1e64d876122610fac1a82a025794bbacbab`. Work branch: `arena/59b3c606-life-style-app`.

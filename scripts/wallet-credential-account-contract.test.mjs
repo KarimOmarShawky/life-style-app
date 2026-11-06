@@ -74,31 +74,12 @@ test('session transitions invalidate old client retries and suppress stale crede
   assert.ok(api.includes('_rotationSuccessors.clear()'));
 });
 
-test('wallet queue work is scoped to the observed auth-transition generation', () => {
-  const auth = readFileSync(root + 'lib/features/auth/state/auth_provider.dart', 'utf8');
+test('retired wallet queues are not flushed or issued tokens by the home shell', () => {
   const home = readFileSync(root + 'lib/features/home/presentation/home_shell.dart', 'utf8');
-  const tx = readFileSync(root + 'lib/features/money/data/pending_wallet_transactions.dart', 'utf8');
-  const candidates = readFileSync(root + 'lib/features/money/data/pending_wallet_reviews.dart', 'utf8');
-  assert.ok(auth.includes('int _walletGeneration = 0;'));
-  assert.ok(auth.includes('bool walletWorkIsCurrent('));
-  assert.ok(home.includes('walletWorkIsCurrent('));
-  assert.ok(home.includes('stillCurrent: stillCurrent'));
-  assert.ok(tx.includes('on WalletWorkEnded'));
-  assert.ok(candidates.includes('on WalletWorkEnded'));
-  const txFlush = tx.split('Future<int> _flushCurrent()')[1].split('Future<void> _publishStorageFault')[0];
-  const txSend = txFlush.indexOf('_repository.createTransaction(');
-  assert.ok(txSend > 0);
-  assert.ok(txFlush.lastIndexOf('_guard.check();', txSend) >= 0);
-  assert.ok(txFlush.indexOf('_guard.check();', txSend) > txSend);
-  const candidateFlush = candidates.split('class PendingWalletCandidates')[1].split('Future<CandidateDecision> _applyResult')[0];
-  const analyze = candidateFlush.indexOf('_api.post(');
-  assert.ok(analyze > 0);
-  assert.ok(candidateFlush.lastIndexOf('_guard.check();', analyze) >= 0);
-  assert.ok(candidateFlush.indexOf('_guard.check();', analyze) > analyze);
-  const flush = home.split('Future<void> _flushWalletQueue()')[1].split('Widget build(')[0];
-  assert.ok(flush.indexOf('if (!stillCurrent()) return;', flush.indexOf('PendingWalletTransactions(')) < flush.indexOf('PendingWalletCandidates('));
-  const update = auth.split('Future<void> updateCurrency(')[1].split('Future<Map<String, dynamic>> exportUserData')[0];
-  assert.ok(update.indexOf('_checkProfileWork(') < update.indexOf('state = AsyncData(updated)'));
+  assert.ok(!home.includes('_flushWalletQueue'));
+  assert.ok(!home.includes('_ensureWalletIngestToken'));
+  assert.ok(!home.includes('PendingWalletTransactions('));
+  assert.ok(!home.includes('PendingWalletCandidates('));
 });
 
 test('wallet review loading and actions are checked against the initiating session', () => {

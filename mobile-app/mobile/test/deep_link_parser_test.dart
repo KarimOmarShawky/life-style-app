@@ -6,7 +6,7 @@ void main() {
     test('routes only known application destinations', () {
       expect(DeepLinkParser.routeFor('lifestyle://tasks'), '/tasks');
       expect(DeepLinkParser.routeFor('lifestyle://habits'), '/habits');
-      expect(DeepLinkParser.routeFor('lifestyle://money'), '/money');
+      expect(DeepLinkParser.routeFor('lifestyle://money'), '/tasks');
       expect(DeepLinkParser.routeFor('lifestyle://notes'), '/notes');
       expect(DeepLinkParser.routeFor('lifestyle://profile'), '/profile');
       expect(DeepLinkParser.routeFor('/tasks'), '/tasks');

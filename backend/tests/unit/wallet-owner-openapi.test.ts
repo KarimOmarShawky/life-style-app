@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { generateOpenApiDocument } from '../../src/docs/openapi-generator.js';
 
-describe('wallet owner precondition API contract', () => {
+describe('retired money and wallet API contract', () => {
   it.each([
     ['generator', () => generateOpenApiDocument()],
     [
@@ -15,56 +15,26 @@ describe('wallet owner precondition API contract', () => {
           'utf8'
         )
     ]
-  ])('%s documents the optional fence and mismatch response', (_name, document) => {
+  ])('%s retains subscriptions and token revocation, but not retired routes', (_name, document) => {
     const spec = parse(document());
-    const issued =
-      spec.paths['/ingest/token'].post.responses['201'].content['application/json'].schema
-        .properties.data;
-    expect(issued.properties.ownerId).toMatchObject({ type: 'string', format: 'uuid' });
-    expect(issued.required).toContain('ownerId');
-    const parameter = spec.components.parameters.WalletOwner;
-    expect(parameter).toMatchObject({
-      name: 'X-Wallet-Owner',
-      in: 'header',
-      required: false,
-      schema: { type: 'string', format: 'uuid' }
-    });
-    expect(parameter.description).toContain('does not establish ownership');
-    const required = spec.components.parameters.RequiredWalletOwner;
-    expect(required).toMatchObject({
-      name: 'X-Wallet-Owner',
-      in: 'header',
-      required: true,
-      schema: { type: 'string', format: 'uuid' }
-    });
-    expect(required.description).toContain('does not establish ownership');
+    expect(spec.paths['/money/subscriptions'].get).toBeDefined();
+    expect(spec.paths['/money/subscriptions'].post).toBeDefined();
+    expect(spec.paths['/money/subscriptions/{id}'].delete).toBeDefined();
+    expect(spec.paths['/ingest/token'].delete).toBeDefined();
+    expect(spec.paths['/ingest/token'].post).toBeUndefined();
     for (const path of [
+      '/money/categories',
+      '/money/transactions',
+      '/money/wallet/transactions',
+      '/money/budgets',
+      '/money/reports/summary',
+      '/money/subscriptions/{id}/pay',
+      '/ingest/transactions',
       '/ingest/wallet/transactions',
-      '/ingest/wallet/sms/analyze',
-      '/money/wallet/transactions'
+      '/ingest/sms/analyze',
+      '/ingest/wallet/sms/analyze'
     ]) {
-      const operation = spec.paths[path].post;
-      expect(operation.parameters).toContainEqual({
-        $ref: '#/components/parameters/RequiredWalletOwner'
-      });
-      expect(operation.responses['428']).toEqual({
-        $ref: '#/components/responses/WalletOwnerMismatch'
-      });
-    }
-    for (const path of ['/ingest/wallet/transactions', '/money/wallet/transactions']) {
-      expect(spec.paths[path].post.description).toContain('session');
-      expect(spec.paths[path].post.description).toContain('idempotent replays');
-      expect(spec.paths[path].post.responses['401']).toBeDefined();
-    }
-    const mismatch = spec.components.responses.WalletOwnerMismatch;
-    expect(mismatch.description).toContain('WALLET_OWNER_MISMATCH');
-    expect(mismatch.headers['Cache-Control'].example).toBe('no-store');
-    for (const path of ['/ingest/transactions', '/ingest/sms/analyze', '/money/transactions']) {
-      const operation = spec.paths[path].post;
-      expect(operation.parameters).toContainEqual({ $ref: '#/components/parameters/WalletOwner' });
-      expect(operation.responses['428']).toEqual({
-        $ref: '#/components/responses/WalletOwnerMismatch'
-      });
+      expect(spec.paths[path]).toBeUndefined();
     }
   });
 });

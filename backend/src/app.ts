@@ -28,6 +28,7 @@ import { createGoalsRouter } from './features/goals/goals.routes.js';
 import { createNotesRouter } from './features/notes/notes.routes.js';
 import { createMoneyRouter } from './features/money/money.routes.js';
 import { createIngestRouter } from './features/ingest/ingest.routes.js';
+import { retiredIngestGuard, retiredMoneyGuard } from './core/middleware/retired-money-features.js';
 import {
   createEntityRemindersRouter,
   createUnifiedRemindersRouter
@@ -232,9 +233,10 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     })
   );
 
-  // Mount Money routes
+  // Retain subscriptions; retire wallet, budgeting and transaction HTTP routes.
   v1Router.use(
     '/money',
+    retiredMoneyGuard,
     createMoneyRouter({
       controller: container.moneyController,
       authenticate: container.authenticate,
@@ -242,9 +244,10 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     })
   );
 
-  // Mount Ingest routes: session-bound tokens for background SMS capture (see ingest.routes.ts)
+  // Retain only token revocation for old clients; retire SMS ingestion.
   v1Router.use(
     '/ingest',
+    retiredIngestGuard,
     createIngestRouter({
       controller: container.ingestController,
       authenticate: container.authenticate,

@@ -196,6 +196,22 @@ describe.skipIf(!enabled)(
             .rows[0].n
         ).toBe(1);
 
+        // The restricted runtime is allowed to start after erasure, but the
+        // owner connection is not: a table owner can still insert retired data
+        // and must never be reused as the application runtime in production.
+        const ownerPool = new Pool({ connectionString: migrator.toString() });
+        try {
+          const ownerRights = await ownerPool.query<{ allowed: boolean }>(
+            `SELECT has_table_privilege(current_user, 'public.transactions', 'INSERT') AS allowed`
+          );
+          expect(ownerRights.rows[0]!.allowed).toBe(true);
+          await expect(assertFinancialRetirement(ownerPool, true)).rejects.toThrow(
+            /startup blocked/
+          );
+        } finally {
+          await ownerPool.end();
+        }
+
         // Marker and effective privileges make a fresh post-erasure database
         // startable. Runtime cannot forge or delete that marker.
         await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();

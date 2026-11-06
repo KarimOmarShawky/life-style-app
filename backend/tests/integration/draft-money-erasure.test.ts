@@ -8,10 +8,15 @@ import { describe, expect, it } from 'vitest';
 // transaction. The outer rollback is mandatory, even on assertion failure.
 const enabled = process.env.TEST_DRAFT_ERASURE === '1';
 const require = createRequire(import.meta.url);
-const draft = require('../../../docs/remediation/drafts/1792800000000_erase_retired_money.cjs') as {
-  up(pgm: { sql(statement: string): void }): void;
-  down(): never;
-};
+type DraftMigration = { up(pgm: { sql(statement: string): void }): void };
+const draft =
+  require('../../../docs/remediation/drafts/1792800000000_erase_retired_money.cjs') as DraftMigration & {
+    down(): never;
+  };
+const walletAccountsMigration =
+  require('../../src/infrastructure/database/postgres/migrations/1792600000000_wallet_account_sessions.cjs') as DraftMigration;
+const walletRecordsMigration =
+  require('../../src/infrastructure/database/postgres/migrations/1792700000000_wallet_owned_records.cjs') as DraftMigration;
 
 describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreSQL', () => {
   it('erases financial records for all accounts, retains subscriptions/reminders, revokes writes, and rolls back', async () => {
@@ -181,6 +186,57 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
       expect(
         (await db.query('SELECT id FROM subscriptions WHERE id=ANY($1::uuid[])', [subs])).rowCount
       ).toBe(2);
+
+      // REHEARSAL ONLY: with a separately provisioned restricted runtime role,
+      // reproduce the older catalog's absent wallet function, then create the
+      // exact empty historical wallet schema and invoke the unchanged draft.
+      // This does not reconcile a missing migration history, configure Neon
+      // roles, drain old writers, or approve this sequence for production.
+      await db.query('DROP FUNCTION public.wallet_session_revocation_is_final()');
+      for (const migration of [walletAccountsMigration, walletRecordsMigration, draft]) {
+        const bridgeStatements: string[] = [];
+        migration.up({ sql: (statement) => bridgeStatements.push(statement) });
+        for (const statement of bridgeStatements) await db.query(statement);
+      }
+      for (const table of ['transactions', 'budgets', 'categories', 'ingest_tokens']) {
+        expect(
+          (await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM ${table}`)).rows[0]!.n
+        ).toBe(0);
+      }
+      expect(
+        (
+          await db.query(
+            `SELECT id,name,amount,currency,billing_unit,anchor_date,next_billing_date,status,reminder_days_before,notes
+             FROM subscriptions WHERE id=ANY($1::uuid[]) ORDER BY id`,
+            [subs]
+          )
+        ).rows
+      ).toEqual(beforeSubscriptions.rows);
+      expect(
+        (
+          await db.query('SELECT * FROM reminders WHERE id=ANY($1::uuid[]) ORDER BY id', [
+            reminders
+          ])
+        ).rows
+      ).toEqual(beforeReminders.rows);
+      expect(
+        (
+          await db.query('SELECT count(*)::int AS n FROM notes WHERE user_id=ANY($1::uuid[])', [
+            users
+          ])
+        ).rows[0]!.n
+      ).toBe(2);
+      expect(
+        (
+          await db.query<{ allowed: boolean }>(
+            `SELECT has_table_privilege('lifestyle_app','transactions','INSERT') AS allowed`
+          )
+        ).rows[0]!.allowed
+      ).toBe(false);
+      expect(
+        (await db.query(`SELECT 1 FROM financial_retirement_state WHERE feature='legacy_money_v1'`))
+          .rowCount
+      ).toBe(1);
       await db.query('ROLLBACK TO SAVEPOINT old_catalog');
 
       await db.query('SAVEPOINT before_erasure');

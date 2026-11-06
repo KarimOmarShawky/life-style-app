@@ -68,6 +68,19 @@ exports.up = (pgm) => {
              has_any_column_privilege('lifestyle_app', relation.oid, 'UPDATE') THEN
             RAISE EXCEPTION 'Runtime can modify the retirement marker';
           END IF;
+        ELSIF relation.relname = 'ingest_tokens' THEN
+          -- The erasure draft grants only the legacy revocation column; it
+          -- must not be mistaken for broad write or inherited access.
+          IF has_table_privilege('lifestyle_app', relation.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR
+             has_any_column_privilege('lifestyle_app', relation.oid, 'SELECT') OR
+             has_any_column_privilege('lifestyle_app', relation.oid, 'INSERT') OR EXISTS (
+               SELECT 1 FROM pg_attribute a
+               WHERE a.attrelid = relation.oid AND a.attnum > 0 AND NOT a.attisdropped
+                 AND a.attname <> 'revoked_at'
+                 AND has_column_privilege('lifestyle_app', relation.oid, a.attnum, 'UPDATE')
+             ) THEN
+            RAISE EXCEPTION 'Runtime is not fresh or has inherited/PUBLIC privileges';
+          END IF;
         ELSIF has_table_privilege('lifestyle_app', relation.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR
            has_any_column_privilege('lifestyle_app', relation.oid, 'SELECT') OR
            has_any_column_privilege('lifestyle_app', relation.oid, 'INSERT') OR

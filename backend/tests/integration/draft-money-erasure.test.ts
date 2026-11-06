@@ -392,6 +392,23 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
         ).toBe(2);
         await db.query(`REVOKE ${privilege} (name) ON categories FROM PUBLIC`);
       }
+      await db.query('GRANT UPDATE(token_hash) ON ingest_tokens TO PUBLIC');
+      await db.query('SAVEPOINT unexpected_token_grant');
+      for (const sql of statements) {
+        await expect(db.query(sql)).rejects.toThrow(
+          /runtime retains update access to ingest_tokens/
+        );
+      }
+      await db.query('ROLLBACK TO SAVEPOINT unexpected_token_grant');
+      expect(
+        (
+          await db.query<{ count: number }>(
+            'SELECT count(*)::int AS count FROM transactions WHERE user_id=ANY($1::uuid[])',
+            [users]
+          )
+        ).rows[0]!.count
+      ).toBe(2);
+      await db.query('REVOKE UPDATE(token_hash) ON ingest_tokens FROM PUBLIC');
     } finally {
       await db.query('ROLLBACK').catch(() => undefined);
       await db.end();

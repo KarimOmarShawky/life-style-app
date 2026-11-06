@@ -2,6 +2,8 @@ import '../infrastructure-safety.js';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { runner as runMigrations } from 'node-pg-migrate';
 import { Client, Pool } from 'pg';
 import { describe, expect, it } from 'vitest';
 import { assertFinancialRetirement } from '../../src/infrastructure/database/postgres/financial-retirement-guard.js';
@@ -176,6 +178,36 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         await owner.query(
           `INSERT INTO audit_logs(actor_type,event_type,outcome,entity_type) VALUES ('system','transaction.created','success','transaction'),('system','fixture.keep','success',NULL)`
         );
+
+        // The migration CLI's --dry-run is NOT read-only on a database with
+        // no migration ledger: its runner creates the ledger before simulating
+        // migrations. Demonstrate only on this disposable instance, then remove
+        // the synthetic ledger so the remainder models the observed old schema.
+        expect(
+          (await owner.query(`SELECT to_regclass('public.pgmigrations') AS name`)).rows[0]!.name
+        ).toBeNull();
+        const pending = await runMigrations({
+          databaseUrl: ownerUrl.toString(),
+          dir: fileURLToPath(
+            new URL('../../src/infrastructure/database/postgres/migrations/', import.meta.url)
+          ),
+          direction: 'up',
+          migrationsTable: 'pgmigrations',
+          dryRun: true,
+          singleTransaction: true,
+          logger: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} }
+        });
+        expect(pending.length).toBeGreaterThan(0);
+        expect(
+          (await owner.query(`SELECT to_regclass('public.pgmigrations') AS name`)).rows[0]!.name
+        ).toBe('pgmigrations');
+        expect((await owner.query('SELECT count(*)::int AS n FROM pgmigrations')).rows[0]!.n).toBe(
+          0
+        );
+        expect((await owner.query('SELECT count(*)::int AS n FROM transactions')).rows[0]!.n).toBe(
+          1
+        );
+        await owner.query('DROP TABLE public.pgmigrations');
 
         // The inventory is a single read-only catalog query. Exercise it with
         // the role absent, then with deliberately risky synthetic privileges,

@@ -39,6 +39,14 @@ export async function assertFinancialRetirement(
             has_table_privilege(r.oid, t.oid, 'UPDATE')
             OR has_any_column_privilege(r.oid, t.oid, 'UPDATE')
           ))
+          OR (t.name = 'ingest_tokens' AND (
+            has_table_privilege(r.oid, t.oid, 'UPDATE') OR EXISTS (
+              SELECT 1 FROM pg_attribute a
+              WHERE a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
+                AND a.attname <> 'revoked_at'
+                AND has_column_privilege(r.oid, t.oid, a.attnum, 'UPDATE')
+            )
+          ))
           OR (t.name = 'financial_retirement_state' AND (
             has_table_privilege(r.oid, t.oid, 'DELETE') OR has_table_privilege(r.oid, t.oid, 'TRUNCATE')
           ))

@@ -40,7 +40,8 @@ exports.up = (pgm) => {
     -- compatibility; neither a running legacy API nor the app runtime can
     -- create new retired records with its normal role after this commit.
     REVOKE INSERT, UPDATE ON categories, transactions, budgets FROM lifestyle_app;
-    REVOKE INSERT ON ingest_tokens FROM lifestyle_app;
+    REVOKE INSERT, UPDATE ON ingest_tokens FROM lifestyle_app;
+    GRANT UPDATE (revoked_at) ON ingest_tokens TO lifestyle_app;
     REVOKE ALL ON wallet_owned_records, wallet_account_sessions, wallet_accounts FROM lifestyle_app;
 
     -- REVOKE from one role does not remove privileges inherited through other
@@ -87,6 +88,16 @@ exports.up = (pgm) => {
           ) THEN
             RAISE EXCEPTION 'runtime retains update access to % through %', retired_table, privileged_role.rolname;
           END IF;
+          IF retired_table = 'ingest_tokens' AND (
+            has_table_privilege(privileged_role.rolname, 'public.ingest_tokens', 'UPDATE') OR EXISTS (
+              SELECT 1 FROM pg_attribute a
+              WHERE a.attrelid = 'public.ingest_tokens'::regclass AND a.attnum > 0 AND NOT a.attisdropped
+                AND a.attname <> 'revoked_at'
+                AND has_column_privilege(privileged_role.rolname, a.attrelid, a.attnum, 'UPDATE')
+            )
+          ) THEN
+            RAISE EXCEPTION 'runtime retains update access to % through %', retired_table, privileged_role.rolname;
+          END IF;
         END LOOP;
       END LOOP;
     END
@@ -124,5 +135,5 @@ exports.up = (pgm) => {
 };
 
 exports.down = () => {
-  throw new Error('Retired financial data erasure is irreversible');
+  throw new Error("Retired financial data erasure is irreversible");
 };

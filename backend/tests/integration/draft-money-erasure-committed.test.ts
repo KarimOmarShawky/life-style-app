@@ -231,6 +231,15 @@ describe.skipIf(!enabled)(
           await admin.query('REVOKE INSERT(name) ON categories FROM PUBLIC');
         }
         await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
+        await admin.query('GRANT UPDATE(token_hash) ON ingest_tokens TO PUBLIC');
+        try {
+          await expect(assertFinancialRetirement(runtimePool, true)).rejects.toThrow(
+            /startup blocked/
+          );
+        } finally {
+          await admin.query('REVOKE UPDATE(token_hash) ON ingest_tokens FROM PUBLIC');
+        }
+        await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
         await admin.query('GRANT INSERT(feature) ON financial_retirement_state TO PUBLIC');
         try {
           await expect(assertFinancialRetirement(runtimePool, true)).rejects.toThrow(
@@ -273,6 +282,31 @@ describe.skipIf(!enabled)(
         await expect(
           firstWriter.query('UPDATE ingest_tokens SET token_hash = token_hash WHERE false')
         ).rejects.toMatchObject({ code: '42501' });
+        // Simulate a privileged partial restore. The startup guard checks the
+        // marker and permissions, not whether rows were later reintroduced.
+        const restoredSession = (
+          await admin.query<{ id: string }>(
+            `INSERT INTO auth_sessions(user_id,absolute_expires_at,device_platform)
+           VALUES($1,now()+interval '1 day','android') RETURNING id`,
+            [otherUser]
+          )
+        ).rows[0]!.id;
+        const restoredToken = (
+          await admin.query<{ id: string }>(
+            'INSERT INTO ingest_tokens(user_id,session_id,token_hash) VALUES($1,$2,$3) RETURNING id',
+            [otherUser, restoredSession, Buffer.alloc(32, 8)]
+          )
+        ).rows[0]!.id;
+        expect(
+          (
+            await firstWriter.query(
+              'UPDATE ingest_tokens SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL',
+              [restoredToken]
+            )
+          ).rowCount
+        ).toBe(1);
+        await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
+        await admin.query('DELETE FROM ingest_tokens WHERE id=$1', [restoredToken]);
         for (const table of [
           'transactions',
           'budgets',

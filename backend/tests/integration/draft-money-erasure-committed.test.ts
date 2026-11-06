@@ -4,15 +4,18 @@ import { randomUUID } from 'node:crypto';
 import { Client, Pool } from 'pg';
 import { describe, expect, it } from 'vitest';
 import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
+import { PgAuditLogger } from '../../src/infrastructure/database/postgres/audit-logger.js';
 import { assertFinancialRetirement } from '../../src/infrastructure/database/postgres/financial-retirement-guard.js';
 
 // This test really COMMITS an irreversible, global erasure and changes grants.
 // It must only ever run on a separate, freshly migrated disposable database.
 const enabled = process.env.TEST_COMMITTED_DRAFT_ERASURE === '1';
 const require = createRequire(import.meta.url);
-const draft = require('../../../docs/remediation/drafts/1792800000000_erase_retired_money.cjs') as {
-  up(pgm: { sql(statement: string): void }): void;
-};
+type DraftMigration = { up(pgm: { sql(statement: string): void }): void };
+const draft =
+  require('../../../docs/remediation/drafts/1792800000000_erase_retired_money.cjs') as DraftMigration;
+const runtimeGrants =
+  require('../../../docs/remediation/drafts/1792900000000_runtime_grants_rehearsal.cjs') as DraftMigration;
 
 describe.skipIf(!enabled)(
   'committed erasure and concurrent writers in a disposable database',
@@ -237,6 +240,90 @@ describe.skipIf(!enabled)(
           await admin.query('REVOKE INSERT(feature) ON financial_retirement_state FROM PUBLIC');
         }
         await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
+
+        // REHEARSAL ONLY: reset the disposable runtime's grants to model a
+        // fresh restricted role, then apply the proposed narrow grant draft.
+        // Never revoke privileges like this on an existing deployment.
+        await admin.query('BEGIN');
+        await admin.query('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM lifestyle_app');
+        await admin.query('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM lifestyle_app');
+        await admin.query('GRANT SELECT ON financial_retirement_state TO lifestyle_app');
+        const grantStatements: string[] = [];
+        runtimeGrants.up({ sql: (sql) => grantStatements.push(sql) });
+        await admin.query('GRANT SELECT ON categories TO PUBLIC');
+        await admin.query('SAVEPOINT public_access');
+        await expect(admin.query(grantStatements[0]!)).rejects.toThrow(/not fresh/);
+        await admin.query('ROLLBACK TO SAVEPOINT public_access');
+        await admin.query('REVOKE SELECT ON categories FROM PUBLIC');
+        await admin.query('GRANT UPDATE (name) ON categories TO PUBLIC');
+        await admin.query('SAVEPOINT public_column_access');
+        await expect(admin.query(grantStatements[0]!)).rejects.toThrow(/not fresh/);
+        await admin.query('ROLLBACK TO SAVEPOINT public_column_access');
+        await admin.query('REVOKE UPDATE (name) ON categories FROM PUBLIC');
+        for (const sql of grantStatements) await admin.query(sql);
+        await admin.query('COMMIT');
+        await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
+        expect(
+          (await firstWriter.query('SELECT id FROM subscriptions WHERE id=$1', [otherSubscription]))
+            .rowCount
+        ).toBe(1);
+        await expect(
+          firstWriter.query('UPDATE ingest_tokens SET revoked_at = now() WHERE false')
+        ).resolves.toBeDefined();
+        await expect(
+          firstWriter.query('UPDATE ingest_tokens SET token_hash = token_hash WHERE false')
+        ).rejects.toMatchObject({ code: '42501' });
+        for (const table of [
+          'transactions',
+          'budgets',
+          'categories',
+          'ingest_tokens',
+          'wallet_accounts',
+          'wallet_account_sessions',
+          'wallet_owned_records'
+        ]) {
+          await expect(
+            firstWriter.query(`INSERT INTO ${table} DEFAULT VALUES`)
+          ).rejects.toMatchObject({
+            code: '42501'
+          });
+          await expect(
+            firstWriter.query(`UPDATE ${table} SET id = id WHERE false`)
+          ).rejects.toMatchObject({
+            code: '42501'
+          });
+        }
+        await firstWriter.query(
+          `INSERT INTO notes(user_id,title,body) VALUES($1,'Retained','synthetic')`,
+          [otherUser]
+        );
+        const newSub = await firstWriter.query<{ id: string }>(
+          `INSERT INTO subscriptions(user_id,name,amount,currency,billing_unit,anchor_date,next_billing_date)
+           VALUES($1,'New subscription',15,'USD','month','2099-01-01','2099-02-01') RETURNING id`,
+          [otherUser]
+        );
+        await firstWriter.query(
+          `INSERT INTO reminders(user_id,subscription_id,source,remind_at,channel,next_attempt_at)
+           VALUES($1,$2,'user','2099-01-30T09:00:00Z','in_app','2099-01-30T09:00:00Z')`,
+          [otherUser, newSub.rows[0]!.id]
+        );
+        await firstWriter.query(
+          `INSERT INTO password_reset_requests(user_id,email) VALUES($1,$2)`,
+          [otherUser, `${otherUser}@example.test`]
+        );
+        await firstWriter.query(
+          `UPDATE password_reset_requests SET attempts=attempts+1 WHERE user_id=$1`,
+          [otherUser]
+        );
+        await new PgAuditLogger(runtimePool).log({
+          actorType: 'system',
+          eventType: 'fixture.runtime',
+          outcome: 'success'
+        });
+        expect(
+          (await admin.query(`SELECT id FROM audit_logs WHERE event_type='fixture.runtime'`))
+            .rowCount
+        ).toBe(1);
 
         // Normal account lifecycle must continue under the restricted runtime
         // role after erasure, without affecting another account's subscription.

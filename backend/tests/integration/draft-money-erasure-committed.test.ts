@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { Client, Pool } from 'pg';
 import { describe, expect, it } from 'vitest';
 import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
+import { assertFinancialRetirement } from '../../src/infrastructure/database/postgres/financial-retirement-guard.js';
 
 // This test really COMMITS an irreversible, global erasure and changes grants.
 // It must only ever run on a separate, freshly migrated disposable database.
@@ -38,6 +39,7 @@ describe.skipIf(!enabled)(
       const admin = new Client({ connectionString: migrator.toString() });
       const firstWriter = new Client({ connectionString: app.toString() });
       const lateWriter = new Client({ connectionString: app.toString() });
+      const runtimePool = new Pool({ connectionString: app.toString() });
       await Promise.all([admin.connect(), firstWriter.connect(), lateWriter.connect()]);
       let erasure: Promise<unknown> | undefined;
       let lateInsert: Promise<unknown> | undefined;
@@ -50,6 +52,11 @@ describe.skipIf(!enabled)(
           role: 'lifestyle_migrator',
           rolsuper: false
         });
+        // The pre-erasure database must fail closed as a restored old backup.
+        await expect(assertFinancialRetirement(runtimePool, true)).rejects.toThrow(
+          /startup blocked/
+        );
+        await expect(assertFinancialRetirement(runtimePool, false)).resolves.toBeUndefined();
         // Refuse to operate even on the named test DB if it contains pre-existing users or financial/audit rows.
         for (const table of [
           'users',
@@ -189,10 +196,35 @@ describe.skipIf(!enabled)(
             .rows[0].n
         ).toBe(1);
 
+        // Marker and effective privileges make a fresh post-erasure database
+        // startable. Runtime cannot forge or delete that marker.
+        await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
+        await expect(
+          firstWriter.query(`DELETE FROM public.financial_retirement_state`)
+        ).rejects.toMatchObject({ code: '42501' });
+        // A later PUBLIC grant must make startup fail closed again.
+        await admin.query('GRANT INSERT(name) ON categories TO PUBLIC');
+        try {
+          await expect(assertFinancialRetirement(runtimePool, true)).rejects.toThrow(
+            /startup blocked/
+          );
+        } finally {
+          await admin.query('REVOKE INSERT(name) ON categories FROM PUBLIC');
+        }
+        await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
+        await admin.query('GRANT INSERT(feature) ON financial_retirement_state TO PUBLIC');
+        try {
+          await expect(assertFinancialRetirement(runtimePool, true)).rejects.toThrow(
+            /startup blocked/
+          );
+        } finally {
+          await admin.query('REVOKE INSERT(feature) ON financial_retirement_state FROM PUBLIC');
+        }
+        await expect(assertFinancialRetirement(runtimePool, true)).resolves.toBeUndefined();
+
         // Normal account lifecycle must continue under the restricted runtime
         // role after erasure, without affecting another account's subscription.
-        const runtimePool = new Pool({ connectionString: app.toString() });
-        try {
+        {
           const users = new PgUsersRepository(runtimePool);
           await users.scheduleDeletion(user, new Date(Date.now() - 1000));
           expect(await users.purgeAccount(user)).toBe(true);
@@ -206,10 +238,9 @@ describe.skipIf(!enabled)(
               ])
             ).rowCount
           ).toBe(1);
-        } finally {
-          await runtimePool.end();
         }
       } finally {
+        await runtimePool.end();
         await firstWriter.query('ROLLBACK').catch(() => undefined);
         await admin.query('ROLLBACK').catch(() => undefined);
         await erasure?.catch(() => undefined);

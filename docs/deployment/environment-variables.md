@@ -27,7 +27,7 @@ Before deploying a container image to staging or production, verify:
 - [ ] All database URLs point to the appropriate least-privilege database user.
 - [ ] `AUXILIARY_PORTS` is set (e.g. `"3000,8080"`) if the deployment expects auxiliary listeners, or left unset if not.
 
-The backend enforces three production startup invariants: `DATABASE_SSL=true`, a `DATABASE_URL` username of `lifestyle_app`, and JWT/OTP secrets that differ from known local and test example values. These checks fail startup rather than silently accepting a development configuration. Migration and maintenance URLs should be injected only into the processes that require them.
+The backend validates production TLS, the `lifestyle_app` runtime identity and non-example secrets. In addition, API and worker startup in production requires a committed financial-retirement marker and safe effective/assumable role privileges; it does not run the erasure. `REQUIRE_FINANCIAL_RETIREMENT=true` enables the same check in non-production for restore rehearsals; `false` cannot disable it in production. The marker is created only by the separately reviewed draft, which is not yet approved for deployment. See [the NO-GO retirement/recovery plan](../remediation/drafts/FINANCIAL_ERASURE_RUNBOOK.md). Migration and maintenance URLs should be injected only into the processes that require them.
 
 ---
 

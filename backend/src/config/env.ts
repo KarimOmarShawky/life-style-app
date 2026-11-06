@@ -38,6 +38,9 @@ const baseEnvSchema = z.object({
     .url({ message: 'DATABASE_URL must be a valid PostgreSQL connection URL' }),
   DATABASE_MIGRATION_URL: z.string().url().optional(),
   DATABASE_MAINTENANCE_URL: z.string().url().optional(),
+  // Production always requires the erasure marker. This flag also enables the
+  // fail-closed startup guard in non-production restore rehearsals.
+  REQUIRE_FINANCIAL_RETIREMENT: z.enum(['true', 'false']).default('false'),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   // Per-statement safety ceiling for every pooled connection (ms).
   // 15s default; raise for deployments with legitimately long

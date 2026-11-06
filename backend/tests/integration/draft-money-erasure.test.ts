@@ -154,6 +154,11 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
         'SELECT * FROM reminders WHERE id=ANY($1::uuid[]) ORDER BY id',
         [reminders]
       );
+      const markerBefore = (
+        await db.query<{ oid: string | null }>(
+          `SELECT to_regclass('public.financial_retirement_state')::text AS oid`
+        )
+      ).rows[0]!.oid;
       await db.query('SAVEPOINT before_erasure');
       const statements: string[] = [];
       draft.up({ sql: (statement) => statements.push(statement) });
@@ -222,7 +227,21 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
         ).rows[0]!.allowed
       ).toBe(true);
       expect(() => draft.down()).toThrow(/irreversible/);
+      expect(
+        (
+          await db.query(
+            `SELECT feature FROM financial_retirement_state WHERE feature='legacy_money_v1'`
+          )
+        ).rowCount
+      ).toBe(1);
       await db.query('ROLLBACK TO SAVEPOINT before_erasure');
+      expect(
+        (
+          await db.query<{ oid: string | null }>(
+            `SELECT to_regclass('public.financial_retirement_state')::text AS oid`
+          )
+        ).rows[0]!.oid
+      ).toBe(markerBefore);
       expect(
         (
           await db.query<{ count: number }>(

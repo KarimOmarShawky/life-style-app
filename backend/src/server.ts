@@ -14,12 +14,20 @@ import { createApp } from './app.js';
 import { getEnv, validateEnv } from './config/env.js';
 import { logger, logProcessFailure } from './core/logger/logger.js';
 import { setDrainingStatus } from './features/health/health.routes.js';
-import { closePgPool } from './infrastructure/database/postgres/pool.js';
+import { closePgPool, getPgPool } from './infrastructure/database/postgres/pool.js';
+import { assertFinancialRetirement } from './infrastructure/database/postgres/financial-retirement-guard.js';
 import { closeRedisClient } from './infrastructure/redis/redis-client.js';
 
 // Validate environment variables fail-fast
 validateEnv();
 const env = getEnv();
+
+// Refuse to serve from a pre-erasure production backup. No migration is run
+// here: the separately reviewed erasure must commit before production startup.
+await assertFinancialRetirement(
+  getPgPool(),
+  env.NODE_ENV === 'production' || env.REQUIRE_FINANCIAL_RETIREMENT === 'true'
+);
 
 // NOTE: The schema is NOT bootstrapped here. Migrations run as a separate
 // deployment step (`npm run migrate:up`) with the dedicated lifestyle_migrator

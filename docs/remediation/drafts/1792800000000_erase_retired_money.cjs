@@ -91,6 +91,35 @@ exports.up = (pgm) => {
       END LOOP;
     END
     $preflight$;
+
+    -- The marker is written in the same transaction as erasure and grant
+    -- revocation. Production API/worker startup must reject a restored backup
+    -- that predates this transaction. It cannot detect partial restores made
+    -- after startup; the recovery runbook requires those to remain offline.
+    CREATE TABLE IF NOT EXISTS public.financial_retirement_state (
+      feature text PRIMARY KEY,
+      completed_at timestamptz NOT NULL DEFAULT clock_timestamp()
+    );
+    REVOKE ALL ON public.financial_retirement_state FROM PUBLIC, lifestyle_app;
+    GRANT SELECT ON public.financial_retirement_state TO lifestyle_app;
+    INSERT INTO public.financial_retirement_state(feature) VALUES ('legacy_money_v1')
+      ON CONFLICT (feature) DO NOTHING;
+    DO $marker_guard$
+    DECLARE
+      assumable_role record;
+    BEGIN
+      FOR assumable_role IN
+        SELECT r.rolname FROM pg_roles r WHERE pg_has_role('lifestyle_app', r.oid, 'MEMBER')
+      LOOP
+        IF pg_has_role(assumable_role.rolname,
+              (SELECT relowner FROM pg_class WHERE oid = 'public.financial_retirement_state'::regclass), 'MEMBER') OR
+           has_table_privilege(assumable_role.rolname, 'public.financial_retirement_state', 'INSERT,UPDATE,DELETE,TRUNCATE') OR
+           has_any_column_privilege(assumable_role.rolname, 'public.financial_retirement_state', 'INSERT,UPDATE') THEN
+          RAISE EXCEPTION 'runtime can modify retirement marker through %', assumable_role.rolname;
+        END IF;
+      END LOOP;
+    END
+    $marker_guard$;
   `);
 };
 

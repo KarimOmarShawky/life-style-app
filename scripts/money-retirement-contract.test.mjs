@@ -93,6 +93,22 @@ test('local retirement cleanup is narrow and retried at launch', () => {
   assert.ok(native.includes('runSteps(steps)'));
 });
 
+test('production startup fails closed before API and worker can run on pre-erasure backups', () => {
+  const server = read('backend/src/server.ts');
+  const worker = read('backend/src/worker.ts');
+  const guard = read('backend/src/infrastructure/database/postgres/financial-retirement-guard.ts');
+  const draft = read('docs/remediation/drafts/1792800000000_erase_retired_money.cjs');
+  for (const source of [server, worker]) {
+    assert.ok(source.includes("env.NODE_ENV === 'production'"));
+    assert.ok(source.includes('await assertFinancialRetirement('));
+  }
+  assert.ok(server.indexOf('await assertFinancialRetirement(') < server.indexOf('server.listen('));
+  assert.ok(worker.indexOf('await assertFinancialRetirement(') < worker.indexOf('new Worker('));
+  assert.ok(guard.includes("feature = 'legacy_money_v1'"));
+  assert.ok(guard.includes('has_any_column_privilege'));
+  assert.ok(draft.includes("VALUES ('legacy_money_v1')"));
+});
+
 test('subscription display loads full pages and keeps currency totals separate', () => {
   const repository = read(mobile + 'lib/features/money/data/money_repository.dart');
   const summary = read(mobile + 'lib/features/money/data/subscription_summary.dart');

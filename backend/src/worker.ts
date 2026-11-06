@@ -17,6 +17,7 @@ import { validateEnv, getEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 import { SystemClock } from './core/time/clock.js';
 import { closePgPool, getPgPool } from './infrastructure/database/postgres/pool.js';
+import { assertFinancialRetirement } from './infrastructure/database/postgres/financial-retirement-guard.js';
 import { getKyselyDb, type DatabaseSchema } from './infrastructure/database/postgres/kysely.js';
 import { closeRedisClient, getRedisClient } from './infrastructure/redis/redis-client.js';
 import { SmtpEmailSender } from './infrastructure/external/email-sender.js';
@@ -46,6 +47,12 @@ import {
 
 validateEnv();
 const env = getEnv();
+
+// Check before creating BullMQ consumers, schedulers, or processing any jobs.
+await assertFinancialRetirement(
+  getPgPool(),
+  env.NODE_ENV === 'production' || env.REQUIRE_FINANCIAL_RETIREMENT === 'true'
+);
 
 logger.info(`Starting LifeStyle Worker process [NODE_ENV=${env.NODE_ENV}]...`);
 

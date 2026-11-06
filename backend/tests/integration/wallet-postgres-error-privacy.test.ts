@@ -1,5 +1,5 @@
 import '../infrastructure-safety.js';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { Kysely, PostgresDialect } from 'kysely';
 import express from 'express';
@@ -10,6 +10,8 @@ import { globalErrorHandler } from '../../src/core/middleware/error-handler.js';
 import { baseLogger, logger } from '../../src/core/logger/logger.js';
 import { summarizeErrorForLog } from '../../src/core/logger/log-minimization.js';
 import { WalletSessionStore } from '../../src/features/wallet-auth/wallet-session-store.pg.js';
+import { WalletRecordCipher } from '../../src/features/wallet-auth/wallet-record-cipher.js';
+import { WalletOwnedRecordStore } from '../../src/features/wallet-auth/wallet-owned-record-store.pg.js';
 
 // Synthetic data only: PostgreSQL itself may log the failed row. This test
 // verifies the application log boundary, not the database server's log policy.
@@ -58,6 +60,44 @@ describe('wallet PostgreSQL error application-log boundary', () => {
         errorSink.mockRestore();
         fatalSink.mockRestore();
       }
+    } finally {
+      await sessions.revoke(a.credential.token);
+    }
+  });
+  it('stores encrypted bytes on the repository path even when the input is synthetic plaintext', async () => {
+    const a = await sessions.create();
+    const id = randomUUID();
+    const marker = 'synthetic-wallet-sensitive-payload';
+    const input = Buffer.from(marker);
+    const store = new WalletOwnedRecordStore(sessions, new WalletRecordCipher(randomBytes(32)));
+    try {
+      expect(await store.put(a.credential.token, id, 'review', input)).toEqual({
+        authenticated: true,
+        value: 'created'
+      });
+      const result = await pool.query<{ envelope: Buffer }>(
+        'SELECT envelope FROM wallet_owned_records WHERE wallet_account_id = $1 AND id = $2',
+        [a.walletAccountId, id]
+      );
+      const encrypted = result.rows[0]!.envelope;
+      expect(encrypted.includes(input)).toBe(false);
+      let failure: unknown;
+      try {
+        await pool.query(
+          `INSERT INTO wallet_owned_records (wallet_account_id, id, kind, envelope)
+           VALUES ($1, $2, 'invalid-kind', $3)`,
+          [a.walletAccountId, randomUUID(), encrypted]
+        );
+        throw new Error('Expected a database constraint error');
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toMatchObject({ code: '23514' });
+      const detail = (failure as { detail: string }).detail;
+      expect(detail).not.toContain(marker);
+      expect(detail).not.toContain(input.toString('hex'));
+      // This demonstrates the tested path only, not protection from raw SQL,
+      // SQL/parameter logs, other sinks, metadata or server-side plaintext.
     } finally {
       await sessions.revoke(a.credential.token);
     }

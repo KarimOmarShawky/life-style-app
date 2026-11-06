@@ -1,5 +1,5 @@
 import '../infrastructure-safety.js';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { inspect } from 'node:util';
 import pg from 'pg';
 import { Kysely, PostgresDialect } from 'kysely';
@@ -7,15 +7,17 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { DatabaseSchema } from '../../src/infrastructure/database/postgres/kysely.js';
 import { createWalletSessionToken } from '../../src/features/wallet-auth/wallet-phone-security.js';
 import { WalletSessionStore } from '../../src/features/wallet-auth/wallet-session-store.pg.js';
+import { WalletRecordCipher } from '../../src/features/wallet-auth/wallet-record-cipher.js';
 import { WalletOwnedRecordStore } from '../../src/features/wallet-auth/wallet-owned-record-store.pg.js';
 
-// Only synthetic bytes, which intentionally are NOT claimed to be encrypted.
+// Synthetic input and test-only keys. No SMS or production secrets are used.
 // The isolated disposable DB retains rows because the runtime has no DELETE grant.
 describe('unwired wallet-owned immutable envelope storage', () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   const db = new Kysely<DatabaseSchema>({ dialect: new PostgresDialect({ pool }) });
   const sessions = new WalletSessionStore(db);
-  const records = new WalletOwnedRecordStore(sessions);
+  const cipher = new WalletRecordCipher(randomBytes(32));
+  const records = new WalletOwnedRecordStore(sessions, cipher);
   afterAll(async () => db.destroy());
 
   async function waitUntilBlockedBy(pid: number) {
@@ -29,6 +31,14 @@ describe('unwired wallet-owned immutable envelope storage', () => {
     }
     throw new Error('Expected an operation to wait on the row lock');
   }
+
+  it('requires the cipher and keeps dependencies out of normal serialization', () => {
+    expect(() => new WalletOwnedRecordStore(sessions, undefined as never)).toThrow(
+      'Wallet record cipher required'
+    );
+    expect(JSON.stringify(records)).toBe('"WalletOwnedRecordStore([redacted])"');
+    expect(inspect(records)).toBe('WalletOwnedRecordStore([redacted])');
+  });
 
   it('reads and writes only the authenticated wallet, including the same ID in different wallets', async () => {
     const a = await sessions.create();
@@ -85,8 +95,76 @@ describe('unwired wallet-owned immutable envelope storage', () => {
       [a.walletAccountId, id]
     );
     expect(row.rows[0]!.kind).toBe('candidate');
-    expect(row.rows[0]!.envelope.equals(bytes)).toBe(true);
+    expect(row.rows[0]!.envelope.equals(bytes)).toBe(false);
+    expect(row.rows[0]!.envelope.includes(bytes)).toBe(false);
+    expect(
+      cipher.open(a.walletAccountId, id, 'candidate', row.rows[0]!.envelope).equals(bytes)
+    ).toBe(true);
     await sessions.revoke(a.credential.token);
+  });
+
+  it('never falls back to an unsealed row or a wrong key, and never overwrites it', async () => {
+    const a = await sessions.create();
+    const legacyId = randomUUID();
+    const content = Buffer.from('synthetic unsealed');
+    await pool.query(
+      'INSERT INTO wallet_owned_records (wallet_account_id, id, kind, envelope) VALUES ($1, $2, $3, $4)',
+      [a.walletAccountId, legacyId, 'review', content]
+    );
+    await expect(records.get(a.credential.token, legacyId)).rejects.toThrow(
+      'Wallet record integrity failure'
+    );
+    await expect(records.put(a.credential.token, legacyId, 'review', content)).rejects.toThrow(
+      'Wallet record integrity failure'
+    );
+    const stored = await pool.query<{ envelope: Buffer }>(
+      'SELECT envelope FROM wallet_owned_records WHERE wallet_account_id = $1 AND id = $2',
+      [a.walletAccountId, legacyId]
+    );
+    expect(stored.rows[0]!.envelope.equals(content)).toBe(true);
+
+    const id = randomUUID();
+    await records.put(a.credential.token, id, 'review', Buffer.from('synthetic'));
+    const wrongKey = new WalletOwnedRecordStore(sessions, new WalletRecordCipher(randomBytes(32)));
+    await expect(wrongKey.get(a.credential.token, id)).rejects.toThrow(
+      'Wallet record integrity failure'
+    );
+    await expect(
+      wrongKey.put(a.credential.token, id, 'review', Buffer.from('synthetic'))
+    ).rejects.toThrow('Wallet record integrity failure');
+    const correct = await records.get(a.credential.token, id);
+    if (!correct.authenticated || !correct.value) throw new Error('missing synthetic record');
+    expect(correct.value.envelope.toString()).toBe('synthetic');
+    await sessions.revoke(a.credential.token);
+  });
+
+  it('rejects ciphertext transplanted to a different owner', async () => {
+    const a = await sessions.create();
+    const b = await sessions.create();
+    const id = randomUUID();
+    const payload = Buffer.from('synthetic account a');
+    await records.put(a.credential.token, id, 'review', payload);
+    const stored = await pool.query<{ envelope: Buffer }>(
+      'SELECT envelope FROM wallet_owned_records WHERE wallet_account_id = $1 AND id = $2',
+      [a.walletAccountId, id]
+    );
+    // A compromised/bypassing writer can insert bytes, but the store rejects
+    // ciphertext bound to a different owner; this does not prove SMS provenance.
+    await pool.query(
+      'INSERT INTO wallet_owned_records (wallet_account_id, id, kind, envelope) VALUES ($1, $2, $3, $4)',
+      [b.walletAccountId, id, 'review', stored.rows[0]!.envelope]
+    );
+    await expect(records.get(b.credential.token, id)).rejects.toThrow(
+      'Wallet record integrity failure'
+    );
+    await expect(records.put(b.credential.token, id, 'review', payload)).rejects.toThrow(
+      'Wallet record integrity failure'
+    );
+    const result = await records.get(a.credential.token, id);
+    if (!result.authenticated || !result.value) throw new Error('missing synthetic record');
+    expect(result.value.envelope.equals(payload)).toBe(true);
+    await sessions.revoke(a.credential.token);
+    await sessions.revoke(b.credential.token);
   });
 
   it('serializes competing writes from two sessions without replacing either record', async () => {

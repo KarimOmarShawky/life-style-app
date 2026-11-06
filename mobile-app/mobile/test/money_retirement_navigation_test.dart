@@ -6,7 +6,8 @@ import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 import 'package:lifestyle_mobile/features/more/presentation/more_screen.dart';
 
 void main() {
-  testWidgets('subscriptions remain reachable from More without the money section',
+  testWidgets(
+      'subscriptions remain reachable from More without the money section',
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [subscriptionsProvider.overrideWith((ref) async => [])],

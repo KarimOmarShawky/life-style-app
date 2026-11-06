@@ -41,6 +41,21 @@ export interface AuthSessionsTable {
   created_ip: string | null;
 }
 
+// Independent wallet principals are not app users and have no phone binding yet.
+export interface WalletAccountsTable {
+  id: Generated<string>;
+  created_at: Generated<Date>;
+}
+
+export interface WalletAccountSessionsTable {
+  id: Generated<string>;
+  wallet_account_id: string;
+  token_hash: Buffer;
+  created_at: Generated<Date>;
+  expires_at: Date;
+  revoked_at: Date | null;
+}
+
 export interface RefreshTokensTable {
   id: Generated<string>;
   session_id: string;
@@ -392,6 +407,8 @@ export interface PasswordResetRequestsTable {
 export interface DatabaseSchema {
   users: UsersTable;
   auth_sessions: AuthSessionsTable;
+  wallet_accounts: WalletAccountsTable;
+  wallet_account_sessions: WalletAccountSessionsTable;
   refresh_tokens: RefreshTokensTable;
   push_devices: PushDevicesTable;
   categories: CategoriesTable;

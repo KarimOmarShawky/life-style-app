@@ -88,6 +88,29 @@ describe('Boot-Time Database DDL & Schema Drift Guard (B-09)', () => {
     expect(rootSchemaTables).toEqual(migrationTables);
   });
 
+  it('keeps the wallet session constraints, irreversible revocation and narrow grants in snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      const table = snapshot.match(
+        /CREATE TABLE wallet_account_sessions \(([\s\S]*?)\n\s*\);/i
+      )?.[1];
+      expect(table).toBeDefined();
+      expect(table).toMatch(/wallet_account_id UUID NOT NULL REFERENCES wallet_accounts\(id\)/i);
+      expect(table).toMatch(
+        /token_hash BYTEA NOT NULL UNIQUE CHECK \(octet_length\(token_hash\) = 32\)/i
+      );
+      expect(table).toMatch(/CHECK \(expires_at > created_at\)/i);
+      expect(snapshot).toMatch(/CREATE TRIGGER wallet_session_revocation_final/i);
+      expect(snapshot).toMatch(
+        /OLD\.revoked_at IS NOT NULL AND NEW\.revoked_at IS DISTINCT FROM OLD\.revoked_at/i
+      );
+      expect(snapshot).toMatch(
+        /GRANT UPDATE \(revoked_at\) ON wallet_account_sessions TO lifestyle_app/i
+      );
+      expect(snapshot).not.toMatch(/GRANT\s+[^;]*DELETE[^;]*\bwallet_account_sessions\b/i);
+    }
+  });
+
   it('keeps reset ownership and fencing columns, foreign key, and indexes in both snapshots', () => {
     const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
     for (const snapshot of [root, SCHEMA_SQL]) {

@@ -8,6 +8,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import pino, { type DestinationStream } from 'pino';
+import { summarizeErrorForLog } from './log-minimization.js';
 
 export interface RequestContext {
   requestId: string;
@@ -109,16 +110,24 @@ export const logger = {
   },
   error(msg: string, err?: unknown, meta?: Record<string, unknown>): void {
     const errorMeta =
-      err instanceof Error
-        ? { err: { message: err.message, stack: err.stack, name: err.name }, ...meta }
-        : { err, ...meta };
+      err instanceof Error ? { ...meta, err: summarizeErrorForLog(err) } : { err, ...meta };
     baseLogger.error(errorMeta, msg);
   },
   fatal(msg: string, err?: unknown, meta?: Record<string, unknown>): void {
     const errorMeta =
-      err instanceof Error
-        ? { err: { message: err.message, stack: err.stack, name: err.name }, ...meta }
-        : { err, ...meta };
+      err instanceof Error ? { ...meta, err: summarizeErrorForLog(err) } : { err, ...meta };
     baseLogger.fatal(errorMeta, msg);
   }
 };
+
+/** Process failure values are untrusted: rejection reasons may be arbitrary objects. */
+export function logProcessFailure(
+  kind: 'uncaughtException' | 'unhandledRejection',
+  reason: unknown
+): void {
+  const message =
+    kind === 'uncaughtException'
+      ? 'Uncaught exception detected'
+      : 'Unhandled promise rejection detected';
+  logger.fatal(message, summarizeErrorForLog(reason));
+}

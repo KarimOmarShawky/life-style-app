@@ -34,19 +34,9 @@ export function globalErrorHandler(
   // 1. AppError (Domain operational errors)
   if (err instanceof AppError) {
     if (err.httpStatus >= 500) {
-      logger.error(`AppError [${err.code}]: ${err.message}`, err, {
-        code: err.code,
-        meta: err.meta,
-        path: req.path,
-        method: req.method
-      });
+      logger.error('Operational error', { code: err.code, status: err.httpStatus });
     } else {
-      logger.warn(`AppError [${err.code}]: ${err.message}`, {
-        code: err.code,
-        status: err.httpStatus,
-        path: req.path,
-        method: req.method
-      });
+      logger.warn('Operational error', { code: err.code, status: err.httpStatus });
     }
 
     if (err.code === 'RATE_LIMITED' && err.meta?.retryAfterSeconds) {
@@ -73,9 +63,7 @@ export function globalErrorHandler(
     }));
 
     logger.warn('Request validation failed', {
-      errorCount: details.length,
-      path: req.path,
-      method: req.method
+      errorCount: details.length
     });
 
     res.status(400).json(
@@ -97,10 +85,7 @@ export function globalErrorHandler(
     message?: string;
   };
   if (maybeBodyError.type === 'entity.too.large' || maybeBodyError.status === 413) {
-    logger.warn('Payload exceeds maximum allowed size (100 KB)', {
-      path: req.path,
-      method: req.method
-    });
+    logger.warn('Payload exceeds maximum allowed size (100 KB)');
     res.status(413).json(
       errorResponse({
         code: 'PAYLOAD_TOO_LARGE',
@@ -112,10 +97,7 @@ export function globalErrorHandler(
   }
 
   if (err instanceof SyntaxError && (maybeBodyError.status === 400 || 'body' in maybeBodyError)) {
-    logger.warn('Malformed JSON request body', {
-      path: req.path,
-      method: req.method
-    });
+    logger.warn('Malformed JSON request body');
     res.status(400).json(
       errorResponse({
         code: 'VALIDATION_ERROR',
@@ -131,11 +113,7 @@ export function globalErrorHandler(
   if (pgErr.code) {
     // Structural fields only: a driver message can embed row values, SQL
     // literals or connection details (V-10). The client response is masked too.
-    logger.error('PostgreSQL error', {
-      ...summarizeErrorForLog(err),
-      path: req.path,
-      method: req.method
-    });
+    logger.error('PostgreSQL error', summarizeErrorForLog(err));
 
     switch (pgErr.code) {
       // 23505: Unique violation
@@ -222,15 +200,11 @@ export function globalErrorHandler(
   // 5. Catch-all: unexpected internal errors
   // Summary only — an unexpected message may still contain user or provider
   // values, and the request context already makes the event traceable.
-  logger.error('Unhandled internal server error', {
-    ...summarizeErrorForLog(err),
-    path: req.path,
-    method: req.method
-  });
+  logger.error('Unhandled internal server error', summarizeErrorForLog(err));
 
   // Spec §15.3: unexpected errors are ALWAYS masked for clients — the raw
-  // message may contain credentials, SQL, or internal paths. Full details stay
-  // in the structured log above.
+  // message may contain credentials, SQL, or internal paths. The log above
+  // intentionally excludes raw diagnostic details as well.
   res.status(500).json(
     errorResponse({
       code: 'INTERNAL_ERROR',

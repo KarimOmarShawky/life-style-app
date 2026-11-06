@@ -12,7 +12,7 @@ import { drainApiWork } from './core/lifecycle/drain-api.js';
 import { getContainer } from './container.js';
 import { createApp } from './app.js';
 import { getEnv, validateEnv } from './config/env.js';
-import { logger } from './core/logger/logger.js';
+import { logger, logProcessFailure } from './core/logger/logger.js';
 import { setDrainingStatus } from './features/health/health.routes.js';
 import { closePgPool } from './infrastructure/database/postgres/pool.js';
 import { closeRedisClient } from './infrastructure/redis/redis-client.js';
@@ -80,12 +80,12 @@ process.on('SIGTERM', () => void handleShutdown('SIGTERM'));
 process.on('SIGINT', () => void handleShutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
-  logger.fatal('Uncaught exception detected', err);
+  logProcessFailure('uncaughtException', err);
   void handleShutdown('uncaughtException');
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.fatal('Unhandled promise rejection detected', reason);
+  logProcessFailure('unhandledRejection', reason);
   void handleShutdown('unhandledRejection');
 });
 

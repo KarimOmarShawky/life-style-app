@@ -34,6 +34,11 @@ return 1
 // Attempts, both budgets and successful consumption are one Redis operation.
 const VERIFY_SCRIPT = `-- wallet-phone-otp-verify-v1
 if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+-- A restored or malformed key without expiry must never become a perpetual OTP.
+if redis.call('PTTL', KEYS[1]) <= 0 then
+  redis.call('DEL', KEYS[1], KEYS[2])
+  return 0
+end
 local total = redis.call('INCR', KEYS[3])
 if total == 1 or redis.call('TTL', KEYS[3]) < 0 then redis.call('EXPIRE', KEYS[3], tonumber(ARGV[5])) end
 if total > tonumber(ARGV[4]) then
@@ -55,6 +60,20 @@ if ARGV[2] == '1' then
 end
 if attempts >= tonumber(ARGV[3]) then redis.call('DEL', KEYS[1], KEYS[2]) end
 return 0
+`;
+
+// The provider result can be delayed beyond replacement or expiration. These
+// operations compare the entire original snapshot and never affect a newer
+// challenge. Cooldown/issuance and phone-attempt budgets are deliberately kept.
+const CURRENT_SCRIPT = `-- wallet-phone-otp-current-v1
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+if redis.call('PTTL', KEYS[1]) <= 30000 then return 0 end
+return 1
+`;
+const INVALIDATE_SCRIPT = `-- wallet-phone-otp-invalidate-v1
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+redis.call('DEL', KEYS[1], KEYS[2])
+return 1
 `;
 
 export interface IssuedWalletPhoneChallenge {
@@ -162,6 +181,37 @@ export class WalletPhoneOtpStore {
     if (result === 0) return null;
     if (result !== 1) throw new Error('Wallet challenge issue failed');
     return new RedactedChallenge(id, code);
+  }
+
+  /** Check only the original challenge, requiring over 30 seconds remaining. */
+  async isCurrent(phone: string, challenge: IssuedWalletPhoneChallenge): Promise<boolean> {
+    const lookup = walletPhoneLookup(this.#lookupSecret, phone);
+    const keys = this.keys(lookup);
+    const digest = walletPhoneOtpDigest(this.#otpSecret, lookup, challenge.id, challenge.code);
+    const result = await this.#redis.eval(
+      CURRENT_SCRIPT,
+      1,
+      keys.current,
+      `${challenge.id}:${digest.toString('hex')}`
+    );
+    if (result !== 0 && result !== 1) throw new Error('Wallet challenge status failed');
+    return result === 1;
+  }
+
+  /** Best-effort invalidation; false means already expired, consumed or replaced. */
+  async invalidate(phone: string, challenge: IssuedWalletPhoneChallenge): Promise<boolean> {
+    const lookup = walletPhoneLookup(this.#lookupSecret, phone);
+    const keys = this.keys(lookup);
+    const digest = walletPhoneOtpDigest(this.#otpSecret, lookup, challenge.id, challenge.code);
+    const result = await this.#redis.eval(
+      INVALIDATE_SCRIPT,
+      2,
+      keys.current,
+      keys.attempts,
+      `${challenge.id}:${digest.toString('hex')}`
+    );
+    if (result !== 0 && result !== 1) throw new Error('Wallet challenge invalidation failed');
+    return result === 1;
   }
 
   /** Consume at most once. Additional IP/device limits and delivery controls are required. */

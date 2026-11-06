@@ -71,6 +71,28 @@ describe('wallet phone OTP primitives on Redis', () => {
     expect(await store.verify(phone, another.id, another.code)).toBe(false);
   });
 
+  it('rejects a challenge that unexpectedly lost its expiry', async () => {
+    const challenge = (await store.issue(phone))!;
+    await redis.persist(`${prefix}current`); // Model malformed/restored cache state.
+    expect(await store.isCurrent(phone, challenge)).toBe(false);
+    expect(await store.verify(phone, challenge.id, challenge.code)).toBe(false);
+    expect(await redis.get(`${prefix}current`)).toBeNull();
+    expect(await redis.get(`${prefix}issued`)).toBe('1');
+  });
+
+  it('only invalidates an exact current snapshot and preserves attempt budgets', async () => {
+    const first = (await store.issue(phone))!;
+    const wrong = ((Number(first.code) + 1) % 1_000_000).toString().padStart(6, '0');
+    expect(await store.verify(phone, first.id, wrong)).toBe(false);
+    expect(await store.invalidate(phone, { id: first.id, code: wrong })).toBe(false);
+    expect(await store.isCurrent(phone, first)).toBe(true);
+    expect(await store.invalidate(phone, first)).toBe(true);
+    expect(await store.invalidate(phone, first)).toBe(false);
+    expect(await redis.get(`${prefix}phone-attempts`)).toBe('1');
+    expect(await redis.get(`${prefix}issued`)).toBe('1');
+    expect(await redis.exists(`${prefix}cooldown`)).toBe(1);
+  });
+
   it('enforces per-phone issuance and cross-code verification budgets', async () => {
     for (let i = 0; i < 5; i++) {
       const challenge = (await store.issue(phone))!;

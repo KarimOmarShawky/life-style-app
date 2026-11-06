@@ -13,6 +13,12 @@ const draft =
   require('../../../docs/remediation/drafts/1792800000000_erase_retired_money.cjs') as DraftMigration & {
     down(): never;
   };
+const notesIndexMigration =
+  require('../../src/infrastructure/database/postgres/migrations/1792200000000_notes_body_trgm.cjs') as DraftMigration;
+const resetRequestsMigration =
+  require('../../src/infrastructure/database/postgres/migrations/1792300000000_password_reset_requests.cjs') as DraftMigration;
+const resetOwnershipMigration =
+  require('../../src/infrastructure/database/postgres/migrations/1792400000000_password_reset_ownership_and_fencing.cjs') as DraftMigration;
 const amountScaleMigration =
   require('../../src/infrastructure/database/postgres/migrations/1792500000000_money_input_scale.cjs') as DraftMigration;
 const walletAccountsMigration =
@@ -174,6 +180,10 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
       // absent: its exclusive lock fails and its transaction must be rolled back.
       await db.query('SAVEPOINT old_catalog');
       await db.query('DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts');
+      await db.query('DROP TABLE password_reset_requests');
+      await db.query('DROP INDEX idx_notes_body_trgm');
+      await db.query('CREATE TABLE public.unrelated_erasure_test_fixture (id integer PRIMARY KEY)');
+      await db.query('INSERT INTO public.unrelated_erasure_test_fixture VALUES (42)');
       for (const table of ['transactions', 'budgets', 'subscriptions']) {
         await db.query(`ALTER TABLE ${table} DROP COLUMN amount_scale`);
       }
@@ -193,12 +203,15 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
       ).toBe(2);
 
       // REHEARSAL ONLY: with a separately provisioned restricted runtime role,
-      // simulate the historical source snapshot's absent amount-scale columns
-      // and wallet schema. Neon has not yet been compared to that snapshot.
-      // This does not reconcile a missing migration history, configure Neon
-      // roles, drain old writers, or approve this sequence for production.
+      // simulate selected missing objects in the supplied Neon catalog, plus
+      // an unrelated table. This is not a full Neon clone or a role rehearsal.
+      // It does not reconcile migration history, configure Neon roles, drain
+      // old writers, validate backups, or approve production execution.
       await db.query('DROP FUNCTION public.wallet_session_revocation_is_final()');
       for (const migration of [
+        notesIndexMigration,
+        resetRequestsMigration,
+        resetOwnershipMigration,
         amountScaleMigration,
         walletAccountsMigration,
         walletRecordsMigration,
@@ -247,6 +260,20 @@ describe.skipIf(!enabled)('draft financial erasure on isolated migrated PostgreS
         (await db.query(`SELECT 1 FROM financial_retirement_state WHERE feature='legacy_money_v1'`))
           .rowCount
       ).toBe(1);
+      expect((await db.query('SELECT id FROM public.unrelated_erasure_test_fixture')).rows).toEqual(
+        [{ id: 42 }]
+      );
+      expect(
+        (await db.query(`SELECT to_regclass('public.password_reset_requests') AS relation`))
+          .rows[0]!.relation
+      ).toBe('password_reset_requests');
+      expect(
+        (
+          await db.query<{ allowed: boolean }>(
+            `SELECT has_table_privilege('lifestyle_app','password_reset_requests','INSERT') AS allowed`
+          )
+        ).rows[0]!.allowed
+      ).toBe(true);
       await db.query('ROLLBACK TO SAVEPOINT old_catalog');
 
       await db.query('SAVEPOINT before_erasure');

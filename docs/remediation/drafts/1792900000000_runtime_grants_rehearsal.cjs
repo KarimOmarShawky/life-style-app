@@ -43,10 +43,17 @@ exports.up = (pgm) => {
       FOR relation IN
         SELECT c.oid, c.relname, c.relowner, c.relkind FROM pg_class c
         JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
       LOOP
         IF pg_has_role('lifestyle_app', relation.relowner, 'MEMBER') THEN
           RAISE EXCEPTION 'Runtime may assume an object owner';
+        END IF;
+        IF relation.relkind <> 'S' AND current_setting('server_version_num')::integer >= 170000 THEN
+          -- PostgreSQL 17+ includes MAINTAIN, which is not understood by 16.
+          -- A fresh role must not have maintenance/locking privileges either.
+          IF has_table_privilege('lifestyle_app', relation.oid, 'MAINTAIN') THEN
+            RAISE EXCEPTION 'Runtime is not fresh or has inherited/PUBLIC MAINTAIN privilege';
+          END IF;
         END IF;
         IF relation.relkind = 'S' THEN
           IF has_sequence_privilege('lifestyle_app', relation.oid, 'USAGE,SELECT,UPDATE') THEN

@@ -311,6 +311,27 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
           (await owner.query('SELECT category_id FROM subscriptions WHERE id=$1', [sub])).rows[0]!
             .category_id
         ).toBe(category);
+        const serverVersion = Number(
+          (
+            await owner.query<{ version: string }>(
+              `SELECT current_setting('server_version_num') AS version`
+            )
+          ).rows[0]!.version
+        );
+        if (serverVersion >= 170000) {
+          await owner.query('SAVEPOINT blocked_maintain');
+          await prepare();
+          await owner.query('GRANT MAINTAIN ON categories TO PUBLIC');
+          await execute(owner, erasure);
+          await expect(execute(owner, grants)).rejects.toThrow(/MAINTAIN/);
+          await owner.query('ROLLBACK TO SAVEPOINT blocked_maintain');
+          expect(
+            (await owner.query(`SELECT 1 FROM pg_roles WHERE rolname='lifestyle_app'`)).rowCount
+          ).toBe(0);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM transactions')).rows[0]!.n
+          ).toBe(1);
+        }
         await prepare();
         await execute(owner, erasure);
         await execute(owner, grants);

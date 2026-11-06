@@ -43,9 +43,9 @@ jobs:
           --health-retries 5
 
       role-rehearsal-postgres:
-        # A separate empty *instance*: the role rehearsal creates cluster-wide
-        # roles and changes ownership of its dedicated synthetic database.
-        image: postgres:16-alpine
+        # Separate empty PG18 instance, matching the observed Neon major version.
+        # The rehearsal creates cluster-wide roles and changes fixture ownership.
+        image: postgres:18-alpine
         env:
           POSTGRES_DB: lifestyle_test_role_rehearsal
           POSTGRES_USER: postgres
@@ -194,6 +194,22 @@ jobs:
           REDIS_URL: redis://localhost:6379/15
           LOG_LEVEL: silent
         run: npx vitest run tests/integration/restricted-role-sequence.test.ts
+
+      - name: Full migrations and committed erasure on disposable PostgreSQL 18
+        working-directory: backend
+        env:
+          ALLOW_DESTRUCTIVE_TESTS: isolated-resources-only
+          TEST_COMMITTED_DRAFT_ERASURE: '1'
+          ERASURE_COMMIT_TEST_ACK: destroy-disposable-erasure-test-only
+          DATABASE_MIGRATION_URL: postgresql://lifestyle_migrator@localhost:5433/lifestyle_test_erasure_commit
+          DATABASE_URL: postgresql://lifestyle_app@localhost:5433/lifestyle_test_erasure_commit
+          REDIS_URL: redis://localhost:6379/15
+          LOG_LEVEL: silent
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -h localhost -p 5433 -U postgres -d postgres -c 'CREATE ROLE lifestyle_migrator LOGIN; CREATE ROLE lifestyle_maintenance LOGIN;'
+          createdb -h localhost -p 5433 -U postgres -O lifestyle_migrator lifestyle_test_erasure_commit
+          npm run migrate:up
+          npx vitest run tests/integration/draft-money-erasure-committed.test.ts
 
       - name: Production dependency security audit
         working-directory: backend

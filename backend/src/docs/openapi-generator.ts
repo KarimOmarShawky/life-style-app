@@ -1474,6 +1474,35 @@ paths:
                   overview:
                     $ref: '#/components/schemas/DashboardOverview'
 
+  /analytics:
+    get:
+      summary: Range Analytics (Real Data)
+      security:
+        - BearerAuth: []
+      description: Aggregates the authenticated user's own tasks, habit check-ins, focus timer sessions, goals and active subscriptions for the requested range. Rates that have no denominator are null (unavailable), never fabricated. Habit consistency is only computed for ranges up to 31 days and is null for longer ranges. Series points are daily up to 31 days and 7-day buckets beyond that.
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [7, 30, 90, 365]
+            default: 7
+      responses:
+        '200':
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analytics:
+                    $ref: '#/components/schemas/AnalyticsSummary'
+        '400':
+          description: Unsupported days range
+        '401':
+          description: Unauthenticated
+
   /search:
     get:
       summary: Global Search
@@ -3906,6 +3935,65 @@ components:
         - eventsToday
         - subscriptionsDueNext7Days
         - activeSubscriptions
+    AnalyticsSummary:
+      type: object
+      description: Range-based real analytics (no demo data). Nullable rates are unavailable, not zero.
+      properties:
+        rangeDays: { type: integer }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        timezone: { type: string }
+        tasks:
+          type: object
+          properties:
+            completedInRange: { type: integer }
+            createdInRange: { type: integer }
+            pendingNow: { type: integer }
+            overdueNow: { type: integer }
+            completionRatePercent: { type: number, nullable: true }
+        habits:
+          type: object
+          properties:
+            activeHabits: { type: integer }
+            checkinsDoneInRange: { type: integer }
+            consistencyPercent: { type: number, nullable: true }
+        focus:
+          type: object
+          properties:
+            sessionsInRange: { type: integer }
+            totalMinutes: { type: number }
+        goals:
+          type: object
+          properties:
+            active: { type: integer }
+            achievedTotal: { type: integer }
+            achievedInRange: { type: integer }
+            averageNumericProgressPercent: { type: number, nullable: true }
+        subscriptions:
+          type: object
+          properties:
+            active: { type: integer }
+            dueNext7Days: { type: integer }
+        series:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              tasksCompleted: { type: integer }
+              habitCheckins: { type: integer }
+              focusMinutes: { type: number }
+      required:
+        - rangeDays
+        - from
+        - to
+        - timezone
+        - tasks
+        - habits
+        - focus
+        - goals
+        - subscriptions
+        - series
     SearchResults:
       type: object
       description: Global search results grouped by entity type (P1-05).

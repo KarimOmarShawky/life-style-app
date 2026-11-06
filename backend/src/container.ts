@@ -121,6 +121,7 @@ import { PgProjectsReader, type ProjectsReader } from './features/projects/proje
 // Query features (P1-05)
 import { DaysService } from './features/days/days.service.js';
 import { DashboardService } from './features/dashboard/dashboard.service.js';
+import { AnalyticsService } from './features/analytics/analytics.service.js';
 import { SearchService } from './features/search/search.service.js';
 import { PgPasswordResetRequestStore } from './features/auth/password-reset-request.repository.pg.js';
 import type { ResetRequestStore } from './core/security/reset-request-store.js';
@@ -175,6 +176,7 @@ export interface AppContainer {
   subscriptionController: SubscriptionController;
   daysService: DaysService;
   dashboardService: DashboardService;
+  analyticsService: AnalyticsService;
   searchService: SearchService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
@@ -331,6 +333,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     timerReader,
     clock
   );
+  const analyticsService = new AnalyticsService(db, taskReader, habitReader, moneyReader, clock);
   const searchService = new SearchService(
     taskReader,
     habitReader,
@@ -393,6 +396,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     remindersService,
     daysService,
     dashboardService,
+    analyticsService,
     searchService,
     resetRequestStore
   };

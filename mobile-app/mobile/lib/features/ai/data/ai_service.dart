@@ -726,14 +726,18 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     http.Client? httpClient,
   }) async {
     if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    var succeeded = false;
     final result = await sendMessage(
       conversationHistory: const [],
       newMessage:
-          'Generate a comprehensive cumulative lifestyle analysis for the period: $timeRange. Cover task completion rates, habit consistency, goal progress and overall productivity. Identify the top 3 strengths and 3 areas needing improvement. Provide actionable recommendations.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nWeekly trends (JSON): ${jsonEncode(weeklyTrends)}',
+          'Generate a comprehensive cumulative lifestyle analysis for the period: $timeRange. Cover task completion rates, habit consistency, goal progress and overall productivity. Identify the top 3 strengths and 3 areas needing improvement. Provide actionable recommendations. Metrics that are absent are unavailable; do not invent numbers.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nWeekly trends (JSON): ${jsonEncode(weeklyTrends)}',
       languageName: languageName,
       httpClient: httpClient,
+      onOutcome: (value) => succeeded = value,
     );
-    return result.isNotEmpty ? result : null;
+    // sendMessage returns localized fallback text on provider failure;
+    // that text must never be presented as an analysis.
+    return succeeded && result.isNotEmpty ? result : null;
   }
 
   /// Creates a personalised performance dashboard summary that
@@ -746,14 +750,16 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     http.Client? httpClient,
   }) async {
     if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
+    var succeeded = false;
     final result = await sendMessage(
       conversationHistory: const [],
       newMessage:
-          'Create a performance dashboard summary. Highlight the most important metrics, streaks to celebrate, and one key focus area for next week. Keep it concise and motivational.\n\nMetrics (JSON): ${jsonEncode(metrics)}\nStreaks (JSON): ${jsonEncode(streaks)}\nHighlights (JSON): ${jsonEncode(highlights)}',
+          'Create a performance dashboard summary. Highlight the most important metrics, streaks to celebrate, and one key focus area for next week. Keep it concise and motivational. Metrics that are absent are unavailable; do not invent numbers.\n\nMetrics (JSON): ${jsonEncode(metrics)}\nStreaks (JSON): ${jsonEncode(streaks)}\nHighlights (JSON): ${jsonEncode(highlights)}',
       languageName: languageName,
       httpClient: httpClient,
+      onOutcome: (value) => succeeded = value,
     );
-    return result.isNotEmpty ? result : null;
+    return succeeded && result.isNotEmpty ? result : null;
   }
 
   /// Analyses productivity patterns over time and identifies

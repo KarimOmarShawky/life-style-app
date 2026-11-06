@@ -1,0 +1,88 @@
+# Session 2026-11-06 — real analytics, Gemini failure honesty, SMS/Focus review
+
+Branch: `arena/6fe0b715-life-style-app` (from `main` @ `e6d9242`).
+This session did **not** rebuild the app and did **not** touch production.
+
+## Done in code (verified locally where possible)
+
+### Real analytics instead of demo numbers
+- New backend endpoint `GET /api/v1/analytics?days=7|30|90|365`
+  (`backend/src/features/analytics/`), wired in `container.ts`/`app.ts`,
+  documented in OpenAPI (`AnalyticsSummary` schema, regenerated
+  `docs/api/openapi.yaml`). It aggregates only the caller's own rows:
+  tasks (completed/created by `completed_at`/`created_at` in the user's
+  timezone, pending, overdue), habit check-ins, habit consistency
+  (per-day recurrence evaluation, only for ranges ≤ 31 days — otherwise
+  `null`), finished focus timer sessions, goals (active/achieved and
+  mean capped numeric progress, `null` when none), and retained active
+  subscriptions with renewals due in 7 days. Series points are daily
+  (≤ 31 days) or 7-day buckets. Rates with no denominator are `null`,
+  never fabricated zeros.
+- Mobile `AnalyticsScreen` rewritten: it fetches the real summary,
+  renders metric cards and a tasks-completed trend, shows an honest
+  empty state, and removed the hard-coded demo aggregates
+  (42/60 tasks, 75% consistency, fake life-balance scores, …) and the
+  demo banner. The fake "Life balance" action was removed because no
+  real work/health/social/personal data source exists.
+- AI insights now send only the real numbers-only aggregates, after a
+  per-request consent dialog showing the exact JSON payload (same
+  pattern as the Weekly Brain Report). No titles, notes or messages.
+
+### Gemini assistant
+- `AiService.getCumulativeAnalysis` / `getPerformanceDashboard` now
+  return `null` on provider failure instead of presenting the localized
+  fallback sentence as if it were an analysis (they use the existing
+  `onOutcome` signal, like `generateWeeklyCoaching`). Prompts instruct
+  the model not to invent absent metrics.
+- The chat assistant already streams via `streamGenerateContent?alt=sse`
+  (`streamMessage`); this session did not change the model or endpoints.
+- New Dart tests: analytics model parsing (null stays null, numbers-only
+  AI payload) and AI failure-is-null behaviour. Backend unit tests for
+  `ratePercent`/`buildSeries` plus an integration test that seeds real
+  rows and asserts counts/nulls. **Flutter/Dart and the PostgreSQL
+  integration suite cannot run in this sandbox (no Flutter SDK, no
+  PostgreSQL/Redis); they must pass in hosted CI for the exact commit.**
+
+### SMS removal (verified in source)
+- No `RECEIVE_SMS`/`READ_SMS` permission, no `SMS_RECEIVED` receiver and
+  no SMS read path exist in the Android manifest, Kotlin or Dart code
+  (repository-wide grep). Focus Shield's notification listener rejects
+  every package outside its non-SMS messaging allowlist **before**
+  reading notification content. Nothing in the app can read, alter or
+  delete the phone's original SMS; that remains outside app scope.
+
+### Focus Shield & reminders (code review, no device proof)
+- Accessibility shield blocks only user-selected packages during an
+  active, unexpired session; system UI, settings, dialer/phone and
+  emergency packages are always safe; temporary bypass and a 1.5 s
+  debounce are enforced by the pure `ShieldDecisionEngine`.
+- Subscription reminders: the Java scheduler recomputes the renewal at
+  09:00 device-local two days before, and receivers reschedule on boot,
+  package replacement and time/timezone changes.
+
+## NOT done — still blocked / needs real-world verification
+
+- **Financial erasure on production has NOT happened.** The draft in
+  `docs/remediation/drafts/` stays a draft: it must not be run on the
+  observed Neon database as-is (absent wallet tables, no `lifestyle_app`
+  role, no migration ledger — see `ERASURE_STATUS.md`). No production
+  deletion, backup test, role cutover, old-writer drain or Railway
+  verification was performed in this session. Merging `main` may have
+  auto-deployed to Railway; whether the current build is actually
+  running there is unverified.
+- **No physical Android device testing**: analytics display, Gemini
+  live streaming/errors with a real BYOK key, Focus Shield behaviour,
+  09:00 reminders across reboot/timezone changes, and on-device retired
+  wallet cleanup all remain unverified. A signed release build is also
+  still outstanding.
+- Hosted CI must pass for the exact release commit before anything is
+  called ready. Release verdict remains **NO-GO**.
+
+## Local verification performed
+- Backend: `tsc --noEmit` (src + tests) OK; unit suite 443 passed;
+  new analytics unit tests 4 passed; ESLint and Prettier checks pass;
+  OpenAPI regenerated with only the analytics addition.
+- Root Node contracts for money retirement, wallet SMS, AI service /
+  egress and subscription reminders: 26 passed.
+- Not run locally (unavailable here): Flutter analyze/test, Android
+  build, PostgreSQL/Redis integration tests, any live Gemini call.

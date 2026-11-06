@@ -58,10 +58,10 @@ test('AUD-11: VoiceActionReceiver is not exported (own PendingIntents only)', ()
   assert.match(block, /android:exported="false"/);
 });
 
-test('existing alarm receiver and other shared channel consumers remain, no user data cleanup', () => {
+test('existing alarm receiver and unrelated shared channel consumers remain', () => {
   assert.ok(read(`${base}AndroidManifest.xml`).includes('android:name=".AlarmReceiver"'));
   assert.ok(native('AlarmReceiver').includes('class AlarmReceiver'));
-  for (const marker of ['"hasWalletIngestToken"', '"requestSmsPermission"', '"refreshPinnedNotification"', 'accountArchiveBridge?.onActivityResult(', 'focusShieldBridge?.close()']) assert.ok(main.includes(marker));
+  for (const marker of ['"refreshPinnedNotification"', 'accountArchiveBridge?.onActivityResult(', 'focusShieldBridge?.close()']) assert.ok(main.includes(marker));
   const dart = read('mobile-app/mobile/lib/features/tasks/presentation/tasks_screen.dart');
   assert.ok(dart.includes("'startVoiceRecognition'") && dart.includes("'languageTag'"));
 });

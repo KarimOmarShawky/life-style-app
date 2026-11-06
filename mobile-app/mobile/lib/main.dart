@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifestyle_mobile/config/app_config.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
+import 'package:lifestyle_mobile/data/retired_wallet_cleanup.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/data/token_store.dart';
 
@@ -11,7 +12,7 @@ import 'app.dart';
 const String _geminiKeyPref = 'gemini_api_key';
 
 /// Mirrors runtime configuration into Android SharedPreferences so native
-/// components (SMS receiver, lock-screen voice service) can reach the same
+/// components (such as the lock-screen voice service) can reach the same
 /// API endpoint without a running Flutter engine. Android stores Flutter
 /// keys under a `flutter.` prefix, i.e. `flutter.lifestyle.api_base_url`.
 Future<void> _publishNativeConfig() async {
@@ -22,12 +23,14 @@ Future<void> _publishNativeConfig() async {
     await prefs.remove(_geminiKeyPref);
     await prefs.remove(SecureTokenStore.storageKey);
   } catch (_) {
-    // Non-fatal: native code skips its queue flush until API_BASE_URL is set.
+    // Non-fatal: native components may lack API configuration.
   }
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Retry on every launch, including after a previous partial failure.
+  await RetiredWalletCleanup.run();
   await NotificationService.instance.init();
   await _publishNativeConfig();
   final initialLocation =

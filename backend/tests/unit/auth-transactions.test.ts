@@ -75,7 +75,6 @@ function fixture(options?: { missingUser?: boolean }) {
     findUserByEmail: vi.fn(async () => (options?.missingUser ? null : record.user)),
     findUserById: vi.fn(async () => record.user),
     createUser: vi.fn(async () => record.user),
-    createDefaultCategories: vi.fn(async () => {}),
     createSession: vi.fn(async () => record.session),
     createRefreshToken: vi.fn(async () => record.token),
     findRefreshTokenWithSession: vi.fn(

@@ -196,6 +196,7 @@ class AppLocalizations {
   String get currency => _s('currency');
   String get merchant => _s('merchant');
   String get transactionSaved => _s('transactionSaved');
+  String get subscriptionSaved => _s('subscriptionSaved');
   String get enterAmount => _s('enterAmount');
   String get amountMustBePositive => _s('amountMustBePositive');
   String get descHint => _s('descHint');

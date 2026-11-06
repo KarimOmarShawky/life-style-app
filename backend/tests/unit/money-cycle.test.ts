@@ -12,7 +12,8 @@ import {
   calculateNextBillingDate,
   calculateInitialNextBillingDate,
   calculateMonthlyEquivalent,
-  calculateDaysUntilNextBilling
+  calculateDaysUntilNextBilling,
+  projectedNextBillingDate
 } from '../../src/features/money/money.cycle.js';
 
 describe('Subscription Cycle Math & Calculations', () => {
@@ -97,6 +98,40 @@ describe('Subscription Cycle Math & Calculations', () => {
       expect(calculateInitialNextBillingDate('2026-08-15', '2026-09-28', 'month', 1)).toBe(
         '2026-10-15'
       );
+    });
+  });
+
+  describe('read-only scheduled renewal projection', () => {
+    it('honors an explicit first date and then uses anchor cycles without drift', () => {
+      expect(
+        projectedNextBillingDate('2026-01-31', '2026-04-15', 'month', 1, 'active', '2026-04-13')
+      ).toBe('2026-04-15');
+      expect(
+        projectedNextBillingDate('2026-01-31', '2026-04-15', 'month', 1, 'active', '2026-04-15')
+      ).toBe('2026-04-15');
+      expect(
+        projectedNextBillingDate('2026-01-31', '2026-04-15', 'month', 1, 'active', '2026-04-16')
+      ).toBe('2026-04-30');
+      expect(
+        projectedNextBillingDate('2024-01-31', '2024-01-31', 'month', 1, 'active', '2024-02-01')
+      ).toBe('2024-02-29');
+      expect(
+        projectedNextBillingDate('2024-02-29', '2024-02-29', 'year', 1, 'active', '2025-01-01')
+      ).toBe('2025-02-28');
+      expect(
+        projectedNextBillingDate('2026-11-05', '2026-11-05', 'week', 2, 'active', '2026-11-06')
+      ).toBe('2026-11-19');
+    });
+    it('leaves inactive dates unchanged and handles long-past weekly anchors efficiently', () => {
+      expect(
+        projectedNextBillingDate('2024-01-31', '2024-01-31', 'month', 1, 'paused', '2026-04-16')
+      ).toBe('2024-01-31');
+      expect(
+        projectedNextBillingDate('2024-01-31', '2024-01-31', 'month', 1, 'cancelled', '2026-04-16')
+      ).toBe('2024-01-31');
+      expect(
+        projectedNextBillingDate('1900-01-01', '1900-01-01', 'week', 1, 'active', '9999-01-01')
+      ).toBe('9999-01-04');
     });
   });
 

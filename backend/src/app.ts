@@ -26,8 +26,8 @@ import { createHabitsRouter } from './features/habits/habits.routes.js';
 import { createCalendarRouter } from './features/calendar/calendar.routes.js';
 import { createGoalsRouter } from './features/goals/goals.routes.js';
 import { createNotesRouter } from './features/notes/notes.routes.js';
-import { createMoneyRouter } from './features/money/money.routes.js';
-import { createIngestRouter } from './features/ingest/ingest.routes.js';
+import { createSubscriptionRouter } from './features/money/subscription.routes.js';
+import { createRetiredIngestRouter } from './features/ingest/retired-ingest.routes.js';
 import { retiredIngestGuard, retiredMoneyGuard } from './core/middleware/retired-money-features.js';
 import {
   createEntityRemindersRouter,
@@ -237,8 +237,8 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
   v1Router.use(
     '/money',
     retiredMoneyGuard,
-    createMoneyRouter({
-      controller: container.moneyController,
+    createSubscriptionRouter({
+      controller: container.subscriptionController,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })
@@ -248,13 +248,9 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
   v1Router.use(
     '/ingest',
     retiredIngestGuard,
-    createIngestRouter({
-      controller: container.ingestController,
-      authenticate: container.authenticate,
-      authenticateIngest: container.authenticateIngest,
-      authenticateIngestOrUser: container.authenticateIngestOrUser,
-      createTransaction: container.moneyController.createTransaction,
-      rateLimiter: container.rateLimiter
+    createRetiredIngestRouter({
+      pool: container.pgPool,
+      authenticate: container.authenticate
     })
   );
 

@@ -18,7 +18,11 @@ export class SearchController {
         throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
       }
       const query = searchQuerySchema.parse(req.query);
-      const results = await this.searchService.search(req.user.id, query);
+      const results = await this.searchService.search(
+        req.user.id,
+        query,
+        req.user.timezone || 'UTC'
+      );
       res.status(200).json(results);
     } catch (err) {
       next(err);

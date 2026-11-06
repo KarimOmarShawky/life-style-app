@@ -14,10 +14,9 @@ import {
   isValidCalendarDate
 } from '../../src/core/validation/date-only.js';
 import {
-  createTransactionSchema,
-  dateStringSchema,
-  listTransactionsQuerySchema,
-  paySubscriptionSchema
+  createSubscriptionSchema,
+  updateSubscriptionSchema,
+  dateStringSchema
 } from '../../src/features/money/money.validation.js';
 import {
   createTaskSchema,
@@ -74,26 +73,12 @@ describe('Shared semantic calendar-day validation (V-09)', () => {
     expect(result.error?.issues[0]?.message).toContain('real calendar date');
   });
 
-  it('applies to money create, update, list and payment schemas', () => {
+  it('applies to subscription create and update schemas', () => {
+    const base = { name: 'Subscription', amount: '10.00', currency: 'USD', billingUnit: 'month' };
     reject(dateStringSchema.safeParse('2026-02-30'));
-    reject(
-      createTransactionSchema.safeParse({
-        kind: 'expense',
-        amount: '10.00',
-        currency: 'USD',
-        occurredOn: '2026-02-30'
-      })
-    );
-    accept(
-      createTransactionSchema.safeParse({
-        kind: 'expense',
-        amount: '10.00',
-        currency: 'USD',
-        occurredOn: '2024-02-29'
-      })
-    );
-    reject(listTransactionsQuerySchema.safeParse({ from: '2026-04-31' }));
-    reject(paySubscriptionSchema.safeParse({ occurredOn: '2026-02-30' }));
+    reject(createSubscriptionSchema.safeParse({ ...base, anchorDate: '2026-02-30' }));
+    accept(createSubscriptionSchema.safeParse({ ...base, anchorDate: '2024-02-29' }));
+    reject(updateSubscriptionSchema.safeParse({ nextBillingDate: '2026-04-31' }));
   });
 
   it('applies to tasks, goals, habits, projects, recurring tasks and calendar', () => {

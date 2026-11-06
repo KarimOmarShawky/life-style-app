@@ -107,6 +107,7 @@ export async function* streamAccountArchive(
     await run("SET LOCAL idle_in_transaction_session_timeout = '10s'");
     await run("SET LOCAL TIME ZONE 'UTC'");
     for (const source of ACCOUNT_ARCHIVE_SOURCES) {
+      if ('retired' in source) continue;
       // All identifiers/projections are source constants, never supplied by a request.
       await run(
         `DECLARE account_archive_cursor NO SCROLL CURSOR FOR

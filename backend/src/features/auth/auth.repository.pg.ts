@@ -14,20 +14,6 @@ import type {
 } from './auth.repository.js';
 import type { UserRow, AuthSession, RefreshTokenRow } from './auth.types.js';
 
-const DEFAULT_CATEGORIES = [
-  { name: 'Food & Dining', kind: 'expense', color: '#FF5722' },
-  { name: 'Housing', kind: 'expense', color: '#3F51B5' },
-  { name: 'Transportation', kind: 'expense', color: '#009688' },
-  { name: 'Utilities', kind: 'expense', color: '#FF9800' },
-  { name: 'Entertainment', kind: 'expense', color: '#9C27B0' },
-  { name: 'Healthcare', kind: 'expense', color: '#E91E63' },
-  { name: 'General', kind: 'expense', color: '#607D8B' },
-  { name: 'Salary', kind: 'income', color: '#4CAF50' },
-  { name: 'Freelance', kind: 'income', color: '#8BC34A' },
-  { name: 'Investments', kind: 'income', color: '#00BCD4' },
-  { name: 'Other Income', kind: 'income', color: '#9E9E9E' }
-];
-
 export class PgAuthRepository implements AuthRepository {
   constructor(private readonly pool: pg.Pool) {}
 
@@ -74,16 +60,6 @@ export class PgAuthRepository implements AuthRepository {
 
     const res = await executor.query<UserRow>(query, values);
     return res.rows[0]!;
-  }
-
-  public async createDefaultCategories(userId: string, client?: pg.PoolClient): Promise<void> {
-    const executor = this.getExecutor(client);
-    for (const cat of DEFAULT_CATEGORIES) {
-      await executor.query(
-        `INSERT INTO categories (user_id, kind, name, color) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-        [userId, cat.kind, cat.name, cat.color]
-      );
-    }
   }
 
   public async createSession(

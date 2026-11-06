@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, arena/59b3c606-life-style-app]
   pull_request:
     branches: [main]
 
@@ -95,8 +95,8 @@ jobs:
       - name: Android build-preparation helper and source regressions (not a native build)
         run: node --test scripts/android-build-preparation.test.mjs
 
-      - name: Wallet SMS fallback and local queue contract regressions (source only)
-        run: node --test scripts/wallet-sms-contract.test.mjs
+      - name: Wallet retirement and subscription contract regressions (source only)
+        run: node --test scripts/wallet-sms-contract.test.mjs scripts/money-retirement-contract.test.mjs
 
       - name: Documentation consistency (package paths, canonical routes, historical labelling)
         run: node scripts/check-docs-consistency.mjs
@@ -135,6 +135,8 @@ jobs:
         working-directory: backend
         env:
           ALLOW_DESTRUCTIVE_TESTS: isolated-resources-only
+          # Draft erasure runs inside a rollback-only transaction on this fresh CI DB.
+          TEST_DRAFT_ERASURE: '1'
           NODE_ENV: test
           PORT: 3000
           REDIS_URL: redis://localhost:6379/15
@@ -148,6 +150,21 @@ jobs:
             grep -E "FAIL|AssertionError|Error:|×|→" npm-test.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
             exit 1
           }
+
+      - name: Committed erasure concurrency on a separate disposable database
+        working-directory: backend
+        env:
+          ALLOW_DESTRUCTIVE_TESTS: isolated-resources-only
+          TEST_COMMITTED_DRAFT_ERASURE: '1'
+          ERASURE_COMMIT_TEST_ACK: destroy-disposable-erasure-test-only
+          REDIS_URL: redis://localhost:6379/15
+          LOG_LEVEL: silent
+        run: |
+          PGPASSWORD=postgres_local_pass createdb -h localhost -U postgres -O lifestyle_migrator lifestyle_test_erasure_commit
+          export DATABASE_URL="$(node -e "const u=new URL(process.env.DATABASE_URL);u.pathname='/lifestyle_test_erasure_commit';process.stdout.write(u.href)")"
+          export DATABASE_MIGRATION_URL="$(node -e "const u=new URL(process.env.DATABASE_MIGRATION_URL);u.pathname='/lifestyle_test_erasure_commit';process.stdout.write(u.href)")"
+          npm run migrate:up
+          npx vitest run tests/integration/draft-money-erasure-committed.test.ts
 
       - name: Production dependency security audit
         working-directory: backend

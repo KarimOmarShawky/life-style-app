@@ -9,7 +9,6 @@ import type pg from 'pg';
 import { type Redis } from 'ioredis';
 import type { Kysely } from 'kysely';
 import type { RequestHandler } from 'express';
-import { getEnv } from './config/env.js';
 import { getPgPool } from './infrastructure/database/postgres/pool.js';
 import { getKyselyDb, type DatabaseSchema } from './infrastructure/database/postgres/kysely.js';
 import {
@@ -98,23 +97,11 @@ import type { NotesRepository } from './features/notes/notes.repository.js';
 import { NotesService } from './features/notes/notes.service.js';
 import { NotesController } from './features/notes/notes.controller.js';
 
-// Money Module
-import { PgMoneyRepository } from './features/money/money.repository.pg.js';
-import type { MoneyRepository } from './features/money/money.repository.js';
-import { MoneyService } from './features/money/money.service.js';
-import { MoneyController } from './features/money/money.controller.js';
-import { PgIngestTokenRepository } from './features/ingest/ingest.repository.pg.js';
-import type { IngestTokenRepository } from './features/ingest/ingest.repository.js';
-import { IngestService } from './features/ingest/ingest.service.js';
-import { IngestController } from './features/ingest/ingest.controller.js';
-import {
-  GeminiSmsFallbackAnalyzer,
-  type SmsTransactionAnalyzer
-} from './features/ingest/sms-fallback-analyzer.js';
-import {
-  createIngestAuthenticateMiddleware,
-  createIngestOrUserAuthenticateMiddleware
-} from './core/middleware/authenticate-ingest.js';
+// Subscription Module (the retired financial implementations are not composed here)
+import { PgSubscriptionRepository } from './features/money/subscription.repository.pg.js';
+import type { SubscriptionRepository } from './features/money/subscription.repository.js';
+import { SubscriptionService } from './features/money/subscription.service.js';
+import { SubscriptionController } from './features/money/subscription.controller.js';
 // Unified Reminders: one reminders domain across task/habit/event/subscription parents
 import { PgRemindersRepository } from './features/reminders/reminders.repository.pg.js';
 import type { RemindersRepository } from './features/reminders/reminders.repository.js';
@@ -183,15 +170,9 @@ export interface AppContainer {
   notesRepository: NotesRepository;
   notesService: NotesService;
   notesController: NotesController;
-  moneyRepository: MoneyRepository;
-  moneyService: MoneyService;
-  moneyController: MoneyController;
-  ingestRepository: IngestTokenRepository;
-  ingestService: IngestService;
-  ingestController: IngestController;
-  authenticateIngest: RequestHandler;
-  authenticateIngestOrUser: RequestHandler;
-  smsAnalyzer: SmsTransactionAnalyzer;
+  subscriptionRepository: SubscriptionRepository;
+  subscriptionService: SubscriptionService;
+  subscriptionController: SubscriptionController;
   daysService: DaysService;
   dashboardService: DashboardService;
   searchService: SearchService;
@@ -315,33 +296,14 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const notesService = overrides?.notesService ?? new NotesService(notesRepository);
   const notesController = overrides?.notesController ?? new NotesController(notesService);
 
-  // Phase P9 Money Feature
-  const moneyRepository = overrides?.moneyRepository ?? new PgMoneyRepository(db);
-  const moneyService =
-    overrides?.moneyService ?? new MoneyService(moneyRepository, remindersRepository);
-  const moneyController = overrides?.moneyController ?? new MoneyController(moneyService);
-
-  // Ingest tokens: background SMS capture without the short-lived access token
-  const ingestRepository = overrides?.ingestRepository ?? new PgIngestTokenRepository(pgPool);
-  // SMS fallback: Gemini behind this backend. The key is server-side only and is
-  // never part of a client build; without it the fallback is simply disabled.
-  const smsAnalyzerEnv = getEnv();
-  const smsAnalyzer =
-    overrides?.smsAnalyzer ??
-    new GeminiSmsFallbackAnalyzer({
-      apiKey: smsAnalyzerEnv.SMS_FALLBACK_GEMINI_KEY,
-      model: smsAnalyzerEnv.SMS_FALLBACK_GEMINI_MODEL,
-      timeoutMs: smsAnalyzerEnv.SMS_FALLBACK_TIMEOUT_MS
-    });
-  const ingestService =
-    overrides?.ingestService ?? new IngestService(ingestRepository, smsAnalyzer);
-  const ingestController = overrides?.ingestController ?? new IngestController(ingestService);
-  const authenticateIngest =
-    overrides?.authenticateIngest ??
-    createIngestAuthenticateMiddleware(ingestRepository, sessionValidator);
-  const authenticateIngestOrUser =
-    overrides?.authenticateIngestOrUser ??
-    createIngestOrUserAuthenticateMiddleware(authenticateIngest, authenticate);
+  // Retain subscriptions without composing the retired financial service.
+  const subscriptionRepository =
+    overrides?.subscriptionRepository ?? new PgSubscriptionRepository(db);
+  const subscriptionService =
+    overrides?.subscriptionService ??
+    new SubscriptionService(subscriptionRepository, remindersRepository);
+  const subscriptionController =
+    overrides?.subscriptionController ?? new SubscriptionController(subscriptionService);
 
   // Query-surface readers (P1-05) — read-only adapters per feature
   const taskReader: TaskReader = new PgTaskReader(db);
@@ -424,15 +386,9 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     notesRepository,
     notesService,
     notesController,
-    moneyRepository,
-    moneyService,
-    moneyController,
-    ingestRepository,
-    ingestService,
-    ingestController,
-    authenticateIngest,
-    authenticateIngestOrUser,
-    smsAnalyzer,
+    subscriptionRepository,
+    subscriptionService,
+    subscriptionController,
     remindersRepository,
     remindersService,
     daysService,

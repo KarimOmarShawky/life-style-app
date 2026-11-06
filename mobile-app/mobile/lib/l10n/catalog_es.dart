@@ -78,6 +78,7 @@ const Map<String, String> esCatalog = {
   'amount': 'Importe',
   'currency': 'Moneda',
   'merchant': 'Comercio (opcional)',
+  'subscriptionSaved': '¡Suscripción guardada con éxito!',
   'transactionSaved': '¡Transacción guardada con éxito!',
   'enterAmount': 'Introduce un importe',
   'amountMustBePositive': 'Debe ser > 0',

@@ -3,12 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
-import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 import 'package:lifestyle_mobile/features/timer/state/timer_sessions_provider.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
 import 'package:lifestyle_mobile/features/more/data/daily_plan_models.dart';
-import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 import 'focus_shield_provider.dart';
 import 'focus_shield_models.dart';
 import 'routine_and_weekly_models.dart';
@@ -58,34 +56,26 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
           .read(dailyPlanRepositoryProvider)
           .getDayPlan(date: localDateKey(date));
     })));
-    final currency =
-        ref.read(authProvider).asData?.value?.defaultCurrency ?? 'EGP';
-    final moneyRequest = _optional(ref
-        .read(moneyControllerProvider)
-        .weeklySpending(localDateKey(from),
-            localDateKey(DateTime(now.year, now.month, now.day)), currency));
     final tasks = await tasksRequest;
     final sessions = await sessionsRequest;
     final habits = await habitsRequest;
     final days = await daysRequest;
-    final money = await moneyRequest;
     final due = days
         ?.expand((day) => day.habits)
         .where((habit) => habit.dueOn)
         .toList();
     final metrics = calculateWeeklyMetrics(
-        now: now,
-        history: focus.history,
-        backendSessions: sessions,
-        tasks: tasks,
-        habitsDue: due?.length,
-        habitsDone: due?.where((habit) => habit.completedOn).length,
-        activeStreaks: habits
-            ?.where(
-                (habit) => habit.status == 'active' && habit.currentStreak > 0)
-            .length,
-        netSpending: money?.netSpending,
-        currency: money?.currency);
+      now: now,
+      history: focus.history,
+      backendSessions: sessions,
+      tasks: tasks,
+      habitsDue: due?.length,
+      habitsDone: due?.where((habit) => habit.completedOn).length,
+      activeStreaks: habits
+          ?.where(
+              (habit) => habit.status == 'active' && habit.currentStreak > 0)
+          .length,
+    );
     if (!mounted) return;
     setState(() {
       _metrics = metrics;
@@ -107,41 +97,29 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
         return;
       }
       if (!mounted) return;
-      var includeSpending = false;
       final consent = await showDialog<bool>(
           context: context,
-          builder: (context) => StatefulBuilder(
-              builder: (context, update) => AlertDialog(
-                    title: const Text('Send aggregated numbers to Gemini?'),
-                    content: SingleChildScrollView(
-                        child:
-                            Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Text(
-                          'This request sends only counts, rates, focus minutes and average clarity. No task titles, notes, messages, sender names or package names. Consent is requested again for every request. Your encrypted BYOK key and existing circuit breaker are used.'),
-                      CheckboxListTile(
-                          value: includeSpending,
-                          onChanged: metrics.netSpending == null
-                              ? null
-                              : (value) => update(
-                                  () => includeSpending = value ?? false),
-                          title: const Text(
-                              'Include net spending total (optional)')),
-                      SelectableText(const JsonEncoder.withIndent('  ').convert(
-                          metrics.aggregates(
-                              includeSpending: includeSpending))),
-                    ])),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Keep offline')),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Send this request'))
-                    ],
-                  )));
+          builder: (context) => AlertDialog(
+                title: const Text('Send aggregated numbers to Gemini?'),
+                content: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text(
+                      'This request sends only counts, rates, focus minutes and average clarity. No task titles, notes, messages, sender names or package names. Consent is requested again for every request. Your encrypted BYOK key and existing circuit breaker are used.'),
+                  SelectableText(const JsonEncoder.withIndent('  ')
+                      .convert(metrics.aggregates())),
+                ])),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Keep offline')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Send this request'))
+                ],
+              ));
       if (consent != true) return;
-      final coaching = await ai.generateWeeklyCoaching(
-          aggregates: metrics.aggregates(includeSpending: includeSpending));
+      final coaching =
+          await ai.generateWeeklyCoaching(aggregates: metrics.aggregates());
       if (mounted) {
         setState(() => _coaching = coaching ?? metrics.offlineSummary());
       }
@@ -177,7 +155,7 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
                 SelectableText(_metrics?.report() ?? 'No data'),
                 const SizedBox(height: 16),
                 const Text(
-                    'Unavailable metrics are marked No data, never treated as zero. Spending is shown only in your default currency; other currencies are not converted.'),
+                    'Unavailable metrics are marked No data, never treated as zero.'),
                 FilledButton(
                     onPressed: _generating ? null : _generate,
                     child: const Text('Generate AI Weekly Coaching Plan')),

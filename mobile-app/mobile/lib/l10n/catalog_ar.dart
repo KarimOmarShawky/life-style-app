@@ -76,6 +76,7 @@ const Map<String, String> arCatalog = {
   'amount': 'المبلغ',
   'currency': 'العملة',
   'merchant': 'المتجر / الجهة',
+  'subscriptionSaved': 'تم حفظ الاشتراك بنجاح!',
   'transactionSaved': 'تم حفظ المعاملة بنجاح!',
   'enterAmount': 'يرجى إدخال المبلغ',
   'amountMustBePositive': 'يجب أن يكون المبلغ أكبر من 0',

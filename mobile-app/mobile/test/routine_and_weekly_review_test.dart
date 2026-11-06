@@ -202,16 +202,12 @@ void main() {
   test(
       'no sessions means No data clarity; offline summary is deterministic and private',
       () {
-    final metrics = calculateWeeklyMetrics(
-        now: DateTime(2026, 10, 14),
-        history: [],
-        netSpending: 123.45,
-        currency: 'EGP');
+    final metrics =
+        calculateWeeklyMetrics(now: DateTime(2026, 10, 14), history: []);
     expect(metrics.averageClarity, isNull);
     expect(metrics.report(), contains('Brain Clarity Score: No data'));
     expect(metrics.offlineSummary(), metrics.offlineSummary());
     expect(metrics.aggregates(), isNot(contains('netSpending')));
-    expect(metrics.aggregates(includeSpending: true)['netSpending'], 123.45);
   });
   test(
       'weekly AI service strips unknown fields and respects BYOK/circuit breaker',
@@ -226,6 +222,7 @@ void main() {
       expect(request.body, contains('focusMinutes'));
       expect(request.body, isNot(contains('PRIVATE_TASK_TITLE')));
       expect(request.body, isNot(contains('packageName')));
+      expect(request.body, isNot(contains('netSpending')));
       return http.Response(
           '{"candidates":[{"content":{"parts":[{"text":"Coaching"}]}}]}', 200);
     });
@@ -234,7 +231,8 @@ void main() {
         await ai.generateWeeklyCoaching(aggregates: {
           'focusMinutes': 30,
           'PRIVATE_TASK_TITLE': 1,
-          'packageName': 1
+          'packageName': 1,
+          'netSpending': 123
         }, httpClient: client),
         'Coaching');
     await ai.setUserApiKey(null);

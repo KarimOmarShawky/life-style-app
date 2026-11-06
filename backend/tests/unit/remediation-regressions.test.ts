@@ -20,7 +20,7 @@ import { literalContainsPattern } from '../../src/core/pagination/search-pattern
 import { assertTestTargets } from '../test-safety.js';
 import { currencySchema, timezoneSchema } from '../../src/core/security/profile-validation.js';
 import { passwordSchema } from '../../src/features/auth/auth.validation.js';
-import { createTransactionSchema } from '../../src/features/money/money.validation.js';
+import { createSubscriptionSchema } from '../../src/features/money/money.validation.js';
 import { SmtpEmailSender } from '../../src/infrastructure/external/email-sender.js';
 import {
   PgTimerMaintenanceStore,
@@ -199,17 +199,18 @@ describe('R-13 / R-14 / B-17 / B-26 / B-29 validation', () => {
       })
     ).not.toThrow();
   });
-  it('rejects invalid timezone/currency, blank passwords, and extra transaction keys', () => {
+  it('rejects invalid timezone/currency, blank passwords, and extra subscription keys', () => {
     expect(timezoneSchema.safeParse('Not/AZone').success).toBe(false);
     expect(currencySchema.safeParse('ZZZ').success).toBe(false);
     expect(currencySchema.parse('KWD')).toBe('KWD');
     expect(passwordSchema.safeParse('          ').success).toBe(false);
     expect(
-      createTransactionSchema.safeParse({
-        kind: 'expense',
+      createSubscriptionSchema.safeParse({
+        name: 'Subscription',
         amount: '1.00',
         currency: 'USD',
-        occurredOn: '2026-10-15',
+        billingUnit: 'month',
+        anchorDate: '2026-10-15',
         injected: true
       }).success
     ).toBe(false);
@@ -249,7 +250,6 @@ describe('B-28 session TTL configuration', () => {
     validateEnv({ ...process.env, SESSION_ABSOLUTE_TTL_DAYS: '5', REFRESH_TOKEN_TTL_DAYS: '2' });
     const repo = {
       createUser: vi.fn(async () => ({ id: 'user', created_at: new Date(now) })),
-      createDefaultCategories: vi.fn(),
       createSession: vi.fn(async () => ({ id: 'session' })),
       createRefreshToken: vi.fn()
     };

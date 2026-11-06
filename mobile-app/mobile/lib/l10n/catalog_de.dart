@@ -80,6 +80,7 @@ const Map<String, String> deCatalog = {
   'amount': 'Betrag',
   'currency': 'Währung',
   'merchant': 'Anbieter (optional)',
+  'subscriptionSaved': 'Abonnement erfolgreich gespeichert!',
   'transactionSaved': 'Transaktion erfolgreich gespeichert!',
   'enterAmount': 'Betrag eingeben',
   'amountMustBePositive': 'Muss > 0 sein',

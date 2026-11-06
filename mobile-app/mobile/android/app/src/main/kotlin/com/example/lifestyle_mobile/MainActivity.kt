@@ -1,13 +1,11 @@
 package com.example.lifestyle_mobile
 
-import android.Manifest
 import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.speech.RecognizerIntent
@@ -22,9 +20,7 @@ class MainActivity : FlutterActivity() {
     private var focusShieldBridge: FocusShieldBridge? = null
     private val CHANNEL = "com.example.lifestyle_mobile/native_voice"
     private val REQUEST_SPEECH = 202
-    private val REQUEST_SMS = 303
     private var pendingVoiceResult: MethodChannel.Result? = null
-    private var pendingSmsResult: MethodChannel.Result? = null
     private var voiceFallbackTag: String = "en-US"
 
     /**
@@ -41,6 +37,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RetiredWalletCleanup.run(this)
         showNativePinnedNotification(this)
     }
 
@@ -52,55 +49,10 @@ class MainActivity : FlutterActivity() {
         // Native Voice Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "hasWalletIngestToken", "storeWalletIngestToken", "clearWalletIngestToken",
-                "hasWalletIngestTokenFor", "storeBoundWalletIngestToken", "clearWalletIngestTokenIfMatches" -> {
-                    try {
-                        val credentials = WalletCredentialStore(this)
-                        when (call.method) {
-                            "hasWalletIngestToken" -> result.success(!credentials.read().isNullOrBlank())
-                            "storeWalletIngestToken" -> {
-                                credentials.write(requireNotNull(call.argument<String>("token")))
-                                result.success(null)
-                            }
-                            "hasWalletIngestTokenFor" -> {
-                                val owner = requireNotNull(call.argument<String>("ownerId"))
-                                result.success(credentials.readBound()?.ownerId.equals(owner, ignoreCase = true))
-                            }
-                            "storeBoundWalletIngestToken" -> {
-                                credentials.writeBound(requireNotNull(call.argument<String>("token")),
-                                    requireNotNull(call.argument<String>("ownerId")))
-                                result.success(null)
-                            }
-                            "clearWalletIngestTokenIfMatches" -> {
-                                credentials.clear(expected = requireNotNull(call.argument<String>("token")))
-                                result.success(null)
-                            }
-                            else -> { credentials.clear(); result.success(null) }
-                        }
-                    } catch (_: Exception) {
-                        result.error("SECURE_STORAGE_UNAVAILABLE", "Wallet credential storage is unavailable", null)
-                    }
-                }
-                // Local wallet queues are Keystore-encrypted on Android (F-05).
-                // Flutter asks the platform to seal/unseal an entry because the
-                // key must never leave the Keystore.
-                "encryptWalletPayload", "decryptWalletPayload" -> {
-                    try {
-                        val cipher = WalletQueueCipher()
-                        val value = requireNotNull(call.argument<String>("value"))
-                        result.success(
-                            when (call.method) {
-                                "encryptWalletPayload" -> cipher.encrypt(value)
-                                else -> cipher.decrypt(value)
-                            }
-                        )
-                    } catch (_: Exception) {
-                        result.error(
-                            "WALLET_QUEUE_CIPHER_UNAVAILABLE",
-                            "Wallet queue encryption is unavailable",
-                            null
-                        )
-                    }
+                // This method only erases old data; it cannot read or recreate it.
+                "cleanupRetiredWallet" -> {
+                    if (RetiredWalletCleanup.run(this)) result.success(null)
+                    else result.error("RETIRED_CLEANUP_INCOMPLETE", "Retired data cleanup incomplete", null)
                 }
                 "replaceSubscriptionReminders" -> {
                     try {
@@ -149,19 +101,6 @@ class MainActivity : FlutterActivity() {
                         startRecognizerIntent(result)
                     }
                 }
-                "requestSmsPermission" -> {
-                    if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) {
-                        result.success(true)
-                    } else {
-                        pendingSmsResult = result
-                        requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), REQUEST_SMS)
-                    }
-                }
-                "checkSmsPermission" -> {
-                    result.success(
-                        checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
-                    )
-                }
                 else -> result.notImplemented()
             }
         }
@@ -174,12 +113,6 @@ class MainActivity : FlutterActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         focusShieldBridge?.onPermissionResult(requestCode)
-        if (requestCode == REQUEST_SMS) {
-            val granted = grantResults.isNotEmpty() &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED
-            pendingSmsResult?.success(granted)
-            pendingSmsResult = null
-        }
     }
 
     override fun onNewIntent(intent: Intent) {

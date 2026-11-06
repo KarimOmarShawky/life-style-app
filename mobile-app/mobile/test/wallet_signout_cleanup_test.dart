@@ -12,7 +12,6 @@ import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
-import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
 
 import 'support/fake_secure_storage.dart';
 
@@ -167,27 +166,19 @@ class _RacingRestoreRepository extends _SlowLogoutRepository {
   }
 }
 
-class _SlowWalletStore implements WalletCredentialStore {
-  _SlowWalletStore({this.fail = false});
+class _SlowCleanup {
+  _SlowCleanup({this.fail = false});
   final bool fail;
   final clearStarted = Completer<void>();
   final finishClear = Completer<void>();
   bool cleared = false;
 
-  @override
   Future<void> clear() async {
     clearStarted.complete();
     await finishClear.future;
     if (fail) throw StateError('wallet cleanup failed');
     cleared = true;
   }
-
-  @override
-  Future<void> clearIfMatches(String token) async {}
-  @override
-  Future<bool> hasTokenFor(String ownerId) async => false;
-  @override
-  Future<void> writeBound(String token, String ownerId) async {}
 }
 
 void main() {
@@ -200,24 +191,24 @@ void main() {
 
     Future<void> scenario({required bool fail}) async {
       final repo = _SlowLogoutRepository();
-      final credentials = _SlowWalletStore(fail: fail);
+      final credentials = _SlowCleanup(fail: fail);
       final container = ProviderContainer(overrides: [
         authRepositoryProvider.overrideWithValue(repo),
-        walletCredentialStoreProvider.overrideWithValue(credentials),
+        retiredDataCleanupProvider.overrideWithValue(credentials.clear),
         signOutAiServiceProvider.overrideWithValue(AiService.forTesting()),
       ]);
       addTearDown(container.dispose);
       await container.read(authProvider.future);
       final controller = container.read(authProvider.notifier);
-      expect(controller.walletAccount, isNotNull);
+      expect(controller.activeAccount, isNotNull);
 
-      final signalBefore = container.read(walletTransitionSignalProvider);
+      final signalBefore = container.read(authTransitionSignalProvider);
       final signingOut = controller.signOut();
-      expect(container.read(walletTransitionSignalProvider), signalBefore + 1);
+      expect(container.read(authTransitionSignalProvider), signalBefore + 1);
       // Attach an error handler before releasing either asynchronous operation.
       final expectation =
           fail ? expectLater(signingOut, throwsStateError) : null;
-      expect(controller.walletAccount, isNull);
+      expect(controller.activeAccount, isNull);
       await repo.logoutStarted.future.timeout(const Duration(seconds: 1));
       // The network response has not returned, but cleanup must already run.
       await credentials.clearStarted.future.timeout(const Duration(seconds: 1));
@@ -237,8 +228,7 @@ void main() {
     await scenario(fail: false);
     await scenario(fail: true);
   });
-  test('an old profile response cannot replace the new wallet account',
-      () async {
+  test('an old profile response cannot replace the new account', () async {
     final repo = _RacingProfileRepository();
     final container = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(repo),
@@ -255,7 +245,7 @@ void main() {
     await login;
     repo.finishUpdate.complete(accountA);
     await rejected;
-    expect(auth.walletAccount, _accountB.id);
+    expect(auth.activeAccount, _accountB.id);
     expect(container.read(authProvider).asData?.value?.id, _accountB.id);
   });
 
@@ -280,11 +270,11 @@ void main() {
       repo.finishAction.complete();
       await rejected;
       expect(repo.profileCalls, 0);
-      expect(auth.walletAccount, _accountB.id);
+      expect(auth.activeAccount, _accountB.id);
     }
   });
 
-  test('wallet work is superseded at login start even for the same account',
+  test('profile work is superseded at login start even for the same account',
       () async {
     final repo = _RacingAuthRepository();
     final container = ProviderContainer(overrides: [
@@ -293,29 +283,29 @@ void main() {
     addTearDown(container.dispose);
     final account = (await container.read(authProvider.future))!;
     final auth = container.read(authProvider.notifier);
-    final originalGeneration = auth.walletGeneration;
-    final signalBefore = container.read(walletTransitionSignalProvider);
-    expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isTrue);
+    final originalGeneration = auth.sessionGeneration;
+    final signalBefore = container.read(authTransitionSignalProvider);
+    expect(auth.sessionIsCurrent(account.id, originalGeneration), isTrue);
     final login = auth.signIn(email: account.email, password: 'password');
-    expect(container.read(walletTransitionSignalProvider), signalBefore + 1);
-    expect(auth.walletAccount, isNull);
-    expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isFalse);
+    expect(container.read(authTransitionSignalProvider), signalBefore + 1);
+    expect(auth.activeAccount, isNull);
+    expect(auth.sessionIsCurrent(account.id, originalGeneration), isFalse);
     await repo.loginStarted.future.timeout(const Duration(seconds: 1));
     repo.finishLogin.complete(account);
     await login;
-    expect(auth.walletAccount, account.id);
-    expect(auth.walletWorkIsCurrent(account.id, originalGeneration), isFalse);
-    expect(auth.walletWorkIsCurrent(account.id, auth.walletGeneration), isTrue);
+    expect(auth.activeAccount, account.id);
+    expect(auth.sessionIsCurrent(account.id, originalGeneration), isFalse);
+    expect(auth.sessionIsCurrent(account.id, auth.sessionGeneration), isTrue);
   });
 
   test('sign-out invalidates a pending login before it can publish an account',
       () async {
     FakeSecureStorage().install();
     final repo = _RacingAuthRepository();
-    final credentials = _SlowWalletStore();
+    final credentials = _SlowCleanup();
     final container = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(repo),
-      walletCredentialStoreProvider.overrideWithValue(credentials),
+      retiredDataCleanupProvider.overrideWithValue(credentials.clear),
       signOutAiServiceProvider.overrideWithValue(AiService.forTesting()),
     ]);
     addTearDown(container.dispose);
@@ -326,7 +316,7 @@ void main() {
         auth.signIn(email: 'other@example.test', password: 'password');
     await repo.loginStarted.future.timeout(const Duration(seconds: 1));
     final signOut = auth.signOut();
-    expect(auth.walletAccount, isNull);
+    expect(auth.activeAccount, isNull);
     await credentials.clearStarted.future.timeout(const Duration(seconds: 1));
     credentials.finishClear.complete();
     // Logout is serialized behind the already-started login, but wallet
@@ -334,7 +324,7 @@ void main() {
     expect(repo.logoutStarted.isCompleted, isFalse);
     repo.finishLogin.complete(_accountB);
     await login;
-    expect(auth.walletAccount, isNull);
+    expect(auth.activeAccount, isNull);
     await repo.logoutStarted.future.timeout(const Duration(seconds: 1));
     repo.finishLogout.complete();
     await signOut;
@@ -345,10 +335,10 @@ void main() {
       () async {
     FakeSecureStorage().install();
     final repo = _RacingAuthRepository();
-    final credentials = _SlowWalletStore();
+    final credentials = _SlowCleanup();
     final container = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(repo),
-      walletCredentialStoreProvider.overrideWithValue(credentials),
+      retiredDataCleanupProvider.overrideWithValue(credentials.clear),
       signOutAiServiceProvider.overrideWithValue(AiService.forTesting()),
     ]);
     addTearDown(container.dispose);
@@ -372,17 +362,17 @@ void main() {
     await repo.loginStarted.future.timeout(const Duration(seconds: 1));
     repo.finishLogin.complete(_accountB);
     await login;
-    expect(auth.walletAccount, _accountB.id);
+    expect(auth.activeAccount, _accountB.id);
     expect(container.read(authProvider).asData?.value?.id, _accountB.id);
   });
   test('a pending restore cannot publish an account after sign-out starts',
       () async {
     FakeSecureStorage().install();
     final repo = _RacingRestoreRepository();
-    final credentials = _SlowWalletStore();
+    final credentials = _SlowCleanup();
     final container = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(repo),
-      walletCredentialStoreProvider.overrideWithValue(credentials),
+      retiredDataCleanupProvider.overrideWithValue(credentials.clear),
       signOutAiServiceProvider.overrideWithValue(AiService.forTesting()),
     ]);
     addTearDown(container.dispose);
@@ -392,13 +382,13 @@ void main() {
     final restore = auth.retryRestore();
     await repo.restoreStarted.future.timeout(const Duration(seconds: 1));
     final signOut = auth.signOut();
-    expect(auth.walletAccount, isNull);
+    expect(auth.activeAccount, isNull);
     await credentials.clearStarted.future.timeout(const Duration(seconds: 1));
     credentials.finishClear.complete();
     expect(repo.logoutStarted.isCompleted, isFalse);
     repo.finishRestore.complete(_accountB);
     await restore;
-    expect(auth.walletAccount, isNull);
+    expect(auth.activeAccount, isNull);
     await repo.logoutStarted.future.timeout(const Duration(seconds: 1));
     repo.finishLogout.complete();
     await signOut;
@@ -454,10 +444,10 @@ void main() {
       httpClient: client,
     );
     final repo = _RealTransitionRepository(api: api, tokens: tokens);
-    final credentials = _SlowWalletStore();
+    final credentials = _SlowCleanup();
     final container = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(repo),
-      walletCredentialStoreProvider.overrideWithValue(credentials),
+      retiredDataCleanupProvider.overrideWithValue(credentials.clear),
       signOutAiServiceProvider.overrideWithValue(AiService.forTesting()),
     ]);
     addTearDown(container.dispose);
@@ -475,6 +465,6 @@ void main() {
     await login;
     expect(loginCalls, 1);
     expect(tokens.tokens?.accessToken, 'new-access');
-    expect(auth.walletAccount, _accountB.id);
+    expect(auth.activeAccount, _accountB.id);
   });
 }

@@ -13,7 +13,7 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   /// DEMO DATA NOTICE (NR-06):
   /// This screen uses hard-coded sample metrics for demonstration purposes only.
-  /// It does NOT represent the user's actual activity, habits, or finances.
+  /// It does NOT represent the user's actual activity or habits.
   /// Real data integration is not yet available in this build.
 
   String? _analysisResult;
@@ -45,8 +45,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           'habitsTotal': 24,
           'goalsOnTrack': 3,
           'goalsTotal': 5,
-          'moneySpent': 1500,
-          'moneyBudget': 2000,
         },
         weeklyTrends: const [
           {'tasks': 8, 'habits': 5, 'focusMinutes': 120},
@@ -136,16 +134,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         categoryScores: const {
           'work': 7,
           'health': 6,
-          'finance': 8,
           'social': 5,
           'personal': 6,
         },
         weights: const {
-          'work': 0.25,
-          'health': 0.25,
-          'finance': 0.2,
-          'social': 0.15,
-          'personal': 0.15,
+          'work': 0.3,
+          'health': 0.3,
+          'social': 0.2,
+          'personal': 0.2,
         },
         languageName: l10n.promptLanguageName,
       );

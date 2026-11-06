@@ -112,6 +112,37 @@ void main() {
     expect(jsonEncode(payload), isNot(contains('10.00')));
   });
 
+  test('display list reads all pages without an active-only filter', () async {
+    final requests = <Uri>[];
+    final repo = _repository(MockClient((request) async {
+      requests.add(request.url);
+      if (request.url.queryParameters['cursor'] == null) {
+        return _page([_subscription('first')], hasMore: true, cursor: 'next');
+      }
+      return _page([_subscription('second')], hasMore: false);
+    }));
+    final items = await repo.listSubscriptions();
+    expect(items.map((item) => item.id).toList(), ['first', 'second']);
+    expect(requests, hasLength(2));
+    expect(requests.every((url) => !url.queryParameters.containsKey('status')),
+        isTrue);
+  });
+
+  test('repeated subscription across pages fails closed before rescheduling',
+      () async {
+    final repo = _repository(MockClient((request) async => _page(
+        [_subscription('same')],
+        hasMore: request.url.queryParameters['cursor'] == null,
+        cursor:
+            request.url.queryParameters['cursor'] == null ? 'next' : null)));
+    await expectLater(
+      SubscriptionReminders.sync(
+          account: account, repository: repo, currentAccount: () => account),
+      throwsFormatException,
+    );
+    expect(calls, isEmpty);
+  });
+
   test('automatic sync reports a native scheduling failure', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {

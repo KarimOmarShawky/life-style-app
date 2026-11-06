@@ -5,7 +5,7 @@ import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
-import 'package:lifestyle_mobile/features/money/data/wallet_ingest_token.dart';
+import 'package:lifestyle_mobile/data/retired_wallet_cleanup.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
@@ -15,10 +15,14 @@ final authRepositoryProvider = Provider<AuthRepository>(
   ),
 );
 
-// Kept injectable so sign-out ordering can be tested without a platform key.
-final walletCredentialStoreProvider = Provider<WalletCredentialStore>(
-  (ref) => PlatformWalletCredentialStore(),
-);
+// Injectable so cleanup ordering and failures can be tested independently.
+final retiredDataCleanupProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    if (!await RetiredWalletCleanup.run()) {
+      throw StateError('Retired data cleanup incomplete');
+    }
+  };
+});
 
 // Production uses the shared service; tests can isolate async storage state.
 final signOutAiServiceProvider = Provider<AiService>(
@@ -30,13 +34,13 @@ final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(
 );
 
 // A content-free UI invalidation signal; this is not an ownership credential.
-final walletTransitionSignalProvider = StateProvider<int>((ref) => 0);
+final authTransitionSignalProvider = StateProvider<int>((ref) => 0);
 
 class AuthController extends AsyncNotifier<AppUser?> {
   bool _signingOut = false;
   int _authGeneration = 0;
-  int _walletGeneration = 0;
-  int _pendingWalletTransitions = 0;
+  int _sessionGeneration = 0;
+  int _pendingAuthTransitions = 0;
   Future<void> _authTail = Future<void>.value();
 
   // One controller serializes session-changing operations. This is not a
@@ -49,23 +53,22 @@ class AuthController extends AsyncNotifier<AppUser?> {
     return result;
   }
 
-  // This controller's wallet work must stop when an identity transition starts.
-  // It is not a native, cross-engine or durable ownership boundary.
-  String? get walletAccount {
-    if (_signingOut || _pendingWalletTransitions > 0) return null;
+  // Profile work is invalidated as soon as an identity transition starts.
+  // This is not a cross-engine or durable ownership boundary.
+  String? get activeAccount {
+    if (_signingOut || _pendingAuthTransitions > 0) return null;
     return state.asData?.value?.id;
   }
 
-  int get walletGeneration => _walletGeneration;
+  int get sessionGeneration => _sessionGeneration;
 
-  bool walletWorkIsCurrent(String account, int generation) =>
-      generation == _walletGeneration && walletAccount == account;
+  bool sessionIsCurrent(String account, int generation) =>
+      generation == _sessionGeneration && activeAccount == account;
 
-  void _beginWalletTransition() {
-    _walletGeneration++;
-    _pendingWalletTransitions++;
-    ref.read(walletTransitionSignalProvider.notifier).state++;
-    WalletIngestToken.invalidatePending();
+  void _beginSessionTransition() {
+    _sessionGeneration++;
+    _pendingAuthTransitions++;
+    ref.read(authTransitionSignalProvider.notifier).state++;
   }
 
   @override
@@ -91,7 +94,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> _authenticate(Future<AppUser> Function() operation) {
     final generation = _authGeneration;
-    _beginWalletTransition();
+    _beginSessionTransition();
     return _serializeAuth(() async {
       if (generation != _authGeneration) return;
       state = const AsyncLoading();
@@ -101,7 +104,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
       _signingOut = false;
       state = result;
     }).whenComplete(() {
-      _pendingWalletTransitions--;
+      _pendingAuthTransitions--;
     });
   }
 
@@ -118,13 +121,13 @@ class AuthController extends AsyncNotifier<AppUser?> {
           .resetPassword(email: email, code: code, newPassword: newPassword);
 
   String _activeAccountForProfileWork() {
-    final account = walletAccount;
+    final account = activeAccount;
     if (account == null) throw StateError('Authentication session changed');
     return account;
   }
 
   void _checkProfileWork(String account, int generation, [AppUser? user]) {
-    if (!walletWorkIsCurrent(account, generation) ||
+    if (!sessionIsCurrent(account, generation) ||
         (user != null && user.id != account)) {
       throw StateError('Authentication session changed');
     }
@@ -132,7 +135,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> updateCurrency(String newCurrency) async {
     final account = _activeAccountForProfileWork();
-    final generation = _walletGeneration;
+    final generation = _sessionGeneration;
     final updated = await ref.read(authRepositoryProvider).updateProfile(
           defaultCurrency: newCurrency,
         );
@@ -145,7 +148,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> scheduleAccountDeletion(String currentPassword) async {
     final account = _activeAccountForProfileWork();
-    final generation = _walletGeneration;
+    final generation = _sessionGeneration;
     final repo = ref.read(authRepositoryProvider);
     await repo.scheduleAccountDeletion(currentPassword);
     _checkProfileWork(account, generation);
@@ -156,7 +159,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> cancelAccountDeletion() async {
     final account = _activeAccountForProfileWork();
-    final generation = _walletGeneration;
+    final generation = _sessionGeneration;
     final repo = ref.read(authRepositoryProvider);
     await repo.cancelAccountDeletion();
     _checkProfileWork(account, generation);
@@ -168,21 +171,17 @@ class AuthController extends AsyncNotifier<AppUser?> {
   Future<void> signOut() async {
     _signingOut = true;
     _authGeneration++;
-    _walletGeneration++;
-    ref.read(walletTransitionSignalProvider.notifier).state++;
+    _sessionGeneration++;
+    ref.read(authTransitionSignalProvider.notifier).state++;
     ref.read(authRepositoryProvider).invalidateSessionRetries();
-    WalletIngestToken.invalidatePending();
     final account = state.asData?.value?.id;
-    // Schedule local cleanup now rather than waiting for network logout and
-    // unrelated native cleanup. The native operation is asynchronous: this is
-    // not an atomic fence with the SMS receiver, and may fail or stall.
-    Object? walletCleanupError;
-    StackTrace? walletCleanupStack;
-    final walletCleanup = WalletIngestToken.clearLocal(
-      credentials: ref.read(walletCredentialStoreProvider),
-    ).then<void>((_) {}, onError: (Object error, StackTrace stack) {
-      walletCleanupError = error;
-      walletCleanupStack = stack;
+    // Schedule cleanup without waiting for network logout.
+    Object? cleanupError;
+    StackTrace? cleanupStack;
+    final cleanup = ref.read(retiredDataCleanupProvider)().then<void>((_) {},
+        onError: (Object error, StackTrace stack) {
+      cleanupError = error;
+      cleanupStack = stack;
     });
     await _serializeAuth(() async {
       try {
@@ -207,16 +206,14 @@ class AuthController extends AsyncNotifier<AppUser?> {
         } catch (_) {
           /* Sign-out must still clear credentials if native cleanup fails. */
         }
-        // Signing out revokes the session, so both the SMS receiver's ingest token
-        // and any user-specific BYOK Gemini key are cleared from local storage.
+        // Also clear account-specific focus data and the BYOK Gemini key.
         try {
           if (account != null) await SecureDetoxStore(account).clear();
         } finally {
           try {
-            await walletCleanup;
-            if (walletCleanupError != null) {
-              Error.throwWithStackTrace(
-                  walletCleanupError!, walletCleanupStack!);
+            await cleanup;
+            if (cleanupError != null) {
+              Error.throwWithStackTrace(cleanupError!, cleanupStack!);
             }
           } finally {
             await ref.read(signOutAiServiceProvider).setUserApiKey(null);
@@ -228,7 +225,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
 
   Future<void> retryRestore() {
     final generation = _authGeneration;
-    _beginWalletTransition();
+    _beginSessionTransition();
     return _serializeAuth(() async {
       if (generation != _authGeneration) return;
       state = const AsyncLoading();
@@ -239,7 +236,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
       _signingOut = false;
       state = result;
     }).whenComplete(() {
-      _pendingWalletTransitions--;
+      _pendingAuthTransitions--;
     });
   }
 }

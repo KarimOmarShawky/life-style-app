@@ -1,5 +1,7 @@
 # Retirement of money, wallet and financial SMS
 
+> **Historical preservation-only baseline, superseded:** the user later authorized deletion of app-stored retired financial data for all accounts while preserving subscriptions, reminders and original SMS. The deletion work is incomplete and has not been deployed. See [the erasure work-in-progress status](drafts/ERASURE_STATUS.md); the draft migration is deliberately outside the migrations directory. Do not treat the preservation statements below as the current product decision.
+
 ## Product decision
 
 On 2026-11-06 the user canceled the complete money feature, including budgets, transactions, wallet, bank-message capture and the proposed independent phone/OTP wallet account. Subscriptions remain accessible from More, with their existing automatic renewal reminders two days before renewal at 09:00 device-local time. No mobile payment UI is added. No provider account, credentials, charge or actual OTP SMS was created.

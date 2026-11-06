@@ -1,5 +1,4 @@
 import 'package:lifestyle_mobile/data/api_client.dart';
-import 'package:lifestyle_mobile/features/money/data/budget_model.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
 
 class MoneyRepository {
@@ -7,58 +6,22 @@ class MoneyRepository {
 
   final ApiClient _api;
 
-  Future<WeeklySpending> weeklySpending(
-      String from, String to, String currency) async {
-    final response = await _api.get('money/reports/summary',
-        query: {'from': from, 'to': to, 'currency': currency});
-    if (response is! Map<String, dynamic> ||
-        response['totals'] is! Map<String, dynamic>) {
-      throw const FormatException('Invalid money summary');
-    }
-    final totals = response['totals'] as Map<String, dynamic>;
-    return WeeklySpending(
-        response['currency'] as String, -double.parse(totals['net'] as String));
-  }
+  /// Fetch all pages for display; never silently treat the first page as complete.
+  Future<List<Subscription>> listSubscriptions() => _listPages(maxItems: 5000);
 
-  Future<List<Budget>> listBudgets() async {
-    final response = await _api.get('money/budgets');
-    if (response is! Map<String, dynamic> ||
-        response['budgets'] is! List<dynamic>) {
-      throw const ApiException(
-        statusCode: 502,
-        code: 'INVALID_API_RESPONSE',
-        message: 'The server returned an invalid budgets list.',
-      );
-    }
-    return (response['budgets'] as List<dynamic>)
-        .map((item) => Budget.fromJson(item as Map<String, dynamic>))
-        .toList(growable: false);
-  }
+  /// A partial or malformed snapshot never replaces an existing reminder alarm.
+  Future<List<Subscription>> listAllActiveSubscriptions() =>
+      _listPages(status: 'active', maxItems: 200);
 
-  Future<List<Subscription>> listSubscriptions() async {
-    final response = await _api.get('money/subscriptions');
-    if (response is! Map<String, dynamic> ||
-        response['subscriptions'] is! List<dynamic>) {
-      throw const ApiException(
-        statusCode: 502,
-        code: 'INVALID_API_RESPONSE',
-        message: 'The server returned an invalid subscriptions list.',
-      );
-    }
-    return (response['subscriptions'] as List<dynamic>)
-        .map((item) => Subscription.fromJson(item as Map<String, dynamic>))
-        .toList(growable: false);
-  }
-
-  /// Fetch every active subscription before replacing a reminder snapshot.
-  /// A partial or malformed page fails closed and never becomes an empty snapshot.
-  Future<List<Subscription>> listAllActiveSubscriptions() async {
+  Future<List<Subscription>> _listPages(
+      {String? status, required int maxItems}) async {
     final all = <Subscription>[];
     final seenCursors = <String>{};
+    final seenIds = <String>{};
     String? cursor;
     while (true) {
       final response = await _api.get('money/subscriptions', query: {
-        'status': 'active',
+        if (status != null) 'status': status,
         'limit': '100',
         if (cursor != null) 'cursor': cursor,
       });
@@ -68,15 +31,23 @@ class MoneyRepository {
         throw const FormatException('Invalid subscription page');
       }
       final items = response['subscriptions'] as List<dynamic>;
-      all.addAll(items.map(
-          (value) => Subscription.fromJson(value as Map<String, dynamic>)));
-      if (all.length > 200) {
+      for (final value in items) {
+        final item = Subscription.fromJson(value as Map<String, dynamic>);
+        if (!seenIds.add(item.id) ||
+            !RegExp(r'^\d+\.\d{4}$').hasMatch(item.monthlyEquivalent) ||
+            (status != null && item.status != status)) {
+          throw const FormatException('Invalid or duplicate subscription');
+        }
+        all.add(item);
+      }
+      if (all.length > maxItems) {
         throw const FormatException('Too many subscriptions');
       }
       final meta = response['meta'] as Map<String, dynamic>;
       if (meta['hasMore'] == false) return all;
       final next = meta['nextCursor'];
       if (meta['hasMore'] != true ||
+          items.isEmpty ||
           next is! String ||
           next.isEmpty ||
           !seenCursors.add(next)) {
@@ -84,14 +55,6 @@ class MoneyRepository {
       }
       cursor = next;
     }
-  }
-
-  Future<void> paySubscription(String id, String idempotencyKey) async {
-    await _api.post(
-      'money/subscriptions/$id/pay',
-      headers: {'Idempotency-Key': idempotencyKey},
-      body: {},
-    );
   }
 
   Future<void> createSubscription({
@@ -119,48 +82,4 @@ class MoneyRepository {
   Future<void> deleteSubscription(String id) async {
     await _api.delete('money/subscriptions/$id');
   }
-
-  Future<void> createBudget({
-    required String amountLimit,
-    required String currency,
-  }) async {
-    await _api.post(
-      'money/budgets',
-      body: {
-        'amountLimit': amountLimit.trim(),
-        'currency': currency,
-      },
-    );
-  }
-
-  Future<void> createTransaction({
-    required String kind,
-    required String amount,
-    required String currency,
-    required String occurredOn,
-    required String idempotencyKey,
-    String? categoryId,
-    String? description,
-    String? merchant,
-  }) async {
-    await _api.post(
-      'money/transactions',
-      headers: {'Idempotency-Key': idempotencyKey},
-      body: {
-        'kind': kind,
-        'amount': amount,
-        'currency': currency,
-        'occurredOn': occurredOn,
-        if (categoryId != null) 'categoryId': categoryId,
-        if (description != null) 'description': description.trim(),
-        if (merchant != null) 'merchant': merchant.trim(),
-      },
-    );
-  }
-}
-
-class WeeklySpending {
-  const WeeklySpending(this.currency, this.netSpending);
-  final String currency;
-  final double netSpending;
 }

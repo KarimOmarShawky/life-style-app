@@ -138,20 +138,6 @@ void main() {
       expect(notifier.state.locale, before);
     });
 
-    test('sms sync toggle persists the native-visible flag', () async {
-      final notifier = SettingsNotifier();
-      await Future<void>.delayed(Duration.zero);
-      expect(notifier.state.smsSyncEnabled, isFalse);
-
-      await notifier.setSmsSyncEnabled(true);
-      expect(notifier.state.smsSyncEnabled, isTrue);
-
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('sms_sync_enabled'), isTrue);
-      // The Android receiver reads the same value under the flutter. prefix.
-      expect(prefs.getBool('flutter.sms_sync_enabled'), isNull);
-    });
-
     test('loads persisted locale on startup', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'app_locale': 'tr',

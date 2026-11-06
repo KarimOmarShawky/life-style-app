@@ -27,8 +27,8 @@ describe('Domain archive PostgreSQL snapshot, grants and tenancy', () => {
       [userA, userB]
     );
     await pool.query(
-      `INSERT INTO transactions (user_id, kind, amount, currency, occurred_on)
-      VALUES ($1, 'expense', '900719925474099.1234', 'KWD', '2026-10-15')`,
+      `INSERT INTO subscriptions (user_id, name, amount, currency, billing_unit, anchor_date, next_billing_date)
+      VALUES ($1, 'Keep subscription', '900719925474099.1234', 'KWD', 'month', '2099-01-01', '2099-02-01')`,
       [userA]
     );
   });
@@ -62,7 +62,7 @@ describe('Domain archive PostgreSQL snapshot, grants and tenancy', () => {
       await stream.return(undefined);
     }
     const records = lines.map((line) => JSON.parse(line));
-    expect(records.find((row) => row.section === 'transactions').data.amount).toBe(
+    expect(records.find((row) => row.section === 'subscriptions').data.amount).toBe(
       '900719925474099.1234'
     );
     expect(records.find((row) => row.section === 'notes').data.deleted_at).not.toBeNull();

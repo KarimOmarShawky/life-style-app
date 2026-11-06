@@ -1,23 +1,10 @@
-/**
- * src/features/money/money.dto.ts
- *
- * Implements Section 14.11 & 14.17.1: Money DTO interfaces and serialization mappers.
- */
-
 import { Decimal } from 'decimal.js';
-import type {
-  CategoryEntity,
-  TransactionEntity,
-  SubscriptionEntity,
-  BudgetEntity,
-  BudgetUsage,
-  ReportSummary,
-  TransactionKind,
-  SubscriptionStatus,
-  BillingUnit,
-  BudgetPeriod
-} from './money.types.js';
-import { calculateMonthlyEquivalent, calculateDaysUntilNextBilling } from './money.cycle.js';
+import type { SubscriptionEntity, SubscriptionStatus, BillingUnit } from './money.types.js';
+import {
+  calculateMonthlyEquivalent,
+  calculateDaysUntilNextBilling,
+  projectedNextBillingDate
+} from './money.cycle.js';
 
 export const CURRENCY_EXPONENTS: Record<string, number> = {
   CLF: 4,
@@ -59,35 +46,6 @@ export function formatAmountByCurrency(amount: string | Decimal, currency: strin
   return dec.toFixed(exponent);
 }
 
-export interface CategoryDto {
-  id: string;
-  kind: TransactionKind;
-  name: string;
-  icon: string | null;
-  color: string | null;
-  archived: boolean;
-  createdAt: string;
-  updatedAt: string;
-  version: number;
-}
-
-export interface TransactionDto {
-  id: string;
-  kind: TransactionKind;
-  amount: string;
-  currency: string;
-  occurredOn: string;
-  categoryId: string | null;
-  description: string | null;
-  merchant: string | null;
-  subscriptionId: string | null;
-  billingDate: string | null;
-  source: 'manual';
-  createdAt: string;
-  updatedAt: string;
-  version: number;
-}
-
 export interface SubscriptionDto {
   id: string;
   name: string;
@@ -109,93 +67,15 @@ export interface SubscriptionDto {
   version: number;
 }
 
-export interface BudgetUsageDto {
-  periodStart: string;
-  periodEnd: string;
-  spent: string;
-  remaining: string;
-  percentUsed: number;
-  overspent: boolean;
-}
-
-export interface BudgetDto {
-  id: string;
-  categoryId: string | null;
-  amountLimit: string;
-  currency: string;
-  period: BudgetPeriod;
-  usage?: BudgetUsageDto | undefined;
-  createdAt: string;
-  updatedAt: string;
-  version: number;
-}
-
-export interface ReportCategoryItemDto {
-  categoryId: string | null;
-  name: string;
-  kind: TransactionKind;
-  total: string;
-  count: number;
-  share: number;
-}
-
-export interface ReportSeriesItemDto {
-  periodStart: string;
-  income: string;
-  expense: string;
-}
-
-export interface ReportSummaryDto {
-  currency: string;
-  from: string;
-  to: string;
-  totals: {
-    income: string;
-    expense: string;
-    net: string;
-  };
-  byCategory: ReportCategoryItemDto[];
-  series?: ReportSeriesItemDto[] | undefined;
-}
-
-export function toCategoryDto(entity: CategoryEntity): CategoryDto {
-  return {
-    id: entity.id,
-    kind: entity.kind,
-    name: entity.name,
-    icon: entity.icon,
-    color: entity.color,
-    archived: entity.archivedAt !== null,
-    createdAt:
-      entity.createdAt instanceof Date ? entity.createdAt.toISOString() : String(entity.createdAt),
-    updatedAt:
-      entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : String(entity.updatedAt),
-    version: entity.version
-  };
-}
-
-export function toTransactionDto(entity: TransactionEntity): TransactionDto {
-  return {
-    id: entity.id,
-    kind: entity.kind,
-    amount: formatAmountByCurrency(entity.amount, entity.currency),
-    currency: entity.currency,
-    occurredOn: entity.occurredOn,
-    categoryId: entity.categoryId,
-    description: entity.description,
-    merchant: entity.merchant,
-    subscriptionId: entity.subscriptionId,
-    billingDate: entity.billingDate,
-    source: entity.source,
-    createdAt:
-      entity.createdAt instanceof Date ? entity.createdAt.toISOString() : String(entity.createdAt),
-    updatedAt:
-      entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : String(entity.updatedAt),
-    version: entity.version
-  };
-}
-
 export function toSubscriptionDto(entity: SubscriptionEntity, todayStr: string): SubscriptionDto {
+  const nextBillingDate = projectedNextBillingDate(
+    entity.anchorDate,
+    entity.nextBillingDate,
+    entity.billingUnit,
+    entity.billingInterval,
+    entity.status,
+    todayStr
+  );
   return {
     id: entity.id,
     name: entity.name,
@@ -204,7 +84,7 @@ export function toSubscriptionDto(entity: SubscriptionEntity, todayStr: string):
     billingUnit: entity.billingUnit,
     billingInterval: entity.billingInterval,
     anchorDate: entity.anchorDate,
-    nextBillingDate: entity.nextBillingDate,
+    nextBillingDate,
     status: entity.status,
     cancelledOn: entity.cancelledOn,
     categoryId: entity.categoryId,
@@ -215,64 +95,11 @@ export function toSubscriptionDto(entity: SubscriptionEntity, todayStr: string):
       entity.billingUnit,
       entity.billingInterval
     ),
-    daysUntilNextBilling: calculateDaysUntilNextBilling(entity.nextBillingDate, todayStr),
+    daysUntilNextBilling: calculateDaysUntilNextBilling(nextBillingDate, todayStr),
     createdAt:
       entity.createdAt instanceof Date ? entity.createdAt.toISOString() : String(entity.createdAt),
     updatedAt:
       entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : String(entity.updatedAt),
     version: entity.version
-  };
-}
-
-export function toBudgetDto(entity: BudgetEntity, usage?: BudgetUsage): BudgetDto {
-  return {
-    id: entity.id,
-    categoryId: entity.categoryId,
-    amountLimit: formatAmountByCurrency(entity.amountLimit, entity.currency),
-    currency: entity.currency,
-    period: entity.period,
-    ...(usage
-      ? {
-          usage: {
-            periodStart: usage.periodStart,
-            periodEnd: usage.periodEnd,
-            spent: formatAmountByCurrency(usage.spent, entity.currency),
-            remaining: formatAmountByCurrency(usage.remaining, entity.currency),
-            percentUsed: usage.percentUsed,
-            overspent: usage.overspent
-          }
-        }
-      : {}),
-    createdAt:
-      entity.createdAt instanceof Date ? entity.createdAt.toISOString() : String(entity.createdAt),
-    updatedAt:
-      entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : String(entity.updatedAt),
-    version: entity.version
-  };
-}
-
-export function toReportSummaryDto(summary: ReportSummary): ReportSummaryDto {
-  return {
-    currency: summary.currency,
-    from: summary.from,
-    to: summary.to,
-    totals: {
-      income: formatAmountByCurrency(summary.totals.income, summary.currency),
-      expense: formatAmountByCurrency(summary.totals.expense, summary.currency),
-      net: formatAmountByCurrency(summary.totals.net, summary.currency)
-    },
-    byCategory: summary.byCategory.map((cat) => ({
-      categoryId: cat.categoryId,
-      name: cat.name,
-      kind: cat.kind,
-      total: formatAmountByCurrency(cat.total, summary.currency),
-      count: cat.count,
-      share: cat.share
-    })),
-    series: summary.series?.map((item) => ({
-      periodStart: item.periodStart,
-      income: formatAmountByCurrency(item.income, summary.currency),
-      expense: formatAmountByCurrency(item.expense, summary.currency)
-    }))
   };
 }

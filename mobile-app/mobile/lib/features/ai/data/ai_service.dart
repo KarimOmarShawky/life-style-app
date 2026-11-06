@@ -172,8 +172,7 @@ Tone: Friendly, motivating, professional, concise, and focused on execution. Avo
       'focusMinutes',
       'focusSessions',
       'blockedAttempts',
-      'averageClarity',
-      'netSpending'
+      'averageClarity'
     };
     if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
     final numbers = <String, num>{
@@ -385,7 +384,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
 
   /// Context-aware chat that injects the user's current life state into the
   /// conversation. The model receives structured context (pending tasks,
-  /// habits, goals, spending) so replies are personalised, not generic.
+  /// habits and goals) so replies are personalised, not generic.
   Future<String> sendMessageWithContext({
     required List<ChatMessage> conversationHistory,
     required String newMessage,
@@ -480,7 +479,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
   }
 
   /// Answers a question using the user's own data (tasks, notes, habits,
-  /// goals, spending). Falls back to generic advice when no data is provided.
+  /// goals). Falls back to generic advice when no data is provided.
   Future<String> answerWithData({
     required String question,
     Map<String, dynamic> data = const {},
@@ -502,25 +501,6 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
       languageName: languageName,
       httpClient: httpClient,
     );
-  }
-
-  /// Analyses spending patterns and returns personalised budget advice
-  /// based on the user's transaction history.
-  Future<String?> getMoneyInsights({
-    required List<Map<String, dynamic>> transactions,
-    required String currency,
-    String languageName = 'Arabic',
-    http.Client? httpClient,
-  }) async {
-    if ((await getEffectiveApiKey()).isEmpty || isKeyPaused) return null;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Analyse these transactions and produce a spending insight report. Identify the top 3 spending categories, flag any unusual patterns, and give 2 concrete budget suggestions.\n\nTransactions (JSON): ${jsonEncode(transactions)}\nCurrency: $currency',
-      languageName: languageName,
-      httpClient: httpClient,
-    );
-    return result.isNotEmpty ? result : null;
   }
 
   /// Generates a personalised habit coaching plan based on the user's
@@ -749,7 +729,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     final result = await sendMessage(
       conversationHistory: const [],
       newMessage:
-          'Generate a comprehensive cumulative lifestyle analysis for the period: $timeRange. Cover task completion rates, habit consistency, goal progress, spending patterns, and overall productivity. Identify the top 3 strengths and 3 areas needing improvement. Provide actionable recommendations.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nWeekly trends (JSON): ${jsonEncode(weeklyTrends)}',
+          'Generate a comprehensive cumulative lifestyle analysis for the period: $timeRange. Cover task completion rates, habit consistency, goal progress and overall productivity. Identify the top 3 strengths and 3 areas needing improvement. Provide actionable recommendations.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nWeekly trends (JSON): ${jsonEncode(weeklyTrends)}',
       languageName: languageName,
       httpClient: httpClient,
     );
@@ -807,7 +787,7 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
     final result = await sendMessage(
       conversationHistory: const [],
       newMessage:
-          'Compare this week performance with last week across tasks, habits, goals, and spending. Highlight improvements, declines, and one key takeaway.\n\nThis week (JSON): ${jsonEncode(thisWeek)}\nLast week (JSON): ${jsonEncode(lastWeek)}',
+          'Compare this week performance with last week across tasks, habits and goals. Highlight improvements, declines, and one key takeaway.\n\nThis week (JSON): ${jsonEncode(thisWeek)}\nLast week (JSON): ${jsonEncode(lastWeek)}',
       languageName: languageName,
       httpClient: httpClient,
     );

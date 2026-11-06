@@ -138,8 +138,8 @@ export const LIVE_PREVIEW_HTML = `<!DOCTYPE html>
         <p>Daily check-ins, automatic streak calculations, skip handling, and historical progress percentages.</p>
       </div>
       <div class="card">
-        <h3>💰 Money & Subscriptions</h3>
-        <p>Exact decimal arithmetic, drift-free anchor billing, live read-time monthly budget envelopes, and ACID audit logs.</p>
+        <h3>🔔 Subscriptions</h3>
+        <p>Subscription tracking with exact decimal arithmetic and anchor-based billing dates.</p>
       </div>
       <div class="card">
         <h3>📅 Calendar & Agenda</h3>
@@ -165,7 +165,7 @@ export const LIVE_PREVIEW_HTML = `<!DOCTYPE html>
         <button onclick="testEndpoint('/health/ready', 'GET')">GET /health/ready</button>
         <button onclick="testRegister()">POST /auth/register</button>
         <button onclick="testTasks()">GET /tasks</button>
-        <button onclick="testBudgets()">GET /money/budgets</button>
+        <button onclick="testSubscriptions()">GET /money/subscriptions</button>
       </div>
       <pre id="output">Waiting for request... Click a button above to test the live API.</pre>
     </div>
@@ -213,8 +213,8 @@ export const LIVE_PREVIEW_HTML = `<!DOCTYPE html>
           })
         });
         const data = await res.json();
-        if (data.tokens && data.tokens.accessToken) {
-          authToken = data.tokens.accessToken;
+        if (data.data && data.data.tokens && data.data.tokens.accessToken) {
+          authToken = data.data.tokens.accessToken;
         }
         output.textContent = 'HTTP ' + res.status + ' (Registered & Authenticated)\n\n' + JSON.stringify(data, null, 2);
       } catch (err) {
@@ -229,11 +229,11 @@ export const LIVE_PREVIEW_HTML = `<!DOCTYPE html>
       testEndpoint('/api/v1/tasks', 'GET');
     }
 
-    async function testBudgets() {
+    async function testSubscriptions() {
       if (!authToken) {
         await testRegister();
       }
-      testEndpoint('/api/v1/money/budgets', 'GET');
+      testEndpoint('/api/v1/money/subscriptions', 'GET');
     }
   </script>
 </body>

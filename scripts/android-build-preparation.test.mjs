@@ -198,14 +198,6 @@ test('AUD-10: mobile builds never silently default to the production API host', 
   assert.doesNotMatch(appConfig, /defaultValue:\s*'https:/);
   assert.match(appConfig, /String\.fromEnvironment\('API_BASE_URL'\)/);
 
-  // Native receiver: no hard-coded production fallback.
-  const receiver = readFileSync(
-    'mobile-app/mobile/android/app/src/main/kotlin/com/example/lifestyle_mobile/SmsTransactionReceiver.kt',
-    'utf8'
-  );
-  assert.doesNotMatch(receiver, /DEFAULT_API_BASE/);
-  assert.doesNotMatch(receiver, /life-style-app-production\.up\.railway\.app/);
-
   // build_apk.bat: requires API_BASE_URL and passes it to the build.
   const bat = readFileSync('build_apk.bat', 'utf8');
   assert.match(bat, /if "%API_BASE_URL%"==""/);

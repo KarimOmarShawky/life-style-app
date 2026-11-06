@@ -80,6 +80,7 @@ const Map<String, String> frCatalog = {
   'amount': 'Montant',
   'currency': 'Devise',
   'merchant': 'Commerce (facultatif)',
+  'subscriptionSaved': 'Abonnement enregistré avec succès !',
   'transactionSaved': 'Transaction enregistrée avec succès !',
   'enterAmount': 'Saisissez un montant',
   'amountMustBePositive': 'Doit être > 0',

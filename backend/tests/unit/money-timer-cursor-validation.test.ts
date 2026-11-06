@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AppError } from '../../src/core/errors/app-error.js';
-import { PgMoneyRepository } from '../../src/features/money/money.repository.pg.js';
+import { PgSubscriptionRepository } from '../../src/features/money/subscription.repository.pg.js';
 import { PgTimerSessionsRepository } from '../../src/features/timer-sessions/timer-sessions.repository.pg.js';
 
 function queryBuilder() {
@@ -18,29 +18,8 @@ const uuid = 'd9b73678-75f1-432a-bc91-231362095cb7';
 const encodeMoneyCursor = (value: string) => Buffer.from(value, 'utf8').toString('base64url');
 
 describe('money and timer pagination cursor validation', () => {
-  it('rejects malformed and semantically impossible transaction cursors', async () => {
-    const repository = new PgMoneyRepository(queryBuilder() as never);
-    await expect(repository.listTransactions('user-1', { cursor: '!!!' })).rejects.toBeInstanceOf(
-      AppError
-    );
-    await expect(repository.listTransactions('user-1', { cursor: '' })).rejects.toBeInstanceOf(
-      AppError
-    );
-    await expect(
-      repository.listTransactions('user-1', {
-        cursor: encodeMoneyCursor(`2026-02-30|${uuid}`)
-      })
-    ).rejects.toBeInstanceOf(AppError);
-    await expect(
-      repository.listTransactions('user-1', {
-        sort: 'amount',
-        cursor: encodeMoneyCursor(`not-a-number|${uuid}`)
-      })
-    ).rejects.toBeInstanceOf(AppError);
-  });
-
   it('rejects malformed and impossible-date subscription cursors', async () => {
-    const repository = new PgMoneyRepository(queryBuilder() as never);
+    const repository = new PgSubscriptionRepository(queryBuilder() as never);
     await expect(
       repository.listSubscriptions('user-1', { cursor: 'not-base64!' })
     ).rejects.toBeInstanceOf(AppError);

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_model.dart';
+import 'package:lifestyle_mobile/features/money/data/subscription_summary.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -35,19 +36,12 @@ class SubscriptionsScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => Center(child: Text('${l10n.errorTitle}: $err')),
           data: (subs) {
-            double monthlyTotal = 0;
-            String currency = 'EGP';
-            for (final s in subs) {
-              final amt = double.tryParse(s.amount) ?? 0;
-              currency = s.currency;
-              if (s.billingUnit == 'year') {
-                monthlyTotal += (amt / 12);
-              } else if (s.billingUnit == 'week') {
-                monthlyTotal += (amt * 4.33);
-              } else {
-                monthlyTotal += amt;
-              }
-            }
+            final monthlyTotals = monthlySubscriptionTotals(subs);
+            final sortedSubscriptions = subs.toList()
+              ..sort((a, b) {
+                final date = a.nextBillingDate.compareTo(b.nextBillingDate);
+                return date != 0 ? date : a.id.compareTo(b.id);
+              });
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -82,14 +76,18 @@ class SubscriptionsScreen extends ConsumerWidget {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                '${monthlyTotal.toStringAsFixed(2)} $currency',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.deepOrange,
-                                ),
-                              ),
+                              if (monthlyTotals.isEmpty)
+                                const Text('—')
+                              else
+                                for (final entry in monthlyTotals.entries)
+                                  Text(
+                                    '${entry.value} ${entry.key}',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.deepOrange,
+                                    ),
+                                  ),
                             ],
                           ),
                         ),
@@ -138,7 +136,8 @@ class SubscriptionsScreen extends ConsumerWidget {
                     ),
                   )
                 else
-                  ...subs.map((s) => _SubscriptionTile(subscription: s)),
+                  ...sortedSubscriptions
+                      .map((s) => _SubscriptionTile(subscription: s)),
               ],
             );
           },
@@ -162,7 +161,8 @@ class _SubscriptionTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final daysLeft = subscription.daysUntilNextBilling;
-    final isSoon = daysLeft <= 3 && daysLeft >= 0;
+    final isSoon =
+        subscription.status == 'active' && daysLeft <= 3 && daysLeft >= 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -173,7 +173,7 @@ class _SubscriptionTile extends ConsumerWidget {
           children: [
             CircleAvatar(
               backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: const Icon(Icons.payment, size: 20),
+              child: const Icon(Icons.subscriptions_outlined, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -371,7 +371,7 @@ Future<void> _showAddSubscription(BuildContext context, WidgetRef ref) async {
               ScaffoldMessenger.of(parentContext).showSnackBar(
                 SnackBar(
                   content: Text(remindersAvailable
-                      ? l10n.transactionSaved
+                      ? l10n.subscriptionSaved
                       : l10n.subscriptionReminderUnavailable),
                 ),
               );

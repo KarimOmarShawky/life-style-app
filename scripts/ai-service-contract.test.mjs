@@ -69,10 +69,8 @@ test('AUD-21: AI service uses BYOK key resolution with release gating', () => {
 });
 
 test('AUD-21: AI service exposes the advanced analysis and planning methods', () => {
-  // Money insights from transaction history.
-  assert.match(aiService, /Future<String\?> getMoneyInsights\(/);
-  assert.match(aiService, /required List<Map<String, dynamic>> transactions/);
-  assert.match(aiService, /required String currency/);
+  // Money insights are retired; unrelated AI functions remain.
+  assert.doesNotMatch(aiService, /Future<String\?> getMoneyInsights\(/);
 
   // Personalised habit coaching.
   assert.match(aiService, /Future<String\?> getHabitCoaching\(/);

@@ -3,7 +3,7 @@ import '../infrastructure-safety.js';
  * tests/integration/auth-flow.test.ts
  *
  * Implements Acceptance Tests:
- * - AC-AUTH-01: User registration (201, user, tokens, default categories, case-insensitive)
+ * - AC-AUTH-01: User registration (201, user, tokens, case-insensitive)
  * - AC-AUTH-02: Duplicate registration (409 EMAIL_ALREADY_REGISTERED)
  * - AC-AUTH-03: Login with valid / invalid credentials
  * - AC-AUTH-06: Token refresh & rotation
@@ -39,7 +39,7 @@ describe('Auth Flow Integration Tests', () => {
     await getContainer().authService.waitForResetRequests();
   });
 
-  it('AC-AUTH-01 & AC-AUTH-02: Registration creates user, default categories, returns tokens, and prevents duplicates', async () => {
+  it('AC-AUTH-01 & AC-AUTH-02: Registration creates user, returns tokens, and prevents duplicates', async () => {
     const registerPayload = {
       email: 'Alice.Smith@Example.COM',
       password: 'MySecretPassword123!',
@@ -64,11 +64,11 @@ describe('Auth Flow Integration Tests', () => {
     expect(res.body.data.tokens.accessToken).toBeDefined();
     expect(res.body.data.tokens.refreshToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
-    // Verify default categories were seeded
+    // Retired money categories are no longer created during registration
     const catRes = await pool.query('SELECT * FROM categories WHERE user_id = $1', [
       res.body.data.user.id
     ]);
-    expect(catRes.rows.length).toBeGreaterThanOrEqual(11);
+    expect(catRes.rows.length).toBe(0);
 
     // AC-AUTH-02: Duplicate registration with case variant
     const dupRes = await request(app)

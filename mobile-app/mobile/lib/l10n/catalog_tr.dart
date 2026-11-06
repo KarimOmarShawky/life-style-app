@@ -77,6 +77,7 @@ const Map<String, String> trCatalog = {
   'amount': 'Tutar',
   'currency': 'Para birimi',
   'merchant': 'Satıcı (isteğe bağlı)',
+  'subscriptionSaved': 'Abonelik başarıyla kaydedildi!',
   'transactionSaved': 'İşlem başarıyla kaydedildi!',
   'enterAmount': 'Tutar gir',
   'amountMustBePositive': '0\'dan büyük olmalı',

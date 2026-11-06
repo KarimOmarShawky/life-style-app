@@ -112,6 +112,7 @@ const Map<String, String> enCatalog = {
   'amount': 'Amount',
   'currency': 'Currency',
   'merchant': 'Merchant (optional)',
+  'subscriptionSaved': 'Subscription saved successfully!',
   'transactionSaved': 'Transaction saved successfully!',
   'enterAmount': 'Enter amount',
   'amountMustBePositive': 'Must be > 0',

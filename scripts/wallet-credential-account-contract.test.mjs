@@ -2,36 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const root = 'mobile-app/mobile/';
-const dart = readFileSync(root + 'lib/features/money/data/wallet_ingest_token.dart', 'utf8');
-const native = readFileSync(root + 'android/app/src/main/kotlin/com/example/lifestyle_mobile/MainActivity.kt', 'utf8');
-
-test('the mobile ingest token uses the server-provided owner and does not reuse legacy credentials', () => {
-  assert.ok(dart.includes("jsonString(response, 'ownerId')"));
-  assert.ok(dart.includes('hasTokenFor(account)'));
-  assert.ok(dart.includes('writeBound(token, ownerId)'));
-  assert.ok(native.includes('credentials.readBound()?.ownerId'));
-  assert.ok(native.includes('credentials.writeBound('));
-});
-
-test('sign out invalidates delayed ingest-token issuance before logout begins', () => {
-  const auth = readFileSync(root + 'lib/features/auth/state/auth_provider.dart', 'utf8');
-  const signOut = auth.split('  Future<void> signOut() async {')[1];
-  assert.ok(auth.includes('if (_signingOut || _pendingWalletTransitions > 0) return null;'));
-  assert.ok(signOut.indexOf('_signingOut = true;') >= 0);
-  assert.ok(signOut.indexOf('_signingOut = true;') < signOut.indexOf('authRepositoryProvider).logout()'));
-  assert.ok(signOut.indexOf('WalletIngestToken.invalidatePending()') >= 0);
-  assert.ok(signOut.indexOf('WalletIngestToken.invalidatePending()') < signOut.indexOf('authRepositoryProvider).logout()'));
-});
-
-test('sign-out schedules wallet credential cleanup before awaiting remote logout', () => {
-  const auth = readFileSync(root + 'lib/features/auth/state/auth_provider.dart', 'utf8');
-  const signOut = auth.split('  Future<void> signOut() async {')[1].split('  Future<void> retryRestore()')[0];
-  const start = signOut.indexOf('WalletIngestToken.clearLocal(');
-  assert.ok(start >= 0);
-  assert.ok(start < signOut.indexOf('authRepositoryProvider).logout()'));
-  assert.equal(signOut.indexOf('WalletIngestToken.clearLocal(', start + 1), -1);
-});
-
 test('authentication transitions are serialized and sign-out supersedes older account results', () => {
   const auth = readFileSync(root + 'lib/features/auth/state/auth_provider.dart', 'utf8');
   assert.ok(auth.includes('Future<T> _serializeAuth<T>('));
@@ -42,7 +12,7 @@ test('authentication transitions are serialized and sign-out supersedes older ac
   const signOut = auth.split('Future<void> signOut() async {')[1].split('Future<void> retryRestore()')[0];
   assert.ok(signOut.includes('_authGeneration++;'));
   assert.ok(signOut.includes('await _serializeAuth('));
-  assert.ok(signOut.indexOf('WalletIngestToken.clearLocal(') < signOut.indexOf('await _serializeAuth('));
+  assert.ok(signOut.indexOf('retiredDataCleanupProvider') < signOut.indexOf('await _serializeAuth('));
   const restore = auth.split('Future<void> retryRestore()')[1];
   assert.ok(restore.includes('_serializeAuth('));
   assert.ok(restore.includes('generation != _authGeneration'));
@@ -80,19 +50,4 @@ test('retired wallet queues are not flushed or issued tokens by the home shell',
   assert.ok(!home.includes('_ensureWalletIngestToken'));
   assert.ok(!home.includes('PendingWalletTransactions('));
   assert.ok(!home.includes('PendingWalletCandidates('));
-});
-
-test('wallet review loading and actions are checked against the initiating session', () => {
-  const review = readFileSync(root + 'lib/features/money/data/pending_wallet_reviews.dart', 'utf8');
-  const screen = readFileSync(root + 'lib/features/money/presentation/money_screen.dart', 'utf8');
-  const section = review.split('class PendingWalletReviews {')[1].split('class WalletSmsCandidate')[0];
-  assert.ok(section.includes('bool Function()? stillCurrent'));
-  assert.ok(section.includes('WalletWorkGuard(stillCurrent)'));
-  const confirm = section.split('Future<void> confirm(')[1].split('Future<void> discard(')[0];
-  assert.ok(confirm.indexOf('_guard.check();') >= 0);
-  assert.ok(confirm.lastIndexOf('_guard.check();') > confirm.indexOf('_repository.createTransaction('));
-  const ui = screen.split('class _NeedsReviewCardState')[1];
-  assert.ok(ui.includes('.walletWorkIsCurrent('));
-  assert.match(ui, /stillCurrent:\s*\(\) =>\s*_isSessionCurrent\(session\)/);
-  assert.ok(ui.includes('sheetRef.watch(authProvider)'));
 });

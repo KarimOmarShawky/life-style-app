@@ -1,4 +1,8 @@
-/** Explicit version-1 projections. Never infer export columns from SELECT * or schema introspection. */
+/**
+ * Explicit version-1 projections. Never infer export columns from SELECT * or schema introspection.
+ * Retired sections remain in the manifest/counts for v1 client compatibility,
+ * but are never queried or exported, including during pre-erasure rollout.
+ */
 const timestamps = 'created_at, updated_at';
 const versioned = `${timestamps}, deleted_at, version`;
 export const ACCOUNT_ARCHIVE_SOURCES = [
@@ -21,18 +25,8 @@ export const ACCOUNT_ARCHIVE_SOURCES = [
     owner: 'user_id',
     columns: 'id, session_id, platform, app_version, last_seen_at, disabled_at, created_at'
   },
-  {
-    section: 'ingestDevices',
-    table: 'ingest_tokens',
-    owner: 'user_id',
-    columns: 'id, session_id, created_at, last_used_at, revoked_at'
-  },
-  {
-    section: 'categories',
-    table: 'categories',
-    owner: 'user_id',
-    columns: `id, kind, name, icon, color, archived_at, ${timestamps}, version`
-  },
+  { section: 'ingestDevices', table: 'ingest_tokens', retired: true },
+  { section: 'categories', table: 'categories', retired: true },
   {
     section: 'goals',
     table: 'goals',
@@ -111,18 +105,8 @@ export const ACCOUNT_ARCHIVE_SOURCES = [
     owner: 'user_id',
     columns: `id, name, amount::text AS amount, currency, billing_unit, billing_interval, anchor_date, next_billing_date, status, cancelled_on, category_kind, category_id, reminder_days_before, notes, ${versioned}`
   },
-  {
-    section: 'transactions',
-    table: 'transactions',
-    owner: 'user_id',
-    columns: `id, kind, amount::text AS amount, currency, occurred_on, category_id, description, merchant, subscription_id, billing_date, source, idempotency_key, ${versioned}`
-  },
-  {
-    section: 'budgets',
-    table: 'budgets',
-    owner: 'user_id',
-    columns: `id, category_kind, category_id, amount_limit::text AS amount_limit, currency, period, ${versioned}`
-  },
+  { section: 'transactions', table: 'transactions', retired: true },
+  { section: 'budgets', table: 'budgets', retired: true },
   {
     section: 'reminders',
     table: 'reminders',
@@ -151,5 +135,6 @@ export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
   // bounded retention window, but they are not part of the versioned v1 archive
   // contract: adding a section would make older clients reject the export.
   'password-reset request records and their network metadata (IP address and user agent)',
+  'retired financial categories, transactions, budgets and SMS-ingest device records',
   'device-only data, external-provider data and already purged records'
 ] as const;

@@ -48,7 +48,8 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     expect(Object.keys(result).sort()).toEqual(
       ['exportedAt', 'profile', 'sessions', 'categories', 'pushDevices'].sort()
     );
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query.mock.calls.map(([sql]) => sql).join(' \n')).not.toContain('FROM categories');
     for (const [sql, params] of query.mock.calls) {
       expect(params).toEqual(['user-1']);
       expect(sql).toMatch(/WHERE (?:user_id|id) = \$1/);
@@ -56,7 +57,7 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     }
     expect(result.profile).not.toHaveProperty('password_hash');
   });
-  for (const table of ['auth_sessions', 'categories', 'push_devices']) {
+  for (const table of ['auth_sessions', 'push_devices']) {
     it(`rejects oversized ${table} metadata rather than returning silent partial success`, async () => {
       const { repo, query } = fixture(false, table);
       await expect(repo.getUserExportData('user-1')).rejects.toMatchObject({

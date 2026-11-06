@@ -44,6 +44,50 @@ void main() {
     expect(find.text('Renewal reminder set!'), findsNothing);
   });
 
+  testWidgets(
+      'monthly estimates stay separate by currency and exclude paused entries',
+      (tester) async {
+    const eur = Subscription(
+      id: 'eur',
+      name: 'EUR item',
+      amount: '12.00',
+      currency: 'EUR',
+      billingUnit: 'year',
+      billingInterval: 1,
+      anchorDate: '2099-01-31',
+      nextBillingDate: '2099-01-31',
+      status: 'active',
+      monthlyEquivalent: '1.0000',
+      daysUntilNextBilling: 30,
+      version: 1,
+    );
+    const paused = Subscription(
+      id: 'paused',
+      name: 'Paused',
+      amount: '200.00',
+      currency: 'USD',
+      billingUnit: 'month',
+      billingInterval: 1,
+      anchorDate: '2099-01-31',
+      nextBillingDate: '2099-01-31',
+      status: 'paused',
+      monthlyEquivalent: '200.0000',
+      daysUntilNextBilling: 30,
+      version: 1,
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        subscriptionsProvider
+            .overrideWith((ref) async => [subscription, eur, paused])
+      ],
+      child: const MaterialApp(home: SubscriptionsScreen()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('10.0000 USD'), findsOneWidget);
+    expect(find.text('1.0000 EUR'), findsOneWidget);
+    expect(find.text('210.0000 USD'), findsNothing);
+  });
+
   testWidgets('failed automatic sync is reported, not shown as success',
       (tester) async {
     await tester.pumpWidget(ProviderScope(

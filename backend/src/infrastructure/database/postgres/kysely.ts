@@ -56,6 +56,14 @@ export interface WalletAccountSessionsTable {
   revoked_at: Date | null;
 }
 
+export interface WalletOwnedRecordsTable {
+  wallet_account_id: string;
+  id: string;
+  kind: 'candidate' | 'review' | 'transaction' | 'quarantine';
+  envelope: Buffer;
+  created_at: Generated<Date>;
+}
+
 export interface RefreshTokensTable {
   id: Generated<string>;
   session_id: string;
@@ -409,6 +417,7 @@ export interface DatabaseSchema {
   auth_sessions: AuthSessionsTable;
   wallet_accounts: WalletAccountsTable;
   wallet_account_sessions: WalletAccountSessionsTable;
+  wallet_owned_records: WalletOwnedRecordsTable;
   refresh_tokens: RefreshTokensTable;
   push_devices: PushDevicesTable;
   categories: CategoriesTable;

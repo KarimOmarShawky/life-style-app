@@ -111,6 +111,19 @@ describe('Boot-Time Database DDL & Schema Drift Guard (B-09)', () => {
     }
   });
 
+  it('keeps wallet record owner keys and append-only runtime grants in both snapshots', () => {
+    const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
+    for (const snapshot of [root, SCHEMA_SQL]) {
+      const table = snapshot.match(/CREATE TABLE wallet_owned_records \(([\s\S]*?)\n\s*\);/i)?.[1];
+      expect(table).toBeDefined();
+      expect(table).toMatch(/wallet_account_id UUID NOT NULL REFERENCES wallet_accounts\(id\)/i);
+      expect(table).toMatch(/PRIMARY KEY \(wallet_account_id, id\)/i);
+      expect(table).toMatch(/octet_length\(envelope\) BETWEEN 1 AND 90000/i);
+      expect(snapshot).toMatch(/GRANT SELECT, INSERT ON wallet_owned_records TO lifestyle_app/i);
+      expect(snapshot).not.toMatch(/GRANT\s+[^;]*(?:UPDATE|DELETE)[^;]*\bwallet_owned_records\b/i);
+    }
+  });
+
   it('keeps reset ownership and fencing columns, foreign key, and indexes in both snapshots', () => {
     const root = readFileSync(resolve(repoRoot, 'schema.sql'), 'utf8');
     for (const snapshot of [root, SCHEMA_SQL]) {

@@ -856,3 +856,20 @@ CREATE TABLE wallet_accounts (
         GRANT UPDATE (revoked_at) ON wallet_account_sessions TO lifestyle_app;
       END IF;
     END $grant$;
+
+-- Unwired immutable wallet envelope storage.
+CREATE TABLE wallet_owned_records (
+      wallet_account_id UUID NOT NULL REFERENCES wallet_accounts(id),
+      id UUID NOT NULL,
+      kind TEXT NOT NULL CHECK (kind IN ('candidate', 'review', 'transaction', 'quarantine')),
+      envelope BYTEA NOT NULL CHECK (octet_length(envelope) BETWEEN 1 AND 90000),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+      PRIMARY KEY (wallet_account_id, id)
+    );
+    -- Runtime cannot reassign, rewrite, or delete saved envelopes. A future
+    -- lifecycle/erasure mechanism requires a separately reviewed design.
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT ON wallet_owned_records TO lifestyle_app;
+      END IF;
+    END $grant$;

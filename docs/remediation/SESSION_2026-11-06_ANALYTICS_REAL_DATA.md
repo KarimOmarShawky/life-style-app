@@ -196,6 +196,32 @@ Still outstanding after erasure:
 - Physical-device and live-Gemini verification remain outstanding;
   release verdict is still NO-GO for the mobile release.
 
+## On-device progress — 2026-11-07 (later, owner-operated)
+
+- The debug validation APK pointed at production was installed on the
+  owner's real Android device (Play Protect initially blocked the
+  sideload because of the Focus Shield accessibility surface; the
+  owner completed the install manually). App login with the reset
+  password succeeded on-device.
+- **Live Gemini PASSED on-device**: the owner created a Google AI
+  Studio key (current `AQ.` auth-key format; the key first shown in
+  a chat screenshot was deleted unused and replaced), saved it in
+  the app's encrypted BYOK storage, and the AI Assistant answered a
+  live message. No key was ever shared in chat or files.
+- One device-only defect was found and fixed in the same session:
+  after saving the Gemini key, a debug-mode framework assertion
+  ('_dependents.isEmpty') red-screened once. The key dialog created
+  its `TextEditingController` in the caller and disposed it when the
+  dialog future completed, during the route's exit transition. The
+  dialog is now a `StatefulWidget` that owns and disposes the
+  controller from `State.dispose`, with a successful-save widget
+  regression test (`mobile-app/mobile/test/ai_secure_key_test.dart`).
+  Re-verification requires a rebuilt APK on the device.
+- Still outstanding on-device: subscription reminder delivery
+  (09:00, T-2 days), Focus Shield blocking behaviour (including
+  Android restricted-settings consent for the sideloaded build),
+  and a signed release build. Release verdict remains **NO-GO**.
+
 ## Local verification performed
 - Backend: `tsc --noEmit` (src + tests) OK; unit suite 443 passed;
   new analytics unit tests 4 passed; ESLint and Prettier checks pass;

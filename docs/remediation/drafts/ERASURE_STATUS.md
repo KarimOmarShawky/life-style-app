@@ -44,10 +44,22 @@
 > returned `{"status":"ok"}`, proving live PostgreSQL and Redis
 > connectivity from Railway under the restricted runtime role.
 > The `runtime-role-rehearsal` Neon branch was deleted by the owner
-> on 2026-11-07. Still outstanding: Neon PITR history caveat above;
-> functional checks (login,
-> preserved subscriptions, real-number analytics); physical-device
-> testing; signed release build. Release verdict remains **NO-GO**.
+> on 2026-11-07. Functional checks then passed at API level
+> (2026-11-07): the owner reset the owning account's password
+> directly in Neon (bcrypt via pgcrypto, matching the app's hasher;
+> the self-service reset endpoint is unavailable on this deployment
+> with `SERVICE_UNAVAILABLE`, and the account's old credential had
+> also been briefly exposed in a chat screenshot, so rotation was
+> required anyway), logged in against production, and confirmed
+> both preserved subscriptions returned intact by
+> `GET /api/v1/money/subscriptions` — `categoryId: null` after the
+> erasure detach, renewal projection and 2-day reminder setting
+> preserved — and `GET /api/v1/analytics?days=30` returned real
+> account-scoped aggregates with honest `null` unavailable metrics
+> (the owning account has no tasks, so its task counters are
+> legitimately zero). Still outstanding: Neon PITR history caveat
+> above; physical-device testing; signed release build. Release
+> verdict remains **NO-GO**.
 
 The user's latest explicit decision is to erase the retired financial data for all users regardless of ownership and remove the retired financial feature, while preserving subscriptions, reminders, accounts, unrelated application data, and original phone SMS. The briefly considered full application reset was explicitly cancelled and must not be performed. This authorization does not mean erasure has happened.
 

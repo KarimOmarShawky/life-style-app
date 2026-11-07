@@ -138,10 +138,10 @@ owner in the Neon SQL Editor (no credentials were shared in chat):
    in scope and is untouched.
 
 Still outstanding after erasure:
-- Delete the `erasure-rehearsal` branch (auto-delete after 1 day was
-  set; manual deletion requested) and note Neon point-in-time history
-  retains pre-erasure data until its window expires — restoring it
-  would resurrect financial data and must not be reconnected.
+- ~~Delete the `erasure-rehearsal` branch~~ DONE — deleted by the owner
+  on 2026-11-07. Neon point-in-time history still retains pre-erasure
+  data until its window expires — restoring it would resurrect
+  financial data and must not be reconnected.
 - Railway has no active deployment. Do NOT redeploy yet: production
   startup in current code requires the financial-retirement marker and
   a restricted runtime role (`lifestyle_app`), which this adapted

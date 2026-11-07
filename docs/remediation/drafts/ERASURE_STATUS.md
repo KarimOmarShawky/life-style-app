@@ -12,7 +12,8 @@
 > below, which remains unusable on that owner-managed database (no
 > `lifestyle_app` role, no retirement marker). Outstanding: delete the
 > rehearsal branch, respect Neon PITR retention (a restore resurrects
-> financial data), and complete the restricted-role/marker deployment
+> financial data; the rehearsal branch was deleted by the owner on
+> 2026-11-07), and complete the restricted-role/marker deployment
 > plan before any Railway redeploy — the production startup guard will
 > refuse to run against the erased database until then. Full record:
 > `../SESSION_2026-11-06_ANALYTICS_REAL_DATA.md`. The text below is the

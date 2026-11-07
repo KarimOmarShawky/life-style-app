@@ -142,21 +142,38 @@ Still outstanding after erasure:
   on 2026-11-07. Neon point-in-time history still retains pre-erasure
   data until its window expires — restoring it would resurrect
   financial data and must not be reconnected.
-- Railway has no active deployment. Do NOT redeploy yet: production
-  startup in current code requires the financial-retirement marker and
-  a restricted runtime role (`lifestyle_app`), which this adapted
-  row-erasure deliberately did not create (the observed database is
-  owner-managed with no such role). Prepared 2026-11-07 (not yet run):
-  `drafts/neon-runtime-role-and-marker.sql` creates the role (password
-  set only by the owner, never in files/chat), the empty wallet tables
-  the guard requires to exist, and the marker; grants live-table CRUD
-  and locks retired tables to SELECT/DELETE + token-revocation for the
-  runtime and PUBLIC; and self-verifies against the exact guard logic
-  before COMMIT. Rehearsed rollback-only on real PostgreSQL in CI via
-  `backend/tests/integration/neon-runtime-role-draft.test.ts`. It must
-  still be rehearsed on a fresh Neon branch and run once on production
-  (owner-operated), after which Railway's DATABASE_URL switches to
-  `lifestyle_app` and a redeploy can be verified.
+- ~~Railway has no active deployment. Do NOT redeploy yet~~ DONE —
+  redeploy completed and verified live on 2026-11-07. The prepared
+  `drafts/neon-runtime-role-and-marker.sql` (the role with its
+  password set only by the owner, the empty wallet tables the guard
+  requires, and the marker; live-table CRUD for the runtime; retired
+  tables locked to SELECT/DELETE + token-revocation for the runtime
+  and PUBLIC; self-verifying against the exact guard logic before
+  COMMIT; rehearsed rollback-only on real PostgreSQL in CI via
+  `backend/tests/integration/neon-runtime-role-draft.test.ts`) was
+  rehearsed by the owner on a fresh Neon branch
+  (`runtime-role-rehearsal`, verification matched exactly) and then
+  executed once on production with the same verification result.
+  Railway's `DATABASE_URL` was switched to `lifestyle_app` by the
+  owner. Two deployment faults were found and fixed in sequence:
+  (1) the generated Railway domain targeted port 3000 while the app
+  listens on 8080 (owner corrected the domain target port; requests
+  had timed out after 31s with 502); (2) with `NODE_ENV=production`
+  the startup guard failed closed because the SQL-created
+  `lifestyle_app` role had no password (Neon's console reset refuses
+  passwordless roles: "cannot update password for role without
+  password"), so the owner set the initial password via `ALTER ROLE`
+  in the Neon SQL editor, deleted that history entry, and put the
+  same password into Railway's `DATABASE_URL` (password never in
+  files or chat). Final live proof: the root URL serves the
+  production JSON status (`LifeStyle API` 1.0.1 `healthy`; the HTML
+  preview page is only served outside production, so this also
+  confirms `NODE_ENV=production` and a passed startup guard), and
+  `GET /health/ready` returned `{"status":"ok"}` — live PostgreSQL
+  (as `lifestyle_app`) and Redis connectivity from Railway.
+  Remaining: delete the `runtime-role-rehearsal` Neon branch, then
+  functional checks (login, the 2 preserved subscriptions,
+  real-number analytics) and physical-device testing.
 - Physical-device and live-Gemini verification remain outstanding;
   release verdict is still NO-GO for the mobile release.
 

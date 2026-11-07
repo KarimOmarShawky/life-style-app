@@ -183,6 +183,7 @@ const Map<String, String> arCatalog = {
   'briefingEvening': 'مساء الخير',
   'briefingEmptyText':
       'لا توجد مهام حتى الآن. اضغط على علامة + لإضافة أول مهمة في يومك!',
+  'briefingEmptyHint': 'يومك فاضي — ضيف خطوة صغيرة لما تكون جاهز.',
   'taskDueNowText': 'موعد مهمتك المجدولة الآن',
   'quickClip30MinLabel': 'بعد نص ساعة',
   'quickClip30MinText': 'تذكير بعد نص ساعة',
@@ -306,6 +307,10 @@ const Map<String, String> arCatalog = {
   'milestoneTitleLabel': 'اسم المرحلة',
   'milestonesTitle': 'المراحل',
   'moreTitle': 'المزيد',
+  'moreSectionMoney': 'فلوسي',
+  'moreSectionFocus': 'التركيز',
+  'moreSectionInsights': 'تقاريري',
+  'moreSectionPlanning': 'التخطيط',
   'nextDay': 'اليوم التالي',
   'noEndDate': 'من غير تاريخ نهاية',
   'noEventsForDay': 'مفيش أحداث في اليوم ده.',

@@ -36,6 +36,7 @@ import {
 import { createDaysRouter } from './features/days/days.routes.js';
 import { createDashboardRouter } from './features/dashboard/dashboard.routes.js';
 import { createAnalyticsRouter } from './features/analytics/analytics.routes.js';
+import { createAiRouter } from './features/ai/ai.routes.js';
 import { createSearchRouter } from './features/search/search.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
@@ -278,6 +279,16 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
       service: container.analyticsService,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
+    })
+  );
+  v1Router.use(
+    '/ai',
+    createAiRouter({
+      service: container.aiService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter,
+      minuteLimit: env.AI_USER_MINUTE_LIMIT,
+      dailyLimit: env.AI_USER_DAILY_LIMIT
     })
   );
   v1Router.use(

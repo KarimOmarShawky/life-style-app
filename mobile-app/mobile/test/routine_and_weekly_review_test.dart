@@ -13,6 +13,45 @@ import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart'
 import 'package:lifestyle_mobile/features/focus_shield/routine_and_weekly_models.dart';
 import 'package:lifestyle_mobile/features/timer/data/timer_session_model.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_transport.dart';
+
+/// Offline AI transport double capturing the outgoing coaching message.
+class _WeeklyTransport implements AiTransport {
+  _WeeklyTransport({this.reply, this.error});
+
+  final String? reply;
+  final AiTransportException? error;
+  int calls = 0;
+  String? lastMessage;
+
+  @override
+  Future<String> chat({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    required AiReplyMode mode,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    calls++;
+    lastMessage = message;
+    final failure = error;
+    if (failure != null) throw failure;
+    return reply!;
+  }
+
+  @override
+  Stream<String> chatStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    calls++;
+    final failure = error;
+    if (failure != null) throw failure;
+    yield reply!;
+  }
+}
 
 class _NoTokens implements TokenStore {
   @override
@@ -216,36 +255,23 @@ void main() {
         isNot(contains('Keep your habit cue consistent')));
     expect(metrics.aggregates(), isNot(contains('netSpending')));
   });
-  test(
-      'weekly AI service strips unknown fields and respects BYOK/circuit breaker',
+  test('weekly AI service strips unknown fields before the proxy transport',
       () async {
-    final ai = AiService.instance;
-    await ai.setUserApiKey('test-only-weekly-key');
-    addTearDown(() => ai.setUserApiKey(null));
-    var requests = 0;
-    final client = MockClient((request) async {
-      requests++;
-      expect(request.headers['X-goog-api-key'], 'test-only-weekly-key');
-      expect(request.body, contains('focusMinutes'));
-      expect(request.body, isNot(contains('PRIVATE_TASK_TITLE')));
-      expect(request.body, isNot(contains('packageName')));
-      expect(request.body, isNot(contains('netSpending')));
-      return http.Response(
-          '{"candidates":[{"content":{"parts":[{"text":"Coaching"}]}}]}', 200);
-    });
-    addTearDown(client.close);
+    final transport = _WeeklyTransport(reply: 'Coaching');
+    final ai = AiService.forTesting(transport: transport);
     expect(
         await ai.generateWeeklyCoaching(aggregates: {
           'focusMinutes': 30,
           'PRIVATE_TASK_TITLE': 1,
           'packageName': 1,
           'netSpending': 123
-        }, httpClient: client),
+        }),
         'Coaching');
-    await ai.setUserApiKey(null);
-    expect(await ai.generateWeeklyCoaching(aggregates: {}, httpClient: client),
-        isNull);
-    expect(requests, 1);
+    expect(transport.calls, 1);
+    expect(transport.lastMessage, contains('focusMinutes'));
+    expect(transport.lastMessage, isNot(contains('PRIVATE_TASK_TITLE')));
+    expect(transport.lastMessage, isNot(contains('packageName')));
+    expect(transport.lastMessage, isNot(contains('netSpending')));
   });
   test('morning and shutdown bonus keys are daily and idempotent', () {
     var ledger = XpLedger();
@@ -264,22 +290,15 @@ void main() {
   test(
       'weekly coach returns offline fallback signal and sends nothing while circuit is paused',
       () async {
-    final ai = AiService.instance;
-    await ai.setUserApiKey('test-only-bad-weekly-key');
-    addTearDown(() => ai.setUserApiKey(null));
-    var requests = 0;
-    final client = MockClient((_) async {
-      requests++;
-      return http.Response('{}', 429);
-    });
-    addTearDown(client.close);
+    final transport = _WeeklyTransport(
+      error: const AiTransportException('quota_exceeded'),
+    );
+    final ai = AiService.forTesting(transport: transport);
     for (var i = 0; i < 4; i++) {
-      expect(
-          await ai.generateWeeklyCoaching(
-              aggregates: {'focusMinutes': 30}, httpClient: client),
+      expect(await ai.generateWeeklyCoaching(aggregates: {'focusMinutes': 30}),
           isNull);
     }
-    expect(ai.isKeyPaused, isTrue);
-    expect(requests, 3);
+    expect(ai.isPaused, isTrue);
+    expect(transport.calls, 3);
   });
 }

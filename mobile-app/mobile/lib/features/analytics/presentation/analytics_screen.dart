@@ -133,12 +133,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     if (summary == null || _aiLoading) return;
     final l10n = AppLocalizations.of(context);
     final ai = AiService.instance;
-    if ((await ai.getEffectiveApiKey()).isEmpty || ai.isKeyPaused) {
+    if (ai.isPaused) {
       if (!mounted) return;
       setState(() {
         _analysisResult = l10n.isArabic
-            ? 'أضف مفتاح Gemini API الشخصي من الملف الشخصي لتفعيل رؤى الذكاء الاصطناعي. أرقامك الحقيقية ظاهرة بالأعلى بدون أي مفتاح.'
-            : 'Add your personal Gemini API key in Profile to enable AI insights. Your real numbers above work without any key.';
+            ? 'رؤى الذكاء الاصطناعي متوقفة مؤقتاً بعد محاولات فاشلة متكررة. أرقامك الحقيقية ظاهرة بالأعلى، وحاول مرة أخرى بعد قليل.'
+            : 'AI insights are temporarily paused after repeated failures. Your real numbers above still work; please try again shortly.';
       });
       return;
     }

@@ -3,11 +3,8 @@ import 'package:flutter/foundation.dart';
 /// Runtime configuration is provided at build/run time, never embedded as a
 /// production credential or pointed at a developer's localhost by default.
 abstract final class AppConfig {
-  /// Optional dev/test override (`--dart-define=GEMINI_API_KEY=<key>`).
-  /// Release builds ([kReleaseMode]) never expose a compile-time provider key
-  /// (BYOK_ARCHITECTURE_AND_PILOT_PLAN.md §4 & §7, B-02).
-  static const _devGeminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
-  static String get geminiApiKey => kReleaseMode ? '' : _devGeminiApiKey;
+  // The AI assistant runs through the backend proxy with a central
+  // server-side key; the app never embeds or stores a provider key.
 
   // AUD-10: no production default — an unset API_BASE_URL must fail the
   // launch (see apiBaseUri) instead of silently sending dev/validation

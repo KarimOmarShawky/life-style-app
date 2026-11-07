@@ -125,6 +125,11 @@ import { AnalyticsService } from './features/analytics/analytics.service.js';
 import { SearchService } from './features/search/search.service.js';
 import { PgPasswordResetRequestStore } from './features/auth/password-reset-request.repository.pg.js';
 import type { ResetRequestStore } from './core/security/reset-request-store.js';
+// AI assistant proxy (server-side Gemini, central key)
+import { AiService } from './features/ai/ai.service.js';
+import { FetchGeminiClient } from './features/ai/gemini-client.js';
+import { getEnv } from './config/env.js';
+import { logger } from './core/logger/logger.js';
 
 export interface AppContainer {
   clock: Clock;
@@ -177,6 +182,7 @@ export interface AppContainer {
   daysService: DaysService;
   dashboardService: DashboardService;
   analyticsService: AnalyticsService;
+  aiService: AiService;
   searchService: SearchService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
@@ -334,6 +340,26 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     clock
   );
   const analyticsService = new AnalyticsService(db, taskReader, habitReader, moneyReader, clock);
+
+  // AI assistant proxy: the central Gemini key stays server-side. When the
+  // kill switch is off or no key is configured the service is built without
+  // a client and the /ai endpoints fail closed with 503 AI_DISABLED.
+  const env = getEnv();
+  const aiService =
+    overrides?.aiService ??
+    new AiService(
+      env.GEMINI_API_KEY.trim() !== ''
+        ? new FetchGeminiClient({
+            apiKey: env.GEMINI_API_KEY,
+            model: env.GEMINI_MODEL,
+            timeoutMs: env.AI_UPSTREAM_TIMEOUT_MS
+          })
+        : null,
+      env.AI_ENABLED
+    );
+  if (env.AI_ENABLED && env.GEMINI_API_KEY.trim() === '') {
+    logger.warn('AI_ENABLED is true but GEMINI_API_KEY is not configured; AI endpoints disabled');
+  }
   const searchService = new SearchService(
     taskReader,
     habitReader,
@@ -397,6 +423,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     daysService,
     dashboardService,
     analyticsService,
+    aiService,
     searchService,
     resetRequestStore
   };

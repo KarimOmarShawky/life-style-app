@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lifestyle_mobile/config/app_config.dart';
 import 'package:lifestyle_mobile/data/session_tokens.dart';
 import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -90,9 +89,7 @@ void main() {
     });
   });
 
-  group('AppConfig secret safety (B-02)', () {
-    test('defaults geminiApiKey to empty string when unset', () {
-      expect(AppConfig.geminiApiKey, isEmpty);
-    });
-  });
+  // B-02 note: AppConfig previously exposed a compile-time Gemini key for
+  // the retired BYOK design. The backend-proxy contract (no provider key
+  // anywhere in the app) is pinned by scripts/ai-service-contract.test.mjs.
 }

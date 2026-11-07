@@ -1,19 +1,42 @@
-import 'support/fake_secure_storage.dart';
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_transport.dart';
 
-class _FakeClient extends http.BaseClient {
-  _FakeClient(this.handle);
+/// Controllable offline transport for streaming behavior tests.
+class _StreamTransport implements AiTransport {
+  _StreamTransport(this.chunks, {this.error});
 
-  final Future<http.StreamedResponse> Function(http.BaseRequest request) handle;
+  final List<String> chunks;
+  final AiTransportException? error;
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) =>
-      handle(request);
+  Future<String> chat({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    required AiReplyMode mode,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final failure = error;
+    if (failure != null) throw failure;
+    return chunks.join();
+  }
+
+  @override
+  Stream<String> chatStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    final failure = error;
+    if (failure != null) throw failure;
+    for (final chunk in chunks) {
+      yield chunk;
+    }
+  }
 }
 
 class _StreamResult {
@@ -23,19 +46,7 @@ class _StreamResult {
   final Object? error;
 }
 
-String _event(String text) => 'data: ${jsonEncode({
-          'candidates': [
-            {
-              'content': {
-                'parts': [
-                  {'text': text}
-                ]
-              }
-            }
-          ]
-        })}\n\n';
-
-Future<_StreamResult> _collect(AiService service, http.Client client) async {
+Future<_StreamResult> _collect(AiService service) async {
   final chunks = <String>[];
   Object? failure;
   try {
@@ -43,7 +54,6 @@ Future<_StreamResult> _collect(AiService service, http.Client client) async {
       conversationHistory: const [],
       newMessage: 'Hello',
       languageName: 'English',
-      httpClient: client,
     )) {
       chunks.add(chunk);
     }
@@ -55,55 +65,21 @@ Future<_StreamResult> _collect(AiService service, http.Client client) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(() {
-    FakeSecureStorage().install();
-  });
 
-  final service = AiService.instance;
-
-  setUp(() async {
-    await service.setUserApiKey('test-only-streaming-key');
-  });
-
-  tearDown(() async {
-    await service.setUserApiKey(null);
-  });
-
-  test('buffered JSON emits no content and reports an error', () async {
-    final client = _FakeClient((request) async {
-      return http.StreamedResponse(
-        Stream.value(utf8.encode('{"candidates":[]}')),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    });
-    final result = await _collect(service, client);
-    expect(result.chunks, isEmpty);
-    expect(result.error, isNotNull);
-  });
-
-  test('SSE emits chunks incrementally and in order, and stops at DONE',
+  test('chunks are emitted incrementally and in order (incl. Arabic)',
       () async {
-    final source = StreamController<List<int>>();
-    final requested = Completer<http.BaseRequest>();
+    final source = StreamController<String>();
+    final service = AiService.forTesting(
+      transport: _ControlledStreamTransport(source.stream),
+    );
+    final chunks = <String>[];
     final firstChunk = Completer<void>();
     final finished = Completer<void>();
-    final chunks = <String>[];
     Object? failure;
-    final client = _FakeClient((request) async {
-      requested.complete(request);
-      return http.StreamedResponse(
-        source.stream,
-        200,
-        headers: {'content-type': 'text/event-stream'},
-      );
-    });
-
     final subscription = service.streamMessage(
       conversationHistory: const [],
       newMessage: 'Hello',
       languageName: 'English',
-      httpClient: client,
     ).listen((chunk) {
       chunks.add(chunk);
       if (!firstChunk.isCompleted) firstChunk.complete();
@@ -114,19 +90,11 @@ void main() {
     });
 
     try {
-      final request =
-          await requested.future.timeout(const Duration(seconds: 3));
-      expect(request.method, 'POST');
-      expect(request.url.path, endsWith(':streamGenerateContent'));
-      expect(request.url.queryParameters['alt'], 'sse');
-      final first = utf8.encode(_event('أهلاً'));
-      source.add(first.sublist(0, first.length ~/ 2));
-      source.add(first.sublist(first.length ~/ 2));
+      source.add('أهلاً');
       await firstChunk.future.timeout(const Duration(seconds: 3));
       expect(chunks, ['أهلاً']);
-      source.add(utf8.encode(_event(' there')));
-      source.add(utf8.encode(_event('!')));
-      source.add(utf8.encode('data: [DONE]\n\n${_event('ignored')}'));
+      source.add(' there');
+      source.add('!');
       await source.close();
       await finished.future.timeout(const Duration(seconds: 3));
       expect(failure, isNull);
@@ -134,29 +102,101 @@ void main() {
     } finally {
       if (!source.isClosed) await source.close();
       await subscription.cancel();
-      client.close();
     }
   });
 
-  test('HTTP 500 reports an error without emitting model content', () async {
-    final client = _FakeClient((request) async {
-      return http.StreamedResponse(
-        Stream.value(utf8.encode('provider failure')),
-        500,
-        headers: {'content-type': 'text/event-stream'},
-      );
-    });
-    final result = await _collect(service, client);
+  test('an empty stream reports an error without emitting content', () async {
+    final service = AiService.forTesting(transport: _StreamTransport(const []));
+    final result = await _collect(service);
     expect(result.chunks, isEmpty);
-    expect(result.error, isNotNull);
+    expect(result.error, isA<AiStreamingException>());
+    expect((result.error! as AiStreamingException).code, 'empty_response');
   });
 
-  test('network errors are reported without emitting model content', () async {
-    final client = _FakeClient((request) async {
-      throw http.ClientException('simulated socket failure');
-    });
-    final result = await _collect(service, client);
+  test('transport failures report an error without emitting content', () async {
+    final service = AiService.forTesting(
+      transport: _StreamTransport(
+        const [],
+        error: const AiTransportException('unavailable'),
+      ),
+    );
+    final result = await _collect(service);
     expect(result.chunks, isEmpty);
-    expect(result.error, isNotNull);
+    expect(result.error, isA<AiStreamingException>());
   });
+
+  test('a paused circuit refuses to stream before any transport call',
+      () async {
+    final transport = _CountingTransport();
+    final service = AiService.forTesting(transport: transport);
+    for (var i = 0; i < AiService.maxConsecutiveFailures; i++) {
+      await _collect(service);
+    }
+    expect(service.isPaused, isTrue);
+    final callsBefore = transport.calls;
+    final result = await _collect(service);
+    expect(result.error, isA<AiStreamingException>());
+    expect((result.error! as AiStreamingException).code, 'paused');
+    expect(transport.calls, callsBefore);
+  });
+}
+
+/// Stream transport backed by an external controller (timing control).
+class _ControlledStreamTransport implements AiTransport {
+  _ControlledStreamTransport(this._source);
+
+  final Stream<String> _source;
+
+  @override
+  Future<String> chat({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    required AiReplyMode mode,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    return (await chatStream(
+      history: history,
+      message: message,
+      languageName: languageName,
+      timeout: timeout,
+    ).toList())
+        .join();
+  }
+
+  @override
+  Stream<String> chatStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    Duration timeout = const Duration(seconds: 60),
+  }) =>
+      _source;
+}
+
+class _CountingTransport implements AiTransport {
+  int calls = 0;
+
+  @override
+  Future<String> chat({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    required AiReplyMode mode,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    calls++;
+    throw const AiTransportException('unavailable');
+  }
+
+  @override
+  Stream<String> chatStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    calls++;
+    throw const AiTransportException('unavailable');
+  }
 }

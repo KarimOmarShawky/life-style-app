@@ -47,6 +47,11 @@ int? jsonOptionalInt(Map<String, dynamic> json, String key) {
   return value is int ? value : null;
 }
 
+double? jsonOptionalDouble(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  return value is num ? value.toDouble() : null;
+}
+
 double jsonDouble(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is! num) throw FormatException('Missing or invalid $key.');

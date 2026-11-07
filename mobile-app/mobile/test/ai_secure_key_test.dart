@@ -137,4 +137,48 @@ void main() {
             'The failed save must show the localized error; dialog text: $dialogTexts');
     expect(await widgetAi.getUserApiKey(), isEmpty);
   });
+
+  testWidgets('successful key save closes dialog with no framework error',
+      (tester) async {
+    final widgetAi = AiService.forTesting();
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      home: Scaffold(
+          body: Builder(
+              builder: (context) => FilledButton(
+                    onPressed: () =>
+                        showGeminiApiKeyDialog(context, service: widgetAi),
+                    child: const Text('Open'),
+                  ))),
+    ));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'test-secret');
+    final save = find.widgetWithText(FilledButton, 'Save');
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
+    // The dialog pops only after the secure-storage write completes; pump a
+    // bounded number of frames until the route has fully closed. Closing the
+    // route must not dispose the text controller early (device regression:
+    // framework '_dependents.isEmpty' assertion right after saving a key).
+    var dialogClosed = false;
+    for (var i = 0; i < 50 && !dialogClosed; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      dialogClosed = find.byType(AlertDialog).evaluate().isEmpty;
+    }
+    expect(find.byType(AlertDialog), findsNothing,
+        reason: 'A successful save must close the key dialog.');
+    expect(storage.writeAttempts, 1);
+    expect(await widgetAi.getUserApiKey(), 'test-secret');
+    expect(tester.takeException(), isNull,
+        reason: 'Closing the dialog after save must not raise.');
+  });
 }

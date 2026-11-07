@@ -18,6 +18,36 @@
 > refuse to run against the erased database until then. Full record:
 > `../SESSION_2026-11-06_ANALYTICS_REAL_DATA.md`. The text below is the
 > pre-execution status and is retained for history.
+>
+> **Update — 2026-11-07 (later): restricted runtime role, marker, and
+> production redeploy COMPLETED and verified.** The owner rehearsed
+> `neon-runtime-role-and-marker.sql` on a fresh Neon branch
+> (`runtime-role-rehearsal`) and then executed it on production.
+> Verification matched the startup-guard conditions: marker row
+> `legacy_money_v1` present (1), `categories` 0, runtime role cannot
+> INSERT into `transactions`, can INSERT into `tasks`, cannot DELETE
+> the marker; a later guard replay found `marker_ok = true`,
+> `marker_select_ok = true`, and zero offending privilege rows.
+> Railway initially returned 502 because the generated domain targeted
+> port 3000 while the app listens on 8080 (target port corrected by
+> the owner). With `NODE_ENV=production`, startup then failed closed
+> (`Financial retirement verification failed`) because the SQL-created
+> `lifestyle_app` role had no password — Neon's console password
+> reset refuses passwordless roles ("cannot update password for role
+> without password"). The owner set the initial password via
+> `ALTER ROLE` in the Neon SQL editor (history entry deleted
+> afterwards; the password exists only in the owner's password
+> manager and Railway's `DATABASE_URL`, never in files or chat) and
+> redeployed. Live verification: the root URL serves the production
+> JSON status (`LifeStyle API` 1.0.1, `healthy` — the HTML preview
+> page is served only outside production), and `GET /health/ready`
+> returned `{"status":"ok"}`, proving live PostgreSQL and Redis
+> connectivity from Railway under the restricted runtime role.
+> The `runtime-role-rehearsal` Neon branch was deleted by the owner
+> on 2026-11-07. Still outstanding: Neon PITR history caveat above;
+> functional checks (login,
+> preserved subscriptions, real-number analytics); physical-device
+> testing; signed release build. Release verdict remains **NO-GO**.
 
 The user's latest explicit decision is to erase the retired financial data for all users regardless of ownership and remove the retired financial feature, while preserving subscriptions, reminders, accounts, unrelated application data, and original phone SMS. The briefly considered full application reset was explicitly cancelled and must not be performed. This authorization does not mean erasure has happened.
 

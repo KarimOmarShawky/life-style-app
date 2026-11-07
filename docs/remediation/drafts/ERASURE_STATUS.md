@@ -43,8 +43,9 @@
 > page is served only outside production), and `GET /health/ready`
 > returned `{"status":"ok"}`, proving live PostgreSQL and Redis
 > connectivity from Railway under the restricted runtime role.
-> Still outstanding: delete the `runtime-role-rehearsal` Neon branch;
-> Neon PITR history caveat above; functional checks (login,
+> The `runtime-role-rehearsal` Neon branch was deleted by the owner
+> on 2026-11-07. Still outstanding: Neon PITR history caveat above;
+> functional checks (login,
 > preserved subscriptions, real-number analytics); physical-device
 > testing; signed release build. Release verdict remains **NO-GO**.
 

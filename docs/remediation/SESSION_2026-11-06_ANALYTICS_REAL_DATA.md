@@ -171,9 +171,9 @@ Still outstanding after erasure:
   confirms `NODE_ENV=production` and a passed startup guard), and
   `GET /health/ready` returned `{"status":"ok"}` — live PostgreSQL
   (as `lifestyle_app`) and Redis connectivity from Railway.
-  Remaining: delete the `runtime-role-rehearsal` Neon branch, then
-  functional checks (login, the 2 preserved subscriptions,
-  real-number analytics) and physical-device testing.
+  The `runtime-role-rehearsal` branch was deleted by the owner on
+  2026-11-07. Remaining: functional checks (login, the 2 preserved
+  subscriptions, real-number analytics) and physical-device testing.
 - Physical-device and live-Gemini verification remain outstanding;
   release verdict is still NO-GO for the mobile release.
 

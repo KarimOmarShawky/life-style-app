@@ -47,8 +47,7 @@ void main() {
     expect(text, isNot(contains('##')));
   });
 
-  testWidgets('renders unordered list items as separate lines',
-      (tester) async {
+  testWidgets('renders unordered list items as separate lines', (tester) async {
     await _pump(tester, '- First step\n- Second step');
     final text = _visibleText(tester, find.byType(AiMarkdownText));
     expect(text, contains('First step'));
@@ -87,8 +86,7 @@ void main() {
     expect(text, contains('Just a normal sentence.'));
   });
 
-  testWidgets('empty input renders nothing and does not crash',
-      (tester) async {
+  testWidgets('empty input renders nothing and does not crash', (tester) async {
     await _pump(tester, '');
     expect(find.byType(AiMarkdownText), findsOneWidget);
     expect(tester.takeException(), isNull);

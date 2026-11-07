@@ -122,7 +122,7 @@ class BackendAiTransport implements AiTransport {
         ),
         timeout: timeout,
       )) {
-        if (payload == '[DONE]') return;
+        if (payload == '[DONE]') break;
         final Object? decoded;
         try {
           decoded = jsonDecode(payload);

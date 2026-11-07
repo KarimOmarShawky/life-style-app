@@ -1,5 +1,23 @@
 # Financial data erasure — work in progress, not deployable
 
+> **Update — 2026-11-07: production row erasure EXECUTED via the
+> adapted draft.** The account owner ran
+> `neon-observed-schema-erasure.sql` first on an isolated Neon branch
+> (`erasure-rehearsal`, counts matched production: categories 66,
+> budgets 1, ingest_tokens 2, transactions 0) and then, after removing
+> the only Railway writer deployment, on production. Post-run counts:
+> transactions 0, budgets 0, categories 0, ingest_tokens 0;
+> subscriptions 2 preserved (none categorised), users 6, tasks 16.
+> This was the *adapted* SQL, not the `1792800000000` migration draft
+> below, which remains unusable on that owner-managed database (no
+> `lifestyle_app` role, no retirement marker). Outstanding: delete the
+> rehearsal branch, respect Neon PITR retention (a restore resurrects
+> financial data), and complete the restricted-role/marker deployment
+> plan before any Railway redeploy — the production startup guard will
+> refuse to run against the erased database until then. Full record:
+> `../SESSION_2026-11-06_ANALYTICS_REAL_DATA.md`. The text below is the
+> pre-execution status and is retained for history.
+
 The user's latest explicit decision is to erase the retired financial data for all users regardless of ownership and remove the retired financial feature, while preserving subscriptions, reminders, accounts, unrelated application data, and original phone SMS. The briefly considered full application reset was explicitly cancelled and must not be performed. This authorization does not mean erasure has happened.
 
 The adjacent SQL migration is a **draft only**. It is intentionally outside the migration directory and will not run as part of normal database migrations. Do not deploy, manually run, or copy it into the migrations directory until the release blockers below have been resolved and verified. No production deletion or deployment has been performed.

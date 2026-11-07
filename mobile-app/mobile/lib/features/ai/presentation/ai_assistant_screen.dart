@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/presentation/ai_markdown.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/gemini_key_dialog.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -320,16 +321,23 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                       child: Row(
                         children: [
                           Expanded(
-                            child: SelectableText(
-                              message.text,
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                height: 1.45,
-                                color: isUser
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface,
-                              ),
-                            ),
+                            child: isUser
+                                ? SelectableText(
+                                    message.text,
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.45,
+                                      color: theme.colorScheme.onPrimary,
+                                    ),
+                                  )
+                                : AiMarkdownText(
+                                    message.text,
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.45,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
                           ),
                         ],
                       ),

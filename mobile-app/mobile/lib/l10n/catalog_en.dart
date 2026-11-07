@@ -219,6 +219,8 @@ const Map<String, String> enCatalog = {
   'briefingEvening': 'Good evening',
   'briefingEmptyText':
       'No tasks yet. Tap the + icon to add your first task for today!',
+  'briefingEmptyHint':
+      'Your day is clear — add one small step when you are ready.',
   'taskDueNowText': 'Your scheduled task is due now',
   'quickClip30MinLabel': 'In 30 minutes',
   'quickClip30MinText': 'Reminder in 30 minutes',
@@ -342,6 +344,10 @@ const Map<String, String> enCatalog = {
   'milestoneTitleLabel': 'Milestone',
   'milestonesTitle': 'Milestones',
   'moreTitle': 'More',
+  'moreSectionMoney': 'My money',
+  'moreSectionFocus': 'Focus',
+  'moreSectionInsights': 'My reports',
+  'moreSectionPlanning': 'Planning',
   'nextDay': 'Next day',
   'noEndDate': 'No end date',
   'noEventsForDay': 'No events on this day.',

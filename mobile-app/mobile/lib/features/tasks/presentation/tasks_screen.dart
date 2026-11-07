@@ -1,5 +1,4 @@
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
-import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,6 @@ import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
-import 'package:lifestyle_mobile/features/timer/presentation/focus_timer_screen.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 
@@ -144,13 +142,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             )
           : AppBar(
               title: Text(localization.tasks),
+              // Keep the tasks header uncluttered: search, smart add and
+              // profile only. Focus Shield and the focus timer live in the
+              // More tab's Focus section; the date strip below replaces the
+              // jump-to-date dialog for nearby days; the test-alarm button
+              // was a development affordance and does not belong here.
               actions: [
-                IconButton(
-                    tooltip: 'Focus Shield',
-                    icon: const Icon(Icons.shield_outlined),
-                    onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                            builder: (_) => const FocusShieldScreen()))),
                 IconButton(
                   tooltip: localization.globalSearchTooltip,
                   icon: const Icon(Icons.search),
@@ -164,51 +161,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 ),
                 IconButton(
                   tooltip: localization.smartAdd,
-                  icon: const Icon(Icons.auto_awesome, color: Colors.amber),
+                  icon: const Icon(Icons.auto_awesome),
                   onPressed: () => _showSmartQuickAdd(context, ref),
-                ),
-                IconButton(
-                  tooltip: localization.focusTimer,
-                  icon: const Icon(Icons.timer_outlined),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const FocusTimerScreen(),
-                      ),
-                    );
-                  },
-                ),
-                IconButton(
-                  tooltip: localization.jumpToDate,
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2035),
-                    );
-                    if (picked != null) {
-                      setState(() => _selectedDate = picked);
-                    }
-                  },
-                ),
-                IconButton(
-                  tooltip: localization.testAlarm,
-                  icon: const Icon(Icons.notifications_active_outlined),
-                  onPressed: () async {
-                    await NotificationService.instance
-                        .triggerInstantPersistentAlarm(
-                      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                      title: localization.testAlarmTitleText,
-                      body: localization.testAlarmBodyText,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(localization.testAlarmSent)),
-                      );
-                    }
-                  },
                 ),
                 IconButton(
                   tooltip: localization.profile,
@@ -549,15 +503,19 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               Icon(Icons.auto_awesome,
                   size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
-              Text(
-                '$greeting • ${l10n.aiDailyBriefing}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: theme.colorScheme.primary,
+              Expanded(
+                child: Text(
+                  '$greeting • ${l10n.aiDailyBriefing}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -578,7 +536,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           const SizedBox(height: 8),
           Text(
             totalCount == 0
-                ? l10n.briefingEmptyText
+                ? l10n.briefingEmptyHint
                 : l10n.briefingSummaryText(totalCount, completedCount),
             style: const TextStyle(fontSize: 13, height: 1.4),
           ),

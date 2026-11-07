@@ -300,6 +300,7 @@ class AppLocalizations {
   String get briefingMorning => _s('briefingMorning');
   String get briefingEvening => _s('briefingEvening');
   String get briefingEmptyText => _s('briefingEmptyText');
+  String get briefingEmptyHint => _s('briefingEmptyHint');
   String get taskDueNowText => _s('taskDueNowText');
   String get quickClip30MinLabel => _s('quickClip30MinLabel');
   String get quickClip30MinText => _s('quickClip30MinText');
@@ -467,6 +468,10 @@ class AppLocalizations {
   String get milestoneTitleLabel => _s('milestoneTitleLabel');
   String get milestonesTitle => _s('milestonesTitle');
   String get moreTitle => _s('moreTitle');
+  String get moreSectionMoney => _s('moreSectionMoney');
+  String get moreSectionFocus => _s('moreSectionFocus');
+  String get moreSectionInsights => _s('moreSectionInsights');
+  String get moreSectionPlanning => _s('moreSectionPlanning');
   String get analyticsTitle => _s('analyticsTitle');
   String get analyticsTimeRange => _s('analyticsTimeRange');
   String get analyticsCumulative => _s('analyticsCumulative');

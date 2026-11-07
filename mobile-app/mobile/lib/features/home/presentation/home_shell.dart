@@ -1,4 +1,3 @@
-import 'package:lifestyle_mobile/features/focus_shield/routine_wizard_screen.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,13 +84,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
     ];
 
     return Scaffold(
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: FloatingActionButton.small(
-          heroTag: 'daily-routines',
-          tooltip: 'Daily routines',
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => const RoutineWizardScreen())),
-          child: const Icon(Icons.wb_twilight)),
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

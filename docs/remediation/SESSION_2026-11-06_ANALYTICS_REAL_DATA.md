@@ -172,8 +172,27 @@ Still outstanding after erasure:
   `GET /health/ready` returned `{"status":"ok"}` — live PostgreSQL
   (as `lifestyle_app`) and Redis connectivity from Railway.
   The `runtime-role-rehearsal` branch was deleted by the owner on
-  2026-11-07. Remaining: functional checks (login, the 2 preserved
-  subscriptions, real-number analytics) and physical-device testing.
+  2026-11-07.
+- Functional API check PASSED — 2026-11-07 (owner-operated from a
+  local PowerShell session; no credentials or tokens shared in
+  chat). The owner's first login attempts failed with 401 because
+  the owning account's password was not the remembered one, and the
+  self-service `POST /api/v1/auth/forgot-password` returned 503
+  `SERVICE_UNAVAILABLE` on this deployment (reset-request admission
+  unavailable), so the owner reset that account's `password_hash`
+  directly in Neon with a pgcrypto bcrypt hash (`crypt(...,
+  gen_salt('bf', 12))`, compatible with the app's bcrypt verifier)
+  and deleted the SQL history entry. Login then succeeded;
+  `GET /api/v1/money/subscriptions` returned both preserved
+  subscriptions intact (one shown in detail: active, monthly,
+  `categoryId: null` post-erasure detach, next billing projected
+  2026-11-16, `reminderDaysBefore: 2`); `GET
+  /api/v1/analytics?days=30` returned real account-scoped
+  aggregates for `Africa/Cairo` with honest `null` unavailable
+  metrics (the owning account holds 0 tasks, so zero task counters
+  are genuine; the 16 preserved tasks belong to other, mostly
+  throwaway preview-era accounts). API-level functional checks are
+  therefore complete; what remains is on-device verification.
 - Physical-device and live-Gemini verification remain outstanding;
   release verdict is still NO-GO for the mobile release.
 

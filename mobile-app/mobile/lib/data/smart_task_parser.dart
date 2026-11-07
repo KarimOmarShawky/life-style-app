@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../config/app_config.dart';
+
+import 'package:flutter/foundation.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 
 class ParsedTaskResult {
   const ParsedTaskResult({
@@ -25,13 +26,19 @@ class ParsedTaskResult {
 class SmartTaskParser {
   SmartTaskParser._();
 
-  /// Attempts to parse using Google Gemini AI for ultra-accurate natural language understanding.
-  /// Seamlessly falls back to local heuristic parser if offline or if any error/timeout occurs.
+  /// Test hook replacing the AI reply provider. Production code leaves this
+  /// null and goes through [AiService] (the backend AI proxy).
+  @visibleForTesting
+  static Future<String> Function(String prompt)? replyProviderForTesting;
+
+  /// Attempts to parse using the AI assistant via the backend proxy for
+  /// accurate natural-language understanding. Seamlessly falls back to the
+  /// local heuristic parser when the assistant is unavailable, paused, or
+  /// returns something that is not the requested JSON object.
   static Future<ParsedTaskResult> parseAsync(
     String rawInput, {
     DateTime? now,
-    Duration timeout = const Duration(seconds: 4),
-    String? apiKey,
+    Duration timeout = const Duration(seconds: 10),
   }) async {
     final current = now ?? DateTime.now();
     final trimmed = rawInput.trim();
@@ -39,100 +46,86 @@ class SmartTaskParser {
       return const ParsedTaskResult(title: '');
     }
 
-    final key = (apiKey ?? AppConfig.geminiApiKey).trim();
-    if (key.isNotEmpty) {
-      try {
-        final nowFormatted =
-            '${current.year}-${current.month.toString().padLeft(2, '0')}-${current.day.toString().padLeft(2, '0')} ${current.hour.toString().padLeft(2, '0')}:${current.minute.toString().padLeft(2, '0')}';
+    try {
+      final nowFormatted =
+          '${current.year}-${current.month.toString().padLeft(2, '0')}-${current.day.toString().padLeft(2, '0')} ${current.hour.toString().padLeft(2, '0')}:${current.minute.toString().padLeft(2, '0')}';
 
-        final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
-        );
-
-        final prompt = '''
+      final prompt = '''
 Current datetime is $nowFormatted.
 Extract task information from the user sentence in Arabic or English: "$trimmed".
-Return a JSON object with:
+Reply with ONLY a JSON object (no markdown fences, no explanation) with:
 "title": (string, clean task title without date/time triggers),
 "dueDate": (string YYYY-MM-DD or null),
 "dueTime": (string HH:mm in 24-hour format or null),
 "hasTime": (boolean, true if explicit or relative time is mentioned, false otherwise).
 ''';
 
-        final response = await http
-            .post(
-              url,
-              headers: {
-                'Content-Type': 'application/json',
-                'X-goog-api-key': key,
-              },
-              body: jsonEncode({
-                'generationConfig': {
-                  'responseMimeType': 'application/json',
-                  'temperature': 0.1,
-                },
-                'contents': [
-                  {
-                    'parts': [
-                      {'text': prompt}
-                    ]
-                  }
-                ]
-              }),
-            )
-            .timeout(timeout);
-
-        if (response.statusCode == 200) {
-          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-          final candidates = decoded['candidates'] as List?;
-          if (candidates != null && candidates.isNotEmpty) {
-            final content = candidates[0]['content'] as Map<String, dynamic>?;
-            final parts = content?['parts'] as List?;
-            if (parts != null && parts.isNotEmpty) {
-              final jsonText = parts[0]['text'] as String?;
-              if (jsonText != null && jsonText.isNotEmpty) {
-                final parsedJson =
-                    jsonDecode(jsonText.trim()) as Map<String, dynamic>;
-                final title = (parsedJson['title'] as String?)?.trim();
-                final dueDate = (parsedJson['dueDate'] as String?)?.trim();
-                final dueTime = (parsedJson['dueTime'] as String?)?.trim();
-                final hasTime = parsedJson['hasTime'] == true;
-
-                DateTime? scheduled;
-                if (dueDate != null && dueDate.isNotEmpty) {
-                  final dateParts = dueDate.split('-');
-                  if (dateParts.length == 3) {
-                    final y = int.tryParse(dateParts[0]) ?? current.year;
-                    final m = int.tryParse(dateParts[1]) ?? current.month;
-                    final d = int.tryParse(dateParts[2]) ?? current.day;
-                    int hour = 9;
-                    int minute = 0;
-                    if (hasTime && dueTime != null && dueTime.contains(':')) {
-                      final timeParts = dueTime.split(':');
-                      hour = int.tryParse(timeParts[0]) ?? 9;
-                      minute = int.tryParse(timeParts[1]) ?? 0;
-                    }
-                    scheduled = DateTime(y, m, d, hour, minute);
-                  }
-                }
-
-                return ParsedTaskResult(
-                  title: (title != null && title.isNotEmpty) ? title : trimmed,
-                  scheduledDateTime: scheduled,
-                  dueDate: dueDate,
-                  dueTime: dueTime,
-                  hasTime: hasTime,
-                );
-              }
-            }
-          }
-        }
-      } catch (_) {
-        // Fall through to local offline parser
-      }
+      final provider = replyProviderForTesting;
+      final reply = provider != null
+          ? await provider(prompt)
+          : await AiService.instance.sendMessage(
+              conversationHistory: const [],
+              newMessage: prompt,
+              languageName: 'English',
+              timeout: timeout,
+            );
+      final parsed = _fromAiJson(reply, trimmed, current);
+      if (parsed != null) return parsed;
+    } catch (_) {
+      // Fall through to local offline parser
     }
 
     return parse(trimmed, current);
+  }
+
+  /// Extracts the first JSON object from an AI reply and maps it to a
+  /// [ParsedTaskResult]. Returns null when the reply is not usable JSON
+  /// (including the assistant's localized fallback texts).
+  static ParsedTaskResult? _fromAiJson(
+    String reply,
+    String fallbackTitle,
+    DateTime current,
+  ) {
+    final start = reply.indexOf('{');
+    final end = reply.lastIndexOf('}');
+    if (start < 0 || end <= start) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(reply.substring(start, end + 1));
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map<String, dynamic>) return null;
+    final title = (decoded['title'] as String?)?.trim();
+    final dueDate = (decoded['dueDate'] as String?)?.trim();
+    final dueTime = (decoded['dueTime'] as String?)?.trim();
+    final hasTime = decoded['hasTime'] == true;
+
+    DateTime? scheduled;
+    if (dueDate != null && dueDate.isNotEmpty) {
+      final dateParts = dueDate.split('-');
+      if (dateParts.length == 3) {
+        final y = int.tryParse(dateParts[0]) ?? current.year;
+        final m = int.tryParse(dateParts[1]) ?? current.month;
+        final d = int.tryParse(dateParts[2]) ?? current.day;
+        var hour = 9;
+        var minute = 0;
+        if (hasTime && dueTime != null && dueTime.contains(':')) {
+          final timeParts = dueTime.split(':');
+          hour = int.tryParse(timeParts[0]) ?? 9;
+          minute = int.tryParse(timeParts[1]) ?? 0;
+        }
+        scheduled = DateTime(y, m, d, hour, minute);
+      }
+    }
+
+    return ParsedTaskResult(
+      title: (title != null && title.isNotEmpty) ? title : fallbackTitle,
+      scheduledDateTime: scheduled,
+      dueDate: dueDate,
+      dueTime: dueTime,
+      hasTime: hasTime,
+    );
   }
 
   /// Parses natural language input (Arabic or English) and extracts clean title, date, and time.

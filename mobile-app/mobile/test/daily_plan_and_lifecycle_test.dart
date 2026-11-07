@@ -8,6 +8,7 @@ import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/session_tokens.dart';
 import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_transport.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/more/data/daily_plan_models.dart';
 
@@ -17,6 +18,42 @@ SessionTokens _tokens() => SessionTokens(
       refreshToken: 'refresh-token',
       refreshTokenExpiresAt: DateTime.utc(2026, 11, 12, 12),
     );
+
+/// Offline AI transport double for the proxy circuit-breaker tests.
+class _RecordingTransport implements AiTransport {
+  _RecordingTransport({this.reply, this.error});
+
+  final String? reply;
+  final AiTransportException? error;
+  int calls = 0;
+
+  @override
+  Future<String> chat({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    required AiReplyMode mode,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    calls++;
+    final failure = error;
+    if (failure != null) throw failure;
+    return reply!;
+  }
+
+  @override
+  Stream<String> chatStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    calls++;
+    final failure = error;
+    if (failure != null) throw failure;
+    yield reply!;
+  }
+}
 
 class _MemoryTokenStore implements TokenStore {
   _MemoryTokenStore(this.tokens);
@@ -43,90 +80,51 @@ void main() {
     FakeSecureStorage().install();
   });
 
-  group('AiService BYOK lifecycle & circuit breaker', () {
-    setUp(() async {
-      await AiService.instance.setUserApiKey(null);
-      AiService.instance.resetFailureCount();
-    });
+  group('AiService proxy circuit breaker', () {
+    test('returns the backend reply without any on-device key', () async {
+      final transport = _RecordingTransport(reply: 'Focused plan ready.');
+      final service = AiService.forTesting(transport: transport);
 
-    test('stores, uses, and clears user BYOK key with X-goog-api-key header',
-        () async {
-      expect(await AiService.instance.hasUserApiKey(), isFalse);
-      await AiService.instance.setUserApiKey('user-byok-key-123');
-      expect(await AiService.instance.hasUserApiKey(), isTrue);
-      expect(
-          await AiService.instance.getEffectiveApiKey(), 'user-byok-key-123');
-
-      String? capturedHeader;
-      final mockClient = MockClient((request) async {
-        capturedHeader = request.headers['X-goog-api-key'] ??
-            request.headers['x-goog-api-key'];
-        expect(request.url.queryParameters.containsKey('key'), isFalse);
-        return http.Response(
-          jsonEncode(<String, dynamic>{
-            'candidates': <Map<String, dynamic>>[
-              <String, dynamic>{
-                'content': <String, dynamic>{
-                  'parts': <Map<String, dynamic>>[
-                    <String, dynamic>{'text': 'Focused plan ready.'},
-                  ],
-                },
-              },
-            ],
-          }),
-          200,
-          headers: <String, String>{'content-type': 'application/json'},
-        );
-      });
-
-      final reply = await AiService.instance.sendMessage(
+      final reply = await service.sendMessage(
         conversationHistory: const <ChatMessage>[],
         newMessage: 'Plan my day',
         languageName: 'English',
-        httpClient: mockClient,
       );
 
       expect(reply, 'Focused plan ready.');
-      expect(capturedHeader, 'user-byok-key-123');
-
-      await AiService.instance.setUserApiKey(null);
-      expect(await AiService.instance.hasUserApiKey(), isFalse);
+      expect(transport.calls, 1);
+      expect(service.isPaused, isFalse);
     });
 
-    test(
-        'pauses requests after 3 consecutive provider errors until key is updated',
+    test('pauses after 3 consecutive failures until explicitly reset',
         () async {
-      await AiService.instance.setUserApiKey('bad-key');
-      var calls = 0;
-      final failingClient = MockClient((_) async {
-        calls++;
-        return http.Response('{"error":"quota"}', 429);
-      });
+      final transport = _RecordingTransport(
+        error: const AiTransportException('quota_exceeded'),
+      );
+      final service = AiService.forTesting(transport: transport);
 
       for (var i = 0; i < AiService.maxConsecutiveFailures; i++) {
-        await AiService.instance.sendMessage(
+        final reply = await service.sendMessage(
           conversationHistory: const <ChatMessage>[],
           newMessage: 'Ping',
           languageName: 'English',
-          httpClient: failingClient,
         );
+        expect(reply, contains('usage limit'));
       }
-      expect(AiService.instance.isKeyPaused, isTrue);
-      expect(calls, 3);
+      expect(service.isPaused, isTrue);
+      expect(transport.calls, 3);
 
-      // 4th call is short-circuited without hitting network
-      final pausedReply = await AiService.instance.sendMessage(
+      // The 4th call is short-circuited without touching the transport.
+      final pausedReply = await service.sendMessage(
         conversationHistory: const <ChatMessage>[],
         newMessage: 'Ping again',
         languageName: 'English',
-        httpClient: failingClient,
       );
       expect(pausedReply, contains('paused'));
-      expect(calls, 3);
+      expect(transport.calls, 3);
 
-      // Updating the key resets the circuit breaker
-      await AiService.instance.setUserApiKey('fresh-key');
-      expect(AiService.instance.isKeyPaused, isFalse);
+      service.resetFailureCount();
+      expect(service.isPaused, isFalse);
     });
   });
 

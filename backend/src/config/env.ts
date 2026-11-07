@@ -79,7 +79,22 @@ const baseEnvSchema = z.object({
   EMAIL_FROM: z.string().email().default('no-reply@lifestyle.app'),
 
   // Push Notifications (FCM credentials JSON, optional in Phase P1)
-  FCM_CREDENTIALS: z.string().optional()
+  FCM_CREDENTIALS: z.string().optional(),
+
+  // AI assistant proxy (server-side Gemini). The central key lives only in
+  // the deployment environment (e.g. Railway), never in the mobile app.
+  // AI stays off unless AI_ENABLED is explicitly 'true' AND a key is set;
+  // the /ai endpoints then fail closed with 503 instead of calling out.
+  GEMINI_API_KEY: z.string().optional().default(''),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
+  AI_ENABLED: z
+    .string()
+    .transform((val) => val === 'true' || val === '1')
+    .default(false),
+  // Per-user chat quotas enforced through the shared rate limiter.
+  AI_USER_MINUTE_LIMIT: z.coerce.number().int().positive().default(10),
+  AI_USER_DAILY_LIMIT: z.coerce.number().int().positive().default(200),
+  AI_UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(20000)
 });
 
 const envSchema = baseEnvSchema.superRefine((env, context) => {

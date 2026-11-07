@@ -90,7 +90,7 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
     setState(() => _generating = true);
     try {
       final ai = AiService.instance;
-      if ((await ai.getEffectiveApiKey()).isEmpty || ai.isKeyPaused) {
+      if (ai.isPaused) {
         if (mounted) {
           setState(() => _coaching = metrics.offlineSummary());
         }
@@ -104,7 +104,7 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
                 content: SingleChildScrollView(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Text(
-                      'This request sends only counts, rates, focus minutes and average clarity. No task titles, notes, messages, sender names or package names. Consent is requested again for every request. Your encrypted BYOK key and existing circuit breaker are used.'),
+                      'This request sends only counts, rates, focus minutes and average clarity. No task titles, notes, messages, sender names or package names. Consent is requested again for every request. The request runs through the LifeStyle server; no personal API key is needed.'),
                   SelectableText(const JsonEncoder.withIndent('  ')
                       .convert(metrics.aggregates())),
                 ])),

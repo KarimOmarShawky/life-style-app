@@ -206,7 +206,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
         } catch (_) {
           /* Sign-out must still clear credentials if native cleanup fails. */
         }
-        // Also clear account-specific focus data and the BYOK Gemini key.
+        // Also clear account-specific focus data. The AI assistant keeps no
+        // per-account key on the device (server proxy); only its failure
+        // circuit breaker is reset for the next session.
         try {
           if (account != null) await SecureDetoxStore(account).clear();
         } finally {
@@ -216,7 +218,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
               Error.throwWithStackTrace(cleanupError!, cleanupStack!);
             }
           } finally {
-            await ref.read(signOutAiServiceProvider).setUserApiKey(null);
+            ref.read(signOutAiServiceProvider).resetFailureCount();
           }
         }
       }

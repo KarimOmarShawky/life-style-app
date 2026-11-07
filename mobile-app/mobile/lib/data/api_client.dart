@@ -38,17 +38,20 @@ class ApiClient {
     required TokenStore tokenStore,
     http.Client? httpClient,
     http.Client Function()? archiveClientFactory,
+    http.Client Function()? eventStreamClientFactory,
   })  : _baseUri = baseUri.replace(
           path: baseUri.path.endsWith('/') ? baseUri.path : '${baseUri.path}/',
         ),
         _tokenStore = tokenStore,
         _httpClient = httpClient ?? http.Client(),
-        _archiveClientFactory = archiveClientFactory ?? http.Client.new;
+        _archiveClientFactory = archiveClientFactory ?? http.Client.new,
+        _eventStreamClientFactory = eventStreamClientFactory ?? http.Client.new;
 
   final Uri _baseUri;
   final TokenStore _tokenStore;
   final http.Client _httpClient;
   final http.Client Function() _archiveClientFactory;
+  final http.Client Function() _eventStreamClientFactory;
   Future<void>? _refreshFlight;
 
   // Only this client's completed rotations prove a token belongs to the same
@@ -307,6 +310,127 @@ class ApiClient {
     } finally {
       deadline.cancel();
       close();
+    }
+  }
+
+  /// Authenticated Server-Sent Events POST. Yields each event's joined
+  /// `data:` payload in arrival order. Refreshes the session exactly once
+  /// for an explicit pre-body TOKEN_EXPIRED (the request is only replayed
+  /// before any event has been delivered); a partially delivered stream is
+  /// never replayed. Errors use the same [ApiException] contract as
+  /// [request], with error bodies bounded to 64 KB.
+  Stream<String> postEventStream(
+    String path, {
+    Object? body,
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    final client = _eventStreamClientFactory();
+    final generation = _sessionGeneration;
+    try {
+      var tokens = await _tokenStore.read();
+      _checkSessionGeneration(generation);
+      for (var attempt = 0; attempt < 2; attempt++) {
+        _checkSessionGeneration(generation);
+        final currentTokens = tokens;
+        if (currentTokens == null) {
+          throw const ApiException(
+            statusCode: 401,
+            code: 'UNAUTHENTICATED',
+            message: 'Your session has expired. Please sign in again.',
+          );
+        }
+        final request = http.Request('POST', _uri(path, null))
+          ..followRedirects = false
+          ..maxRedirects = 0;
+        request.headers.addAll({
+          'accept': 'text/event-stream',
+          'content-type': 'application/json; charset=utf-8',
+          'authorization': 'Bearer ${currentTokens.accessToken}',
+        });
+        if (body != null) request.body = jsonEncode(body);
+        final streamed = await client.send(request).timeout(timeout);
+        _checkSessionGeneration(generation);
+        if (streamed.statusCode != 200) {
+          // Read the error envelope, bounded like the archive path.
+          final bytes = BytesBuilder(copy: false);
+          await for (final chunk in streamed.stream.timeout(timeout)) {
+            if (bytes.length + chunk.length > 64 * 1024) break;
+            bytes.add(chunk);
+          }
+          final errorResponse = http.Response.bytes(
+            bytes.takeBytes(),
+            streamed.statusCode,
+            headers: streamed.headers,
+          );
+          final exception = _exceptionFor(errorResponse) ??
+              ApiException(
+                statusCode: streamed.statusCode,
+                code: 'HTTP_ERROR',
+                message:
+                    'The request could not be completed (${streamed.statusCode}).',
+              );
+          if (exception.statusCode == 401 &&
+              exception.code == 'TOKEN_EXPIRED' &&
+              attempt == 0) {
+            await _refreshAfterExpiry(currentTokens, generation);
+            tokens = await _tokenStore.read();
+            _checkSessionGeneration(generation);
+            if (tokens == null ||
+                !_isRotationSuccessor(
+                    currentTokens.accessToken, tokens.accessToken)) {
+              throw _sessionChanged;
+            }
+            continue;
+          }
+          throw exception;
+        }
+        final contentType =
+            streamed.headers['content-type']?.toLowerCase() ?? '';
+        if (!contentType.startsWith('text/event-stream')) {
+          throw const ApiException(
+            statusCode: 502,
+            code: 'INVALID_API_RESPONSE',
+            message: 'The server returned an invalid response.',
+          );
+        }
+        final dataLines = <String>[];
+        await for (final line in streamed.stream
+            .timeout(timeout)
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())) {
+          _checkSessionGeneration(generation);
+          if (line.isEmpty) {
+            if (dataLines.isEmpty) continue;
+            final payload = dataLines.join('\n');
+            dataLines.clear();
+            yield payload;
+          } else if (line.startsWith('data:')) {
+            var data = line.substring(5);
+            if (data.startsWith(' ')) data = data.substring(1);
+            dataLines.add(data);
+          }
+        }
+        if (dataLines.isNotEmpty) {
+          yield dataLines.join('\n');
+        }
+        return;
+      }
+      throw const ApiException(
+        statusCode: 401,
+        code: 'INVALID_REFRESH_TOKEN',
+        message: 'Your session has expired. Please sign in again.',
+      );
+    } on ApiException {
+      rethrow;
+    } on Exception {
+      throw const ApiException(
+        statusCode: 0,
+        code: 'NETWORK_ERROR',
+        message:
+            'Could not connect to LifeStyle. Check your connection and try again.',
+      );
+    } finally {
+      client.close();
     }
   }
 

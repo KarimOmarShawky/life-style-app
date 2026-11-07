@@ -415,6 +415,134 @@ void main() {
       },
     );
   });
+
+  group('ApiClient postEventStream', () {
+    test('yields SSE data payloads in order with the session bearer', () async {
+      final store = MemoryTokenStore(_tokens('access-a', 'refresh-a'));
+      String? authorization;
+      final sse = _SseClient((request) async {
+        authorization = request.headers['authorization'];
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(
+            'data: {"text":"One "}\n\ndata: {"text":"two"}\n\ndata: [DONE]\n\n',
+          )),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      });
+      final client = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: store,
+        eventStreamClientFactory: () => sse,
+      );
+      addTearDown(client.close);
+
+      final payloads = await client
+          .postEventStream('ai/chat/stream', body: {'x': 1}).toList();
+      expect(payloads, ['{"text":"One "}', '{"text":"two"}', '[DONE]']);
+      expect(authorization, 'Bearer access-a');
+    });
+
+    test('refreshes once on a pre-body TOKEN_EXPIRED and retries', () async {
+      final store = MemoryTokenStore(_tokens('access-old', 'refresh-old'));
+      final refreshClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode(_tokens('access-new', 'refresh-new').toJson()),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      addTearDown(refreshClient.close);
+      final sse = _SseClient((request) async {
+        if (request.headers['authorization'] == 'Bearer access-old') {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'success': false,
+              'error': {'code': 'TOKEN_EXPIRED', 'message': 'Expired'},
+            }))),
+            401,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.StreamedResponse(
+          Stream.value(utf8.encode('data: {"text":"ok"}\n\n')),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      });
+      final client = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: store,
+        httpClient: refreshClient,
+        eventStreamClientFactory: () => sse,
+      );
+      addTearDown(client.close);
+
+      final payloads = await client.postEventStream('ai/chat/stream').toList();
+      expect(payloads, ['{"text":"ok"}']);
+      expect(sse.sends, 2);
+    });
+
+    test('surfaces quota errors without yielding events', () async {
+      final store = MemoryTokenStore(_tokens('access-a', 'refresh-a'));
+      final sse = _SseClient((request) async {
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(jsonEncode({
+            'success': false,
+            'error': {'code': 'RATE_LIMITED', 'message': 'Quota exceeded'},
+          }))),
+          429,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final client = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: store,
+        eventStreamClientFactory: () => sse,
+      );
+      addTearDown(client.close);
+
+      await expectLater(
+        client.postEventStream('ai/chat/stream').toList(),
+        throwsA(predicate((Object e) =>
+            e is ApiException &&
+            e.statusCode == 429 &&
+            e.code == 'RATE_LIMITED')),
+      );
+    });
+
+    test('requires a signed-in session', () async {
+      final store = MemoryTokenStore(null);
+      final client = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: store,
+        eventStreamClientFactory: () =>
+            _SseClient((_) async => throw StateError('must not be called')),
+      );
+      addTearDown(client.close);
+
+      await expectLater(
+        client.postEventStream('ai/chat/stream').toList(),
+        throwsA(predicate(
+            (Object e) => e is ApiException && e.code == 'UNAUTHENTICATED')),
+      );
+    });
+  });
+}
+
+/// Streaming endpoint double: serves canned SSE bytes per request.
+class _SseClient extends http.BaseClient {
+  _SseClient(this.handler);
+
+  final Future<http.StreamedResponse> Function(http.BaseRequest request)
+      handler;
+  int sends = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    sends++;
+    return handler(request);
+  }
 }
 
 class MemoryTokenStore implements TokenStore {

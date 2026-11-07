@@ -5,8 +5,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
-import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
-import 'package:lifestyle_mobile/features/ai/presentation/gemini_key_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/account_export_dialog.dart';
@@ -40,8 +38,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  bool _hasGeminiKey = false;
-  bool _geminiStorageUnavailable = false;
   bool _busyAction = false;
   ArchiveCancellation? _archiveCancel;
   String? _archiveUserId;
@@ -71,26 +67,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _archiveCancel = null;
       _archiveUserId = null;
       if (mounted) setState(() => _busyAction = false);
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshGeminiKeyStatus();
-  }
-
-  Future<void> _refreshGeminiKeyStatus() async {
-    try {
-      final hasKey = await AiService.instance.hasUserApiKey();
-      if (!mounted) return;
-      setState(() {
-        _hasGeminiKey = hasKey;
-        _geminiStorageUnavailable = false;
-      });
-    } on AiSecureStorageException {
-      if (!mounted) return;
-      setState(() => _geminiStorageUnavailable = true);
     }
   }
 
@@ -564,24 +540,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.key_outlined),
-            title: Text(isAr
-                ? 'مفتاح Gemini API الشخصي (BYOK)'
-                : 'Personal Gemini API Key (BYOK)'),
-            subtitle: Text(
-              _geminiStorageUnavailable
-                  ? localization.aiKeyStorageError
-                  : _hasGeminiKey
-                      ? (isAr
-                          ? 'مُعَدّ ومشفر على الجهاز'
-                          : 'Configured & encrypted on device')
-                      : localization.notSet,
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () async {
-              await showGeminiApiKeyDialog(context);
-              await _refreshGeminiKeyStatus();
-            },
+            leading: const Icon(Icons.auto_awesome),
+            title: Text(isAr ? 'مساعد الذكاء الاصطناعي' : 'AI Assistant'),
+            subtitle: Text(isAr
+                ? 'مُضمَّن مع حسابك ويعمل عبر خادم LifeStyle — لا حاجة لأي مفتاح'
+                : 'Included with your account and runs via the LifeStyle server — no key needed'),
           ),
           _ProfileRow(label: localization.accountStatus, value: statusLabel),
           const Divider(height: 24),
@@ -622,15 +585,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
               try {
                 await ref.read(authProvider.notifier).signOut();
-              } on AiSecureStorageException {
-                if (messenger.mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(content: Text(localization.aiKeyStorageError)),
-                  );
-                }
               } catch (_) {
                 // Logout and other local cleanup may fail independently.
                 // Do not claim that every credential was removed.

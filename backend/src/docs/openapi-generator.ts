@@ -1503,6 +1503,64 @@ paths:
         '401':
           description: Unauthenticated
 
+  /ai/chat:
+    post:
+      summary: AI Assistant Chat (Server Proxy)
+      security:
+        - BearerAuth: []
+      description: Relays the conversation to Gemini with the central server key; clients never hold a provider key. The system prompt, model and generation parameters are server-owned. Disabled (AI_ENABLED off or no key configured) returns 503 AI_DISABLED before any quota is consumed. Per-user minute and daily quotas apply (429 RATE_LIMITED). Prompts and replies are never logged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiChatRequest'
+      responses:
+        '200':
+          description: Model reply
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiChatResponse'
+        '400':
+          description: Invalid messages payload
+        '401':
+          description: Unauthenticated
+        '429':
+          description: Per-user AI quota exceeded
+        '502':
+          description: AI provider failure
+        '503':
+          description: AI disabled or provider busy
+
+  /ai/chat/stream:
+    post:
+      summary: AI Assistant Chat (Streaming)
+      security:
+        - BearerAuth: []
+      description: Same contract and quotas as /ai/chat, answered as text/event-stream. Each event payload is a JSON object with a text field; the stream ends with a [DONE] payload. Errors before the first byte use the standard error envelope; mid-stream failures end the stream with an error event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiChatRequest'
+      responses:
+        '200':
+          description: Server-sent event stream of reply chunks
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400':
+          description: Invalid messages payload
+        '401':
+          description: Unauthenticated
+        '429':
+          description: Per-user AI quota exceeded
+        '503':
+          description: AI disabled
+
   /search:
     get:
       summary: Global Search
@@ -3935,6 +3993,40 @@ components:
         - eventsToday
         - subscriptionsDueNext7Days
         - activeSubscriptions
+    AiChatRequest:
+      type: object
+      description: Conversation turns for the AI proxy. The last turn must be from the user. At most 21 turns, 4000 characters per turn, 24000 characters in total.
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, model]
+              text:
+                type: string
+            required:
+              - role
+              - text
+        language:
+          type: string
+          description: Preferred reply language name (letters and spaces only, at most 35 characters)
+        mode:
+          type: string
+          enum: [chat, brief]
+          default: chat
+          description: Server-owned generation profile; brief is the short daily-briefing profile
+      required:
+        - messages
+    AiChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+      required:
+        - reply
     AnalyticsSummary:
       type: object
       description: Range-based real analytics (no demo data). Nullable rates are unavailable, not zero.

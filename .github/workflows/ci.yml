@@ -245,8 +245,15 @@ jobs:
         with:
           cache-read-only: false
 
+      # The pilot roundtrip creates synthetic accounts/tasks, so it may run
+      # ONLY against the exact isolated pilot endpoint hard-coded in
+      # scripts/check-pilot-api.py (which additionally enforces an expiry).
+      # Any other explicit HTTPS validation URL (e.g. the owner's own
+      # production API for a debug device build) skips the roundtrip and
+      # only feeds the APK's API_BASE_URL dart-define below; the build step
+      # still validates the URL shape before building.
       - name: Approved temporary pilot public HTTPS and real API roundtrip (not device)
-        if: ${{ env.VALIDATION_API_BASE_URL != 'https://validation.invalid/api/v1' }}
+        if: ${{ env.VALIDATION_API_BASE_URL == 'https://8787-itafbygcp2juf4i455pef.e2b.app/api/v1' }}
         env:
           PILOT_API_BASE_URL: ${{ env.VALIDATION_API_BASE_URL }}
         run: python3 ../../scripts/check-pilot-api.py

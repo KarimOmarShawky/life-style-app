@@ -169,7 +169,7 @@ test('public X509 certificate parser computes SHA256 independently of SDK human 
 });
 
 
-test('blocked public pilot defaults offline and any explicit connected build requires exact-host HTTPS/API smoke before Flutter build', () => {
+test('blocked public pilot defaults offline; synthetic roundtrip runs only for its exact isolated endpoint, explicit URLs otherwise build without pilot writes', () => {
   const require = createRequire(new URL('../backend/package.json', import.meta.url));
   const ci = require('js-yaml').load(readFileSync('.github/workflows/ci.yml', 'utf8'));
   const job = ci.jobs['mobile-gate'];
@@ -185,7 +185,13 @@ test('blocked public pilot defaults offline and any explicit connected build req
   assert.equal(job.steps[probe].env.PILOT_API_BASE_URL, '${{ env.VALIDATION_API_BASE_URL }}');
   assert.equal(job.steps[probe]['continue-on-error'], undefined);
   assert.equal(job.steps[build].env?.VALIDATION_API_BASE_URL, undefined);
-  assert.match(job.steps[probe].if, /env.VALIDATION_API_BASE_URL != 'https:\/\/validation.invalid\/api\/v1'/);
+  // The roundtrip registers synthetic accounts and creates tasks, so it must
+  // never run against a real API: it is selected only for the exact isolated
+  // pilot endpoint the script itself approves. Any other explicit HTTPS URL
+  // (e.g. the owner's production API for a debug device build) skips the
+  // roundtrip entirely; the script still fails closed on every other host.
+  assert.match(job.steps[probe].if, /env\.VALIDATION_API_BASE_URL == 'https:\/\/8787-itafbygcp2juf4i455pef\.e2b\.app\/api\/v1'/);
+  assert.doesNotMatch(job.steps[probe].if, /!= 'https:\/\/validation\.invalid\/api\/v1'/);
   const source = readFileSync('scripts/check-pilot-api.py', 'utf8');
   assert.match(source, /url.netloc == '8787-itafbygcp2juf4i455pef.e2b.app'/);
   assert.match(source, /Temporary endpoint approval expired/);

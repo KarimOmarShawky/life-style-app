@@ -146,8 +146,17 @@ Still outstanding after erasure:
   startup in current code requires the financial-retirement marker and
   a restricted runtime role (`lifestyle_app`), which this adapted
   row-erasure deliberately did not create (the observed database is
-  owner-managed with no such role). A separate deployment/role plan
-  is required before the API can run against the erased database.
+  owner-managed with no such role). Prepared 2026-11-07 (not yet run):
+  `drafts/neon-runtime-role-and-marker.sql` creates the role (password
+  set only by the owner, never in files/chat), the empty wallet tables
+  the guard requires to exist, and the marker; grants live-table CRUD
+  and locks retired tables to SELECT/DELETE + token-revocation for the
+  runtime and PUBLIC; and self-verifies against the exact guard logic
+  before COMMIT. Rehearsed rollback-only on real PostgreSQL in CI via
+  `backend/tests/integration/neon-runtime-role-draft.test.ts`. It must
+  still be rehearsed on a fresh Neon branch and run once on production
+  (owner-operated), after which Railway's DATABASE_URL switches to
+  `lifestyle_app` and a redeploy can be verified.
 - Physical-device and live-Gemini verification remain outstanding;
   release verdict is still NO-GO for the mobile release.
 

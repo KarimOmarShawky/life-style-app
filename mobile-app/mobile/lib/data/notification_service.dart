@@ -1,9 +1,7 @@
 import 'dart:developer' as developer;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -24,11 +22,6 @@ class NotificationService {
   static const String alarmChannelDesc =
       'Continuous loud alarm for tasks, appointments, and schedules';
 
-  static const String quickChannelId = 'lifestyle_quick_input_channel';
-  static const String quickChannelName = 'LifeStyle Quick LockScreen Input';
-  static const String quickChannelDesc =
-      'Lockscreen and shade quick voice/text appointment setter';
-
   static const String normalChannelId = 'lifestyle_general_channel';
   static const String normalChannelName = 'LifeStyle Reminders';
   static const String normalChannelDesc =
@@ -38,10 +31,6 @@ class NotificationService {
       'lifestyle_calendar_reminders_channel';
   static const String calendarChannelName = 'LifeStyle Calendar Reminders';
   static const String calendarChannelDesc = 'Reminders before calendar events';
-
-  static const int pinnedNotificationId = 777;
-
-  final ValueNotifier<bool> quickVoiceTrigger = ValueNotifier(false);
 
   bool _isInitialized = false;
 
@@ -71,28 +60,6 @@ class NotificationService {
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
 
-      // The pinned notification's voice action only opens the app (via the
-      // native VoiceActionReceiver/MainActivity). MainActivity then asks us
-      // to open the in-app voice quick-add; speech recognition itself runs
-      // in the OS recognizer UI inside the app. No background recording.
-      _nativeChannel.setMethodCallHandler((call) async {
-        if (call.method == 'quickVoiceRequested') {
-          quickVoiceTrigger.value = true;
-          try {
-            await _nativeChannel.invokeMethod('claimQuickVoiceRequest');
-          } catch (_) {}
-        }
-      });
-      // Cold start: the native push may have fired before this handler was
-      // registered, so claim any pending request explicitly.
-      try {
-        final pendingQuickVoice =
-            await _nativeChannel.invokeMethod<bool>('claimQuickVoiceRequest');
-        if (pendingQuickVoice == true) {
-          quickVoiceTrigger.value = true;
-        }
-      } catch (_) {}
-
       final androidPlugin =
           _notificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
@@ -111,19 +78,7 @@ class NotificationService {
           ),
         );
 
-        // 2. LockScreen Quick Input Channel
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            quickChannelId,
-            quickChannelName,
-            description: quickChannelDesc,
-            importance: Importance.low,
-            playSound: false,
-            enableVibration: false,
-          ),
-        );
-
-        // 3. Normal Notifications Channel
+        // 2. Normal Notifications Channel
         await androidPlugin.createNotificationChannel(
           const AndroidNotificationChannel(
             normalChannelId,
@@ -135,7 +90,7 @@ class NotificationService {
           ),
         );
 
-        // 4. Calendar reminders (scheduled when an event or its reminders are saved)
+        // 3. Calendar reminders (scheduled when an event or its reminders are saved)
         await androidPlugin.createNotificationChannel(
           const AndroidNotificationChannel(
             calendarChannelId,
@@ -152,9 +107,6 @@ class NotificationService {
       }
 
       _isInitialized = true;
-
-      // Show the persistent quick input widget in lockscreen and shade
-      await showPinnedQuickInputNotification();
     } catch (e, stack) {
       developer.log(
         'Failed to initialize NotificationService: $e',
@@ -183,13 +135,6 @@ class NotificationService {
       name: 'NotificationService',
     );
 
-    // Quick Voice trigger from pinned notification
-    if (response.payload == 'quick_voice' ||
-        response.actionId == 'quick_voice_action') {
-      quickVoiceTrigger.value = true;
-      return;
-    }
-
     // 1. Dismiss Alarm
     if (response.actionId == 'dismiss_alarm') {
       if (response.id != null) {
@@ -214,35 +159,6 @@ class NotificationService {
         );
       }
       return;
-    }
-
-    // 3. Quick Input from LockScreen or Notification Shade
-    if (response.actionId == 'quick_voice_action' && response.input != null) {
-      final text = response.input!.trim();
-      if (text.isEmpty) return;
-
-      final parsed = await SmartTaskParser.parseAsync(text);
-      DateTime? scheduledTime = parsed.scheduledDateTime;
-
-      // Default to 1 hour from now if time was not parsed
-      scheduledTime ??= DateTime.now().add(const Duration(hours: 1));
-
-      final alarmId = parsed.title.hashCode;
-      await scheduleAlarm(
-        id: alarmId,
-        title:
-            _isDeviceArabic ? 'موعد: ${parsed.title}' : 'Task: ${parsed.title}',
-        body: _isDeviceArabic
-            ? 'حان الوقت لإنجاز مهمتك المجدولة'
-            : 'Time for your scheduled task',
-        scheduledDateTime: scheduledTime,
-      );
-
-      // Update the pinned notification to confirm
-      await showPinnedQuickInputNotification(
-        lastAddedTitle: parsed.title,
-        lastAddedTime: '${parsed.dueDate ?? ""} ${parsed.dueTime ?? ""}'.trim(),
-      );
     }
   }
 
@@ -269,21 +185,6 @@ class NotificationService {
           payload: payload);
     } catch (e) {
       developer.log('showInstantNotification error: $e');
-    }
-  }
-
-  static const MethodChannel _nativeChannel =
-      MethodChannel('com.example.lifestyle_mobile/native_voice');
-
-  /// Pinned Quick Input in lockscreen and notification shade
-  Future<void> showPinnedQuickInputNotification({
-    String? lastAddedTitle,
-    String? lastAddedTime,
-  }) async {
-    try {
-      await _nativeChannel.invokeMethod('refreshPinnedNotification');
-    } catch (e) {
-      developer.log('refreshPinnedNotification error: $e');
     }
   }
 

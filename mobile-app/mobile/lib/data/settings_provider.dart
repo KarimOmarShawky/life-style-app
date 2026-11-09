@@ -8,27 +8,18 @@ class SettingsState {
   const SettingsState({
     this.themeMode = ThemeMode.system,
     this.locale = const Locale('ar'),
-    this.speechLanguageCode = 'auto',
   });
 
   final ThemeMode themeMode;
   final Locale locale;
 
-  /// Speech-recognition language: 'auto' follows the device language, any
-  /// other value is a supported language code. Deliberately independent of
-  /// the UI [locale]: people often speak a different language than the one
-  /// their interface is set to.
-  final String speechLanguageCode;
-
   SettingsState copyWith({
     ThemeMode? themeMode,
     Locale? locale,
-    String? speechLanguageCode,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
       locale: locale ?? this.locale,
-      speechLanguageCode: speechLanguageCode ?? this.speechLanguageCode,
     );
   }
 }
@@ -40,7 +31,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   static const _themeKey = 'app_theme_mode';
   static const _localeKey = 'app_locale';
-  static const _speechKey = 'speech_language';
 
   /// Android's SharedPreferences store every Flutter key under a `flutter.`
   /// prefix, so the native side reads `flutter.lifestyle.api_base_url`.
@@ -50,7 +40,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final prefs = await SharedPreferences.getInstance();
     final themeStr = prefs.getString(_themeKey);
     final localeStr = prefs.getString(_localeKey);
-    final speechStr = prefs.getString(_speechKey);
 
     ThemeMode mode = ThemeMode.system;
     if (themeStr == 'dark') mode = ThemeMode.dark;
@@ -74,11 +63,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = SettingsState(
       themeMode: mode,
       locale: loc,
-      speechLanguageCode: (speechStr != null &&
-              (speechStr == 'auto' ||
-                  AppLocalizations.isLocaleSupported(Locale(speechStr))))
-          ? speechStr
-          : 'auto',
     );
   }
 
@@ -98,15 +82,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(locale: loc);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localeKey, loc.languageCode);
-  }
-
-  Future<void> setSpeechLanguage(String code) async {
-    if (code != 'auto' && !AppLocalizations.isLocaleSupported(Locale(code))) {
-      return;
-    }
-    state = state.copyWith(speechLanguageCode: code);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_speechKey, code);
   }
 }
 

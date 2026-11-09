@@ -30,8 +30,7 @@ class RetiredWalletCleanup {
 
   static Future<void> _cleanupAndroid() async {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      const channel =
-          MethodChannel('com.example.lifestyle_mobile/native_voice');
+      const channel = MethodChannel('com.example.lifestyle_mobile/native');
       await channel.invokeMethod<void>('cleanupRetiredWallet');
     }
   }

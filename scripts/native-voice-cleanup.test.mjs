@@ -1,67 +1,65 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 const base = 'mobile-app/mobile/android/app/src/main/';
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
-const native = (name) => read(`${base}kotlin/com/example/lifestyle_mobile/${name}.kt`);
-const main = native('MainActivity'), service = native('VoiceRecordingService'), receiver = native('VoiceActionReceiver');
+const nativePath = (name) => `${base}kotlin/com/example/lifestyle_mobile/${name}.kt`;
+const main = read(nativePath('MainActivity'));
 
-test('dead native Gemini credentials and HTTP/inline-audio branches are removed (source only)', () => {
-  for (const source of [main, service]) {
-    assert.ok(!/readGeminiApiKey|GEMINI_URL|HttpURLConnection|OutputStreamWriter|inlineData|X-goog-api-key|generativelanguage\.googleapis/.test(source));
+// The voice feature (in-app OS speech recognition, pinned quick-voice
+// notification, speech-language setting) was removed entirely by owner
+// decision after on-device testing. These tests pin the removal so the
+// feature — and especially any recording capability — cannot silently
+// come back.
+
+test('native voice components are deleted, not merely disabled', () => {
+  assert.ok(!existsSync(new URL(`../${nativePath('VoiceRecordingService')}`, import.meta.url)));
+  assert.ok(!existsSync(new URL(`../${nativePath('VoiceActionReceiver')}`, import.meta.url)));
+  const manifest = read(`${base}AndroidManifest.xml`);
+  assert.ok(!manifest.includes('VoiceRecordingService') && !manifest.includes('VoiceActionReceiver'));
+  assert.ok(!manifest.includes('RECORD_VOICE'));
+});
+
+test('MainActivity hosts no speech recognition or pinned quick-voice notification', () => {
+  for (const marker of ['startVoiceRecognition', 'RecognizerIntent', 'VOICE_BUSY', 'VOICE_CANCELLED',
+    'showNativePinnedNotification', 'quickVoice', 'EXTRA_QUICK_VOICE', 'PENDING_VOICE']) {
+    assert.ok(!main.includes(marker), `unexpected voice remnant: ${marker}`);
   }
+  // The one-time cleanup of the legacy pinned notification stays until it
+  // has had a release cycle to clear stale notifications on devices.
+  assert.ok(main.includes('LEGACY_QUICK_VOICE_NOTIFICATION_ID = 777'));
 });
 
-test('native voice entry points no longer record private temporary audio or encode files', () => {
-  for (const source of [main, service]) {
-    assert.ok(!/MediaRecorder|readBytes\(|Base64|dialog_voice\.m4a|lockscreen_voice\.m4a|cacheDir/.test(source));
-  }
-});
-
-test('existing in-app speech channel and selected language are preserved, without recording fallback', () => {
-  assert.ok(main.includes('com.example.lifestyle_mobile/native_voice') && main.includes('"startVoiceRecognition" ->'));
-  assert.ok(main.includes('RecognizerIntent.ACTION_RECOGNIZE_SPEECH') && main.includes('RecognizerIntent.EXTRA_LANGUAGE, tag'));
-  assert.ok(main.includes('startRecognizerIntent(result)'));
-  assert.ok(!main.includes('startDirectMediaRecording') && !main.includes('stopAndTranscribeGemini'));
-});
-
-test('pending speech result has busy/cancel/dispose guards (source contract, not lifecycle execution)', () => {
-  for (const marker of ['"VOICE_BUSY"', '"VOICE_CANCELLED"', 'resultCode == Activity.RESULT_OK', 'val pending = pendingVoiceResult ?: return', 'pending.success(text)']) {
-    assert.ok(main.includes(marker));
-  }
-  assert.ok(main.includes('pendingVoiceResult = null'));
-});
-
-test('notification opens existing app rather than launching nonfunctional microphone service', () => {
-  assert.ok(receiver.includes('Intent(context, MainActivity::class.java)'));
-  assert.ok(!receiver.includes('startForegroundService') && !receiver.includes('VoiceRecordingService::class.java'));
-  assert.ok(main.includes('no automatic voice alarm') && !main.includes('set alarm instantly'));
-});
-
-test('private legacy service is a non-recording compatibility entry, not a fake alarm success', () => {
-  assert.ok(service.includes('CHANNEL_ID = "lifestyle_quick_input_channel"') && service.includes('NOTIFICATION_ID = 777'));
-  assert.ok(service.includes('stopSelf()') && service.includes('START_NOT_STICKY'));
-  assert.ok(!/scheduleAlarm\(|syncTaskToBackend\(|vibrateSuccess\(|Thread\s*\{/.test(service));
-});
-
-test('unneeded app recording capabilities and automatic microphone prompt are removed', () => {
+test('no recording capability exists anywhere in the native app', () => {
   const manifest = read(`${base}AndroidManifest.xml`);
   assert.ok(!/RECORD_AUDIO|FOREGROUND_SERVICE_MICROPHONE|foregroundServiceType="microphone"/.test(manifest));
-  assert.ok(!main.includes('Manifest.permission.RECORD_AUDIO'));
-  assert.ok(manifest.includes('android:name=".VoiceRecordingService"') && manifest.includes('android:name=".VoiceActionReceiver"'));
+  assert.ok(!/MediaRecorder|RecognizerIntent|SpeechRecognizer/.test(main));
 });
 
-test('AUD-11: VoiceActionReceiver is not exported (own PendingIntents only)', () => {
-  const manifest = read(`${base}AndroidManifest.xml`);
-  const block = manifest.match(/<receiver\s+android:name="\.VoiceActionReceiver"[^>]*>/)?.[0];
-  assert.ok(block, 'VoiceActionReceiver receiver block found');
-  assert.match(block, /android:exported="false"/);
-});
-
-test('existing alarm receiver and unrelated shared channel consumers remain', () => {
+test('unrelated native features on the shared bridge remain', () => {
+  for (const marker of ['"cleanupRetiredWallet"', '"replaceSubscriptionReminders"',
+    '"removeSubscriptionReminder"', '"clearSubscriptionReminders"',
+    'accountArchiveBridge?.onActivityResult(', 'focusShieldBridge?.close()']) {
+    assert.ok(main.includes(marker), `missing surviving bridge marker: ${marker}`);
+  }
   assert.ok(read(`${base}AndroidManifest.xml`).includes('android:name=".AlarmReceiver"'));
-  assert.ok(native('AlarmReceiver').includes('class AlarmReceiver'));
-  for (const marker of ['"refreshPinnedNotification"', 'accountArchiveBridge?.onActivityResult(', 'focusShieldBridge?.close()']) assert.ok(main.includes(marker));
-  const dart = read('mobile-app/mobile/lib/features/tasks/presentation/tasks_screen.dart');
-  assert.ok(dart.includes("'startVoiceRecognition'") && dart.includes("'languageTag'"));
+  assert.ok(read(nativePath('AlarmReceiver')).includes('class AlarmReceiver'));
+  const retired = read('mobile-app/mobile/lib/data/retired_wallet_cleanup.dart');
+  const reminders = read('mobile-app/mobile/lib/features/money/data/subscription_reminders.dart');
+  assert.ok(retired.includes('com.example.lifestyle_mobile/native'));
+  assert.ok(reminders.includes('com.example.lifestyle_mobile/native'));
+});
+
+test('Dart side has no voice entry points left', () => {
+  for (const file of ['mobile-app/mobile/lib/features/tasks/presentation/tasks_screen.dart',
+    'mobile-app/mobile/lib/features/ai/presentation/ai_assistant_screen.dart',
+    'mobile-app/mobile/lib/data/notification_service.dart',
+    'mobile-app/mobile/lib/data/settings_provider.dart']) {
+    const source = read(file);
+    for (const marker of ['startVoiceRecognition', 'quickVoice', 'speechLanguage', 'native_voice',
+      'showPinnedQuickInputNotification']) {
+      assert.ok(!source.includes(marker), `${file} still references ${marker}`);
+    }
+  }
+  assert.ok(!existsSync(new URL('../mobile-app/mobile/lib/l10n/speech_language.dart', import.meta.url)));
 });

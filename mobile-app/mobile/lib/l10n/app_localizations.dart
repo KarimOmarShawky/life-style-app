@@ -156,8 +156,6 @@ class AppLocalizations {
   String get selectedCount => _s('selectedCount');
   String get aiAssistant => _s('aiAssistant');
   String get aiDailyBriefing => _s('aiDailyBriefing');
-  String get voiceMicPrompt => _s('voiceMicPrompt');
-  String get aiVoiceListening => _s('aiVoiceListening');
   String get aiSpeaking => _s('aiSpeaking');
   String get aiSpeakTooltip => _s('aiSpeakTooltip');
   String get searchPlaceholder => _s('searchPlaceholder');
@@ -240,9 +238,6 @@ class AppLocalizations {
   String get pickTime => _s('pickTime');
   String get noAlarm => _s('noAlarm');
   String get smartAdd => _s('smartAdd');
-  String get voiceLanguageTooltip => _s('voiceLanguageTooltip');
-  String get voiceLangAuto => _s('voiceLangAuto');
-  String get voiceRetry => _s('voiceRetry');
   String encourageAt(int dayOfYear) {
     const keys = <String>[
       'encourage1',
@@ -364,7 +359,6 @@ class AppLocalizations {
   String get searchFieldPlaceholder => _s('searchFieldPlaceholder');
   String get searchPromptEmpty => _s('searchPromptEmpty');
 
-  String get noSpeechDetected => _s('noSpeechDetected');
   String get aiErrorMessage => _s('aiErrorMessage');
   String get aiKeyStorageError => _s('aiKeyStorageError');
   String get aiEgressTitle => _s('aiEgressTitle');

@@ -41,7 +41,6 @@ const Map<String, String> frCatalog = {
   'selectedCount': 'sélectionné(s)',
   'aiAssistant': 'Assistant IA',
   'aiDailyBriefing': 'Briefing intelligent du jour',
-  'voiceMicPrompt': 'Je vous écoute, parlez maintenant...',
   'searchPlaceholder': 'Rechercher tâches et notes...',
   'userLevel': 'Niveau',
   'xpPoints': 'XP',
@@ -248,8 +247,6 @@ const Map<String, String> frCatalog = {
   'timer.pickSong': 'Choisir une chanson de votre appareil',
   'timer.clearSong': 'Retirer la chanson',
   'searchNoResultsFor': 'Aucun résultat correspondant à « {q} »',
-  'noSpeechDetected':
-      'Aucune parole détectée, veuillez réessayer en parlant clairement',
   'smsSyncTitle': 'Capture auto des SMS portefeuille',
   'smsSyncDesc':
       'Lit les SMS bancaires et portefeuille (InstaPay, Vodafone Cash...) et enregistre automatiquement les transactions.',
@@ -281,7 +278,6 @@ const Map<String, String> frCatalog = {
   'smsAddTrustedSender': 'Ajouter un expéditeur',
   'aiSpeakTooltip': 'Lire cette réponse à voix haute',
   'aiSpeaking': 'Lecture...',
-  'aiVoiceListening': 'Écoute...',
   'aiKeyStorageError':
       'Le stockage sécurisé de la clé est indisponible. La modification n’a pas pu être confirmée.',
   'aiErrorMessage':
@@ -654,9 +650,6 @@ const Map<String, String> frCatalog = {
   'weeklyUnavailableNote':
       'Les métriques indisponibles sont marquées Aucune donnée, jamais traitées comme zéro.',
   'weeklyLocalOnly': 'historique local uniquement',
-  'voiceLanguageTooltip': 'Langue de la voix',
-  'voiceLangAuto': 'Automatique (langue de l’appareil)',
-  'voiceRetry': 'Redis-le',
   'encourage1': 'De petits pas, chaque jour, changent tout.',
   'encourage2': 'Pas besoin d’une journée parfaite — juste le prochain pas.',
   'encourage3': 'Le progrès aime les débuts en douceur. Choisissez une chose.',

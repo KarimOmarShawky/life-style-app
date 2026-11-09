@@ -21,6 +21,8 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.lifestyle_mobile/native_voice"
     private val REQUEST_SPEECH = 202
     private var pendingVoiceResult: MethodChannel.Result? = null
+    private var voiceChannel: MethodChannel? = null
+    private var pendingQuickVoice = false
     private var voiceFallbackTag: String = "en-US"
 
     /**
@@ -38,7 +40,20 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         RetiredWalletCleanup.run(this)
+        pendingQuickVoice = intent?.getBooleanExtra(EXTRA_QUICK_VOICE, false) == true
         showNativePinnedNotification(this)
+    }
+
+    /// Asks Flutter to open the in-app voice quick-add. Speech recognition
+    /// itself stays in the OS recognizer UI inside the app; nothing is
+    /// recorded by LifeStyle in the background.
+    private fun flushQuickVoiceRequest() {
+        if (!pendingQuickVoice) return
+        val channel = voiceChannel ?: return
+        // The flag is cleared only when Dart claims the request, so a cold
+        // start (where this push may arrive before Dart registers its
+        // handler) can still pick it up deterministically.
+        channel.invokeMethod("quickVoiceRequested", null)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -47,7 +62,8 @@ class MainActivity : FlutterActivity() {
         accountArchiveBridge = AccountArchiveBridge(this, flutterEngine.dartExecutor.binaryMessenger)
 
         // Native Voice Channel
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        voiceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        voiceChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 // This method only erases old data; it cannot read or recreate it.
                 "cleanupRetiredWallet" -> {
@@ -90,6 +106,11 @@ class MainActivity : FlutterActivity() {
                     showNativePinnedNotification(this)
                     result.success(true)
                 }
+                "claimQuickVoiceRequest" -> {
+                    val pending = pendingQuickVoice
+                    pendingQuickVoice = false
+                    result.success(pending)
+                }
                 "startVoiceRecognition" -> {
                     if (pendingVoiceResult != null) {
                         result.error("VOICE_BUSY", "Speech input is already active", null)
@@ -104,6 +125,7 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        flushQuickVoiceRequest()
     }
 
     override fun onRequestPermissionsResult(
@@ -118,6 +140,10 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_QUICK_VOICE, false)) {
+            pendingQuickVoice = true
+            flushQuickVoiceRequest()
+        }
         if (intent.data?.scheme == "lifestyle" && intent.data?.host == "focus") {
             FocusShieldEvents.emit(mapOf("type" to "navigateFocus"))
         }
@@ -173,6 +199,8 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
+        const val EXTRA_QUICK_VOICE = "com.example.lifestyle_mobile.QUICK_VOICE"
+
         fun showNativePinnedNotification(context: Context) {
             val channelId = VoiceRecordingService.CHANNEL_ID
             val notificationId = VoiceRecordingService.NOTIFICATION_ID
@@ -218,7 +246,7 @@ class MainActivity : FlutterActivity() {
             }
             val notifTitle = if (isArabic) "لايف ستايل: إضافة موعد سريع" else "LifeStyle: Quick Voice Add"
             val notifText = if (isArabic) "افتح التطبيق لإضافة مهمتك؛ لا يتم ضبط منبه تلقائياً" else "Open the app to add a task; no automatic voice alarm"
-            val actionLabel = if (isArabic) "فتح التطبيق" else "Open app"
+            val actionLabel = if (isArabic) "إضافة صوتية" else "Voice add"
 
             val notif = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.mipmap.ic_launcher)

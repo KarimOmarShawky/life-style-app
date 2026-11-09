@@ -1,6 +1,5 @@
 import 'package:lifestyle_mobile/features/digital_detox/detox_provider.dart';
 import 'package:lifestyle_mobile/features/focus_shield/home_widget_sync.dart';
-import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:lifestyle_mobile/features/more/presentation/daily_plan_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -87,7 +86,6 @@ class LifeStyleApp extends ConsumerWidget {
   }
 
   Widget _authenticatedPage(AppUser user, String path) {
-    if (path == '/focus') return const FocusShieldScreen();
     if (path == '/daily-plan') return const DailyPlanScreen();
     if (path == '/profile') {
       return ProfileScreen(user: user);
@@ -96,6 +94,7 @@ class LifeStyleApp extends ConsumerWidget {
     if (path == '/habits') initialIndex = 1;
     if (path == '/ai') initialIndex = 2;
     if (path == '/notes') initialIndex = 3;
+    if (path == '/focus') initialIndex = 4;
     return HomeShell(user: user, initialIndex: initialIndex);
   }
 }

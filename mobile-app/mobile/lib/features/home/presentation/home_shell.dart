@@ -6,6 +6,7 @@ import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifi
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/habits/presentation/habits_screen.dart';
 import 'package:lifestyle_mobile/features/money/state/money_providers.dart';
+import 'package:lifestyle_mobile/features/focus/presentation/focus_home_screen.dart';
 import 'package:lifestyle_mobile/features/more/presentation/more_screen.dart';
 import 'package:lifestyle_mobile/features/notes/presentation/notes_screen.dart';
 import 'package:lifestyle_mobile/features/tasks/presentation/tasks_screen.dart';
@@ -80,6 +81,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
       const HabitsScreen(),
       const AiAssistantScreen(),
       const NotesScreen(),
+      const FocusHomeScreen(),
       const MoreScreen(),
     ];
 
@@ -112,6 +114,11 @@ class _HomeShellState extends ConsumerState<HomeShell>
             icon: const Icon(Icons.notes_outlined),
             selectedIcon: const Icon(Icons.notes),
             label: l10n.notes,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.center_focus_strong_outlined),
+            selectedIcon: const Icon(Icons.center_focus_strong),
+            label: l10n.tr('focus'),
           ),
           NavigationDestination(
             icon: const Icon(Icons.grid_view_outlined),

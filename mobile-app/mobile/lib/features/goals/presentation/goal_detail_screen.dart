@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/core/time/api_time.dart';
 import 'package:lifestyle_mobile/core/widgets/feature_widgets.dart';
+import 'package:lifestyle_mobile/core/widgets/owned_dialog.dart';
 import 'package:lifestyle_mobile/features/goals/data/goal_model.dart';
 import 'package:lifestyle_mobile/features/goals/presentation/goal_form_screen.dart';
 import 'package:lifestyle_mobile/features/goals/presentation/goal_labels.dart';
@@ -244,31 +245,33 @@ class GoalDetailScreen extends ConsumerWidget {
     );
     final entered = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.updateProgress),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: l10n.goalCurrentLabel,
-            suffixText: goal.unit,
+      builder: (dialogContext) => OwnedDialog(
+        controllers: [controller],
+        child: AlertDialog(
+          title: Text(l10n.updateProgress),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: l10n.goalCurrentLabel,
+              suffixText: goal.unit,
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: Text(l10n.save),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: Text(l10n.save),
-          ),
-        ],
       ),
     );
-    controller.dispose();
     if (entered == null || entered.isEmpty || !context.mounted) return;
     if (!_progressPattern.hasMatch(entered)) {
       ScaffoldMessenger.of(
@@ -294,28 +297,30 @@ class GoalDetailScreen extends ConsumerWidget {
     final controller = TextEditingController();
     final entered = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.addMilestone),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 200,
-          decoration: InputDecoration(labelText: l10n.milestoneTitleLabel),
+      builder: (dialogContext) => OwnedDialog(
+        controllers: [controller],
+        child: AlertDialog(
+          title: Text(l10n.addMilestone),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 200,
+            decoration: InputDecoration(labelText: l10n.milestoneTitleLabel),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: Text(l10n.save),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: Text(l10n.save),
-          ),
-        ],
       ),
     );
-    controller.dispose();
     if (entered == null || entered.isEmpty || !context.mounted) return;
     await _run(context, () async {
       await ref.read(goalsRepositoryProvider).addMilestone(goal.id, {

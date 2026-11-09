@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'detox_app_picker_screen.dart';
 import 'detox_provider.dart';
 import 'detox_session.dart';
 
@@ -10,7 +11,9 @@ class DigitalDetoxScreen extends ConsumerStatefulWidget {
 }
 
 class _DigitalDetoxScreenState extends ConsumerState<DigitalDetoxScreen> {
-  DetoxMode _mode = DetoxMode.strictFocus;
+  // App selection is the primary flow: the user explicitly picks the apps
+  // to redirect. Strict Focus stays available as an advanced alternative.
+  DetoxMode _mode = DetoxMode.selectedApps;
   final _focus = TextEditingController(text: '45');
   final _rest = TextEditingController(text: '15');
   final _selected = <String, String>{};
@@ -25,57 +28,21 @@ class _DigitalDetoxScreenState extends ConsumerState<DigitalDetoxScreen> {
   }
 
   Future<void> _chooseApps() async {
-    try {
-      final apps = await ref.read(detoxProvider).enforcer.apps();
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, update) => AlertDialog(
-            title: const Text('Choose distracting applications'),
-            content: SizedBox(
-              width: 400,
-              height: 400,
-              child: apps.isEmpty
-                  ? const Text(
-                      'Android returned no restrictable launchable apps.',
-                    )
-                  : ListView(
-                      children: [
-                        for (final app in apps)
-                          CheckboxListTile(
-                            title: Text(app['label']!),
-                            subtitle: Text(app['packageName']!),
-                            value: _selected.containsKey(app['packageName']),
-                            onChanged: (value) => update(() {
-                              if (value == true) {
-                                _selected[app['packageName']!] = app['label']!;
-                              } else {
-                                _selected.remove(app['packageName']);
-                              }
-                            }),
-                          ),
-                      ],
-                    ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Done'),
-              ),
-            ],
-          ),
+    final result = await Navigator.of(context).push<Map<String, String>>(
+      MaterialPageRoute<Map<String, String>>(
+        builder: (_) => DetoxAppPickerScreen(
+          loadApps: ref.read(detoxProvider).enforcer.apps,
+          initialSelected: Map.of(_selected),
         ),
-      );
-      if (mounted) setState(() => _selectionError = null);
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _selectionError =
-              'Application selection is unavailable. No application list has been fabricated.',
-        );
-      }
-    }
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(result);
+      _selectionError = null;
+    });
   }
 
   Future<void> _start() async {
@@ -147,114 +114,189 @@ class _DigitalDetoxScreenState extends ConsumerState<DigitalDetoxScreen> {
     final total = session?.phase == 'break'
         ? (session?.breakMinutes ?? 15) * 60
         : (session?.focusMinutes ?? 45) * 60;
+    final selectedEntries = _selected.entries.toList()
+      ..sort(
+        (a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()),
+      );
     return Scaffold(
       appBar: AppBar(title: const Text('Digital Detox')),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          const Text(
-            'Deliberate focus, with honest restriction status',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            'Choose apps. Focus without the clutter.',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           const Text(
-            'Android uses the existing, optional LifeStyle Accessibility Service to redirect distracting app windows. '
-            'It does not suspend packages or lock the operating system. Emergency calling, Settings, launcher, keyboards and LifeStyle remain available. '
-            'Authorization can be revoked. Other platforms have no restriction integration in this build.',
+            'Pick the distracting applications yourself. LifeStyle can redirect you away from them during focus, but it does not lock the phone: emergency calling, Settings, launcher, keyboards and LifeStyle remain available.',
           ),
-          if (session == null)
+          if (session == null) ...[
+            const SizedBox(height: 12),
             const Text('Sign in to create a private session.'),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<DetoxMode>(
-            initialValue: _mode,
-            decoration: const InputDecoration(labelText: 'Restriction mode'),
-            items: const [
-              DropdownMenuItem(
-                value: DetoxMode.strictFocus,
-                child: Text('Full-device request — Strict Focus alternative'),
-              ),
-              DropdownMenuItem(
-                value: DetoxMode.selectedApps,
-                child: Text('Selected applications only'),
-              ),
-            ],
-            onChanged: editable
-                ? (mode) => setState(() {
-                      _mode = mode!;
-                      _consent = false;
-                    })
-                : null,
-            isExpanded: true,
-          ),
-          if (_mode == DetoxMode.selectedApps) ...[
-            OutlinedButton(
-              onPressed: editable ? _chooseApps : null,
-              child: Text('Select / review applications (${_selected.length})'),
-            ),
-            Text(_selected.values.join(', ')),
           ],
-          Row(
+          const SizedBox(height: 16),
+          _SectionCard(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _focus,
-                  enabled: editable,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Focus minutes (1–180)',
+              const _SectionHeader(
+                icon: Icons.apps_outlined,
+                title: '1 · Applications',
+                subtitle:
+                    'These are the only apps requested for redirection in Selected applications mode.',
+              ),
+              const SizedBox(height: 12),
+              if (selectedEntries.isEmpty)
+                const Text('No applications selected yet.')
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final entry in selectedEntries)
+                      Chip(
+                        label: Text(entry.value),
+                        onDeleted: editable
+                            ? () => setState(
+                                  () => _selected.remove(entry.key),
+                                )
+                            : null,
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: editable ? _chooseApps : null,
+                  icon: const Icon(Icons.checklist),
+                  label: Text(
+                    selectedEntries.isEmpty
+                        ? 'Choose applications'
+                        : 'Review applications (${selectedEntries.length})',
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextField(
-                  controller: _rest,
-                  enabled: editable,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Break minutes (1–60)',
+              const SizedBox(height: 16),
+              DropdownButtonFormField<DetoxMode>(
+                initialValue: _mode,
+                decoration: const InputDecoration(
+                  labelText: 'Restriction mode',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: DetoxMode.selectedApps,
+                    child: Text(
+                      'Selected applications',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  DropdownMenuItem(
+                    value: DetoxMode.strictFocus,
+                    child: Text(
+                      'Strict Focus — all non-safety apps',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+                onChanged: editable
+                    ? (mode) => setState(() {
+                          _mode = mode!;
+                          _consent = false;
+                        })
+                    : null,
+                isExpanded: true,
+              ),
+              if (_mode == DetoxMode.strictFocus) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Strict Focus does not use the selected-app list above.',
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          _SectionCard(
+            children: [
+              const _SectionHeader(
+                icon: Icons.timer_outlined,
+                title: '2 · Session length',
+                subtitle:
+                    'One focus block followed by one break. No automatic repeat.',
+              ),
+              const SizedBox(height: 16),
+              _DurationFields(
+                focusController: _focus,
+                restController: _rest,
+                editable: editable,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _SectionCard(
+            children: [
+              const _SectionHeader(
+                icon: Icons.verified_user_outlined,
+                title: '3 · Permission & consent',
+                subtitle:
+                    'Restriction uses the optional LifeStyle Accessibility Service and can be revoked in Android Settings.',
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _consent,
+                onChanged: editable
+                    ? (value) => setState(() => _consent = value!)
+                    : null,
+                title: const Text(
+                  'I understand the scope and consent to the existing accessibility redirect. It can be disabled at any time.',
+                ),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed:
+                      editable && _consent && controller.enforcer.supported
+                          ? () => controller.run(() async {
+                                await controller.enforcer.platform.invoke(
+                                  'openAccessibilitySettings',
+                                );
+                              })
+                          : null,
+                  child: const Text('Open Android accessibility authorization'),
+                ),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _timerOnly,
+                onChanged: editable
+                    ? (value) => setState(() => _timerOnly = value!)
+                    : null,
+                title: const Text(
+                  'Explicitly allow an UNENFORCED timer if restriction support is unavailable',
                 ),
               ),
             ],
           ),
-          CheckboxListTile(
-            value: _consent,
-            onChanged:
-                editable ? (value) => setState(() => _consent = value!) : null,
-            title: const Text(
-              'I understand the scope and consent to the existing accessibility redirect. It can be disabled at any time.',
-            ),
-          ),
-          OutlinedButton(
-            onPressed: editable && _consent && controller.enforcer.supported
-                ? () => controller.run(() async {
-                      await controller.enforcer.platform.invoke(
-                        'openAccessibilitySettings',
-                      );
-                    })
-                : null,
-            child: const Text('Open Android accessibility authorization'),
-          ),
-          CheckboxListTile(
-            value: _timerOnly,
-            onChanged: editable
-                ? (value) => setState(() => _timerOnly = value!)
-                : null,
-            title: const Text(
-              'Explicitly allow an UNENFORCED timer if restriction support is unavailable',
-            ),
-          ),
-          if (_selectionError != null)
+          if (_selectionError != null) ...[
+            const SizedBox(height: 12),
             Text(
               _selectionError!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
-          if (editable && session != null)
-            FilledButton(
-              onPressed: _consent ? _start : null,
-              child: const Text('Review and start session'),
+          ],
+          if (editable && session != null) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _consent ? _start : null,
+                child: const Text('Review and start session'),
+              ),
             ),
+          ],
           const Divider(height: 32),
           if (session != null) ...[
             Text(
@@ -342,6 +384,122 @@ class _DigitalDetoxScreenState extends ConsumerState<DigitalDetoxScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(subtitle),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DurationFields extends StatelessWidget {
+  const _DurationFields({
+    required this.focusController,
+    required this.restController,
+    required this.editable,
+  });
+
+  final TextEditingController focusController;
+  final TextEditingController restController;
+  final bool editable;
+
+  @override
+  Widget build(BuildContext context) {
+    final focusField = TextField(
+      controller: focusController,
+      enabled: editable,
+      keyboardType: TextInputType.number,
+      decoration: const InputDecoration(
+        labelText: 'Focus minutes',
+        helperText: 'Allowed: 1–180',
+        suffixText: 'min',
+        border: OutlineInputBorder(),
+      ),
+    );
+    final restField = TextField(
+      controller: restController,
+      enabled: editable,
+      keyboardType: TextInputType.number,
+      decoration: const InputDecoration(
+        labelText: 'Break minutes',
+        helperText: 'Allowed: 1–60',
+        suffixText: 'min',
+        border: OutlineInputBorder(),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // On phones the old side-by-side fields clipped their labels and
+        // looked stacked on top of each other. Keep them side-by-side only
+        // when each field has real room to breathe.
+        if (constraints.maxWidth < 520) {
+          return Column(
+            children: [
+              focusField,
+              const SizedBox(height: 16),
+              restField,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: focusField),
+            const SizedBox(width: 16),
+            Expanded(child: restField),
+          ],
+        );
+      },
     );
   }
 }

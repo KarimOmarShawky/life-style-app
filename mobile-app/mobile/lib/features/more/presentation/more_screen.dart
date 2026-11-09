@@ -62,7 +62,7 @@ class MoreScreen extends ConsumerWidget {
           _MoreItem(
             icon: Icons.phonelink_lock,
             title: 'Digital Detox',
-            subtitle: '45/15 focus cycles with verified restriction status',
+            subtitle: 'Pick the apps to restrict, then start a focus cycle',
             builder: (_) => const DigitalDetoxScreen(),
           ),
           _MoreItem(

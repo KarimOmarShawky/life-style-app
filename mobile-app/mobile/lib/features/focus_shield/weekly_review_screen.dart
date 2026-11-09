@@ -151,16 +151,184 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
         ]),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
-            : ListView(padding: const EdgeInsets.all(20), children: [
-                SelectableText(_metrics?.report() ?? 'No data'),
+            : ListView(padding: const EdgeInsets.all(16), children: [
+                if (_metrics == null)
+                  const Text('No data')
+                else
+                  WeeklyMetricsSummary(metrics: _metrics!),
                 const SizedBox(height: 16),
-                const Text(
-                    'Unavailable metrics are marked No data, never treated as zero.'),
-                FilledButton(
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
                     onPressed: _generating ? null : _generate,
-                    child: const Text('Generate AI Weekly Coaching Plan')),
+                    child: Text(
+                      _generating
+                          ? 'Generating…'
+                          : 'Generate AI Weekly Coaching Plan',
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
-                SelectableText(_coaching ?? ''),
+                if ((_coaching ?? '').isNotEmpty)
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Coaching',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          SelectableText(_coaching!),
+                        ],
+                      ),
+                    ),
+                  ),
               ]),
       );
+}
+
+/// Card-based weekly metrics. The plain-text [WeeklyMetrics.report] remains
+/// the copy/export format; on screen the numbers are easier to scan as
+/// separate tiles instead of one stacked paragraph.
+class WeeklyMetricsSummary extends StatelessWidget {
+  const WeeklyMetricsSummary({super.key, required this.metrics});
+
+  final WeeklyMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final habitRate = metrics.habitRate;
+    final tiles = <_WeeklyMetricTileData>[
+      _WeeklyMetricTileData(
+        label: 'Tasks completed',
+        value: '${metrics.tasksCompleted ?? 'No data'}',
+      ),
+      _WeeklyMetricTileData(
+        label: 'Pending due',
+        value: '${metrics.tasksPending ?? 'No data'}',
+      ),
+      _WeeklyMetricTileData(
+        label: 'Habit consistency',
+        value:
+            habitRate == null ? 'No data' : '${habitRate.toStringAsFixed(1)}%',
+        detail:
+            'Check-ins: ${metrics.habitsDone ?? 'No data'}/${metrics.habitsDue ?? 'No data'}',
+      ),
+      _WeeklyMetricTileData(
+        label: 'Active streaks',
+        value: '${metrics.activeStreaks ?? 'No data'}',
+      ),
+      _WeeklyMetricTileData(
+        label: 'Focus time',
+        value: '${(metrics.focusSeconds / 60).toStringAsFixed(1)} min',
+        detail:
+            '${metrics.sessionCount} session${metrics.sessionCount == 1 ? '' : 's'}${metrics.localFocusOnly ? ' · local history only' : ''}',
+      ),
+      _WeeklyMetricTileData(
+        label: 'Blocked attempts',
+        value: '${metrics.attempts}',
+      ),
+      _WeeklyMetricTileData(
+        label: 'Brain Clarity Score',
+        value: metrics.averageClarity?.toStringAsFixed(1) ?? 'No data',
+      ),
+      _WeeklyMetricTileData(
+        label: 'Estimated time saved',
+        value: '${metrics.estimatedMinutesSaved} min',
+        detail:
+            'Estimate only: $estimatedMinutesSavedPerAttempt min per blocked attempt, not measured.',
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${localDateKey(metrics.from)} — ${localDateKey(metrics.to.subtract(const Duration(microseconds: 1)))}',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Unavailable metrics are marked No data, never treated as zero.',
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 620
+                ? 3
+                : constraints.maxWidth >= 360
+                    ? 2
+                    : 1;
+            final tileWidth =
+                (constraints.maxWidth - (columns - 1) * 12) / columns;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final tile in tiles)
+                  SizedBox(
+                    width: tileWidth,
+                    child: _WeeklyMetricTile(data: tile),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _WeeklyMetricTileData {
+  const _WeeklyMetricTileData({
+    required this.label,
+    required this.value,
+    this.detail,
+  });
+
+  final String label;
+  final String value;
+  final String? detail;
+}
+
+class _WeeklyMetricTile extends StatelessWidget {
+  const _WeeklyMetricTile({required this.data});
+
+  final _WeeklyMetricTileData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              data.label,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              data.value,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            if (data.detail != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                data.detail!,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

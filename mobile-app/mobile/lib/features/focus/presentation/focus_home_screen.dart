@@ -123,8 +123,7 @@ class _ActiveBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final mm =
-        (remainingSeconds ~/ 60).toString().padLeft(2, '0');
+    final mm = (remainingSeconds ~/ 60).toString().padLeft(2, '0');
     final ss = (remainingSeconds % 60).toString().padLeft(2, '0');
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),

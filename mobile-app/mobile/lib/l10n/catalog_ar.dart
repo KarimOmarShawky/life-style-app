@@ -40,7 +40,6 @@ const Map<String, String> arCatalog = {
   'selectedCount': 'محدد',
   'aiAssistant': 'المساعد الذكي',
   'aiDailyBriefing': 'ملخص اليوم الذكي',
-  'voiceMicPrompt': 'تحدث الآن، أستمع إليك...',
   'searchPlaceholder': 'بحث في المهام والملاحظات...',
   'userLevel': 'المستوى',
   'xpPoints': 'نقطة خبرة',
@@ -242,7 +241,6 @@ const Map<String, String> arCatalog = {
   'timer.pickSong': 'اختار أغنية من جهازك',
   'timer.clearSong': 'شيل الأغنية',
   'searchNoResultsFor': 'لا توجد نتائج مطابقة لـ "{q}"',
-  'noSpeechDetected': 'لم يتم التقاط صوت، يرجى المحاولة والتحدث بوضوح',
   'smsSyncTitle': 'التقاط تلقائي لرسائل المحافظ',
   'smsSyncDesc':
       'يقرأ رسائل البنوك والمحافظ (إنستاباي، فودافون كاش...) ويسجل المعاملات تلقائيًا.',
@@ -412,7 +410,6 @@ const Map<String, String> arCatalog = {
   'smsAddTrustedSender': 'إضافة مرسل',
   'aiSpeakTooltip': 'قراءة هذا الرد بصوت',
   'aiSpeaking': 'جارٍ القراءة...',
-  'aiVoiceListening': 'جارٍ الاستماع...',
   'aiKeyStorageError':
       'تعذّر الوصول إلى التخزين الآمن للمفتاح. لم يتم تأكيد التغيير.',
   'aiErrorMessage': 'حدث خطأ أثناء معالجة الطلب. يرجى المحاولة مرة أخرى.',
@@ -613,9 +610,6 @@ const Map<String, String> arCatalog = {
   'weeklyUnavailableNote':
       'المقاييس غير المتاحة تُعلَّم بلا بيانات، ولا تُعامل أبدًا كصفر.',
   'weeklyLocalOnly': 'السجل المحلي فقط',
-  'voiceLanguageTooltip': 'لغة الكلام',
-  'voiceLangAuto': 'تلقائي (لغة الجهاز)',
-  'voiceRetry': 'قولها تاني',
   'encourage1': 'خطوات صغيرة كل يوم بتعمل فرق كبير.',
   'encourage2': 'مش محتاج يوم مثالي — محتاج الخطوة الجاية بس.',
   'encourage3': 'التقدم بيحب البدايات الهادية. اختار حاجة واحدة.',

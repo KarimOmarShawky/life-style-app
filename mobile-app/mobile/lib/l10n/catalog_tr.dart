@@ -40,7 +40,6 @@ const Map<String, String> trCatalog = {
   'selectedCount': 'seçili',
   'aiAssistant': 'Yapay Zekâ Asistanı',
   'aiDailyBriefing': 'Günlük Akıllı Özet',
-  'voiceMicPrompt': 'Dinliyorum, şimdi konuş...',
   'searchPlaceholder': 'Görev ve notlarda ara...',
   'userLevel': 'Seviye',
   'xpPoints': 'XP',
@@ -243,7 +242,6 @@ const Map<String, String> trCatalog = {
   'timer.pickSong': 'Cihazından bir şarkı seç',
   'timer.clearSong': 'Şarkıyı kaldır',
   'searchNoResultsFor': '"{q}" için eşleşen sonuç yok',
-  'noSpeechDetected': 'Konuşma algılanmadı, lütfen net konuşarak tekrar dene',
   'smsSyncTitle': 'Cüzdan SMS otomatik yakalama',
   'smsSyncDesc':
       'Banka ve cüzdan SMS\'lerini okur (InstaPay, Vodafone Cash...) ve işlemleri otomatik kaydeder.',
@@ -274,7 +272,6 @@ const Map<String, String> trCatalog = {
   'smsAddTrustedSender': 'Gönderen ekle',
   'aiSpeakTooltip': 'Bu yanıtı sesli oku',
   'aiSpeaking': 'Okunuyor...',
-  'aiVoiceListening': 'Dinleniyor...',
   'aiKeyStorageError':
       'Güvenli anahtar depolama kullanılamıyor. Değişiklik doğrulanamadı.',
   'aiErrorMessage':
@@ -629,9 +626,6 @@ const Map<String, String> trCatalog = {
   'weeklyUnavailableNote':
       'Kullanılamayan metrikler Veri yok olarak işaretlenir, asla sıfır sayılmaz.',
   'weeklyLocalOnly': 'yalnızca yerel geçmiş',
-  'voiceLanguageTooltip': 'Konuşma dili',
-  'voiceLangAuto': 'Otomatik (cihaz dili)',
-  'voiceRetry': 'Tekrar söyle',
   'encourage1': 'Her gün küçük adımlar her şeyi değiştirir.',
   'encourage2': 'Mükemmel bir güne ihtiyacın yok — sadece bir sonraki adıma.',
   'encourage3': 'İlerleme nazik başlangıçları sever. Bir şey seç.',

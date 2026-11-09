@@ -41,7 +41,6 @@ const Map<String, String> deCatalog = {
   'selectedCount': 'ausgewählt',
   'aiAssistant': 'KI-Assistent',
   'aiDailyBriefing': 'Intelligentes Tagesbriefing',
-  'voiceMicPrompt': 'Ich höre zu, sprich jetzt...',
   'searchPlaceholder': 'Aufgaben & Notizen durchsuchen...',
   'userLevel': 'Level',
   'xpPoints': 'XP',
@@ -246,8 +245,6 @@ const Map<String, String> deCatalog = {
   'timer.pickSong': 'Song von deinem Gerät wählen',
   'timer.clearSong': 'Song entfernen',
   'searchNoResultsFor': 'Keine passenden Ergebnisse für „{q}"',
-  'noSpeechDetected':
-      'Keine Sprache erkannt, bitte sprich deutlich und versuche es erneut',
   'smsSyncTitle': 'Automatische Wallet-SMS-Erfassung',
   'smsSyncDesc':
       'Liest Bank- und Wallet-SMS (InstaPay, Vodafone Cash ...) und bucht Transaktionen automatisch.',
@@ -280,7 +277,6 @@ const Map<String, String> deCatalog = {
   'smsAddTrustedSender': 'Absender hinzufügen',
   'aiSpeakTooltip': 'Diese Antwort vorlesen',
   'aiSpeaking': 'Wird vorgetragen...',
-  'aiVoiceListening': 'Höre zu...',
   'aiKeyStorageError':
       'Der sichere Schlüsselspeicher ist nicht verfügbar. Die Änderung konnte nicht bestätigt werden.',
   'aiErrorMessage':
@@ -648,9 +644,6 @@ const Map<String, String> deCatalog = {
   'weeklyUnavailableNote':
       'Nicht verfügbare Metriken werden als Keine Daten markiert, nie als null behandelt.',
   'weeklyLocalOnly': 'nur lokaler Verlauf',
-  'voiceLanguageTooltip': 'Sprache der Spracheingabe',
-  'voiceLangAuto': 'Automatisch (Gerätesprache)',
-  'voiceRetry': 'Nochmal sagen',
   'encourage1': 'Kleine Schritte, jeden Tag, verändern alles.',
   'encourage2': 'Du brauchst keinen perfekten Tag — nur den nächsten Schritt.',
   'encourage3': 'Fortschritt liebt einen sanften Start. Wähle eine Sache.',

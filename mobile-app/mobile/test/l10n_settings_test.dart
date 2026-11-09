@@ -28,15 +28,15 @@ void main() {
         en.tasks,
         en.money,
         en.smsSyncTitle,
-        en.voiceMicPrompt,
-        en.noSpeechDetected,
+        en.focusCompleteEncouragement,
       ];
       for (final locale in AppLocalizations.supportedLocales) {
         final l10n = AppLocalizations(locale);
         expect(l10n.appTitle, isNotEmpty);
         expect(l10n.signIn, isNotEmpty);
         expect(l10n.smsSyncTitle, isNot(equals('smsSyncTitle')));
-        expect(l10n.noSpeechDetected, isNot(equals('noSpeechDetected')));
+        expect(l10n.focusCompleteEncouragement,
+            isNot(equals('focusCompleteEncouragement')));
       }
       expect(reference.length, greaterThan(0));
     });

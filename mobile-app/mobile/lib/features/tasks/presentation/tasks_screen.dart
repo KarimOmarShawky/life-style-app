@@ -8,9 +8,7 @@ import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
-import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
-import 'package:lifestyle_mobile/l10n/speech_language.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
@@ -24,30 +22,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   DateTime? _selectedDate;
   final Set<String> _selectedTaskIds = {};
   bool get _isSelectionMode => _selectedTaskIds.isNotEmpty;
-
-  @override
-  void initState() {
-    super.initState();
-    NotificationService.instance.quickVoiceTrigger
-        .addListener(_checkQuickVoice);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkQuickVoice());
-  }
-
-  @override
-  void dispose() {
-    NotificationService.instance.quickVoiceTrigger
-        .removeListener(_checkQuickVoice);
-    super.dispose();
-  }
-
-  void _checkQuickVoice() {
-    if (NotificationService.instance.quickVoiceTrigger.value) {
-      NotificationService.instance.quickVoiceTrigger.value = false;
-      if (mounted) {
-        _showSmartQuickAdd(context, ref, initialVoice: true);
-      }
-    }
-  }
 
   void _toggleTaskSelection(String taskId) {
     setState(() {
@@ -271,13 +245,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           FloatingActionButton.small(
-            heroTag: 'voice_mic_btn',
-            tooltip: localization.voiceMicPrompt,
+            heroTag: 'smart_add_btn',
+            tooltip: localization.smartAdd,
             backgroundColor: Theme.of(context).colorScheme.tertiaryContainer,
-            onPressed: () =>
-                _showSmartQuickAdd(context, ref, initialVoice: true),
+            onPressed: () => _showSmartQuickAdd(context, ref),
             child: Icon(
-              Icons.mic,
+              Icons.auto_awesome,
               color: Theme.of(context).colorScheme.onTertiaryContainer,
             ),
           ),
@@ -699,16 +672,12 @@ class _TaskLoadError extends StatelessWidget {
 
 Future<void> _showSmartQuickAdd(
   BuildContext context,
-  WidgetRef ref, {
-  bool initialVoice = false,
-}) async {
+  WidgetRef ref,
+) async {
   final l10n = AppLocalizations.of(context);
-  var speechCode = ref.read(settingsProvider).speechLanguageCode;
   final controller = TextEditingController();
   ParsedTaskResult? parsed;
   var busy = false;
-  var isListening = false;
-  var hasAutoTriggered = false;
   String? error;
 
   await showDialog<void>(
@@ -769,108 +738,12 @@ Future<void> _showSmartQuickAdd(
             }
           }
 
-          Future<void> triggerVoiceInput({bool autoRetry = false}) async {
-            if (isListening) {
-              setDialogState(() => isListening = false);
-              return;
-            }
-            setDialogState(() => isListening = true);
-            try {
-              const channel =
-                  MethodChannel('com.example.lifestyle_mobile/native_voice');
-              final spokenText = await channel.invokeMethod<String>(
-                'startVoiceRecognition',
-                <String, String>{
-                  'languageTag': resolveSpeechLanguageTag(
-                    appLocale: Localizations.localeOf(dialogContext),
-                    deviceLocale:
-                        WidgetsBinding.instance.platformDispatcher.locale,
-                    speechLanguageCode: speechCode,
-                  ),
-                },
-              );
-              if (dialogContext.mounted) {
-                if (spokenText != null && spokenText.trim().isNotEmpty) {
-                  controller.text = spokenText.trim();
-                  setDialogState(() {
-                    parsed = SmartTaskParser.parse(spokenText.trim());
-                    isListening = false;
-                  });
-                } else if (initialVoice && !autoRetry) {
-                  // Hands-free quick-add: one automatic second listen, so
-                  // a quiet first attempt is not a dead end.
-                  setDialogState(() => isListening = false);
-                  await triggerVoiceInput(autoRetry: true);
-                } else {
-                  setDialogState(() => isListening = false);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.noSpeechDetected),
-                        duration: const Duration(seconds: 4),
-                        action: SnackBarAction(
-                          label: l10n.voiceRetry,
-                          onPressed: () => triggerVoiceInput(autoRetry: true),
-                        ),
-                      ),
-                    );
-                  }
-                }
-              }
-            } catch (_) {
-              if (dialogContext.mounted) {
-                setDialogState(() => isListening = false);
-              }
-            }
-          }
-
-          if (initialVoice && !hasAutoTriggered) {
-            hasAutoTriggered = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              triggerVoiceInput();
-            });
-          }
-
           return AlertDialog(
             title: Row(
               children: [
                 const Icon(Icons.auto_awesome, color: Colors.amber, size: 24),
                 const SizedBox(width: 8),
                 Expanded(child: Text(l10n.smartAdd)),
-                PopupMenuButton<String>(
-                  tooltip: l10n.voiceLanguageTooltip,
-                  initialValue: speechCode,
-                  icon: const Icon(Icons.translate, size: 20),
-                  onSelected: (code) {
-                    speechCode = code;
-                    ref.read(settingsProvider.notifier).setSpeechLanguage(code);
-                    setDialogState(() {});
-                  },
-                  itemBuilder: (menuContext) => <PopupMenuEntry<String>>[
-                    PopupMenuItem<String>(
-                      value: 'auto',
-                      child: Text(l10n.voiceLangAuto),
-                    ),
-                    for (final loc in AppLocalizations.supportedLocales)
-                      PopupMenuItem<String>(
-                        value: loc.languageCode,
-                        child: Text(
-                          AppLocalizations.endonyms[loc.languageCode] ??
-                              loc.languageCode.toUpperCase(),
-                        ),
-                      ),
-                  ],
-                ),
-                IconButton(
-                  icon: Icon(
-                    isListening ? Icons.mic : Icons.mic_none,
-                    color: isListening
-                        ? Colors.red
-                        : Theme.of(context).colorScheme.primary,
-                  ),
-                  tooltip: l10n.voiceMicPrompt,
-                  onPressed: triggerVoiceInput,
-                ),
               ],
             ),
             content: SingleChildScrollView(
@@ -878,49 +751,13 @@ Future<void> _showSmartQuickAdd(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (isListening) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 16),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withAlpha(20),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.withAlpha(80)),
-                      ),
-                      child: Row(
-                        children: [
-                          const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.red),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              l10n.voiceMicPrompt,
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.red),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                   TextField(
                     controller: controller,
-                    autofocus: !initialVoice,
+                    autofocus: true,
                     maxLines: 2,
                     decoration: InputDecoration(
                       hintText: l10n.smartAddHint,
                       hintStyle: const TextStyle(fontSize: 13),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.mic_outlined),
-                        tooltip: l10n.voiceMicPrompt,
-                        onPressed: triggerVoiceInput,
-                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -932,7 +769,7 @@ Future<void> _showSmartQuickAdd(
                     },
                   ),
                   const SizedBox(height: 10),
-                  // Quick suggested voice clips
+                  // Quick suggested clips
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(

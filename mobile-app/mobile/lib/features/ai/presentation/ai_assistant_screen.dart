@@ -1,13 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_markdown.dart';
-import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
-import 'package:lifestyle_mobile/l10n/speech_language.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
   const AiAssistantScreen({super.key});
@@ -23,13 +20,9 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   final _scrollController = ScrollController();
   bool _isGenerating = false;
   bool _consentedToEgress = false;
-  bool _isListening = false;
   int _streamGeneration = 0;
 
   StreamSubscription<String>? _streamSub;
-
-  static const _nativeVoiceChannel =
-      MethodChannel('com.example.lifestyle_mobile/native_voice');
 
   @override
   void didChangeDependencies() {
@@ -105,7 +98,6 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         ),
       );
       _isGenerating = true;
-      _isListening = false;
     });
     _scrollToBottom();
 
@@ -173,42 +165,6 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           },
           cancelOnError: true,
         );
-  }
-
-  Future<void> _toggleVoiceInput() async {
-    if (_isListening) {
-      setState(() => _isListening = false);
-      return;
-    }
-    setState(() => _isListening = true);
-    try {
-      final l10n = AppLocalizations.of(context);
-      final spokenText = await _nativeVoiceChannel.invokeMethod<String>(
-        'startVoiceRecognition',
-        <String, String>{
-          'languageTag': resolveSpeechLanguageTag(
-            appLocale: l10n.locale,
-            deviceLocale: WidgetsBinding.instance.platformDispatcher.locale,
-            speechLanguageCode: ref.read(settingsProvider).speechLanguageCode,
-          ),
-        },
-      );
-      if (!mounted) return;
-      if (spokenText != null && spokenText.trim().isNotEmpty) {
-        _textController.text = spokenText.trim();
-        _textController.selection = TextSelection.fromPosition(
-          TextPosition(offset: _textController.text.length),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.noSpeechDetected)),
-        );
-      }
-    } catch (_) {
-      // Speech recognition failed; fall back silently.
-    } finally {
-      if (mounted) setState(() => _isListening = false);
-    }
   }
 
   @override
@@ -368,48 +324,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                 ),
               ),
             ],
-            // Voice listening banner if active
-            if (_isListening) ...[
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                color: Colors.red.withAlpha(20),
-                child: Row(
-                  children: [
-                    const Icon(Icons.mic, color: Colors.red, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        l10n.aiVoiceListening,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () => setState(() => _isListening = false),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             // Input Row
             Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  IconButton(
-                    tooltip: l10n.voiceMicPrompt,
-                    icon: Icon(
-                      _isListening ? Icons.mic : Icons.mic_none,
-                      color:
-                          _isListening ? Colors.red : theme.colorScheme.primary,
-                    ),
-                    onPressed: () => _toggleVoiceInput(),
-                  ),
                   Expanded(
                     child: TextField(
                       controller: _textController,

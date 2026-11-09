@@ -40,7 +40,6 @@ const Map<String, String> esCatalog = {
   'selectedCount': 'seleccionado(s)',
   'aiAssistant': 'Asistente IA',
   'aiDailyBriefing': 'Resumen inteligente del día',
-  'voiceMicPrompt': 'Escuchando, habla ahora...',
   'searchPlaceholder': 'Buscar tareas y notas...',
   'userLevel': 'Nivel',
   'xpPoints': 'XP',
@@ -245,8 +244,6 @@ const Map<String, String> esCatalog = {
   'timer.pickSong': 'Elige una canción de tu dispositivo',
   'timer.clearSong': 'Quitar canción',
   'searchNoResultsFor': 'No hay resultados coincidentes con «{q}»',
-  'noSpeechDetected':
-      'No se detectó voz, inténtalo de nuevo hablando con claridad',
   'smsSyncTitle': 'Captura automática de SMS de billeteras',
   'smsSyncDesc':
       'Lee los SMS de banca y billeteras (InstaPay, Vodafone Cash...) y registra las transacciones automáticamente.',
@@ -278,7 +275,6 @@ const Map<String, String> esCatalog = {
   'smsAddTrustedSender': 'Añadir remitente',
   'aiSpeakTooltip': 'Leer esta respuesta en voz alta',
   'aiSpeaking': 'Leyendo...',
-  'aiVoiceListening': 'Escuchando...',
   'aiKeyStorageError':
       'El almacenamiento seguro de la clave no está disponible. No se pudo confirmar el cambio.',
   'aiErrorMessage':
@@ -647,9 +643,6 @@ const Map<String, String> esCatalog = {
   'weeklyUnavailableNote':
       'Las métricas no disponibles se marcan Sin datos, nunca se tratan como cero.',
   'weeklyLocalOnly': 'solo historial local',
-  'voiceLanguageTooltip': 'Idioma de voz',
-  'voiceLangAuto': 'Automático (idioma del dispositivo)',
-  'voiceRetry': 'Dilo de nuevo',
   'encourage1': 'Pequeños pasos, cada día, lo cambian todo.',
   'encourage2': 'No necesitas un día perfecto — solo el siguiente paso.',
   'encourage3': 'Al progreso le gustan los comienzos suaves. Elige una cosa.',

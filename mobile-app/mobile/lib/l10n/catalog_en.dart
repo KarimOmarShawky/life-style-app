@@ -75,7 +75,6 @@ const Map<String, String> enCatalog = {
   'selectedCount': 'selected',
   'aiAssistant': 'AI Assistant',
   'aiDailyBriefing': 'Daily Smart Briefing',
-  'voiceMicPrompt': 'Listening, speak now...',
   'searchPlaceholder': 'Search tasks & notes...',
   'userLevel': 'Level',
   'xpPoints': 'XP',
@@ -279,7 +278,6 @@ const Map<String, String> enCatalog = {
   'timer.pickSong': 'Pick a song from your device',
   'timer.clearSong': 'Remove song',
   'searchNoResultsFor': 'No matching results for "{q}"',
-  'noSpeechDetected': 'No speech detected, please try speaking again',
   'smsSyncTitle': 'Wallet SMS auto-capture',
   'smsSyncDesc':
       'Read banking & wallet SMS (InstaPay, Vodafone Cash, ...) and log transactions automatically.',
@@ -451,7 +449,6 @@ const Map<String, String> enCatalog = {
   'smsAddTrustedSender': 'Add sender',
   'aiSpeakTooltip': 'Speak this response',
   'aiSpeaking': 'Speaking...',
-  'aiVoiceListening': 'Listening...',
   'aiKeyStorageError':
       'Secure key storage is unavailable. The change could not be confirmed.',
   'aiErrorMessage':
@@ -629,9 +626,6 @@ const Map<String, String> enCatalog = {
   'weeklyUnavailableNote':
       'Unavailable metrics are marked No data, never treated as zero.',
   'weeklyLocalOnly': 'local history only',
-  'voiceLanguageTooltip': 'Speech language',
-  'voiceLangAuto': 'Auto (device language)',
-  'voiceRetry': 'Say it again',
   'encourage1': 'Small steps, done daily, change everything.',
   'encourage2': 'You do not need a perfect day — just the next step.',
   'encourage3': 'Progress loves a gentle start. Pick one thing.',

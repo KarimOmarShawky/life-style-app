@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/core/widgets/owned_dialog.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -99,90 +100,92 @@ Future<void> _showAddHabit(BuildContext context, WidgetRef ref) async {
 
   await showDialog<void>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) {
-        Future<void> submit() async {
-          if (!formKey.currentState!.validate()) return;
-          setDialogState(() {
-            busy = true;
-            error = null;
-          });
-          try {
-            final now = DateTime.now();
-            final today =
-                '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-            await ref.read(habitsRepositoryProvider).createHabit(
-                  name: nameController.text,
-                  description: descController.text.trim().isEmpty
-                      ? null
-                      : descController.text,
-                  startDate: today,
-                );
-            ref.invalidate(habitsProvider);
-            if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-          } catch (e) {
-            if (dialogContext.mounted) {
-              setDialogState(() => error = e.toString());
+    builder: (dialogContext) => OwnedDialog(
+      controllers: [nameController, descController],
+      child: StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> submit() async {
+            if (!formKey.currentState!.validate()) return;
+            setDialogState(() {
+              busy = true;
+              error = null;
+            });
+            try {
+              final now = DateTime.now();
+              final today =
+                  '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+              await ref.read(habitsRepositoryProvider).createHabit(
+                    name: nameController.text,
+                    description: descController.text.trim().isEmpty
+                        ? null
+                        : descController.text,
+                    startDate: today,
+                  );
+              ref.invalidate(habitsProvider);
+              if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+            } catch (e) {
+              if (dialogContext.mounted) {
+                setDialogState(() => error = e.toString());
+              }
+            } finally {
+              if (dialogContext.mounted) setDialogState(() => busy = false);
             }
-          } finally {
-            if (dialogContext.mounted) setDialogState(() => busy = false);
           }
-        }
 
-        return AlertDialog(
-          title: Text(l10n.addHabit),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: l10n.habitName,
+          return AlertDialog(
+            title: Text(l10n.addHabit),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: l10n.habitName,
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? l10n.habitName : null,
                   ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? l10n.habitName : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: descController,
-                  decoration: InputDecoration(
-                    labelText: l10n.description,
-                  ),
-                ),
-                if (error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descController,
+                    decoration: InputDecoration(
+                      labelText: l10n.description,
                     ),
                   ),
+                  if (error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: busy ? null : () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: busy ? null : submit,
-              child: busy
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l10n.save),
-            ),
-          ],
-        );
-      },
+            actions: [
+              TextButton(
+                onPressed:
+                    busy ? null : () => Navigator.of(dialogContext).pop(),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: busy ? null : submit,
+                child: busy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.save),
+              ),
+            ],
+          );
+        },
+      ),
     ),
   );
-  nameController.dispose();
-  descController.dispose();
 }

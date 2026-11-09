@@ -28,7 +28,9 @@ class FocusData {
       this.lastInterceptPackage,
       this.platformError})
       : ledger = ledger ?? XpLedger(),
-        blockedPackages = blockedPackages ?? defaultBlockedPackages;
+        // No suggested or pre-filled applications: the list starts empty and
+        // only ever contains what the user picked in the Focus tab.
+        blockedPackages = blockedPackages ?? const <String>{};
   final XpLedger ledger;
   final List<FocusSessionRecord> history;
   final Set<FocusBadge> badges;

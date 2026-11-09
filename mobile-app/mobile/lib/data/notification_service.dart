@@ -71,6 +71,28 @@ class NotificationService {
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
 
+      // The pinned notification's voice action only opens the app (via the
+      // native VoiceActionReceiver/MainActivity). MainActivity then asks us
+      // to open the in-app voice quick-add; speech recognition itself runs
+      // in the OS recognizer UI inside the app. No background recording.
+      _nativeChannel.setMethodCallHandler((call) async {
+        if (call.method == 'quickVoiceRequested') {
+          quickVoiceTrigger.value = true;
+          try {
+            await _nativeChannel.invokeMethod('claimQuickVoiceRequest');
+          } catch (_) {}
+        }
+      });
+      // Cold start: the native push may have fired before this handler was
+      // registered, so claim any pending request explicitly.
+      try {
+        final pendingQuickVoice =
+            await _nativeChannel.invokeMethod<bool>('claimQuickVoiceRequest');
+        if (pendingQuickVoice == true) {
+          quickVoiceTrigger.value = true;
+        }
+      } catch (_) {}
+
       final androidPlugin =
           _notificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();

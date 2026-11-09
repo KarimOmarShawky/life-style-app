@@ -2,6 +2,7 @@ import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dar
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/core/widgets/owned_dialog.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
@@ -697,332 +698,335 @@ Future<void> _showSmartQuickAdd(
 
   await showDialog<void>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) {
-        Future<void> submit() async {
-          final rawText = controller.text.trim();
-          if (rawText.isEmpty) return;
-          setDialogState(() {
-            busy = true;
-            error = null;
-          });
-          try {
-            var p = parsed ?? SmartTaskParser.parse(rawText);
+    builder: (dialogContext) => OwnedDialog(
+      controllers: [controller],
+      child: StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> submit() async {
+            final rawText = controller.text.trim();
+            if (rawText.isEmpty) return;
+            setDialogState(() {
+              busy = true;
+              error = null;
+            });
             try {
-              p = await SmartTaskParser.parseAsync(rawText);
-            } catch (_) {}
+              var p = parsed ?? SmartTaskParser.parse(rawText);
+              try {
+                p = await SmartTaskParser.parseAsync(rawText);
+              } catch (_) {}
 
-            final task = await ref.read(tasksRepositoryProvider).createTask(
-                  title: p.title,
-                  dueDate: p.dueDate,
-                  dueTime: p.dueTime,
-                );
-
-            if (p.scheduledDateTime != null &&
-                p.scheduledDateTime!.isAfter(DateTime.now())) {
-              await NotificationService.instance.scheduleAlarm(
-                id: task.id.hashCode,
-                title: '${l10n.tasks}: ${task.title}',
-                body: l10n.taskDueNowText,
-                scheduledDateTime: p.scheduledDateTime!,
-              );
-            }
-
-            ref.invalidate(tasksProvider);
-
-            if (dialogContext.mounted) {
-              Navigator.of(dialogContext).pop();
-            }
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${l10n.smartAlarmSuccess} (${task.title})',
-                  ),
-                ),
-              );
-            }
-          } catch (e) {
-            if (dialogContext.mounted) {
-              setDialogState(() => error = _safeMessage(e));
-            }
-          } finally {
-            if (dialogContext.mounted) {
-              setDialogState(() => busy = false);
-            }
-          }
-        }
-
-        Future<void> triggerVoiceInput() async {
-          if (isListening) {
-            setDialogState(() => isListening = false);
-            return;
-          }
-          setDialogState(() => isListening = true);
-          try {
-            const channel =
-                MethodChannel('com.example.lifestyle_mobile/native_voice');
-            final spokenText = await channel.invokeMethod<String>(
-              'startVoiceRecognition',
-              <String, String>{
-                'languageTag':
-                    Localizations.localeOf(dialogContext).toLanguageTag(),
-              },
-            );
-            if (dialogContext.mounted) {
-              if (spokenText != null && spokenText.trim().isNotEmpty) {
-                controller.text = spokenText.trim();
-                setDialogState(() {
-                  parsed = SmartTaskParser.parse(spokenText.trim());
-                  isListening = false;
-                });
-              } else {
-                setDialogState(() => isListening = false);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.noSpeechDetected),
-                      duration: const Duration(seconds: 2),
-                    ),
+              final task = await ref.read(tasksRepositoryProvider).createTask(
+                    title: p.title,
+                    dueDate: p.dueDate,
+                    dueTime: p.dueTime,
                   );
-                }
+
+              if (p.scheduledDateTime != null &&
+                  p.scheduledDateTime!.isAfter(DateTime.now())) {
+                await NotificationService.instance.scheduleAlarm(
+                  id: task.id.hashCode,
+                  title: '${l10n.tasks}: ${task.title}',
+                  body: l10n.taskDueNowText,
+                  scheduledDateTime: p.scheduledDateTime!,
+                );
+              }
+
+              ref.invalidate(tasksProvider);
+
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${l10n.smartAlarmSuccess} (${task.title})',
+                    ),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (dialogContext.mounted) {
+                setDialogState(() => error = _safeMessage(e));
+              }
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => busy = false);
               }
             }
-          } catch (_) {
-            if (dialogContext.mounted) {
+          }
+
+          Future<void> triggerVoiceInput() async {
+            if (isListening) {
               setDialogState(() => isListening = false);
+              return;
+            }
+            setDialogState(() => isListening = true);
+            try {
+              const channel =
+                  MethodChannel('com.example.lifestyle_mobile/native_voice');
+              final spokenText = await channel.invokeMethod<String>(
+                'startVoiceRecognition',
+                <String, String>{
+                  'languageTag':
+                      Localizations.localeOf(dialogContext).toLanguageTag(),
+                },
+              );
+              if (dialogContext.mounted) {
+                if (spokenText != null && spokenText.trim().isNotEmpty) {
+                  controller.text = spokenText.trim();
+                  setDialogState(() {
+                    parsed = SmartTaskParser.parse(spokenText.trim());
+                    isListening = false;
+                  });
+                } else {
+                  setDialogState(() => isListening = false);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.noSpeechDetected),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              }
+            } catch (_) {
+              if (dialogContext.mounted) {
+                setDialogState(() => isListening = false);
+              }
             }
           }
-        }
 
-        if (initialVoice && !hasAutoTriggered) {
-          hasAutoTriggered = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            triggerVoiceInput();
-          });
-        }
+          if (initialVoice && !hasAutoTriggered) {
+            hasAutoTriggered = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              triggerVoiceInput();
+            });
+          }
 
-        return AlertDialog(
-          title: Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: Colors.amber, size: 24),
-              const SizedBox(width: 8),
-              Expanded(child: Text(l10n.smartAdd)),
-              IconButton(
-                icon: Icon(
-                  isListening ? Icons.mic : Icons.mic_none,
-                  color: isListening
-                      ? Colors.red
-                      : Theme.of(context).colorScheme.primary,
-                ),
-                tooltip: l10n.voiceMicPrompt,
-                onPressed: triggerVoiceInput,
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          return AlertDialog(
+            title: Row(
               children: [
-                if (isListening) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withAlpha(20),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.withAlpha(80)),
+                const Icon(Icons.auto_awesome, color: Colors.amber, size: 24),
+                const SizedBox(width: 8),
+                Expanded(child: Text(l10n.smartAdd)),
+                IconButton(
+                  icon: Icon(
+                    isListening ? Icons.mic : Icons.mic_none,
+                    color: isListening
+                        ? Colors.red
+                        : Theme.of(context).colorScheme.primary,
+                  ),
+                  tooltip: l10n.voiceMicPrompt,
+                  onPressed: triggerVoiceInput,
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (isListening) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 16),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withAlpha(20),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.withAlpha(80)),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.red),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              l10n.voiceMicPrompt,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                  TextField(
+                    controller: controller,
+                    autofocus: !initialVoice,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      hintText: l10n.smartAddHint,
+                      hintStyle: const TextStyle(fontSize: 13),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.mic_outlined),
+                        tooltip: l10n.voiceMicPrompt,
+                        onPressed: triggerVoiceInput,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      setDialogState(() {
+                        parsed = SmartTaskParser.parse(val);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  // Quick suggested voice clips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.red),
+                        ActionChip(
+                          avatar: const Icon(Icons.schedule, size: 14),
+                          label: Text(l10n.quickClip30MinLabel,
+                              style: const TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            final text = l10n.quickClip30MinText;
+                            controller.text = text;
+                            setDialogState(
+                                () => parsed = SmartTaskParser.parse(text));
+                          },
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            l10n.voiceMicPrompt,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.red),
-                          ),
+                        const SizedBox(width: 6),
+                        ActionChip(
+                          avatar: const Icon(Icons.calendar_today, size: 14),
+                          label: Text(l10n.quickClipTomorrow7PMLabel,
+                              style: const TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            final text = l10n.quickClipTomorrow7PMText;
+                            controller.text = text;
+                            setDialogState(
+                                () => parsed = SmartTaskParser.parse(text));
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        ActionChip(
+                          avatar: const Icon(Icons.alarm, size: 14),
+                          label: Text(l10n.quickClip2HoursLabel,
+                              style: const TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            final text = l10n.quickClip2HoursText;
+                            controller.text = text;
+                            setDialogState(
+                                () => parsed = SmartTaskParser.parse(text));
+                          },
                         ),
                       ],
                     ),
                   ),
-                ],
-                TextField(
-                  controller: controller,
-                  autofocus: !initialVoice,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    hintText: l10n.smartAddHint,
-                    hintStyle: const TextStyle(fontSize: 13),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.mic_outlined),
-                      tooltip: l10n.voiceMicPrompt,
-                      onPressed: triggerVoiceInput,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onChanged: (val) {
-                    setDialogState(() {
-                      parsed = SmartTaskParser.parse(val);
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                // Quick suggested voice clips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.schedule, size: 14),
-                        label: Text(l10n.quickClip30MinLabel,
-                            style: const TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          final text = l10n.quickClip30MinText;
-                          controller.text = text;
-                          setDialogState(
-                              () => parsed = SmartTaskParser.parse(text));
-                        },
+                  const SizedBox(height: 14),
+                  if (parsed != null && parsed!.title.isNotEmpty) ...[
+                    Card(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withAlpha(80),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 6),
-                      ActionChip(
-                        avatar: const Icon(Icons.calendar_today, size: 14),
-                        label: Text(l10n.quickClipTomorrow7PMLabel,
-                            style: const TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          final text = l10n.quickClipTomorrow7PMText;
-                          controller.text = text;
-                          setDialogState(
-                              () => parsed = SmartTaskParser.parse(text));
-                        },
-                      ),
-                      const SizedBox(width: 6),
-                      ActionChip(
-                        avatar: const Icon(Icons.alarm, size: 14),
-                        label: Text(l10n.quickClip2HoursLabel,
-                            style: const TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          final text = l10n.quickClip2HoursText;
-                          controller.text = text;
-                          setDialogState(
-                              () => parsed = SmartTaskParser.parse(text));
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (parsed != null && parsed!.title.isNotEmpty) ...[
-                  Card(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primaryContainer
-                        .withAlpha(80),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.check_circle,
-                                  size: 16, color: Colors.green),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  '${l10n.detectedTitle}: ${parsed!.title}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.check_circle,
+                                    size: 16, color: Colors.green),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    '${l10n.detectedTitle}: ${parsed!.title}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
+                              ],
+                            ),
+                            if (parsed!.dueDate != null) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 14),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${l10n.detectedDate}: ${parsed!.dueDate}',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                          if (parsed!.dueDate != null) ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today, size: 14),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${l10n.detectedDate}: ${parsed!.dueDate}',
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (parsed!.dueTime != null) ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(Icons.alarm,
-                                    size: 14, color: Colors.deepOrange),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${l10n.detectedAlarm}: ${parsed!.dueTime}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.deepOrange,
+                            if (parsed!.dueTime != null) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.alarm,
+                                      size: 14, color: Colors.deepOrange),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${l10n.detectedAlarm}: ${parsed!.dueTime}',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.deepOrange,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-                if (error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                  ],
+                  if (error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: busy ? null : () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton.icon(
-              onPressed: (busy || parsed == null || parsed!.title.isEmpty)
-                  ? null
-                  : submit,
-              icon: busy
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.alarm_add, size: 18),
-              label: Text(l10n.saveAndSetAlarm),
-            ),
-          ],
-        );
-      },
+            actions: [
+              TextButton(
+                onPressed:
+                    busy ? null : () => Navigator.of(dialogContext).pop(),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton.icon(
+                onPressed: (busy || parsed == null || parsed!.title.isEmpty)
+                    ? null
+                    : submit,
+                icon: busy
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.alarm_add, size: 18),
+                label: Text(l10n.saveAndSetAlarm),
+              ),
+            ],
+          );
+        },
+      ),
     ),
   );
-  controller.dispose();
 }
 
 Future<void> _showAddTask(
@@ -1041,217 +1045,222 @@ Future<void> _showAddTask(
 
   await showDialog<void>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) {
-        Future<void> pickDate() async {
-          final now = DateTime.now();
-          final picked = await showDatePicker(
-            context: context,
-            initialDate: selectedDate ?? now,
-            firstDate: DateTime(2020),
-            lastDate: now.add(const Duration(days: 3650)),
-          );
-          if (picked != null) {
-            setDialogState(() {
-              selectedDate = picked;
-              selectedTime ??= TimeOfDay.now();
-            });
+    builder: (dialogContext) => OwnedDialog(
+      controllers: [title],
+      child: StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> pickDate() async {
+            final now = DateTime.now();
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: selectedDate ?? now,
+              firstDate: DateTime(2020),
+              lastDate: now.add(const Duration(days: 3650)),
+            );
+            if (picked != null) {
+              setDialogState(() {
+                selectedDate = picked;
+                selectedTime ??= TimeOfDay.now();
+              });
+            }
           }
-        }
 
-        Future<void> pickTime() async {
-          final picked = await showTimePicker(
-            context: context,
-            initialTime: selectedTime ?? TimeOfDay.now(),
-          );
-          if (picked != null) {
-            setDialogState(() {
-              selectedTime = picked;
-              selectedDate ??= DateTime.now();
-            });
+          Future<void> pickTime() async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: selectedTime ?? TimeOfDay.now(),
+            );
+            if (picked != null) {
+              setDialogState(() {
+                selectedTime = picked;
+                selectedDate ??= DateTime.now();
+              });
+            }
           }
-        }
 
-        Future<void> submit() async {
-          if (!formKey.currentState!.validate()) return;
-          setDialogState(() {
-            busy = true;
-            error = null;
-          });
-          try {
-            String? dueDateStr;
-            String? dueTimeStr;
-            DateTime? fullDateTime;
+          Future<void> submit() async {
+            if (!formKey.currentState!.validate()) return;
+            setDialogState(() {
+              busy = true;
+              error = null;
+            });
+            try {
+              String? dueDateStr;
+              String? dueTimeStr;
+              DateTime? fullDateTime;
 
-            if (selectedDate != null) {
-              final y = selectedDate!.year.toString().padLeft(4, '0');
-              final m = selectedDate!.month.toString().padLeft(2, '0');
-              final d = selectedDate!.day.toString().padLeft(2, '0');
-              dueDateStr = '$y-$m-$d';
+              if (selectedDate != null) {
+                final y = selectedDate!.year.toString().padLeft(4, '0');
+                final m = selectedDate!.month.toString().padLeft(2, '0');
+                final d = selectedDate!.day.toString().padLeft(2, '0');
+                dueDateStr = '$y-$m-$d';
 
-              if (selectedTime != null) {
-                final hh = selectedTime!.hour.toString().padLeft(2, '0');
-                final mm = selectedTime!.minute.toString().padLeft(2, '0');
-                dueTimeStr = '$hh:$mm';
-                fullDateTime = DateTime(
-                  selectedDate!.year,
-                  selectedDate!.month,
-                  selectedDate!.day,
-                  selectedTime!.hour,
-                  selectedTime!.minute,
+                if (selectedTime != null) {
+                  final hh = selectedTime!.hour.toString().padLeft(2, '0');
+                  final mm = selectedTime!.minute.toString().padLeft(2, '0');
+                  dueTimeStr = '$hh:$mm';
+                  fullDateTime = DateTime(
+                    selectedDate!.year,
+                    selectedDate!.month,
+                    selectedDate!.day,
+                    selectedTime!.hour,
+                    selectedTime!.minute,
+                  );
+                }
+              }
+
+              final task = await ref.read(tasksRepositoryProvider).createTask(
+                    title: title.text,
+                    dueDate: dueDateStr,
+                    dueTime: dueTimeStr,
+                  );
+
+              if (fullDateTime != null &&
+                  fullDateTime.isAfter(DateTime.now())) {
+                final alarmId = task.id.hashCode;
+                await NotificationService.instance.scheduleAlarm(
+                  id: alarmId,
+                  title: '${l10n.tasks}: ${task.title}',
+                  body: l10n.taskTitle,
+                  scheduledDateTime: fullDateTime,
                 );
               }
-            }
 
-            final task = await ref.read(tasksRepositoryProvider).createTask(
-                  title: title.text,
-                  dueDate: dueDateStr,
-                  dueTime: dueTimeStr,
+              ref.invalidate(tasksProvider);
+
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+              if (fullDateTime != null && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.alarmScheduled)),
                 );
-
-            if (fullDateTime != null && fullDateTime.isAfter(DateTime.now())) {
-              final alarmId = task.id.hashCode;
-              await NotificationService.instance.scheduleAlarm(
-                id: alarmId,
-                title: '${l10n.tasks}: ${task.title}',
-                body: l10n.taskTitle,
-                scheduledDateTime: fullDateTime,
-              );
-            }
-
-            ref.invalidate(tasksProvider);
-
-            if (dialogContext.mounted) {
-              Navigator.of(dialogContext).pop();
-            }
-            if (fullDateTime != null && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.alarmScheduled)),
-              );
-            }
-          } catch (exception) {
-            if (dialogContext.mounted) {
-              setDialogState(() => error = _safeMessage(exception));
-            }
-          } finally {
-            if (dialogContext.mounted) {
-              setDialogState(() => busy = false);
+              }
+            } catch (exception) {
+              if (dialogContext.mounted) {
+                setDialogState(() => error = _safeMessage(exception));
+              }
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => busy = false);
+              }
             }
           }
-        }
 
-        return AlertDialog(
-          title: Text(l10n.addTask),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextFormField(
-                    controller: title,
-                    autofocus: true,
-                    maxLength: 300,
-                    decoration: InputDecoration(
-                      labelText: l10n.taskTitle,
+          return AlertDialog(
+            title: Text(l10n.addTask),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: title,
+                      autofocus: true,
+                      maxLength: 300,
+                      decoration: InputDecoration(
+                        labelText: l10n.taskTitle,
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                              ? l10n.taskTitle
+                              : null,
+                      onFieldSubmitted: (_) => submit(),
                     ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? l10n.taskTitle
-                        : null,
-                    onFieldSubmitted: (_) => submit(),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.setAlarm,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.setAlarm,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: pickDate,
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: Text(
-                            selectedDate == null
-                                ? l10n.pickDate
-                                : '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}',
-                            style: const TextStyle(fontSize: 12),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: pickDate,
+                            icon: const Icon(Icons.calendar_today, size: 16),
+                            label: Text(
+                              selectedDate == null
+                                  ? l10n.pickDate
+                                  : '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: pickTime,
+                            icon: const Icon(Icons.access_time, size: 16),
+                            label: Text(
+                              selectedTime == null
+                                  ? l10n.pickTime
+                                  : '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (selectedDate != null)
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton(
+                          onPressed: () {
+                            setDialogState(() {
+                              selectedDate = null;
+                              selectedTime = null;
+                            });
+                          },
+                          child: Text(
+                            l10n.noAlarm,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: pickTime,
-                          icon: const Icon(Icons.access_time, size: 16),
-                          label: Text(
-                            selectedTime == null
-                                ? l10n.pickTime
-                                : '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
+                    if (error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
                         ),
                       ),
                     ],
-                  ),
-                  if (selectedDate != null)
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: TextButton(
-                        onPressed: () {
-                          setDialogState(() {
-                            selectedDate = null;
-                            selectedTime = null;
-                          });
-                        },
-                        child: Text(
-                          l10n.noAlarm,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: busy ? null : () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: busy ? null : submit,
-              child: busy
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l10n.save),
-            ),
-          ],
-        );
-      },
+            actions: [
+              TextButton(
+                onPressed:
+                    busy ? null : () => Navigator.of(dialogContext).pop(),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: busy ? null : submit,
+                child: busy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.save),
+              ),
+            ],
+          );
+        },
+      ),
     ),
   );
-  title.dispose();
 }
 
 String _taskSubtitle(Task task) {

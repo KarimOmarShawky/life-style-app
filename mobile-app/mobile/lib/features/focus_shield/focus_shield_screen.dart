@@ -1,9 +1,9 @@
-import 'package:lifestyle_mobile/features/timer/presentation/focus_timer_screen.dart';
 import 'weekly_review_screen.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 import 'focus_shield_models.dart';
 import 'focus_shield_provider.dart';
 
@@ -69,8 +69,8 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
       await action();
     } catch (_) {
       if (mounted) {
-        setState(() => _error =
-            'Could not complete the action. Your reply draft is preserved.');
+        setState(() =>
+            _error = AppLocalizations.of(context).tr('shieldActionError'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -79,19 +79,19 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
 
   Future<void> _enable(bool enabled) => _run(() async {
         if (enabled) {
+          final l10n = AppLocalizations.of(context);
           final consent = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
-                    title: const Text('Enable Focus Shield?'),
-                    content: const Text(
-                        'LifeStyle can return you from selected apps during focus and read message notifications from supported non-SMS messaging apps into a temporary inbox. SMS apps are excluded. Messages stay in memory, are never sent to AI, and are cleared when the session ends. You can end the shield at any time. Android permissions are optional and can be revoked in Settings.'),
+                    title: Text(l10n.tr('shieldEnableTitle')),
+                    content: Text(l10n.tr('shieldEnableBody')),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel')),
+                          child: Text(l10n.cancel)),
                       FilledButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Enable'))
+                          child: Text(l10n.tr('shieldEnable')))
                     ],
                   ));
           if (consent != true) return;
@@ -102,58 +102,7 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
         }
         await ref.read(focusShieldProvider.notifier).setEnabled(enabled);
       });
-  Future<void> _pickApp() => _run(() async {
-        final result = await ref
-            .read(focusShieldPlatformProvider)
-            .invoke('getInstalledApps');
-        final apps =
-            (result['apps'] as List<dynamic>).cast<Map<dynamic, dynamic>>();
-        if (!mounted) return;
-        final selected = await showDialog<String>(
-            context: context,
-            builder: (context) => SimpleDialog(
-                  title: const Text('Installed launchable apps'),
-                  children: [
-                    for (final app in apps)
-                      SimpleDialogOption(
-                          onPressed: () => Navigator.pop(
-                              context, app['packageName'] as String),
-                          child: Text('${app['label']}\n${app['packageName']}'))
-                  ],
-                ));
-        if (selected != null) {
-          await ref
-              .read(focusShieldProvider.notifier)
-              .setBlocked(selected, true);
-        }
-      });
-  Future<void> _customPackage() => _run(() async {
-        final input = TextEditingController();
-        final packageName = await showDialog<String>(
-            context: context,
-            builder: (context) => AlertDialog(
-                  title: const Text('Custom package'),
-                  content: TextField(
-                      controller: input,
-                      decoration:
-                          const InputDecoration(hintText: 'com.example.app')),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel')),
-                    FilledButton(
-                        onPressed: () =>
-                            Navigator.pop(context, input.text.trim()),
-                        child: const Text('Add'))
-                  ],
-                ));
-        input.dispose();
-        if (packageName != null) {
-          await ref
-              .read(focusShieldProvider.notifier)
-              .setBlocked(packageName, true);
-        }
-      });
+
   Future<void> _reply(FocusInboxMessage message) async {
     setState(() => _sending.add(message.key));
     final draft = _drafts[message.key]!;
@@ -172,17 +121,37 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
     });
   }
 
-  Future<void> _copyAndOpen(FocusInboxMessage message) => _run(() async {
-        final text = _drafts[message.key]?.text ?? '';
-        await Clipboard.setData(ClipboardData(text: text));
-        await ref
-            .read(focusShieldProvider.notifier)
-            .grantTemporaryBypass(message.packageName);
-        // Native grantTemporaryBypass opens ONLY the exempted package for 60s.
-      });
+  Future<void> _copyAndOpen(FocusInboxMessage message) {
+    final text = _drafts[message.key]?.text ?? '';
+    return _run(() async {
+      await Clipboard.setData(ClipboardData(text: text));
+      await ref
+          .read(focusShieldProvider.notifier)
+          .grantTemporaryBypass(message.packageName);
+      // Native grantTemporaryBypass opens ONLY the exempted package for 60s.
+    });
+  }
+
+  String _rankLabel(AppLocalizations l10n, int level) {
+    if (level >= 10) return l10n.tr('shieldRankLegend');
+    if (level >= 8) return l10n.tr('shieldRankMaster');
+    if (level >= 5) return l10n.tr('shieldRankPractitioner');
+    if (level >= 3) return l10n.tr('shieldRankApprentice');
+    return l10n.tr('shieldRankWanderer');
+  }
+
+  String _badgeLabel(AppLocalizations l10n, FocusBadge badge) =>
+      switch (badge) {
+        FocusBadge.firstShield => l10n.tr('shieldBadgeFirst'),
+        FocusBadge.ironWill => l10n.tr('shieldBadgeIron'),
+        FocusBadge.inboxZeroDistraction => l10n.tr('shieldBadgeInboxZero'),
+        FocusBadge.deepWorkStreak => l10n.tr('shieldBadgeStreak'),
+        FocusBadge.taskCrusher => l10n.tr('shieldBadgeCrusher'),
+      };
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final asyncData = ref.watch(focusShieldProvider);
     ref.listen(focusShieldProvider, (previous, next) {
       final data = next.asData?.value;
@@ -197,9 +166,9 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
       }
     });
     return Scaffold(
-      appBar: AppBar(title: const Text('Focus Shield'), actions: [
+      appBar: AppBar(title: Text(l10n.tr('shieldTitle')), actions: [
         IconButton(
-            tooltip: 'Weekly Brain Report',
+            tooltip: l10n.tr('shieldWeeklyReport'),
             icon: const Icon(Icons.insights),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => const WeeklyReviewScreen())))
@@ -208,33 +177,37 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
         // Safety exit is outside async loading/error branches and never hidden.
         Padding(
             padding: const EdgeInsets.all(12),
-            child: FilledButton.icon(
-                onPressed: () async {
-                  try {
-                    await ref.read(focusShieldProvider.notifier).endShieldNow();
-                  } catch (_) {
-                    // Even if local persistence is unavailable, try the native exit.
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                  onPressed: () async {
                     try {
                       await ref
-                          .read(focusShieldPlatformProvider)
-                          .invoke('stopShield');
+                          .read(focusShieldProvider.notifier)
+                          .endShieldNow();
                     } catch (_) {
-                      if (mounted) {
-                        setState(() => _error =
-                            'Open Android Settings to disable LifeStyle accessibility.');
+                      // Even if local persistence is unavailable, try the native exit.
+                      try {
+                        await ref
+                            .read(focusShieldPlatformProvider)
+                            .invoke('stopShield');
+                      } catch (_) {
+                        if (mounted) {
+                          setState(
+                              () => _error = l10n.tr('shieldSettingsError'));
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.stop_circle_outlined),
-                label: const Text('End shield now'))),
+                  },
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  label: Text(l10n.tr('shieldEndNow'))),
+            )),
         if (_error != null)
           Padding(padding: const EdgeInsets.all(12), child: Text(_error!)),
         Expanded(
             child: asyncData.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, __) =>
-              const Center(child: Text('Could not load productivity data.')),
+          error: (_, __) => Center(child: Text(l10n.tr('shieldLoadError'))),
           data: (data) {
             final remaining = ((data.shield.endTimestampMs -
                         DateTime.now().millisecondsSinceEpoch) ~/
@@ -252,7 +225,7 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
                       key: key,
                       packageName: old.packageName,
                       sender: '',
-                      text: 'Notification removed or stale');
+                      text: l10n.tr('shieldStaleMessage'));
                 } else {
                   _messages.remove(key);
                   _drafts.remove(key)?.dispose();
@@ -263,62 +236,100 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
                 data.inbox.containsKey(m.key) ||
                 (_drafts[m.key]?.text.isNotEmpty ?? false));
             return ListView(padding: const EdgeInsets.all(16), children: [
-              SwitchListTile(
-                  title: const Text('Focus Shield (off by default)'),
-                  subtitle: const Text(
-                      'Enable permissions first, then start a focus timer.'),
-                  value: data.enabled,
-                  onChanged: _busy ? null : _enable),
-              Text(
-                  'Lv.${data.ledger.level} ${data.ledger.rank} · ${data.ledger.totalXp} XP'),
-              Wrap(spacing: 8, children: [
-                for (final badge in data.badges) Chip(label: Text(badge.title))
+              _ShieldCard(children: [
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.tr('shieldToggleTitle')),
+                    subtitle: Text(l10n.tr('shieldToggleSubtitle')),
+                    value: data.enabled,
+                    onChanged: _busy ? null : _enable),
+                const SizedBox(height: 4),
+                Text(l10n
+                    .tr('shieldLevelLine')
+                    .replaceAll('{level}', '${data.ledger.level}')
+                    .replaceAll('{rank}', _rankLabel(l10n, data.ledger.level))
+                    .replaceAll('{xp}', '${data.ledger.totalXp}')),
+                if (data.badges.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final badge in data.badges)
+                      Chip(label: Text(_badgeLabel(l10n, badge)))
+                  ]),
+                ],
+                if (data.platformError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(data.platformError!),
+                ],
               ]),
-              if (data.platformError != null) Text(data.platformError!),
               if (data.enabled) ...[
-                for (final item in <(String, String)>[
-                  ('openAccessibilitySettings', 'Accessibility settings'),
-                  (
-                    'openNotificationListenerSettings',
-                    'Notification access settings'
-                  ),
-                  (
-                    'openBatteryOptimizationSettings',
-                    'Battery optimization settings'
-                  ),
-                ])
-                  OutlinedButton(
-                      onPressed: () => _run(() async {
-                            await ref
-                                .read(focusShieldPlatformProvider)
-                                .invoke(item.$1);
-                          }),
-                      child: Text(item.$2)),
-                if (_permissions['notifications'] == false)
-                  const Text(
-                      'Notification control is unavailable. Use End shield now on this screen.'),
-                if (_permissions['notificationListener'] == false)
-                  const Text(
-                      'Notification access is off. Focus Inbox is unavailable; blocking can still work.'),
+                const SizedBox(height: 16),
+                _ShieldCard(children: [
+                  for (final item in <(String, String)>[
+                    (
+                      'openAccessibilitySettings',
+                      l10n.tr('shieldAccessibility')
+                    ),
+                    (
+                      'openNotificationListenerSettings',
+                      l10n.tr('shieldNotificationAccess')
+                    ),
+                    (
+                      'openBatteryOptimizationSettings',
+                      l10n.tr('shieldBattery')
+                    ),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                            onPressed: () => _run(() async {
+                                  await ref
+                                      .read(focusShieldPlatformProvider)
+                                      .invoke(item.$1);
+                                }),
+                            child: Text(item.$2)),
+                      ),
+                    ),
+                  if (_permissions['notifications'] == false)
+                    Text(l10n.tr('shieldNotifUnavailable')),
+                  if (_permissions['notificationListener'] == false)
+                    Text(l10n.tr('shieldNotifAccessOff')),
+                ]),
               ],
-              if (data.shield.active)
-                Card(
-                    child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                            '${data.shield.taskTitle}\n${remaining ~/ 60}:${(remaining % 60).toString().padLeft(2, '0')} remaining\nBlocked Distraction Attempts: ${data.shield.blockedAttemptsCount}\n${data.lastInterceptPackage ?? ''}'))),
-              OutlinedButton(
-                  onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                          builder: (_) => const FocusTimerScreen())),
-                  child: const Text('Open focus timer')),
-              const Divider(),
-              const Text('Focus Inbox'),
-              if (visibleMessages.isEmpty)
-                const Text(
-                    'No messages. Notifications are kept only during an active shield session.'),
+              if (data.shield.active) ...[
+                const SizedBox(height: 16),
+                _ShieldCard(children: [
+                  Text(data.shield.taskTitle,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                      '${remaining ~/ 60}:${(remaining % 60).toString().padLeft(2, '0')} ${l10n.tr('shieldRemaining')}'),
+                  Text(l10n.tr('shieldBlockedAttempts').replaceAll(
+                      '{n}', '${data.shield.blockedAttemptsCount}')),
+                  if (data.lastInterceptPackage != null)
+                    Text(data.lastInterceptPackage!),
+                ]),
+              ],
+              const SizedBox(height: 16),
+              _ShieldCard(children: [
+                Text(l10n.tr('shieldSelectedAppsTitle'),
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(data.blockedPackages.isEmpty
+                    ? l10n.tr('shieldSelectedAppsEmpty')
+                    : l10n
+                        .tr('shieldSelectedAppsCount')
+                        .replaceAll('{n}', '${data.blockedPackages.length}')),
+              ]),
+              const SizedBox(height: 16),
+              Text(l10n.tr('shieldInboxTitle'),
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              if (visibleMessages.isEmpty) Text(l10n.tr('shieldInboxEmpty')),
               for (final message in visibleMessages)
                 Card(
+                    margin: const EdgeInsets.only(bottom: 12),
                     child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
@@ -329,49 +340,45 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
                               Text(message.text),
                               TextField(
                                   controller: _drafts[message.key],
-                                  decoration: const InputDecoration(
-                                      labelText: 'Reply inside LifeStyle')),
+                                  decoration: InputDecoration(
+                                      labelText: l10n.tr('shieldReplyHint'))),
                               TextButton(
                                   onPressed: _sending.contains(message.key)
                                       ? null
                                       : () => _reply(message),
-                                  child: const Text('Send reply')),
+                                  child: Text(l10n.tr('shieldSendReply'))),
                               if (_failed.contains(message.key) ||
                                   !data.inbox.containsKey(message.key)) ...[
-                                const Text(
-                                    'Reply unavailable or stale. Your draft has not been cleared.'),
+                                Text(l10n.tr('shieldStaleNote')),
                                 OutlinedButton(
                                     onPressed: () => _copyAndOpen(message),
-                                    child:
-                                        const Text('Copy & open app for 60s')),
+                                    child: Text(l10n.tr('shieldCopyOpen'))),
                               ],
                             ]))),
-              const Divider(),
-              const Text('Blocked apps (toggle each app)'),
-              Row(children: [
-                TextButton(
-                    onPressed: data.shield.active ? null : _pickApp,
-                    child: const Text('Installed apps')),
-                TextButton(
-                    onPressed: data.shield.active ? null : _customPackage,
-                    child: const Text('Custom package'))
-              ]),
-              for (final packageName
-                  in {...defaultBlockedPackages, ...data.blockedPackages}
-                      .toList()
-                    ..sort())
-                CheckboxListTile(
-                    title: Text(packageName),
-                    value: data.blockedPackages.contains(packageName),
-                    onChanged: _busy || data.shield.active
-                        ? null
-                        : (value) => _run(() => ref
-                            .read(focusShieldProvider.notifier)
-                            .setBlocked(packageName, value ?? false))),
             ]);
           },
         )),
       ]),
+    );
+  }
+}
+
+class _ShieldCard extends StatelessWidget {
+  const _ShieldCard({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      ),
     );
   }
 }

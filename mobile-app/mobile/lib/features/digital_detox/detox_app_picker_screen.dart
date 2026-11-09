@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 typedef DetoxAppLoader = Future<List<Map<String, String>>> Function();
 
@@ -48,8 +49,9 @@ class _DetoxAppPickerScreenState extends State<DetoxAppPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose applications')),
+      appBar: AppBar(title: Text(l10n.tr('pickerTitle'))),
       body: FutureBuilder<List<Map<String, String>>>(
         future: _appsFuture,
         builder: (context, snapshot) {
@@ -60,10 +62,9 @@ class _DetoxAppPickerScreenState extends State<DetoxAppPickerScreen> {
           if (snapshot.hasError) {
             return _PickerMessage(
               icon: Icons.apps_outlined,
-              title: 'Application selection is unavailable',
-              body:
-                  'Android did not return an application list. No list has been fabricated.',
-              actionLabel: 'Try again',
+              title: l10n.tr('pickerUnavailableTitle'),
+              body: l10n.tr('pickerUnavailableBody'),
+              actionLabel: l10n.tr('pickerTryAgain'),
               onAction: _retry,
             );
           }
@@ -86,13 +87,13 @@ class _DetoxAppPickerScreenState extends State<DetoxAppPickerScreen> {
                   controller: _search,
                   onChanged: (value) => setState(() => _query = value),
                   decoration: InputDecoration(
-                    labelText: 'Search applications',
+                    labelText: l10n.tr('pickerSearch'),
                     prefixIcon: const Icon(Icons.search),
                     border: const OutlineInputBorder(),
                     suffixIcon: _query.isEmpty
                         ? null
                         : IconButton(
-                            tooltip: 'Clear search',
+                            tooltip: l10n.tr('pickerClearSearch'),
                             onPressed: () {
                               _search.clear();
                               setState(() => _query = '');
@@ -108,25 +109,26 @@ class _DetoxAppPickerScreenState extends State<DetoxAppPickerScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     _selected.isEmpty
-                        ? 'No applications selected yet.'
-                        : '${_selected.length} application${_selected.length == 1 ? '' : 's'} selected.',
+                        ? l10n.tr('pickerSelectedNone')
+                        : l10n
+                            .tr('pickerSelectedCount')
+                            .replaceAll('{n}', '${_selected.length}'),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
               ),
               Expanded(
                 child: apps.isEmpty
-                    ? const _PickerMessage(
+                    ? _PickerMessage(
                         icon: Icons.apps_outlined,
-                        title: 'No restrictable applications found',
-                        body:
-                            'Android returned no launchable applications that can be selected here.',
+                        title: l10n.tr('pickerNoRestrictableTitle'),
+                        body: l10n.tr('pickerNoRestrictableBody'),
                       )
                     : filtered.isEmpty
-                        ? const _PickerMessage(
+                        ? _PickerMessage(
                             icon: Icons.search_off,
-                            title: 'No matching applications',
-                            body: 'Try a different app name or package name.',
+                            title: l10n.tr('pickerNoMatchTitle'),
+                            body: l10n.tr('pickerNoMatchBody'),
                           )
                         : ListView.separated(
                             itemCount: filtered.length,
@@ -174,8 +176,12 @@ class _DetoxAppPickerScreenState extends State<DetoxAppPickerScreen> {
                           Navigator.of(context).pop(Map.of(_selected)),
                       child: Text(
                         _selected.isEmpty
-                            ? 'Continue without selected apps'
-                            : 'Use ${_selected.length} selected app${_selected.length == 1 ? '' : 's'}',
+                            ? l10n.tr('pickerContinueNone')
+                            : _selected.length == 1
+                                ? l10n.tr('pickerUseOne')
+                                : l10n
+                                    .tr('pickerUseMany')
+                                    .replaceAll('{n}', '${_selected.length}'),
                       ),
                     ),
                   ),

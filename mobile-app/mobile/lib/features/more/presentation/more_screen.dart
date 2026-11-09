@@ -1,7 +1,5 @@
-import 'package:lifestyle_mobile/features/digital_detox/detox_screen.dart';
 import 'package:lifestyle_mobile/features/focus_shield/routine_wizard_screen.dart';
 import 'package:lifestyle_mobile/features/focus_shield/weekly_review_screen.dart';
-import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/analytics/presentation/analytics_screen.dart';
@@ -12,14 +10,13 @@ import 'package:lifestyle_mobile/features/more/presentation/daily_plan_screen.da
 import 'package:lifestyle_mobile/features/money/presentation/subscriptions_screen.dart';
 import 'package:lifestyle_mobile/features/projects/presentation/projects_screen.dart';
 import 'package:lifestyle_mobile/features/recurring/presentation/recurring_tasks_screen.dart';
-import 'package:lifestyle_mobile/features/timer/presentation/focus_history_screen.dart';
-import 'package:lifestyle_mobile/features/timer/presentation/focus_timer_screen.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
-/// Hub for the planning areas that do not fit in the bottom navigation bar.
-/// Items are grouped into a few labelled sections (Money / Focus / Insights /
+/// Hub for the areas that do not fit in the bottom navigation bar.
+/// Items are grouped into a few labelled sections (Money / Insights /
 /// Planning) so the list reads as a small set of "homes" instead of one long
-/// flat menu.
+/// flat menu. Focus has its own bottom-navigation tab and no longer appears
+/// here.
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
@@ -35,41 +32,8 @@ class MoreScreen extends ConsumerWidget {
           _MoreItem(
             icon: Icons.event_repeat,
             title: l10n.subscriptionsTitle,
-            subtitle: isAr
-                ? 'الاشتراكات ومواعيد التجديد'
-                : 'Subscriptions and renewal dates',
+            subtitle: l10n.tr('moreSubscriptionsSubtitle'),
             builder: (_) => const SubscriptionsScreen(),
-          ),
-        ],
-      ),
-      _MoreSection(
-        title: l10n.moreSectionFocus,
-        items: [
-          _MoreItem(
-            icon: Icons.shield_outlined,
-            title: 'Focus Shield',
-            subtitle: isAr
-                ? 'التركيز، النقاط وصندوق رسائل التركيز'
-                : 'Focus, XP and Focus Inbox',
-            builder: (_) => const FocusShieldScreen(),
-          ),
-          _MoreItem(
-            icon: Icons.timer_outlined,
-            title: l10n.focusTimer,
-            subtitle: isAr ? 'جلسات تركيز بمؤقّت' : 'Timed deep-work sessions',
-            builder: (_) => const FocusTimerScreen(),
-          ),
-          _MoreItem(
-            icon: Icons.phonelink_lock,
-            title: 'Digital Detox',
-            subtitle: 'Pick the apps to restrict, then start a focus cycle',
-            builder: (_) => const DigitalDetoxScreen(),
-          ),
-          _MoreItem(
-            icon: Icons.history,
-            title: l10n.focusHistoryTitle,
-            subtitle: l10n.focusHistorySubtitle,
-            builder: (_) => const FocusHistoryScreen(),
           ),
         ],
       ),
@@ -79,15 +43,13 @@ class MoreScreen extends ConsumerWidget {
           _MoreItem(
             icon: Icons.insights,
             title: l10n.analyticsTitle,
-            subtitle: isAr
-                ? 'تحليل تراكمي وداش بورد أداء شخصي'
-                : 'Cumulative analysis and performance dashboard',
+            subtitle: l10n.tr('analyticsDashboardSubtitle'),
             builder: (_) => const AnalyticsScreen(),
           ),
           _MoreItem(
             icon: Icons.assessment_outlined,
-            title: 'Weekly Brain Report',
-            subtitle: 'Private metrics and optional AI coaching',
+            title: l10n.tr('weeklyReportTitle'),
+            subtitle: l10n.tr('weeklyReportSubtitle'),
             builder: (_) => const WeeklyReviewScreen(),
           ),
         ],
@@ -97,16 +59,14 @@ class MoreScreen extends ConsumerWidget {
         items: [
           _MoreItem(
             icon: Icons.dashboard_outlined,
-            title: isAr ? 'خطة اليوم والملخص' : 'Daily Plan & Overview',
-            subtitle: isAr
-                ? 'ملخص شامل لمهام وعادات وأحداث واشتراكات اليوم'
-                : 'Unified overview of today\'s tasks, habits, events and bills',
+            title: l10n.tr('dailyPlanTitle'),
+            subtitle: l10n.tr('dailyPlanSubtitle'),
             builder: (_) => const DailyPlanScreen(),
           ),
           _MoreItem(
             icon: Icons.wb_twilight,
-            title: 'Daily routines',
-            subtitle: 'Morning Kickoff & Night Shutdown',
+            title: l10n.tr('dailyRoutinesTitle'),
+            subtitle: l10n.tr('dailyRoutinesSubtitle'),
             builder: (_) => const RoutineWizardScreen(),
           ),
           _MoreItem(

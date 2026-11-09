@@ -341,7 +341,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
         title: Text(l10n.focusTimer),
         actions: [
           IconButton(
-              tooltip: 'Focus Shield',
+              tooltip: l10n.tr('shieldTitle'),
               icon: const Icon(Icons.shield_outlined),
               onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(

@@ -339,6 +339,7 @@ void main() {
       expect(fake.calls, contains('sendReply'));
       expect(find.text('preserved draft'), findsOneWidget);
       await tester.ensureVisible(find.text('Copy & open app for 60s'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Copy & open app for 60s'));
       await tester.pumpAndSettle();
       expect(copied, 'preserved draft');

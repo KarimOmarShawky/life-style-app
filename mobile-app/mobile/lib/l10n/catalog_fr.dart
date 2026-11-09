@@ -17,7 +17,7 @@ const Map<String, String> frCatalog = {
   'profile': 'Profil',
   'addTask': 'Ajouter une tâche',
   'taskTitle': 'Que faut-il accomplir ?',
-  'noTasks': 'Aucune tâche pour le moment',
+  'noTasks': 'Rien ici pour le moment — un petit pas est un excellent début.',
   'retry': 'Réessayer',
   'fieldRequired': 'Ce champ est obligatoire',
   'signOut': 'Se déconnecter',
@@ -125,8 +125,7 @@ const Map<String, String> frCatalog = {
   'pickTime': 'Choisir l\'heure',
   'noAlarm': 'Sans alarme',
   'smartAdd': 'Ajout rapide intelligent',
-  'smartAddHint':
-      'ex. : rendez-vous chez le médecin demain à 19 h, ou courses dans 30 minutes',
+  'smartAddHint': 'Dites-le ou écrivez-le — chaque petit pas compte.',
   'detectedTitle': 'Tâche',
   'detectedDate': 'Date',
   'detectedAlarm': 'Alarme',
@@ -524,7 +523,7 @@ const Map<String, String> frCatalog = {
   'shieldCopyOpen': 'Copier et ouvrir l’app pendant 60 s',
   'shieldEnableTitle': 'Activer le bouclier de concentration ?',
   'shieldEnableBody':
-      'LifeStyle peut vous ramener depuis les applications sélectionnées pendant la concentration et lire les notifications de messages des applications de messagerie prises en charge (hors SMS) dans une boîte temporaire. Les applications SMS sont exclues. Les messages restent en mémoire, ne sont jamais envoyés à l’IA et sont effacés à la fin de la session. Vous pouvez terminer le bouclier à tout moment. Les autorisations Android sont facultatives et peuvent être révoquées dans les Paramètres.',
+      'Pendant la concentration, LifeStyle peut vous ramener depuis vos applications sélectionnées et garder les notifications de messagerie prises en charge (jamais SMS) dans une boîte temporaire — jamais envoyées à l’IA, effacées en fin de session. Les autorisations sont facultatives et révocables à tout moment.',
   'shieldEnable': 'Activer',
   'shieldSelectedAppsTitle': 'Applications sélectionnées',
   'shieldSelectedAppsEmpty':
@@ -655,4 +654,20 @@ const Map<String, String> frCatalog = {
   'weeklyUnavailableNote':
       'Les métriques indisponibles sont marquées Aucune donnée, jamais traitées comme zéro.',
   'weeklyLocalOnly': 'historique local uniquement',
+  'voiceLanguageTooltip': 'Langue de la voix',
+  'voiceLangAuto': 'Automatique (langue de l’appareil)',
+  'voiceRetry': 'Redis-le',
+  'encourage1': 'De petits pas, chaque jour, changent tout.',
+  'encourage2': 'Pas besoin d’une journée parfaite — juste le prochain pas.',
+  'encourage3': 'Le progrès aime les débuts en douceur. Choisissez une chose.',
+  'encourage4':
+      'Votre futur vous remercie déjà pour le premier pas d’aujourd’hui.',
+  'taskAddedEncouragement':
+      'Parfait — « {title} » est dans votre liste. Un pas de plus.',
+  'focusCompleteEncouragement': 'Bravo — ce temps de concentration compte.',
+  'weeklyWinsTitle': 'Victoires de la semaine',
+  'weeklyWinsLine':
+      '{n} tâches terminées · {m} min de concentration — l’élan grandit.',
+  'weeklyWinsEmpty':
+      'Une semaine fraîche — une petite session est déjà une victoire.',
 };

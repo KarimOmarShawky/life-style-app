@@ -158,8 +158,11 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
             : ListView(padding: const EdgeInsets.all(16), children: [
                 if (_metrics == null)
                   Text(AppLocalizations.of(context).tr('weeklyNoData'))
-                else
+                else ...[
+                  _WeeklyWinsCard(metrics: _metrics!),
+                  const SizedBox(height: 12),
                   WeeklyMetricsSummary(metrics: _metrics!),
+                ],
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
@@ -193,6 +196,57 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
                   ),
               ]),
       );
+}
+
+/// Encouragement first: what the person actually won this week, before
+/// the raw metrics below.
+class _WeeklyWinsCard extends StatelessWidget {
+  const _WeeklyWinsCard({required this.metrics});
+
+  final WeeklyMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final tasks = metrics.tasksCompleted ?? 0;
+    final minutes = metrics.focusSeconds ~/ 60;
+    final hasWins = tasks > 0 || minutes > 0;
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.primaryContainer.withAlpha(120),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.emoji_events,
+                    size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.weeklyWinsTitle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              hasWins
+                  ? l10n.weeklyWinsLine(tasks, minutes)
+                  : l10n.weeklyWinsEmpty,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Card-based weekly metrics. The plain-text [WeeklyMetrics.report] remains

@@ -17,7 +17,7 @@ const Map<String, String> esCatalog = {
   'profile': 'Perfil',
   'addTask': 'Añadir tarea',
   'taskTitle': '¿Qué hay que completar?',
-  'noTasks': 'Aún no hay tareas',
+  'noTasks': 'Nada por aquí todavía — un pequeño paso es un gran comienzo.',
   'retry': 'Reintentar',
   'fieldRequired': 'Este campo es obligatorio',
   'signOut': 'Cerrar sesión',
@@ -123,7 +123,7 @@ const Map<String, String> esCatalog = {
   'pickTime': 'Elegir hora',
   'noAlarm': 'Sin alarma',
   'smartAdd': 'Añadir rápido e inteligente',
-  'smartAddHint': 'ej.: médico mañana a las 7 pm, o compra en 30 minutos',
+  'smartAddHint': 'Dilo o escríbelo — cada pequeño paso cuenta.',
   'detectedTitle': 'Tarea',
   'detectedDate': 'Fecha',
   'detectedAlarm': 'Alarma',
@@ -518,7 +518,7 @@ const Map<String, String> esCatalog = {
   'shieldCopyOpen': 'Copiar y abrir la app durante 60 s',
   'shieldEnableTitle': '¿Activar el escudo de concentración?',
   'shieldEnableBody':
-      'LifeStyle puede regresarte de las aplicaciones seleccionadas durante la concentración y leer notificaciones de mensajes de aplicaciones de mensajería compatibles (no SMS) en una bandeja temporal. Las aplicaciones SMS están excluidas. Los mensajes permanecen en memoria, nunca se envían a la IA y se borran cuando termina la sesión. Puedes terminar el escudo en cualquier momento. Los permisos de Android son opcionales y pueden revocarse en Ajustes.',
+      'Durante la concentración, LifeStyle puede regresarte de tus aplicaciones seleccionadas y guardar notificaciones de mensajería compatibles (nunca SMS) en una bandeja temporal — nunca enviadas a la IA, borradas al terminar la sesión. Los permisos son opcionales y revocables en cualquier momento.',
   'shieldEnable': 'Activar',
   'shieldSelectedAppsTitle': 'Aplicaciones seleccionadas',
   'shieldSelectedAppsEmpty':
@@ -647,4 +647,19 @@ const Map<String, String> esCatalog = {
   'weeklyUnavailableNote':
       'Las métricas no disponibles se marcan Sin datos, nunca se tratan como cero.',
   'weeklyLocalOnly': 'solo historial local',
+  'voiceLanguageTooltip': 'Idioma de voz',
+  'voiceLangAuto': 'Automático (idioma del dispositivo)',
+  'voiceRetry': 'Dilo de nuevo',
+  'encourage1': 'Pequeños pasos, cada día, lo cambian todo.',
+  'encourage2': 'No necesitas un día perfecto — solo el siguiente paso.',
+  'encourage3': 'Al progreso le gustan los comienzos suaves. Elige una cosa.',
+  'encourage4': 'Tu yo futuro ya agradece el primer paso de hoy.',
+  'taskAddedEncouragement':
+      'Genial — «{title}» está en tu lista. Un paso más cerca.',
+  'focusCompleteEncouragement':
+      'Bien hecho — ese tiempo de concentración cuenta.',
+  'weeklyWinsTitle': 'Logros de la semana',
+  'weeklyWinsLine':
+      '{n} tareas hechas · {m} min de concentración — el impulso crece.',
+  'weeklyWinsEmpty': 'Semana nueva — una sesión pequeña ya es un logro.',
 };

@@ -53,7 +53,7 @@ const Map<String, String> enCatalog = {
   'profile': 'Profile',
   'addTask': 'Add task',
   'taskTitle': 'What needs to get done?',
-  'noTasks': 'No tasks yet',
+  'noTasks': 'Nothing here yet — one small step is a great start.',
   'retry': 'Try again',
   'fieldRequired': 'This field is required',
   'signOut': 'Sign out',
@@ -157,8 +157,7 @@ const Map<String, String> enCatalog = {
   'pickTime': 'Pick time',
   'noAlarm': 'No alarm',
   'smartAdd': 'Smart Quick Add',
-  'smartAddHint':
-      'e.g. Doctor visit tomorrow at 7 pm, or grocery in 30 minutes',
+  'smartAddHint': 'Say it or type it — every small step counts.',
   'detectedTitle': 'Task',
   'detectedDate': 'Date',
   'detectedAlarm': 'Alarm',
@@ -505,7 +504,7 @@ const Map<String, String> enCatalog = {
   'shieldCopyOpen': 'Copy & open app for 60s',
   'shieldEnableTitle': 'Enable Focus Shield?',
   'shieldEnableBody':
-      'LifeStyle can return you from selected apps during focus and read message notifications from supported non-SMS messaging apps into a temporary inbox. SMS apps are excluded. Messages stay in memory, are never sent to AI, and are cleared when the session ends. You can end the shield at any time. Android permissions are optional and can be revoked in Settings.',
+      'During focus, LifeStyle can bring you back from your selected apps and keep supported messaging notifications (never SMS) in a temporary in-app inbox — never sent to AI, cleared when the session ends. Permissions are optional and can be revoked anytime.',
   'shieldEnable': 'Enable',
   'shieldSelectedAppsTitle': 'Selected applications',
   'shieldSelectedAppsEmpty':
@@ -630,4 +629,16 @@ const Map<String, String> enCatalog = {
   'weeklyUnavailableNote':
       'Unavailable metrics are marked No data, never treated as zero.',
   'weeklyLocalOnly': 'local history only',
+  'voiceLanguageTooltip': 'Speech language',
+  'voiceLangAuto': 'Auto (device language)',
+  'voiceRetry': 'Say it again',
+  'encourage1': 'Small steps, done daily, change everything.',
+  'encourage2': 'You do not need a perfect day — just the next step.',
+  'encourage3': 'Progress loves a gentle start. Pick one thing.',
+  'encourage4': 'Future you is already grateful for today’s first step.',
+  'taskAddedEncouragement': 'Great — {title} is on your list. One step closer.',
+  'focusCompleteEncouragement': 'Well done — that focus time counts.',
+  'weeklyWinsTitle': 'Wins this week',
+  'weeklyWinsLine': '{n} tasks done · {m} min of focus — momentum is building.',
+  'weeklyWinsEmpty': 'A fresh week — one small session is already a win.',
 };

@@ -240,6 +240,26 @@ class AppLocalizations {
   String get pickTime => _s('pickTime');
   String get noAlarm => _s('noAlarm');
   String get smartAdd => _s('smartAdd');
+  String get voiceLanguageTooltip => _s('voiceLanguageTooltip');
+  String get voiceLangAuto => _s('voiceLangAuto');
+  String get voiceRetry => _s('voiceRetry');
+  String encourageAt(int dayOfYear) {
+    const keys = <String>[
+      'encourage1',
+      'encourage2',
+      'encourage3',
+      'encourage4'
+    ];
+    return _s(keys[dayOfYear % keys.length]);
+  }
+
+  String taskAddedEnc(String title) =>
+      _s('taskAddedEncouragement').replaceAll('{title}', title);
+  String get focusCompleteEncouragement => _s('focusCompleteEncouragement');
+  String get weeklyWinsTitle => _s('weeklyWinsTitle');
+  String weeklyWinsLine(int n, int m) =>
+      _s('weeklyWinsLine').replaceAll('{n}', '$n').replaceAll('{m}', '$m');
+  String get weeklyWinsEmpty => _s('weeklyWinsEmpty');
   String get smartAddHint => _s('smartAddHint');
   String get detectedTitle => _s('detectedTitle');
   String get detectedDate => _s('detectedDate');

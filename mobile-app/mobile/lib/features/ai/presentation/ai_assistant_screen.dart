@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_markdown.dart';
+import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
+import 'package:lifestyle_mobile/l10n/speech_language.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
   const AiAssistantScreen({super.key});
@@ -184,7 +186,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       final spokenText = await _nativeVoiceChannel.invokeMethod<String>(
         'startVoiceRecognition',
         <String, String>{
-          'languageTag': l10n.locale.toLanguageTag(),
+          'languageTag': resolveSpeechLanguageTag(
+            appLocale: l10n.locale,
+            deviceLocale: WidgetsBinding.instance.platformDispatcher.locale,
+            speechLanguageCode: ref.read(settingsProvider).speechLanguageCode,
+          ),
         },
       );
       if (!mounted) return;

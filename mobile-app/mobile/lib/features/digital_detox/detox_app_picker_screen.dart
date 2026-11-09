@@ -41,7 +41,9 @@ class _DetoxAppPickerScreenState extends State<DetoxAppPickerScreen> {
   }
 
   void _retry() {
-    setState(() => _appsFuture = widget.loadApps());
+    setState(() {
+      _appsFuture = widget.loadApps();
+    });
   }
 
   @override

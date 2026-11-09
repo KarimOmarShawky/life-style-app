@@ -46,8 +46,8 @@ test('unrelated native features on the shared bridge remain', () => {
   assert.ok(read(nativePath('AlarmReceiver')).includes('class AlarmReceiver'));
   const retired = read('mobile-app/mobile/lib/data/retired_wallet_cleanup.dart');
   const reminders = read('mobile-app/mobile/lib/features/money/data/subscription_reminders.dart');
-  assert.ok(retired.includes('com.example.lifestyle_mobile/native'));
-  assert.ok(reminders.includes('com.example.lifestyle_mobile/native'));
+  assert.ok(retired.includes('com.example.lifestyle_mobile/native_voice'));
+  assert.ok(reminders.includes('com.example.lifestyle_mobile/native_voice'));
 });
 
 test('Dart side has no voice entry points left', () => {

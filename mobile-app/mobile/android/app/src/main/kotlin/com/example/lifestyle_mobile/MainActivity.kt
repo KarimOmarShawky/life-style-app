@@ -11,7 +11,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var accountArchiveBridge: AccountArchiveBridge? = null
     private var focusShieldBridge: FocusShieldBridge? = null
-    private val CHANNEL = "com.example.lifestyle_mobile/native"
+    private val CHANNEL = "com.example.lifestyle_mobile/native_voice"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,8 +41,9 @@ class MainActivity : FlutterActivity() {
         accountArchiveBridge = AccountArchiveBridge(this, flutterEngine.dartExecutor.binaryMessenger)
 
         // Shared native bridge: retired-wallet cleanup and subscription
-        // reminders. (The voice feature that originally lent this channel its
-        // name was removed; nothing here records or transcribes audio.)
+        // reminders. The channel keeps its legacy name (pinned by the
+        // reminder/wallet contract tests); the voice feature that lent it
+        // the name was removed — nothing here records or transcribes audio.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {

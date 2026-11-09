@@ -4,7 +4,8 @@ import 'package:lifestyle_mobile/features/money/data/money_repository.dart';
 /// One Android alarm represents the next renewal across a complete account snapshot.
 /// It displays a generic reminder and never performs or records a payment.
 class SubscriptionReminders {
-  static const _channel = MethodChannel('com.example.lifestyle_mobile/native');
+  static const _channel =
+      MethodChannel('com.example.lifestyle_mobile/native_voice');
   static int _generation = 0;
 
   static Future<void> sync({

@@ -17,7 +17,7 @@ const Map<String, String> deCatalog = {
   'profile': 'Profil',
   'addTask': 'Aufgabe hinzufügen',
   'taskTitle': 'Was muss erledigt werden?',
-  'noTasks': 'Noch keine Aufgaben',
+  'noTasks': 'Noch nichts hier — ein kleiner Schritt ist ein großer Anfang.',
   'retry': 'Erneut versuchen',
   'fieldRequired': 'Dieses Feld ist erforderlich',
   'signOut': 'Abmelden',
@@ -125,8 +125,7 @@ const Map<String, String> deCatalog = {
   'pickTime': 'Zeit wählen',
   'noAlarm': 'Kein Wecker',
   'smartAdd': 'Intelligentes Schnell-Hinzufügen',
-  'smartAddHint':
-      'z. B. Arzttermin morgen um 19 Uhr, oder Einkauf in 30 Minuten',
+  'smartAddHint': 'Sag es oder tippe es — jeder kleine Schritt zählt.',
   'detectedTitle': 'Aufgabe',
   'detectedDate': 'Datum',
   'detectedAlarm': 'Wecker',
@@ -521,7 +520,7 @@ const Map<String, String> deCatalog = {
   'shieldCopyOpen': 'Kopieren & App für 60 s öffnen',
   'shieldEnableTitle': 'Fokus-Schild aktivieren?',
   'shieldEnableBody':
-      'LifeStyle kann dich während des Fokus von ausgewählten Apps zurückholen und Nachrichten-Benachrichtigungen unterstützter Nicht-SMS-Messaging-Apps in ein temporäres Postfach lesen. SMS-Apps sind ausgeschlossen. Nachrichten bleiben im Speicher, werden nie an KI gesendet und beim Sitzungsende gelöscht. Du kannst das Schild jederzeit beenden. Android-Berechtigungen sind optional und können in den Einstellungen widerrufen werden.',
+      'Während des Fokus kann LifeStyle dich von ausgewählten Apps zurückholen und unterstützte Messaging-Benachrichtigungen (nie SMS) in einem temporären Postfach halten — nie an KI gesendet, am Sitzungsende gelöscht. Berechtigungen sind optional und jederzeit widerrufbar.',
   'shieldEnable': 'Aktivieren',
   'shieldSelectedAppsTitle': 'Ausgewählte Apps',
   'shieldSelectedAppsEmpty':
@@ -649,4 +648,20 @@ const Map<String, String> deCatalog = {
   'weeklyUnavailableNote':
       'Nicht verfügbare Metriken werden als Keine Daten markiert, nie als null behandelt.',
   'weeklyLocalOnly': 'nur lokaler Verlauf',
+  'voiceLanguageTooltip': 'Sprache der Spracheingabe',
+  'voiceLangAuto': 'Automatisch (Gerätesprache)',
+  'voiceRetry': 'Nochmal sagen',
+  'encourage1': 'Kleine Schritte, jeden Tag, verändern alles.',
+  'encourage2': 'Du brauchst keinen perfekten Tag — nur den nächsten Schritt.',
+  'encourage3': 'Fortschritt liebt einen sanften Start. Wähle eine Sache.',
+  'encourage4':
+      'Dein Zukunfts-Ich dankt dir schon für den ersten Schritt heute.',
+  'taskAddedEncouragement':
+      'Stark — „{title}“ ist auf deiner Liste. Einen Schritt näher.',
+  'focusCompleteEncouragement': 'Gut gemacht — diese Fokuszeit zählt.',
+  'weeklyWinsTitle': 'Erfolge der Woche',
+  'weeklyWinsLine':
+      '{n} Aufgaben erledigt · {m} Min. Fokus — der Schwung wächst.',
+  'weeklyWinsEmpty':
+      'Eine frische Woche — eine kleine Sitzung ist schon ein Erfolg.',
 };

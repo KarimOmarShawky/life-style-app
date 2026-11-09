@@ -8,7 +8,9 @@ import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
+import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
+import 'package:lifestyle_mobile/l10n/speech_language.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
@@ -475,7 +477,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final level = (xp ~/ 50) + 1;
     final theme = Theme.of(context);
 
-    final hour = DateTime.now().hour;
+    final now = DateTime.now();
+    final dayOfYear = now.difference(DateTime(now.year)).inDays;
+    final hour = now.hour;
     final isMorning = hour < 14;
     final greeting = isMorning ? l10n.briefingMorning : l10n.briefingEvening;
 
@@ -536,6 +540,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
           const SizedBox(height: 8),
           Text(
+            l10n.encourageAt(dayOfYear),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
             totalCount == 0
                 ? l10n.briefingEmptyHint
                 : l10n.briefingSummaryText(totalCount, completedCount),
@@ -590,6 +603,7 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
             .taskCompleted(widget.task.id);
       }
       ref.invalidate(tasksProvider);
+      if (done) HapticFeedback.lightImpact();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -689,6 +703,7 @@ Future<void> _showSmartQuickAdd(
   bool initialVoice = false,
 }) async {
   final l10n = AppLocalizations.of(context);
+  var speechCode = ref.read(settingsProvider).speechLanguageCode;
   final controller = TextEditingController();
   ParsedTaskResult? parsed;
   var busy = false;
@@ -739,9 +754,7 @@ Future<void> _showSmartQuickAdd(
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      '${l10n.smartAlarmSuccess} (${task.title})',
-                    ),
+                    content: Text(l10n.taskAddedEnc(task.title)),
                   ),
                 );
               }
@@ -756,7 +769,7 @@ Future<void> _showSmartQuickAdd(
             }
           }
 
-          Future<void> triggerVoiceInput() async {
+          Future<void> triggerVoiceInput({bool autoRetry = false}) async {
             if (isListening) {
               setDialogState(() => isListening = false);
               return;
@@ -768,8 +781,12 @@ Future<void> _showSmartQuickAdd(
               final spokenText = await channel.invokeMethod<String>(
                 'startVoiceRecognition',
                 <String, String>{
-                  'languageTag':
-                      Localizations.localeOf(dialogContext).toLanguageTag(),
+                  'languageTag': resolveSpeechLanguageTag(
+                    appLocale: Localizations.localeOf(dialogContext),
+                    deviceLocale:
+                        WidgetsBinding.instance.platformDispatcher.locale,
+                    speechLanguageCode: speechCode,
+                  ),
                 },
               );
               if (dialogContext.mounted) {
@@ -779,13 +796,22 @@ Future<void> _showSmartQuickAdd(
                     parsed = SmartTaskParser.parse(spokenText.trim());
                     isListening = false;
                   });
+                } else if (initialVoice && !autoRetry) {
+                  // Hands-free quick-add: one automatic second listen, so
+                  // a quiet first attempt is not a dead end.
+                  setDialogState(() => isListening = false);
+                  await triggerVoiceInput(autoRetry: true);
                 } else {
                   setDialogState(() => isListening = false);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(l10n.noSpeechDetected),
-                        duration: const Duration(seconds: 2),
+                        duration: const Duration(seconds: 4),
+                        action: SnackBarAction(
+                          label: l10n.voiceRetry,
+                          onPressed: () => triggerVoiceInput(autoRetry: true),
+                        ),
                       ),
                     );
                   }
@@ -811,6 +837,30 @@ Future<void> _showSmartQuickAdd(
                 const Icon(Icons.auto_awesome, color: Colors.amber, size: 24),
                 const SizedBox(width: 8),
                 Expanded(child: Text(l10n.smartAdd)),
+                PopupMenuButton<String>(
+                  tooltip: l10n.voiceLanguageTooltip,
+                  initialValue: speechCode,
+                  icon: const Icon(Icons.translate, size: 20),
+                  onSelected: (code) {
+                    speechCode = code;
+                    ref.read(settingsProvider.notifier).setSpeechLanguage(code);
+                    setDialogState(() {});
+                  },
+                  itemBuilder: (menuContext) => <PopupMenuEntry<String>>[
+                    PopupMenuItem<String>(
+                      value: 'auto',
+                      child: Text(l10n.voiceLangAuto),
+                    ),
+                    for (final loc in AppLocalizations.supportedLocales)
+                      PopupMenuItem<String>(
+                        value: loc.languageCode,
+                        child: Text(
+                          AppLocalizations.endonyms[loc.languageCode] ??
+                              loc.languageCode.toUpperCase(),
+                        ),
+                      ),
+                  ],
+                ),
                 IconButton(
                   icon: Icon(
                     isListening ? Icons.mic : Icons.mic_none,

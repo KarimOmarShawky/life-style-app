@@ -17,7 +17,7 @@ const Map<String, String> trCatalog = {
   'profile': 'Profil',
   'addTask': 'Görev ekle',
   'taskTitle': 'Ne yapılması gerekiyor?',
-  'noTasks': 'Henüz görev yok',
+  'noTasks': 'Henüz burada bir şey yok — küçük bir adım harika bir başlangıç.',
   'retry': 'Tekrar dene',
   'fieldRequired': 'Bu alan zorunludur',
   'signOut': 'Çıkış yap',
@@ -122,8 +122,7 @@ const Map<String, String> trCatalog = {
   'pickTime': 'Saat seç',
   'noAlarm': 'Alarm yok',
   'smartAdd': 'Akıllı Hızlı Ekleme',
-  'smartAddHint':
-      'örn. yarın 19\'da doktor randevusu veya 30 dakika sonra market',
+  'smartAddHint': 'Söyle ya da yaz — her küçük adım önemlidir.',
   'detectedTitle': 'Görev',
   'detectedDate': 'Tarih',
   'detectedAlarm': 'Alarm',
@@ -505,7 +504,7 @@ const Map<String, String> trCatalog = {
   'shieldCopyOpen': 'Kopyala ve uygulamayı 60 sn aç',
   'shieldEnableTitle': 'Odak Kalkanı etkinleştirilsin mi?',
   'shieldEnableBody':
-      'LifeStyle, odak sırasında seçilen uygulamalardan seni geri getirebilir ve desteklenen SMS dışı mesajlaşma uygulamalarından gelen mesaj bildirimlerini geçici bir gelen kutusuna okuyabilir. SMS uygulamaları hariçtir. Mesajlar bellekte kalır, asla yapay zekaya gönderilmez ve oturum bittiğinde temizlenir. Kalkanı istediğin zaman bitirebilirsin. Android izinleri isteğe bağlıdır ve Ayarlardan iptal edilebilir.',
+      'Odak sırasında LifeStyle, seçtiğin uygulamalardan seni geri getirebilir ve desteklenen mesajlaşma bildirimlerini (asla SMS değil) geçici bir gelen kutusunda tutar — asla yapay zekaya gönderilmez, oturum sonunda temizlenir. İzinler isteğe bağlıdır ve her zaman iptal edilebilir.',
   'shieldEnable': 'Etkinleştir',
   'shieldSelectedAppsTitle': 'Seçilen uygulamalar',
   'shieldSelectedAppsEmpty':
@@ -630,4 +629,16 @@ const Map<String, String> trCatalog = {
   'weeklyUnavailableNote':
       'Kullanılamayan metrikler Veri yok olarak işaretlenir, asla sıfır sayılmaz.',
   'weeklyLocalOnly': 'yalnızca yerel geçmiş',
+  'voiceLanguageTooltip': 'Konuşma dili',
+  'voiceLangAuto': 'Otomatik (cihaz dili)',
+  'voiceRetry': 'Tekrar söyle',
+  'encourage1': 'Her gün küçük adımlar her şeyi değiştirir.',
+  'encourage2': 'Mükemmel bir güne ihtiyacın yok — sadece bir sonraki adıma.',
+  'encourage3': 'İlerleme nazik başlangıçları sever. Bir şey seç.',
+  'encourage4': 'Gelecekteki sen, bugünün ilk adımı için şimdiden minnettar.',
+  'taskAddedEncouragement': 'Harika — “{title}” listende. Bir adım daha yakın.',
+  'focusCompleteEncouragement': 'Aferin — bu odak süresi sayılır.',
+  'weeklyWinsTitle': 'Haftanın başarıları',
+  'weeklyWinsLine': '{n} görev tamamlandı · {m} dk odak — ivme büyüyor.',
+  'weeklyWinsEmpty': 'Yeni bir hafta — küçük bir oturum bile bir başarı.',
 };

@@ -3,6 +3,7 @@ import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart'
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
@@ -289,6 +290,7 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     _stopAudio();
     setState(() => _isRunning = false);
     _stopSessionSync(completed: !_isBreak);
+    if (!_isBreak) HapticFeedback.lightImpact();
 
     final l10n = AppLocalizations.of(context);
     final title = _isBreak ? l10n.breakFinished : l10n.timerFinished;
@@ -306,7 +308,9 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text(_isBreak ? l10n.breakSession : l10n.focusSession),
-          content: Text(title),
+          content: Text(
+            _isBreak ? title : '$title\n\n${l10n.focusCompleteEncouragement}',
+          ),
           actions: [
             FilledButton(
               onPressed: () {

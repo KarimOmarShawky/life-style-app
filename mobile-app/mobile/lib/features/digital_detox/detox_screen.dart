@@ -18,9 +18,9 @@ class DigitalDetoxScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.tr('detoxTitle'))),
-      body: const ListView(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [DigitalDetoxPanel()],
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: const [DigitalDetoxPanel()],
       ),
     );
   }

@@ -121,14 +121,16 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
     });
   }
 
-  Future<void> _copyAndOpen(FocusInboxMessage message) => _run(() async {
-        final text = _drafts[message.key]?.text ?? '';
-        await Clipboard.setData(ClipboardData(text: text));
-        await ref
-            .read(focusShieldProvider.notifier)
-            .grantTemporaryBypass(message.packageName);
-        // Native grantTemporaryBypass opens ONLY the exempted package for 60s.
-      });
+  Future<void> _copyAndOpen(FocusInboxMessage message) {
+    final text = _drafts[message.key]?.text ?? '';
+    return _run(() async {
+      await Clipboard.setData(ClipboardData(text: text));
+      await ref
+          .read(focusShieldProvider.notifier)
+          .grantTemporaryBypass(message.packageName);
+      // Native grantTemporaryBypass opens ONLY the exempted package for 60s.
+    });
+  }
 
   String _rankLabel(AppLocalizations l10n, int level) {
     if (level >= 10) return l10n.tr('shieldRankLegend');
@@ -321,40 +323,38 @@ class _FocusShieldScreenState extends ConsumerState<FocusShieldScreen>
                         .replaceAll('{n}', '${data.blockedPackages.length}')),
               ]),
               const SizedBox(height: 16),
-              _ShieldCard(children: [
-                Text(l10n.tr('shieldInboxTitle'),
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                if (visibleMessages.isEmpty) Text(l10n.tr('shieldInboxEmpty')),
-                for (final message in visibleMessages)
-                  Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                    '${message.sender} · ${message.packageName}'),
-                                Text(message.text),
-                                TextField(
-                                    controller: _drafts[message.key],
-                                    decoration: InputDecoration(
-                                        labelText: l10n.tr('shieldReplyHint'))),
-                                TextButton(
-                                    onPressed: _sending.contains(message.key)
-                                        ? null
-                                        : () => _reply(message),
-                                    child: Text(l10n.tr('shieldSendReply'))),
-                                if (_failed.contains(message.key) ||
-                                    !data.inbox.containsKey(message.key)) ...[
-                                  Text(l10n.tr('shieldStaleNote')),
-                                  OutlinedButton(
-                                      onPressed: () => _copyAndOpen(message),
-                                      child: Text(l10n.tr('shieldCopyOpen'))),
-                                ],
-                              ]))),
-              ]),
+              Text(l10n.tr('shieldInboxTitle'),
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              if (visibleMessages.isEmpty) Text(l10n.tr('shieldInboxEmpty')),
+              for (final message in visibleMessages)
+                Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  '${message.sender} · ${message.packageName}'),
+                              Text(message.text),
+                              TextField(
+                                  controller: _drafts[message.key],
+                                  decoration: InputDecoration(
+                                      labelText: l10n.tr('shieldReplyHint'))),
+                              TextButton(
+                                  onPressed: _sending.contains(message.key)
+                                      ? null
+                                      : () => _reply(message),
+                                  child: Text(l10n.tr('shieldSendReply'))),
+                              if (_failed.contains(message.key) ||
+                                  !data.inbox.containsKey(message.key)) ...[
+                                Text(l10n.tr('shieldStaleNote')),
+                                OutlinedButton(
+                                    onPressed: () => _copyAndOpen(message),
+                                    child: Text(l10n.tr('shieldCopyOpen'))),
+                              ],
+                            ]))),
             ]);
           },
         )),
@@ -375,7 +375,7 @@ class _ShieldCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: children,
         ),
       ),

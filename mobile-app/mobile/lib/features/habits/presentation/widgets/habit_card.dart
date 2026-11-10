@@ -248,9 +248,8 @@ class _DayMark extends StatelessWidget {
               color: isToday
                   ? colors.primaryContainer
                   : colors.surfaceContainerHighest,
-              border: isToday
-                  ? Border.all(color: colors.primary, width: 2)
-                  : null,
+              border:
+                  isToday ? Border.all(color: colors.primary, width: 2) : null,
             ),
             child: Text(
               '${day.day}',

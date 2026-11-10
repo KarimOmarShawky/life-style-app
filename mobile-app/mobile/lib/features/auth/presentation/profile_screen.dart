@@ -484,8 +484,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Wraps instead of overflowing at large text sizes (G7).
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     Text(
                       localization.accountRank,
@@ -528,7 +532,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   localization.xpRemainingText,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Theme.of(context).colorScheme.outline,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

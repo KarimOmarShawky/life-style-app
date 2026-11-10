@@ -51,6 +51,7 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                                 (call.argument<List<String>>("packages") ?: emptyList()).toSet().intersect(apps)
                             require(selected.isNotEmpty()) { "No restrictable applications selected" }
                             store.start(id, "Digital Detox", requireNotNull(call.argument<Number>("endTimestampMs")).toLong(), selected)
+                            FocusShieldAccessibilityService.refreshPackageFilter()
                         }
                         result.success(detoxStatus(id))
                     }
@@ -92,6 +93,7 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                         store.start(requireNotNull(call.argument<String>("sessionId")), call.argument<String>("taskTitle") ?: "Focus",
                             requireNotNull(call.argument<Number>("endTimestampMs")).toLong(),
                             call.argument<List<String>>("blockedPackages")?.toSet() ?: emptySet())
+                        FocusShieldAccessibilityService.refreshPackageFilter()
                         result.success(store.snapshot())
                     }
                     "stopShield" -> {

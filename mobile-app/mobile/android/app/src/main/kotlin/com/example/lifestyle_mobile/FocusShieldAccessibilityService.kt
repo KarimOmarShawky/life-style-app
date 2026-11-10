@@ -1,6 +1,9 @@
 package com.example.lifestyle_mobile
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Context
+import android.content.SharedPreferences
 import android.view.accessibility.AccessibilityEvent
 import android.os.Handler
 import android.os.Looper
@@ -10,13 +13,53 @@ class FocusShieldAccessibilityService : AccessibilityService() {
     private val lastEvents = mutableMapOf<String, Long>()
     private var sessionId: String? = null
     private var foregroundPackage: String? = null
+
+    // The event path used to rebuild the session store and re-read
+    // SharedPreferences (plus a ContentResolver boot-count query) for
+    // every window event in every app. The state is now cached and
+    // invalidated by the preferences listener the moment anything
+    // (start, stop, bypass, attempt) writes it, so the hot path is a
+    // field read while expiry is still evaluated from the cached
+    // endTimestamp on each event.
+    private var cachedState: ShieldSessionState? = null
+    private val prefsListener =
+        SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            cachedState = null
+        }
+
+    private fun currentState(): ShieldSessionState =
+        cachedState ?: FocusShieldSessionStore(this).current().also {
+            cachedState = it
+        }
+
     override fun onServiceConnected() {
         instance = this
+        getSharedPreferences("focus_shield_prefs", Context.MODE_PRIVATE)
+            .registerOnSharedPreferenceChangeListener(prefsListener)
+        applyPackageFilter()
         FocusShieldSessionStore(this).current()
     }
+
+    /**
+     * Restricts window events to the session's packages (plus this app)
+     * instead of every window change on the device: far fewer wakeups,
+     * less battery, and a smaller footprint for OEM cleaners that watch
+     * chatty accessibility services. Refreshed on connect, on session
+     * change, and whenever the bridge starts a session.
+     */
+    internal fun applyPackageFilter() {
+        val info = serviceInfo ?: return
+        val packages =
+            FocusShieldSessionStore(this).current().blockedPackages + packageName
+        info.packageNames = packages.toTypedArray()
+        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+        info.notificationTimeout = 0
+        serviceInfo = info
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        val store = FocusShieldSessionStore(this)
-        val state = store.current() // Includes expiry, even for events we ignore.
+        val state = currentState()
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             foregroundPackage = event.packageName?.toString()
         }
@@ -27,9 +70,13 @@ class FocusShieldAccessibilityService : AccessibilityService() {
     }
     private fun enforcePackage(packageName: String) {
         val store = FocusShieldSessionStore(this)
-        val state = store.current()
+        val state = currentState()
         val currentId = store.snapshot()["sessionId"] as String
-        if (sessionId != currentId) { lastEvents.clear(); sessionId = currentId }
+        if (sessionId != currentId) {
+            lastEvents.clear()
+            sessionId = currentId
+            applyPackageFilter()
+        }
         val now = System.currentTimeMillis()
         if (!engine.shouldBlock(packageName, now, state, lastEvents[packageName])) {
             // Debounce counting/navigation, not safety: a rapid second launch
@@ -50,6 +97,8 @@ class FocusShieldAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         if (instance === this) {
             instance = null
+            getSharedPreferences("focus_shield_prefs", Context.MODE_PRIVATE)
+                .unregisterOnSharedPreferenceChangeListener(prefsListener)
             // Do not report continued protection after the enforcing service
             // disconnects. An old instance must never stop a newer connection.
             try { FocusShieldSessionStore(this).stop("accessibility_lost") }
@@ -59,6 +108,11 @@ class FocusShieldAccessibilityService : AccessibilityService() {
     }
     companion object {
         fun isConnected(): Boolean = instance != null
+
+        /** Re-applies the event package filter after a bridge-side start. */
+        fun refreshPackageFilter() {
+            instance?.applyPackageFilter()
+        }
 
         // Deliberately a STRONG reference: the system keeps a bound
         // accessibility service alive through its binder, which does not

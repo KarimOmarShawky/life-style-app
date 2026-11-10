@@ -12,8 +12,7 @@ void main() {
       expect(DeepLinkParser.routeFor('/tasks'), '/tasks');
     });
 
-    test('accepts the path form used by the widget and notifications (G3)',
-        () {
+    test('accepts the path form used by the widget and notifications (G3)', () {
       expect(DeepLinkParser.routeFor('lifestyle:///focus'), '/focus');
       expect(DeepLinkParser.routeFor('lifestyle:///daily-plan'), '/daily-plan');
       expect(DeepLinkParser.routeFor('lifestyle:///focus/'), '/focus');

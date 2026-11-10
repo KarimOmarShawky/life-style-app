@@ -26,8 +26,7 @@ Task _task(String id,
         version: 1);
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('widget exposes only score, XP, level, language and the next tasks',
-      () {
+  test('widget exposes only score, XP, level, language and the next tasks', () {
     final ledger = XpLedger([
       const XpEvent(
           type: XpType.task, entityId: 't', dateKey: '2026-10-14', xp: 25)

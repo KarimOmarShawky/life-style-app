@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_shield_accessibility_description">اختياري: يعيدك من التطبيقات المحددة أثناء جلسة التركيز. لا تتم قراءة أي محتوى من الشاشة. يمكنك إنهاء الدرع في أي وقت من LifeStyle أو من إشعاره.</string>
+    <string name="lifestyle_widget_description">مهامك التالية لليوم وحالة درع التركيز وتقدّمك.</string>
+</resources>

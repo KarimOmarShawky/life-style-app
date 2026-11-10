@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_shield_accessibility_description">Facultatif : vous ramène hors des applications sélectionnées pendant une session de concentration. Aucun contenu de l’écran n’est lu. Vous pouvez terminer le bouclier à tout moment dans LifeStyle ou depuis sa notification.</string>
+    <string name="lifestyle_widget_description">Vos prochaines tâches du jour, l’état du Bouclier de concentration et votre progression.</string>
+</resources>

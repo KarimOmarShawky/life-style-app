@@ -1,2 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources><string name="focus_shield_accessibility_description">Optional: return from selected apps during a focus session. No screen content is read. End the shield at any time in LifeStyle or its notification.</string><string name="lifestyle_widget_description">Brain clarity, XP, today’s priority and native Focus Shield status.</string><string name="subscription_reminder_channel">Subscription reminders</string><string name="subscription_reminder_title">Subscription reminder</string><string name="subscription_reminder_body">A subscription may renew soon. Open LifeStyle to review.</string></resources>
+<resources>
+    <string name="focus_shield_accessibility_description">Optional: return from selected apps during a focus session. No screen content is read. End the shield at any time in LifeStyle or its notification.</string>
+    <string name="lifestyle_widget_description">Your next tasks for today, Focus Shield status and progress.</string>
+    <string name="subscription_reminder_channel">Subscription reminders</string>
+    <string name="subscription_reminder_title">Subscription reminder</string>
+    <string name="subscription_reminder_body">A subscription may renew soon. Open LifeStyle to review.</string>
+</resources>

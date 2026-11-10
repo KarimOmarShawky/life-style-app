@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_shield_accessibility_description">Opcional: te devuelve desde las apps seleccionadas durante una sesión de concentración. No se lee ningún contenido de la pantalla. Puedes terminar el escudo en cualquier momento en LifeStyle o desde su notificación.</string>
+    <string name="lifestyle_widget_description">Tus próximas tareas de hoy, el estado del Escudo de concentración y tu progreso.</string>
+</resources>

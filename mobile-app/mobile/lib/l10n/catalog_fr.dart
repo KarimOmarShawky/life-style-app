@@ -707,4 +707,51 @@ const Map<String, String> frCatalog = {
   'detoxBatteryButton': 'Réglages de batterie',
   'detoxBatteryHint':
       'Sur Xiaomi et les téléphones similaires, réglez la batterie de LifeStyle sur « Aucune restriction » et activez le démarrage automatique — sinon Android peut suspendre le service de blocage en pleine session.',
+  'onboardingTitle': 'Obtenez votre première victoire',
+  'onboardingSubtitle':
+      'Choisissez ce qui compte le plus aujourd’hui. Nous ajoutons trois petites tâches pour vous — sans rien taper.',
+  'onboardingSkip': 'Passer',
+  'onboardingAreaStudy': 'Études',
+  'onboardingAreaWork': 'Travail',
+  'onboardingAreaRoutine': 'Routine quotidienne',
+  'starterClearDesk': 'Rangez votre bureau pendant deux minutes',
+  'starterPickLesson': 'Choisissez une leçon à réviser aujourd’hui',
+  'starterFocusSession': 'Faites une séance de concentration de 25 minutes',
+  'starterTopPriority': 'Notez votre priorité principale du jour',
+  'starterReplyMessage': 'Répondez à un message en attente',
+  'starterWater': 'Buvez un verre d’eau',
+  'starterWalk': 'Marchez 10 minutes',
+  'starterStretch': 'Étirez-vous pendant deux minutes',
+  'onboardingFirstWinTitle': 'Maintenant, cochez-en une',
+  'onboardingFirstWinSubtitle':
+      'Choisissez la plus facile et marquez-la comme faite.',
+  'onboardingCelebrateTitle': 'Première victoire !',
+  'onboardingCelebrateBody':
+      'Les petits pas s’additionnent. Vos autres tâches vous attendent dans votre liste.',
+  'onboardingRemindersQuestion':
+      'Voulez-vous un rappel quand une tâche arrive à échéance ? Vous pouvez changer cela à tout moment dans les réglages du téléphone.',
+  'onboardingEnableReminders': 'Activer les rappels',
+  'onboardingNotNow': 'Pas maintenant',
+  'onboardingAddFailed':
+      'Impossible d’ajouter les tâches. Vérifiez votre connexion et réessayez, ou passez pour l’instant.',
+  'onboardingCompleteFailed':
+      'Impossible d’enregistrer. Réessayez, ou passez pour l’instant.',
+  'usageStatsTitle': 'Partager les statistiques d’utilisation',
+  'usageStatsSubtitle':
+      'Des comptages sans contenu, comme « une tâche a été terminée », aident à améliorer LifeStyle. Les titres de tâches, notes et messages ne sont jamais envoyés. Désactiver supprime aussi ce qui a été enregistré.',
+  'settingSaveFailed': 'Impossible d’enregistrer ce réglage. Réessayez.',
+  'aiTaskParsingTitle': 'Aide de l’IA pour l’ajout rapide',
+  'aiTaskParsingSubtitle':
+      'Désactivé : les dates et heures sont comprises sur votre téléphone. Activé : ce que vous tapez dans l’ajout rapide est envoyé au service d’IA.',
+  'aiTaskParsingConsentTitle': 'Envoyer le texte de l’ajout rapide à l’IA ?',
+  'aiTaskParsingConsentBody':
+      'Lorsque c’est activé, le texte que vous tapez dans l’ajout rapide est envoyé via le serveur LifeStyle à Google Gemini pour repérer les dates et heures. Si l’IA est lente ou indisponible, votre téléphone lit le texte lui-même. Vous pouvez désactiver cela à tout moment.',
+  'aiTaskParsingAgree': 'Activer',
+  'taskReminderTitle': 'Rappel de tâche',
+  'snoozeReminderTitle': 'Rappel reporté',
+  'snoozeReminderBody': 'C’est l’heure de votre tâche planifiée',
+  'alarmDismissAction': 'Arrêter',
+  'alarmSnoozeAction': 'Répéter dans 5 min',
+  'calendarReminderTitle': 'Rappel d’agenda',
+  'calendarStartsAt': '{title} · commence à {time}',
 };

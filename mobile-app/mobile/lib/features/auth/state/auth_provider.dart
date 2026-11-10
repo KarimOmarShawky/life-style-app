@@ -5,6 +5,7 @@ import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/onboarding/onboarding_store.dart';
 import 'package:lifestyle_mobile/data/retired_wallet_cleanup.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
 
@@ -141,6 +142,41 @@ class AuthController extends AsyncNotifier<AppUser?> {
         );
     _checkProfileWork(account, generation, updated);
     state = AsyncData(updated);
+  }
+
+  /// Saves the usage-statistics choice (feature guide G5). Turning it off
+  /// also deletes this account's recorded events on the server.
+  Future<void> setProductEventsEnabled(bool enabled) async {
+    final account = _activeAccountForProfileWork();
+    final generation = _sessionGeneration;
+    final updated = await ref.read(authRepositoryProvider).updateProfile(
+          productEventsEnabled: enabled,
+        );
+    _checkProfileWork(account, generation, updated);
+    state = AsyncData(updated);
+  }
+
+  /// Ends first-run onboarding, whether it was completed or skipped. The app
+  /// moves on at once; a local flag keeps onboarding from coming back when
+  /// the server cannot be reached, and the onboarding screen retries the
+  /// server flag on the next launch.
+  Future<void> completeOnboarding() async {
+    final account = _activeAccountForProfileWork();
+    final generation = _sessionGeneration;
+    final current = state.valueOrNull;
+    if (current == null || !current.onboardingPending) return;
+    await markOnboardingDoneLocally(current.id);
+    _checkProfileWork(account, generation);
+    state = AsyncData(current.withOnboardingDone());
+    try {
+      final updated = await ref
+          .read(authRepositoryProvider)
+          .updateProfile(onboardingCompleted: true);
+      _checkProfileWork(account, generation, updated);
+      state = AsyncData(updated.withOnboardingDone());
+    } catch (_) {
+      // Already finished locally; the server flag is retried next launch.
+    }
   }
 
   Future<Map<String, dynamic>> exportUserData(String currentPassword) =>

@@ -103,10 +103,15 @@ class AuthRepository {
     return AppUser.fromJson(response['user'] as Map<String, dynamic>);
   }
 
+  /// [onboardingCompleted] can only be set, never cleared (the server
+  /// accepts `true` only); [productEventsEnabled] `false` also deletes the
+  /// account's recorded usage events on the server.
   Future<AppUser> updateProfile({
     String? displayName,
     String? timezone,
     String? defaultCurrency,
+    bool? productEventsEnabled,
+    bool onboardingCompleted = false,
   }) async {
     final response = await _api.patch(
       'users/me',
@@ -114,6 +119,9 @@ class AuthRepository {
         if (displayName != null) 'displayName': displayName.trim(),
         if (timezone != null) 'timezone': timezone,
         if (defaultCurrency != null) 'defaultCurrency': defaultCurrency,
+        if (productEventsEnabled != null)
+          'productEventsEnabled': productEventsEnabled,
+        if (onboardingCompleted) 'onboardingCompleted': true,
       },
     );
     if (response is! Map<String, dynamic> ||

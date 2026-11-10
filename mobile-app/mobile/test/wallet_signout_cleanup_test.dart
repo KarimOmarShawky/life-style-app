@@ -121,6 +121,8 @@ class _RacingProfileRepository extends _RacingAuthRepository {
     String? displayName,
     String? timezone,
     String? defaultCurrency,
+    bool? productEventsEnabled,
+    bool onboardingCompleted = false,
   }) {
     updateStarted.complete();
     return finishUpdate.future;

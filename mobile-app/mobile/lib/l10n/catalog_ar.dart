@@ -660,4 +660,49 @@ const Map<String, String> arCatalog = {
   'detoxBatteryButton': 'إعدادات البطارية',
   'detoxBatteryHint':
       'على موبايلات شاومي واللي زيها، خلّي بطارية LifeStyle «من غير قيود» وفعّل التشغيل التلقائي — غير كده أندرويد ممكن يوقّف خدمة الحظر في نص الجلسة.',
+  'onboardingTitle': 'يلا نحقق أول إنجاز لك',
+  'onboardingSubtitle':
+      'اختار الأهم بالنسبة لك النهارده، وهنضيف لك ثلاث مهام صغيرة — من غير ما تكتب حاجة.',
+  'onboardingSkip': 'تخطي',
+  'onboardingAreaStudy': 'مذاكرة',
+  'onboardingAreaWork': 'شغل',
+  'onboardingAreaRoutine': 'روتين يومي',
+  'starterClearDesk': 'رتّب مكتبك لمدة دقيقتين',
+  'starterPickLesson': 'اختار درس واحد تراجعه النهارده',
+  'starterFocusSession': 'اعمل جلسة تركيز واحدة مدتها 25 دقيقة',
+  'starterTopPriority': 'اكتب أهم أولوية عندك النهارده',
+  'starterReplyMessage': 'رد على رسالة واحدة مستنياك',
+  'starterWater': 'اشرب كوباية مية',
+  'starterWalk': 'اتمشى 10 دقايق',
+  'starterStretch': 'اعمل إطالة لمدة دقيقتين',
+  'onboardingFirstWinTitle': 'دلوقتي خلّص واحدة',
+  'onboardingFirstWinSubtitle': 'اختار أسهل واحدة وعلّم عليها إنها اتعملت.',
+  'onboardingCelebrateTitle': 'أول إنجاز اتعمل!',
+  'onboardingCelebrateBody':
+      'الخطوات الصغيرة بتفرق. باقي مهامك مستنياك في القائمة.',
+  'onboardingRemindersQuestion':
+      'عايز تذكير لما ييجي ميعاد مهمة؟ تقدر تغيّر ده في أي وقت من إعدادات الموبايل.',
+  'onboardingEnableReminders': 'شغّل التذكيرات',
+  'onboardingNotNow': 'مش دلوقتي',
+  'onboardingAddFailed':
+      'معرفناش نضيف المهام. اتأكد من الاتصال وجرّب تاني، أو تخطّى دلوقتي.',
+  'onboardingCompleteFailed': 'معرفناش نحفظ ده. جرّب تاني، أو تخطّى دلوقتي.',
+  'usageStatsTitle': 'مشاركة إحصائيات الاستخدام',
+  'usageStatsSubtitle':
+      'إحصائيات من غير أي محتوى، زي «تم إنجاز مهمة»، بتساعدنا نحسّن LifeStyle. مش بنبعت أبداً عناوين المهام أو الملاحظات أو الرسائل. لو قفلتها، بنمسح اللي اتسجّل.',
+  'settingSaveFailed': 'معرفناش نحفظ الإعداد ده. جرّب تاني.',
+  'aiTaskParsingTitle': 'مساعدة الذكاء الاصطناعي في الإضافة الذكية',
+  'aiTaskParsingSubtitle':
+      'مقفولة: التاريخ والوقت بيتفهموا على موبايلك. مفتوحة: اللي بتكتبه في الإضافة الذكية بيتبعت لخدمة الذكاء الاصطناعي.',
+  'aiTaskParsingConsentTitle': 'نبعت نص الإضافة الذكية للذكاء الاصطناعي؟',
+  'aiTaskParsingConsentBody':
+      'لما تكون مفتوحة، النص اللي بتكتبه في الإضافة الذكية بيتبعت عن طريق خادم LifeStyle لـ Google Gemini علشان يطلع التاريخ والوقت. لو الذكاء الاصطناعي بطيء أو مش متاح، موبايلك هيفهم النص بنفسه. تقدر تقفلها في أي وقت.',
+  'aiTaskParsingAgree': 'شغّلها',
+  'taskReminderTitle': 'تذكير بمهمة',
+  'snoozeReminderTitle': 'تذكير مؤجل',
+  'snoozeReminderBody': 'حان وقت مهمتك المجدولة',
+  'alarmDismissAction': 'إيقاف المنبه',
+  'alarmSnoozeAction': 'غفوة 5 دقائق',
+  'calendarReminderTitle': 'تذكير بموعد',
+  'calendarStartsAt': '{title} · يبدأ الساعة {time}',
 };

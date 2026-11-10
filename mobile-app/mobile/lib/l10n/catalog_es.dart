@@ -699,4 +699,50 @@ const Map<String, String> esCatalog = {
   'detoxBatteryButton': 'Ajustes de batería',
   'detoxBatteryHint':
       'En Xiaomi y teléfonos similares, pon la batería de LifeStyle en «Sin restricciones» y activa el inicio automático; si no, Android puede pausar el servicio de bloqueo a mitad de sesión.',
+  'onboardingTitle': 'Consigue tu primer logro',
+  'onboardingSubtitle':
+      'Elige lo que más te importa hoy. Añadiremos tres tareas pequeñas por ti, sin escribir nada.',
+  'onboardingSkip': 'Omitir',
+  'onboardingAreaStudy': 'Estudio',
+  'onboardingAreaWork': 'Trabajo',
+  'onboardingAreaRoutine': 'Rutina diaria',
+  'starterClearDesk': 'Ordena tu escritorio durante dos minutos',
+  'starterPickLesson': 'Elige una lección para repasar hoy',
+  'starterFocusSession': 'Haz una sesión de concentración de 25 minutos',
+  'starterTopPriority': 'Anota tu prioridad principal de hoy',
+  'starterReplyMessage': 'Responde un mensaje pendiente',
+  'starterWater': 'Bebe un vaso de agua',
+  'starterWalk': 'Sal a caminar 10 minutos',
+  'starterStretch': 'Estírate durante dos minutos',
+  'onboardingFirstWinTitle': 'Ahora marca una',
+  'onboardingFirstWinSubtitle': 'Elige la más fácil y márcala como hecha.',
+  'onboardingCelebrateTitle': '¡Primer logro conseguido!',
+  'onboardingCelebrateBody':
+      'Los pasos pequeños suman. Tus otras tareas te esperan en tu lista.',
+  'onboardingRemindersQuestion':
+      '¿Quieres un recordatorio cuando venza una tarea? Puedes cambiarlo cuando quieras en los ajustes del teléfono.',
+  'onboardingEnableReminders': 'Activar recordatorios',
+  'onboardingNotNow': 'Ahora no',
+  'onboardingAddFailed':
+      'No pudimos añadir las tareas. Revisa tu conexión e inténtalo de nuevo, u omítelo por ahora.',
+  'onboardingCompleteFailed':
+      'No pudimos guardarlo. Inténtalo de nuevo u omítelo por ahora.',
+  'usageStatsTitle': 'Compartir estadísticas de uso',
+  'usageStatsSubtitle':
+      'Recuentos sin contenido, como «se completó una tarea», ayudan a mejorar LifeStyle. Nunca se envían títulos de tareas, notas ni mensajes. Al desactivarlo también se borra lo registrado.',
+  'settingSaveFailed': 'No se pudo guardar este ajuste. Inténtalo de nuevo.',
+  'aiTaskParsingTitle': 'Ayuda de IA para añadir rápido',
+  'aiTaskParsingSubtitle':
+      'Desactivado: las fechas y horas se entienden en tu teléfono. Activado: lo que escribes al añadir rápido se envía al servicio de IA.',
+  'aiTaskParsingConsentTitle': '¿Enviar el texto de añadir rápido a la IA?',
+  'aiTaskParsingConsentBody':
+      'Si está activado, el texto que escribes al añadir rápido se envía a través del servidor de LifeStyle a Google Gemini para detectar fechas y horas. Si la IA tarda o no está disponible, tu teléfono lee el texto. Puedes desactivarlo cuando quieras.',
+  'aiTaskParsingAgree': 'Activar',
+  'taskReminderTitle': 'Recordatorio de tarea',
+  'snoozeReminderTitle': 'Recordatorio pospuesto',
+  'snoozeReminderBody': 'Es hora de tu tarea programada',
+  'alarmDismissAction': 'Descartar',
+  'alarmSnoozeAction': 'Posponer 5 min',
+  'calendarReminderTitle': 'Recordatorio del calendario',
+  'calendarStartsAt': '{title} · empieza a las {time}',
 };

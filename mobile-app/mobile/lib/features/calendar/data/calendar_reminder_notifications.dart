@@ -56,6 +56,9 @@ Future<void> syncCalendarEventReminders({
       reminders: upcoming,
     );
     registry[event.id] = entry;
+    // Only reached from a user saving reminders: ask for permission now.
+    await NotificationService.instance
+        .requestPermissionsIfNeeded(exactAlarms: true);
     await _scheduleEntry(entry);
   }
   await _writeRegistry(registry);
@@ -127,15 +130,16 @@ Future<void> rescheduleCalendarReminders() async {
   }
 }
 
+/// The title stays generic so the event name is never the headline on a
+/// lock screen; the name is in the body, which Android hides on secure lock
+/// screens when the user chose to hide sensitive content (P0-F1).
 Future<void> _scheduleEntry(_RegistryEntry entry) async {
-  final body = _startsAtText(
-    entry.startAt,
-    isArabic: NotificationService.isDeviceArabic,
-  );
+  final l10n = NotificationService.deviceL10n;
+  final body = l10n.calendarStartsAt(entry.title, _clockText(entry.startAt));
   for (final reminder in entry.reminders) {
     await NotificationService.instance.scheduleCalendarReminder(
       id: calendarReminderNotificationId(reminder.reminderId),
-      title: entry.title,
+      title: l10n.calendarReminderTitle,
       body: body,
       when: reminder.remindAt,
     );
@@ -150,11 +154,11 @@ Future<void> _cancelEntry(_RegistryEntry entry) async {
   }
 }
 
-String _startsAtText(DateTime startAt, {required bool isArabic}) {
+String _clockText(DateTime startAt) {
   final local = startAt.toLocal();
   final hour = local.hour.toString().padLeft(2, '0');
   final minute = local.minute.toString().padLeft(2, '0');
-  return isArabic ? 'يبدأ الساعة $hour:$minute' : 'Starts at $hour:$minute';
+  return '$hour:$minute';
 }
 
 Future<Map<String, _RegistryEntry>> _readRegistry() async {

@@ -678,4 +678,50 @@ const Map<String, String> trCatalog = {
   'detoxBatteryButton': 'Pil ayarları',
   'detoxBatteryHint':
       'Xiaomi ve benzeri telefonlarda LifeStyle pilini «Kısıtlama yok» yapıp otomatik başlatmayı aç — yoksa Android engelleme hizmetini oturum ortasında duraklatabilir.',
+  'onboardingTitle': 'Haydi ilk başarını kazan',
+  'onboardingSubtitle':
+      'Bugün senin için en önemli olanı seç. Senin yerine üç küçük görev ekleyelim — yazmana gerek yok.',
+  'onboardingSkip': 'Atla',
+  'onboardingAreaStudy': 'Ders çalışma',
+  'onboardingAreaWork': 'İş',
+  'onboardingAreaRoutine': 'Günlük rutin',
+  'starterClearDesk': 'Masanı iki dakika boyunca topla',
+  'starterPickLesson': 'Bugün tekrar edeceğin bir dersi seç',
+  'starterFocusSession': '25 dakikalık bir odak oturumu yap',
+  'starterTopPriority': 'Bugünün en önemli önceliğini yaz',
+  'starterReplyMessage': 'Bekleyen bir mesajı yanıtla',
+  'starterWater': 'Bir bardak su iç',
+  'starterWalk': '10 dakika yürüyüş yap',
+  'starterStretch': 'İki dakika esneme yap',
+  'onboardingFirstWinTitle': 'Şimdi birini tamamla',
+  'onboardingFirstWinSubtitle': 'En kolayını seç ve yapıldı olarak işaretle.',
+  'onboardingCelebrateTitle': 'İlk başarı tamam!',
+  'onboardingCelebrateBody':
+      'Küçük adımlar birikir. Diğer görevlerin listende seni bekliyor.',
+  'onboardingRemindersQuestion':
+      'Bir görevin zamanı geldiğinde hatırlatma ister misin? Bunu istediğin zaman telefon ayarlarından değiştirebilirsin.',
+  'onboardingEnableReminders': 'Hatırlatmaları aç',
+  'onboardingNotNow': 'Şimdi değil',
+  'onboardingAddFailed':
+      'Görevler eklenemedi. Bağlantını kontrol edip tekrar dene ya da şimdilik atla.',
+  'onboardingCompleteFailed': 'Kaydedilemedi. Tekrar dene ya da şimdilik atla.',
+  'usageStatsTitle': 'Kullanım istatistiklerini paylaş',
+  'usageStatsSubtitle':
+      '“Bir görev tamamlandı” gibi içerik içermeyen sayımlar LifeStyle’ı geliştirmeye yardımcı olur. Görev başlıkları, notlar ve mesajlar asla gönderilmez. Kapatırsan kaydedilenler de silinir.',
+  'settingSaveFailed': 'Bu ayar kaydedilemedi. Tekrar dene.',
+  'aiTaskParsingTitle': 'Akıllı Hızlı Ekleme için yapay zekâ desteği',
+  'aiTaskParsingSubtitle':
+      'Kapalı: tarih ve saatler telefonunda anlaşılır. Açık: Akıllı Hızlı Ekleme’ye yazdıkların yapay zekâ hizmetine gönderilir.',
+  'aiTaskParsingConsentTitle':
+      'Akıllı Hızlı Ekleme metni yapay zekâya gönderilsin mi?',
+  'aiTaskParsingConsentBody':
+      'Açık olduğunda, Akıllı Hızlı Ekleme’ye yazdığın metin tarih ve saatleri bulmak için LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Yapay zekâ yavaşsa veya kullanılamıyorsa metni telefonun kendisi okur. Bunu istediğin zaman kapatabilirsin.',
+  'aiTaskParsingAgree': 'Aç',
+  'taskReminderTitle': 'Görev hatırlatıcısı',
+  'snoozeReminderTitle': 'Ertelenen hatırlatma',
+  'snoozeReminderBody': 'Planlanan görevinin zamanı geldi',
+  'alarmDismissAction': 'Kapat',
+  'alarmSnoozeAction': '5 dk ertele',
+  'calendarReminderTitle': 'Takvim hatırlatıcısı',
+  'calendarStartsAt': '{title} · {time} saatinde başlıyor',
 };

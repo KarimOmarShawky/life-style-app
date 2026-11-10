@@ -701,4 +701,52 @@ const Map<String, String> deCatalog = {
   'detoxBatteryButton': 'Akku-Einstellungen',
   'detoxBatteryHint':
       'Bei Xiaomi und ähnlichen Telefonen: Stelle den Akku von LifeStyle auf „Keine Einschränkungen“ und aktiviere den Autostart — sonst kann Android den Blockierdienst mitten in der Sitzung pausieren.',
+  'onboardingTitle': 'Hol dir deinen ersten Erfolg',
+  'onboardingSubtitle':
+      'Wähle, was dir heute am wichtigsten ist. Wir fügen drei kleine Aufgaben hinzu – ganz ohne Tippen.',
+  'onboardingSkip': 'Überspringen',
+  'onboardingAreaStudy': 'Lernen',
+  'onboardingAreaWork': 'Arbeit',
+  'onboardingAreaRoutine': 'Tagesroutine',
+  'starterClearDesk': 'Räum zwei Minuten lang deinen Schreibtisch auf',
+  'starterPickLesson': 'Wähle eine Lektion, die du heute wiederholst',
+  'starterFocusSession': 'Mach eine 25-minütige Fokussitzung',
+  'starterTopPriority': 'Schreib deine wichtigste Aufgabe für heute auf',
+  'starterReplyMessage': 'Beantworte eine wartende Nachricht',
+  'starterWater': 'Trink ein Glas Wasser',
+  'starterWalk': 'Geh 10 Minuten spazieren',
+  'starterStretch': 'Dehn dich zwei Minuten lang',
+  'onboardingFirstWinTitle': 'Jetzt hak eine ab',
+  'onboardingFirstWinSubtitle':
+      'Nimm die leichteste und markiere sie als erledigt.',
+  'onboardingCelebrateTitle': 'Erster Erfolg geschafft!',
+  'onboardingCelebrateBody':
+      'Kleine Schritte summieren sich. Deine anderen Aufgaben warten in deiner Liste.',
+  'onboardingRemindersQuestion':
+      'Möchtest du erinnert werden, wenn eine Aufgabe fällig ist? Du kannst das jederzeit in den Telefoneinstellungen ändern.',
+  'onboardingEnableReminders': 'Erinnerungen einschalten',
+  'onboardingNotNow': 'Nicht jetzt',
+  'onboardingAddFailed':
+      'Die Aufgaben konnten nicht hinzugefügt werden. Prüfe deine Verbindung und versuch es erneut – oder überspring es vorerst.',
+  'onboardingCompleteFailed':
+      'Das konnte nicht gespeichert werden. Versuch es erneut – oder überspring es vorerst.',
+  'usageStatsTitle': 'Nutzungsstatistiken teilen',
+  'usageStatsSubtitle':
+      'Inhaltsfreie Zählungen wie „eine Aufgabe wurde erledigt“ helfen, LifeStyle zu verbessern. Aufgabentitel, Notizen und Nachrichten werden nie gesendet. Beim Ausschalten wird auch das bisher Erfasste gelöscht.',
+  'settingSaveFailed':
+      'Diese Einstellung konnte nicht gespeichert werden. Versuch es erneut.',
+  'aiTaskParsingTitle': 'KI-Hilfe beim intelligenten Schnell-Hinzufügen',
+  'aiTaskParsingSubtitle':
+      'Aus: Datum und Uhrzeit werden auf deinem Telefon erkannt. An: Was du beim Schnell-Hinzufügen tippst, wird an den KI-Dienst gesendet.',
+  'aiTaskParsingConsentTitle': 'Text vom Schnell-Hinzufügen an die KI senden?',
+  'aiTaskParsingConsentBody':
+      'Wenn das an ist, wird der Text, den du beim Schnell-Hinzufügen tippst, über den LifeStyle-Server an Google Gemini gesendet, um Datum und Uhrzeit zu erkennen. Ist die KI langsam oder nicht verfügbar, liest dein Telefon den Text selbst. Du kannst das jederzeit ausschalten.',
+  'aiTaskParsingAgree': 'Einschalten',
+  'taskReminderTitle': 'Aufgabenerinnerung',
+  'snoozeReminderTitle': 'Verschobene Erinnerung',
+  'snoozeReminderBody': 'Zeit für deine geplante Aufgabe',
+  'alarmDismissAction': 'Beenden',
+  'alarmSnoozeAction': '5 Min. schlummern',
+  'calendarReminderTitle': 'Kalendererinnerung',
+  'calendarStartsAt': '{title} · beginnt um {time}',
 };

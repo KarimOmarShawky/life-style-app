@@ -569,6 +569,49 @@ class AppLocalizations {
   String get weekdaySun => _s('weekdaySun');
 
   /// Generic catalog lookup for keys without a dedicated getter.
+  // First-run onboarding (G1), usage statistics (G5), AI parsing consent
+  // (P0-F2) and content-light notification copy (P0-F1).
+  String get onboardingTitle => _s('onboardingTitle');
+  String get onboardingSubtitle => _s('onboardingSubtitle');
+  String get onboardingSkip => _s('onboardingSkip');
+  String get onboardingAreaStudy => _s('onboardingAreaStudy');
+  String get onboardingAreaWork => _s('onboardingAreaWork');
+  String get onboardingAreaRoutine => _s('onboardingAreaRoutine');
+  String get starterClearDesk => _s('starterClearDesk');
+  String get starterPickLesson => _s('starterPickLesson');
+  String get starterFocusSession => _s('starterFocusSession');
+  String get starterTopPriority => _s('starterTopPriority');
+  String get starterReplyMessage => _s('starterReplyMessage');
+  String get starterWater => _s('starterWater');
+  String get starterWalk => _s('starterWalk');
+  String get starterStretch => _s('starterStretch');
+  String get onboardingFirstWinTitle => _s('onboardingFirstWinTitle');
+  String get onboardingFirstWinSubtitle =>
+      _s('onboardingFirstWinSubtitle');
+  String get onboardingCelebrateTitle => _s('onboardingCelebrateTitle');
+  String get onboardingCelebrateBody => _s('onboardingCelebrateBody');
+  String get onboardingRemindersQuestion =>
+      _s('onboardingRemindersQuestion');
+  String get onboardingEnableReminders => _s('onboardingEnableReminders');
+  String get onboardingNotNow => _s('onboardingNotNow');
+  String get onboardingAddFailed => _s('onboardingAddFailed');
+  String get onboardingCompleteFailed => _s('onboardingCompleteFailed');
+  String get usageStatsTitle => _s('usageStatsTitle');
+  String get usageStatsSubtitle => _s('usageStatsSubtitle');
+  String get settingSaveFailed => _s('settingSaveFailed');
+  String get aiTaskParsingTitle => _s('aiTaskParsingTitle');
+  String get aiTaskParsingSubtitle => _s('aiTaskParsingSubtitle');
+  String get aiTaskParsingConsentTitle => _s('aiTaskParsingConsentTitle');
+  String get aiTaskParsingConsentBody => _s('aiTaskParsingConsentBody');
+  String get aiTaskParsingAgree => _s('aiTaskParsingAgree');
+  String get taskReminderTitle => _s('taskReminderTitle');
+  String get snoozeReminderTitle => _s('snoozeReminderTitle');
+  String get snoozeReminderBody => _s('snoozeReminderBody');
+  String get alarmDismissAction => _s('alarmDismissAction');
+  String get alarmSnoozeAction => _s('alarmSnoozeAction');
+  String get calendarReminderTitle => _s('calendarReminderTitle');
+  String calendarStartsAt(String title, String time) =>
+      _f('calendarStartsAt', {'title': title, 'time': time});
   String tr(String key) => _s(key);
 }
 

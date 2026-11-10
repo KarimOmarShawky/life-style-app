@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:lifestyle_mobile/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -32,6 +34,11 @@ class NotificationService {
       'lifestyle_calendar_reminders_channel';
   static const String calendarChannelName = 'LifeStyle Calendar Reminders';
   static const String calendarChannelDesc = 'Reminders before calendar events';
+
+  /// Set once the exact-alarm settings page has been opened, so a user who
+  /// declined is not sent there again on every save.
+  static const String _exactAlarmAskedKey =
+      'notifications.exact_alarm_asked.v1';
 
   bool _isInitialized = false;
 
@@ -102,9 +109,8 @@ class NotificationService {
             enableVibration: true,
           ),
         );
-
-        await androidPlugin.requestNotificationsPermission();
-        await androidPlugin.requestExactAlarmsPermission();
+        // Permissions are requested from user actions only; see
+        // requestPermissionsIfNeeded (feature guide P0-F5).
       }
 
       _isInitialized = true;
@@ -118,17 +124,49 @@ class NotificationService {
     }
   }
 
-  /// Whether the device language is Arabic. Notification text is built without a BuildContext.
-  static bool get isDeviceArabic => _isDeviceArabic;
-
-  static bool get _isDeviceArabic {
+  /// Asks for notification permission when the user has just done something
+  /// that needs it (never at launch and never from background work). The
+  /// exact-alarm request opens a system settings page, so it is made only
+  /// for a time the user just set, only while that permission is missing,
+  /// and at most once per install. Denial is safe: alarms and reminders then
+  /// fall back to inexact delivery.
+  Future<void> requestPermissionsIfNeeded({bool exactAlarms = false}) async {
     try {
-      final loc = WidgetsBinding.instance.platformDispatcher.locale;
-      return loc.languageCode == 'ar';
-    } catch (_) {
-      return true;
+      final androidPlugin =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin == null) return;
+      if (await androidPlugin.areNotificationsEnabled() != true) {
+        await androidPlugin.requestNotificationsPermission();
+      }
+      if (exactAlarms &&
+          await androidPlugin.canScheduleExactNotifications() == false) {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool(_exactAlarmAskedKey) != true) {
+          await prefs.setBool(_exactAlarmAskedKey, true);
+          await androidPlugin.requestExactAlarmsPermission();
+        }
+      }
+    } catch (e) {
+      developer.log('requestPermissionsIfNeeded error: $e',
+          name: 'NotificationService');
     }
   }
+
+  /// Copy for notification text built without a BuildContext (alarm actions
+  /// and the background snooze): the device language when the app ships it,
+  /// otherwise English.
+  static AppLocalizations get _deviceL10n {
+    try {
+      final locale = WidgetsBinding.instance.platformDispatcher.locale;
+      return AppLocalizations(Locale(locale.languageCode));
+    } catch (_) {
+      return const AppLocalizations(Locale('en'));
+    }
+  }
+
+  /// Device-language copy for notifications scheduled outside a widget tree.
+  static AppLocalizations get deviceL10n => _deviceL10n;
 
   Future<void> handleNotificationAction(NotificationResponse response) async {
     developer.log(
@@ -148,14 +186,11 @@ class NotificationService {
     if (response.actionId == 'snooze_alarm') {
       if (response.id != null) {
         _notificationsPlugin.cancel(response.id!);
+        final l10n = _deviceL10n;
         scheduleAlarm(
           id: response.id!,
-          title: _isDeviceArabic
-              ? '(غفوة) تذكير بموعدك'
-              : '(Snooze) Appointment Reminder',
-          body: _isDeviceArabic
-              ? 'حان الوقت لإنجاز مهمتك المجدولة'
-              : 'Time for your scheduled task',
+          title: l10n.snoozeReminderTitle,
+          body: l10n.snoozeReminderBody,
           scheduledDateTime: DateTime.now().add(const Duration(minutes: 5)),
         );
       }
@@ -179,6 +214,7 @@ class NotificationService {
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
+        visibility: NotificationVisibility.private,
       );
 
       const details = NotificationDetails(android: androidDetails);
@@ -216,6 +252,7 @@ class NotificationService {
         enableVibration: true,
         audioAttributesUsage: AudioAttributesUsage.alarm,
         category: AndroidNotificationCategory.alarm,
+        visibility: NotificationVisibility.private,
         fullScreenIntent: true,
         ongoing: true,
         autoCancel: false,
@@ -224,13 +261,13 @@ class NotificationService {
         actions: [
           AndroidNotificationAction(
             'dismiss_alarm',
-            _isDeviceArabic ? 'إيقاف المنبه' : 'Dismiss',
+            _deviceL10n.alarmDismissAction,
             cancelNotification: true,
             showsUserInterface: true,
           ),
           AndroidNotificationAction(
             'snooze_alarm',
-            _isDeviceArabic ? 'غفوة 5 دقائق' : 'Snooze 5 min',
+            _deviceL10n.alarmSnoozeAction,
             cancelNotification: true,
           ),
         ],
@@ -238,17 +275,32 @@ class NotificationService {
 
       final details = NotificationDetails(android: androidDetails);
 
-      await _notificationsPlugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduledTz,
-        details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: payload,
-      );
+      try {
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledTz,
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payload,
+        );
+      } on PlatformException {
+        // Exact alarms not permitted (Android 12+): still remind, inexactly.
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledTz,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payload,
+        );
+      }
       developer.log('Persistent Alarm scheduled for $scheduledTz',
           name: 'NotificationService');
     } catch (e) {
@@ -278,6 +330,7 @@ class NotificationService {
         importance: Importance.high,
         priority: Priority.high,
         category: AndroidNotificationCategory.reminder,
+        visibility: NotificationVisibility.private,
       );
       const details = NotificationDetails(android: androidDetails);
 
@@ -326,6 +379,7 @@ class NotificationService {
         enableVibration: true,
         audioAttributesUsage: AudioAttributesUsage.alarm,
         category: AndroidNotificationCategory.alarm,
+        visibility: NotificationVisibility.private,
         fullScreenIntent: true,
         ongoing: true,
         autoCancel: false,
@@ -333,13 +387,13 @@ class NotificationService {
         actions: [
           AndroidNotificationAction(
             'dismiss_alarm',
-            _isDeviceArabic ? 'إيقاف المنبه' : 'Dismiss',
+            _deviceL10n.alarmDismissAction,
             cancelNotification: true,
             showsUserInterface: true,
           ),
           AndroidNotificationAction(
             'snooze_alarm',
-            _isDeviceArabic ? 'غفوة 5 دقائق' : 'Snooze 5 min',
+            _deviceL10n.alarmSnoozeAction,
             cancelNotification: true,
           ),
         ],

@@ -678,4 +678,50 @@ const Map<String, String> enCatalog = {
   'detoxBatteryButton': 'Battery settings',
   'detoxBatteryHint':
       'On Xiaomi and similar phones, set LifeStyle battery use to “No restrictions” and enable Autostart — otherwise Android may pause the blocking service mid-session.',
+  'onboardingTitle': 'Let’s get your first win',
+  'onboardingSubtitle':
+      'Pick what matters most today. We’ll add three small tasks for you — no typing needed.',
+  'onboardingSkip': 'Skip',
+  'onboardingAreaStudy': 'Study',
+  'onboardingAreaWork': 'Work',
+  'onboardingAreaRoutine': 'Daily routine',
+  'starterClearDesk': 'Clear your desk for two minutes',
+  'starterPickLesson': 'Choose one lesson to review today',
+  'starterFocusSession': 'Do one 25-minute focus session',
+  'starterTopPriority': 'Write down today’s top priority',
+  'starterReplyMessage': 'Reply to one waiting message',
+  'starterWater': 'Drink a glass of water',
+  'starterWalk': 'Take a 10-minute walk',
+  'starterStretch': 'Stretch for two minutes',
+  'onboardingFirstWinTitle': 'Now tick one off',
+  'onboardingFirstWinSubtitle': 'Pick the easiest one and mark it done.',
+  'onboardingCelebrateTitle': 'First win done!',
+  'onboardingCelebrateBody':
+      'Small steps add up. Your other tasks are waiting in your list.',
+  'onboardingRemindersQuestion':
+      'Want a reminder when a task is due? You can change this any time in your phone’s settings.',
+  'onboardingEnableReminders': 'Turn on reminders',
+  'onboardingNotNow': 'Not now',
+  'onboardingAddFailed':
+      'We couldn’t add the tasks. Check your connection and try again, or skip for now.',
+  'onboardingCompleteFailed':
+      'We couldn’t save that. Try again, or skip for now.',
+  'usageStatsTitle': 'Share usage statistics',
+  'usageStatsSubtitle':
+      'Content-free counts such as “a task was completed” help improve LifeStyle. Task titles, notes and messages are never sent. Turning this off also deletes what was recorded.',
+  'settingSaveFailed': 'Couldn’t save this setting. Try again.',
+  'aiTaskParsingTitle': 'AI help for Smart Quick Add',
+  'aiTaskParsingSubtitle':
+      'Off: dates and times are understood on your phone. On: what you type in Smart Quick Add is sent to the AI service.',
+  'aiTaskParsingConsentTitle': 'Send Smart Quick Add text to AI?',
+  'aiTaskParsingConsentBody':
+      'When this is on, the text you type in Smart Quick Add is sent through the LifeStyle server to Google Gemini to find dates and times. If the AI is slow or unavailable, your phone reads the text instead. You can turn this off at any time.',
+  'aiTaskParsingAgree': 'Turn on',
+  'taskReminderTitle': 'Task reminder',
+  'snoozeReminderTitle': 'Snoozed reminder',
+  'snoozeReminderBody': 'Time for your scheduled task',
+  'alarmDismissAction': 'Dismiss',
+  'alarmSnoozeAction': 'Snooze 5 min',
+  'calendarReminderTitle': 'Calendar reminder',
+  'calendarStartsAt': '{title} · starts at {time}',
 };

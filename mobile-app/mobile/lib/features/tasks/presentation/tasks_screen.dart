@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/core/widgets/owned_dialog.dart';
+import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
+import 'package:lifestyle_mobile/data/product_events.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
@@ -570,6 +572,7 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
     setState(() => _saving = true);
     try {
       await ref.read(tasksRepositoryProvider).setDone(widget.task, done);
+      if (done) ref.recordProductEvent(ProductEvent.taskCompleted);
       if (done) {
         await ref
             .read(focusShieldProvider.notifier)
@@ -694,9 +697,13 @@ Future<void> _showSmartQuickAdd(
               error = null;
             });
             try {
+              // On-device parsing by default (P0-F2/F4); the AI proxy is
+              // used only after the account opted in from Profile.
               var p = parsed ?? SmartTaskParser.parse(rawText);
               try {
-                p = await SmartTaskParser.parseAsync(rawText);
+                if (await ref.read(aiTaskParsingProvider.future)) {
+                  p = await SmartTaskParser.parseAsync(rawText, useAi: true);
+                }
               } catch (_) {}
 
               final task = await ref.read(tasksRepositoryProvider).createTask(
@@ -707,10 +714,14 @@ Future<void> _showSmartQuickAdd(
 
               if (p.scheduledDateTime != null &&
                   p.scheduledDateTime!.isAfter(DateTime.now())) {
+                await NotificationService.instance
+                    .requestPermissionsIfNeeded(exactAlarms: true);
+                // Generic title: the task name is never the lock-screen
+                // headline (P0-F1).
                 await NotificationService.instance.scheduleAlarm(
                   id: task.id.hashCode,
-                  title: '${l10n.tasks}: ${task.title}',
-                  body: l10n.taskDueNowText,
+                  title: l10n.taskReminderTitle,
+                  body: task.title,
                   scheduledDateTime: p.scheduledDateTime!,
                 );
               }
@@ -1005,10 +1016,12 @@ Future<void> _showAddTask(
               if (fullDateTime != null &&
                   fullDateTime.isAfter(DateTime.now())) {
                 final alarmId = task.id.hashCode;
+                await NotificationService.instance
+                    .requestPermissionsIfNeeded(exactAlarms: true);
                 await NotificationService.instance.scheduleAlarm(
                   id: alarmId,
-                  title: '${l10n.tasks}: ${task.title}',
-                  body: l10n.taskTitle,
+                  title: l10n.taskReminderTitle,
+                  body: task.title,
                   scheduledDateTime: fullDateTime,
                 );
               }

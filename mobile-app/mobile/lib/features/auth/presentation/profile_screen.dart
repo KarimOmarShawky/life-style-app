@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
@@ -113,6 +114,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       }
     }
+  }
+
+  /// Usage statistics (G5). Turning them off also deletes recorded events.
+  Future<void> _setUsageStats(bool enabled) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busyAction = true);
+    try {
+      await ref.read(authProvider.notifier).setProductEventsEnabled(enabled);
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.settingSaveFailed)));
+    } finally {
+      if (mounted) setState(() => _busyAction = false);
+    }
+  }
+
+  /// AI help for Smart Quick Add (P0-F2): consent is asked every time it is
+  /// turned on; turning it off needs no confirmation.
+  Future<void> _setAiTaskParsing(bool enabled) async {
+    final l10n = AppLocalizations.of(context);
+    if (enabled) {
+      final agreed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.aiTaskParsingConsentTitle),
+          content: SingleChildScrollView(
+            child: Text(l10n.aiTaskParsingConsentBody),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.aiTaskParsingAgree),
+            ),
+          ],
+        ),
+      );
+      if (agreed != true) return;
+    }
+    await ref.read(aiTaskParsingProvider.notifier).setEnabled(enabled);
   }
 
   Future<void> _changeLanguage(BuildContext context) async {
@@ -340,6 +384,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     });
     final activeUser = ref.watch(authProvider).valueOrNull ?? widget.user;
+    final usageStats = activeUser.productEventsEnabled;
+    final aiTaskParsing =
+        ref.watch(aiTaskParsingProvider).asData?.value ?? false;
 
     String themeLabel = localization.themeSystem;
     if (settings.themeMode == ThemeMode.light) {
@@ -545,6 +592,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             subtitle: Text(isAr
                 ? 'مُضمَّن مع حسابك ويعمل عبر خادم LifeStyle — لا حاجة لأي مفتاح'
                 : 'Included with your account and runs via the LifeStyle server — no key needed'),
+          ),
+          if (usageStats != null)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.insights_outlined),
+              title: Text(localization.usageStatsTitle),
+              subtitle: Text(localization.usageStatsSubtitle),
+              value: usageStats,
+              onChanged: _busyAction ? null : _setUsageStats,
+            ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.auto_fix_high_outlined),
+            title: Text(localization.aiTaskParsingTitle),
+            subtitle: Text(localization.aiTaskParsingSubtitle),
+            value: aiTaskParsing,
+            onChanged: _setAiTaskParsing,
           ),
           _ProfileRow(label: localization.accountStatus, value: statusLabel),
           const Divider(height: 24),

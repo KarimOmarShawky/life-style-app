@@ -2,6 +2,7 @@ import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart'
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/data/product_events.dart';
 import 'package:lifestyle_mobile/features/habits/data/habit_model.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
@@ -106,6 +107,7 @@ class _HabitCardState extends ConsumerState<HabitCard> {
                             await ref
                                 .read(habitsRepositoryProvider)
                                 .checkinHabit(habit.id, today, status: 'done');
+                            ref.recordProductEvent(ProductEvent.habitCheckedIn);
                             await ref
                                 .read(focusShieldProvider.notifier)
                                 .award(XpType.habit, habit.id, dateKey: today);

@@ -665,4 +665,38 @@ const Map<String, String> esCatalog = {
       'Android solo permite que LifeStyle note que se abrió una aplicación elegida si LifeStyle está activado en los ajustes de accesibilidad. Por diseño, LifeStyle no puede leer tu pantalla, tus mensajes ni tus contraseñas: solo sabe qué aplicación está en primer plano, y nada se graba ni se envía a ningún sitio. Puedes desactivarlo cuando quieras en los mismos ajustes.',
   'detoxAccessibilityNotConnected':
       'Android muestra Focus Shield activado, pero su servicio aún no está en marcha, así que las aplicaciones elegidas se abrirán igual. En «Aplicaciones descargadas», desactiva y vuelve a activar Focus Shield (o reinicia el teléfono) y regresa aquí.',
+  'detoxStateIdle': 'Sin empezar',
+  'detoxStatePreparing': 'Preparando…',
+  'detoxStatePending': 'Iniciando…',
+  'detoxStateActive': 'Bloqueo activado',
+  'detoxStatePartial': 'Bloqueo activado',
+  'detoxStateUnenforced': 'Solo temporizador — sin bloqueo',
+  'detoxStateBreak': 'Descanso',
+  'detoxStatePaused': 'En pausa',
+  'detoxStateCompleted': 'Completada',
+  'detoxStateStopped': 'Detenida',
+  'detoxStateError': 'La sesión se detuvo por un problema',
+  'detoxRestrictionOff': 'No hay ninguna restricción activa ahora.',
+  'detoxRestrictionOn': 'Bloqueando {n} aplicaciones elegidas.',
+  'detoxRestrictionStrict': 'Bloqueando todas las aplicaciones bloqueables.',
+  'detoxRestrictionUnknown': 'No se pudo verificar la restricción.',
+  'detoxErrorNotConfirmed':
+      'El bloqueo no se pudo confirmar. Comprueba que la accesibilidad esté activada, detén y vuelve a empezar — o elige explícitamente una sesión de solo temporizador.',
+  'detoxErrorLost':
+      'El bloqueo se perdió durante la sesión. Detén, comprueba que la accesibilidad sigue activada y vuelve a empezar.',
+  'detoxErrorRelease':
+      'La restricción no se pudo liberar limpiamente. Toca Detener otra vez, o desactiva la accesibilidad de LifeStyle en los ajustes de Android.',
+  'detoxErrorTimeChanged':
+      'La hora del dispositivo cambió, así que la sesión se liberó. Detén y empieza una nueva.',
+  'detoxErrorInterrupted':
+      'La sesión se interrumpió al iniciar. Detén y vuelve a empezar.',
+  'detoxErrorClock':
+      'Los horarios guardados de la sesión parecen inconsistentes. Detén y vuelve a empezar.',
+  'detoxErrorRestore':
+      'Los datos de la sesión no se pudieron restaurar. Cualquier restricción fue liberada: toca Detener para reiniciar.',
+  'detoxErrorAction':
+      'Esa acción no se pudo confirmar. Revisa el almacenamiento y los permisos de Android; si una restricción puede seguir activa, toca Detener.',
+  'detoxBatteryButton': 'Ajustes de batería',
+  'detoxBatteryHint':
+      'En Xiaomi y teléfonos similares, pon la batería de LifeStyle en «Sin restricciones» y activa el inicio automático; si no, Android puede pausar el servicio de bloqueo a mitad de sesión.',
 };

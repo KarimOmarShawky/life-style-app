@@ -12,6 +12,20 @@ class ChatMessage {
   final String role; // 'user' or 'model'
   final String text;
   final DateTime? timestamp;
+
+  Map<String, dynamic> toJson() => {
+        'role': role,
+        'text': text,
+        if (timestamp != null) 'timestamp': timestamp!.toIso8601String(),
+      };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+        role: json['role'] as String? ?? 'model',
+        text: json['text'] as String? ?? '',
+        timestamp: json['timestamp'] is String
+            ? DateTime.tryParse(json['timestamp'] as String)
+            : null,
+      );
 }
 
 /// Server-owned generation profiles (see backend AI_GENERATION).

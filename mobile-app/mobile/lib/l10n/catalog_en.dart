@@ -644,4 +644,38 @@ const Map<String, String> enCatalog = {
       'Android only lets LifeStyle notice that a picked app opened when LifeStyle is switched on in Accessibility settings. By design, LifeStyle cannot read your screen, messages, or passwords — it only learns which app is in front, and nothing is recorded or sent anywhere. You can switch it off anytime in the same settings.',
   'detoxAccessibilityNotConnected':
       'Android shows Focus Shield as on, but its service is not running yet — so selected apps would still open. In Downloaded apps, turn Focus Shield off and back on (or restart the phone), then return here.',
+  'detoxStateIdle': 'Not started',
+  'detoxStatePreparing': 'Preparing…',
+  'detoxStatePending': 'Starting…',
+  'detoxStateActive': 'Blocking is on',
+  'detoxStatePartial': 'Blocking is on',
+  'detoxStateUnenforced': 'Timer only — not blocking',
+  'detoxStateBreak': 'Break time',
+  'detoxStatePaused': 'Paused',
+  'detoxStateCompleted': 'Completed',
+  'detoxStateStopped': 'Stopped',
+  'detoxStateError': 'Session stopped by a problem',
+  'detoxRestrictionOff': 'No restriction is active right now.',
+  'detoxRestrictionOn': 'Blocking {n} selected apps.',
+  'detoxRestrictionStrict': 'Blocking all restrictable apps.',
+  'detoxRestrictionUnknown': 'The restriction could not be verified.',
+  'detoxErrorNotConfirmed':
+      'Blocking could not be confirmed. Check that accessibility is on, then stop and start again — or explicitly choose a timer-only session.',
+  'detoxErrorLost':
+      'Blocking was lost during the session. Stop, make sure accessibility is still on, and start again.',
+  'detoxErrorRelease':
+      'The restriction could not be released cleanly. Tap Stop again, or turn off LifeStyle accessibility in Android settings.',
+  'detoxErrorTimeChanged':
+      'The device time changed, so the session was released. Stop and start a new one.',
+  'detoxErrorInterrupted':
+      'The session was interrupted while starting. Stop and start again.',
+  'detoxErrorClock':
+      'The stored session times look inconsistent. Stop and start again.',
+  'detoxErrorRestore':
+      'Session data could not be restored. Any restriction was released — stop to reset.',
+  'detoxErrorAction':
+      'That action could not be confirmed. Check storage and Android permissions; if a restriction may still be active, tap Stop.',
+  'detoxBatteryButton': 'Battery settings',
+  'detoxBatteryHint':
+      'On Xiaomi and similar phones, set LifeStyle battery use to “No restrictions” and enable Autostart — otherwise Android may pause the blocking service mid-session.',
 };

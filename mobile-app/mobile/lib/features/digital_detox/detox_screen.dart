@@ -495,6 +495,25 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
                 ],
               ),
             ],
+            const SizedBox(height: 4),
+            Text(
+              l10n.tr('detoxBatteryHint'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: controller.enforcer.supported
+                    ? () => controller.run(() async {
+                          await controller.enforcer.platform.invoke(
+                            'openBatteryOptimizationSettings',
+                          );
+                        })
+                    : null,
+                icon: const Icon(Icons.battery_saver_outlined, size: 18),
+                label: Text(l10n.tr('detoxBatteryButton')),
+              ),
+            ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               value: _timerOnly,
@@ -534,7 +553,7 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
           Text(
             l10n
                 .tr('detoxSessionLabel')
-                .replaceAll('{state}', session.state.name),
+                .replaceAll('{state}', l10n.tr(_detoxStateKey(session.state))),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           Text(
@@ -565,19 +584,15 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
                 ? (1 - remaining / total).clamp(0.0, 1.0)
                 : 0,
           ),
-          Text(
-            l10n.tr('detoxRestriction').replaceAll(
-                  '{status}',
-                  session.restriction.status.name.toUpperCase(),
-                ),
-          ),
-          Text(session.restriction.detail),
+          Text(_detoxRestrictionSummary(l10n, session)),
           if (session.state == DetoxState.FOCUS_PARTIAL ||
               session.state == DetoxState.FOCUS_UNENFORCED)
             Text(l10n.tr('detoxWarningPartial')),
           if (session.error != null)
             Text(
-              session.error!,
+              session.errorCode != null
+                  ? l10n.tr(session.errorCode!)
+                  : session.error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           Wrap(
@@ -623,7 +638,7 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
         if (controller.busy) const LinearProgressIndicator(),
         if (controller.operationError != null)
           Text(
-            controller.operationError!,
+            l10n.tr(controller.operationError!),
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
       ],
@@ -746,4 +761,41 @@ class _DurationFields extends StatelessWidget {
       },
     );
   }
+}
+
+/// Localization key for a session state, so the UI never shows raw
+/// enum names like FOCUS_UNENFORCED.
+String _detoxStateKey(DetoxState state) => switch (state) {
+      DetoxState.IDLE => 'detoxStateIdle',
+      DetoxState.PREPARING => 'detoxStatePreparing',
+      DetoxState.FOCUS_PENDING => 'detoxStatePending',
+      DetoxState.FOCUS_ACTIVE => 'detoxStateActive',
+      DetoxState.FOCUS_PARTIAL => 'detoxStatePartial',
+      DetoxState.FOCUS_UNENFORCED => 'detoxStateUnenforced',
+      DetoxState.BREAK_ACTIVE => 'detoxStateBreak',
+      DetoxState.PAUSED => 'detoxStatePaused',
+      DetoxState.COMPLETED => 'detoxStateCompleted',
+      DetoxState.STOPPED => 'detoxStateStopped',
+      DetoxState.ERROR => 'detoxStateError',
+    };
+
+/// One localized line describing the actual restriction, replacing the
+/// raw native detail text (which is diagnostic English).
+String _detoxRestrictionSummary(
+  AppLocalizations l10n,
+  DetoxSession session,
+) {
+  final status = session.restriction.status;
+  if (status == RestrictionStatus.off) {
+    return l10n.tr('detoxRestrictionOff');
+  }
+  if (status == RestrictionStatus.unavailable) {
+    return l10n.tr('detoxRestrictionUnknown');
+  }
+  if (session.mode == DetoxMode.strictFocus) {
+    return l10n.tr('detoxRestrictionStrict');
+  }
+  return l10n
+      .tr('detoxRestrictionOn')
+      .replaceAll('{n}', '${session.packages.length}');
 }

@@ -301,15 +301,16 @@ void main() {
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
 
     await tester.scrollUntilVisible(find.text(ar.onboardingAreaWork), 120);
+    // ensureVisible jumps without a new frame; lay out before tapping, or the
+    // tap lands where the card was before the scroll and misses it.
+    await tester.pumpAndSettle();
     await tester.tap(find.text(ar.onboardingAreaWork));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    expect(find.text(ar.onboardingFirstWinTitle), findsOneWidget);
     expect(find.text(ar.starterTopPriority), findsOneWidget);
-    final firstTask = tester.getRect(find.text(ar.starterTopPriority));
-    final screenHeight =
-        tester.view.physicalSize.height / tester.view.devicePixelRatio;
-    expect(firstTask.top, greaterThanOrEqualTo(0));
-    expect(firstTask.bottom, lessThanOrEqualTo(screenHeight),
+    final list = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(list.position.pixels, 0,
         reason: 'the next step starts at the top, not where step one was');
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     semantics.dispose();

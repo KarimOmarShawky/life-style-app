@@ -171,9 +171,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ],
       ),
       body: SafeArea(
-        // A fresh subtree per step, so each step starts scrolled to the top.
+        // A fresh subtree and scroll-offset slot per step, so each step
+        // starts at the top instead of restoring the previous step's offset.
         child: KeyedSubtree(
-          key: ValueKey<_Step>(_step),
+          key: PageStorageKey<_Step>(_step),
           child: switch (_step) {
             _Step.checking => const Center(child: CircularProgressIndicator()),
             _Step.chooseFocus => _chooseFocus(l10n, theme),

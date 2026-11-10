@@ -749,4 +749,10 @@ const Map<String, String> deCatalog = {
   'alarmSnoozeAction': '5 Min. schlummern',
   'calendarReminderTitle': 'Kalendererinnerung',
   'calendarStartsAt': '{title} · beginnt um {time}',
+  'habitStreakDays': 'Tage in Folge: {n}',
+  'habitBestStreak': 'Beste Serie: {n}',
+  'habitStartToday': 'Fang heute an',
+  'habitFreshStart': 'Heute ein neuer Anfang',
+  'habitCheckInTooltip': 'Für heute als erledigt markieren',
+  'habitCheckInFailed': 'Das wurde nicht gespeichert. Versuch es noch einmal.',
 };

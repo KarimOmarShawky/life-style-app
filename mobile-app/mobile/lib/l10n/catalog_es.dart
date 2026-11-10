@@ -745,4 +745,10 @@ const Map<String, String> esCatalog = {
   'alarmSnoozeAction': 'Posponer 5 min',
   'calendarReminderTitle': 'Recordatorio del calendario',
   'calendarStartsAt': '{title} · empieza a las {time}',
+  'habitStreakDays': 'Días seguidos: {n}',
+  'habitBestStreak': 'Mejor racha: {n}',
+  'habitStartToday': 'Empieza hoy',
+  'habitFreshStart': 'Hoy empiezas de nuevo',
+  'habitCheckInTooltip': 'Marcar como hecho hoy',
+  'habitCheckInFailed': 'No se pudo guardar. Inténtalo de nuevo.',
 };

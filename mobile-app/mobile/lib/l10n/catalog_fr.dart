@@ -754,4 +754,10 @@ const Map<String, String> frCatalog = {
   'alarmSnoozeAction': 'Répéter dans 5 min',
   'calendarReminderTitle': 'Rappel d’agenda',
   'calendarStartsAt': '{title} · commence à {time}',
+  'habitStreakDays': 'Jours d’affilée : {n}',
+  'habitBestStreak': 'Meilleure série : {n}',
+  'habitStartToday': 'Commencez aujourd’hui',
+  'habitFreshStart': 'Nouveau départ aujourd’hui',
+  'habitCheckInTooltip': 'Marquer comme fait aujourd’hui',
+  'habitCheckInFailed': 'Ce n’a pas été enregistré. Réessayez.',
 };

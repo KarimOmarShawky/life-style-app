@@ -610,6 +610,14 @@ class AppLocalizations {
   String get calendarReminderTitle => _s('calendarReminderTitle');
   String calendarStartsAt(String title, String time) =>
       _f('calendarStartsAt', {'title': title, 'time': time});
+  String habitStreakDays(int n) =>
+      _f('habitStreakDays', <String, Object>{'n': n});
+  String habitBestStreak(int n) =>
+      _f('habitBestStreak', <String, Object>{'n': n});
+  String get habitStartToday => _s('habitStartToday');
+  String get habitFreshStart => _s('habitFreshStart');
+  String get habitCheckInTooltip => _s('habitCheckInTooltip');
+  String get habitCheckInFailed => _s('habitCheckInFailed');
   String tr(String key) => _s(key);
 }
 

@@ -705,4 +705,10 @@ const Map<String, String> arCatalog = {
   'alarmSnoozeAction': 'غفوة 5 دقائق',
   'calendarReminderTitle': 'تذكير بموعد',
   'calendarStartsAt': '{title} · يبدأ الساعة {time}',
+  'habitStreakDays': 'أيام متتالية: {n}',
+  'habitBestStreak': 'أفضل سلسلة: {n}',
+  'habitStartToday': 'ابدأ النهارده',
+  'habitFreshStart': 'بداية جديدة النهارده',
+  'habitCheckInTooltip': 'علّم إنها اتعملت النهارده',
+  'habitCheckInFailed': 'معرفناش نحفظ التسجيل ده. جرّب تاني.',
 };

@@ -724,4 +724,10 @@ const Map<String, String> enCatalog = {
   'alarmSnoozeAction': 'Snooze 5 min',
   'calendarReminderTitle': 'Calendar reminder',
   'calendarStartsAt': '{title} · starts at {time}',
+  'habitStreakDays': '{n}-day streak',
+  'habitBestStreak': 'Best streak: {n}',
+  'habitStartToday': 'Start today',
+  'habitFreshStart': 'Fresh start today',
+  'habitCheckInTooltip': 'Mark done for today',
+  'habitCheckInFailed': 'Couldn’t save this check-in. Try again.',
 };

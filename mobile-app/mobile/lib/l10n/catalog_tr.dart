@@ -724,4 +724,10 @@ const Map<String, String> trCatalog = {
   'alarmSnoozeAction': '5 dk ertele',
   'calendarReminderTitle': 'Takvim hatırlatıcısı',
   'calendarStartsAt': '{title} · {time} saatinde başlıyor',
+  'habitStreakDays': '{n} günlük seri',
+  'habitBestStreak': 'En iyi seri: {n}',
+  'habitStartToday': 'Bugün başla',
+  'habitFreshStart': 'Bugün yeni bir başlangıç',
+  'habitCheckInTooltip': 'Bugün için tamamlandı olarak işaretle',
+  'habitCheckInFailed': 'Bu kaydedilemedi. Tekrar dene.',
 };

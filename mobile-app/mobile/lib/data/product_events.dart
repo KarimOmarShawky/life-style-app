@@ -87,7 +87,14 @@ final productEventsClientProvider = Provider<ProductEventsClient>((ref) {
 
 extension ProductEventsRecording on WidgetRef {
   /// Records [event] for the signed-in account; see [ProductEventsClient].
-  void recordProductEvent(ProductEvent event) =>
-      read(productEventsClientProvider)
-          .record(read(authProvider).valueOrNull, event);
+  /// Never throws: usage statistics must not break the flow that calls it.
+  void recordProductEvent(ProductEvent event) {
+    try {
+      final user = read(authProvider).valueOrNull;
+      if (user == null || user.productEventsEnabled != true) return;
+      read(productEventsClientProvider).record(user, event);
+    } catch (_) {
+      // For example an unconfigured API client; nothing is recorded.
+    }
+  }
 }

@@ -171,12 +171,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ],
       ),
       body: SafeArea(
-        child: switch (_step) {
-          _Step.checking => const Center(child: CircularProgressIndicator()),
-          _Step.chooseFocus => _chooseFocus(l10n, theme),
-          _Step.firstWin => _firstWin(l10n, theme),
-          _Step.celebrate => _celebrate(l10n, theme),
-        },
+        // A fresh subtree per step, so each step starts scrolled to the top.
+        child: KeyedSubtree(
+          key: ValueKey<_Step>(_step),
+          child: switch (_step) {
+            _Step.checking => const Center(child: CircularProgressIndicator()),
+            _Step.chooseFocus => _chooseFocus(l10n, theme),
+            _Step.firstWin => _firstWin(l10n, theme),
+            _Step.celebrate => _celebrate(l10n, theme),
+          },
+        ),
       ),
     );
   }

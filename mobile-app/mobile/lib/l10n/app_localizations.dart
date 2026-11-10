@@ -586,12 +586,10 @@ class AppLocalizations {
   String get starterWalk => _s('starterWalk');
   String get starterStretch => _s('starterStretch');
   String get onboardingFirstWinTitle => _s('onboardingFirstWinTitle');
-  String get onboardingFirstWinSubtitle =>
-      _s('onboardingFirstWinSubtitle');
+  String get onboardingFirstWinSubtitle => _s('onboardingFirstWinSubtitle');
   String get onboardingCelebrateTitle => _s('onboardingCelebrateTitle');
   String get onboardingCelebrateBody => _s('onboardingCelebrateBody');
-  String get onboardingRemindersQuestion =>
-      _s('onboardingRemindersQuestion');
+  String get onboardingRemindersQuestion => _s('onboardingRemindersQuestion');
   String get onboardingEnableReminders => _s('onboardingEnableReminders');
   String get onboardingNotNow => _s('onboardingNotNow');
   String get onboardingAddFailed => _s('onboardingAddFailed');

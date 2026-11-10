@@ -69,7 +69,8 @@ void main() {
     );
     expect(calls, 0);
     expect(result.title, isNotEmpty);
-    expect(result.dueDate,
+    expect(
+        result.dueDate,
         SmartTaskParser.parse('Buy milk tomorrow', DateTime(2026, 11, 8, 12))
             .dueDate);
   });

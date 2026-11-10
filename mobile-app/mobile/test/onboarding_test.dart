@@ -81,6 +81,10 @@ http.Response _json(int status, Object body) => http.Response(
       headers: {'content-type': 'application/json; charset=utf-8'},
     );
 
+/// API v1 success envelope; the client unwraps `data` only with it.
+http.Response _ok(int status, Object data) =>
+    _json(status, {'success': true, 'data': data});
+
 Map<String, dynamic> _task(String id, String title, String status) => {
       'id': id,
       'title': title,
@@ -109,15 +113,13 @@ class _FakeServer {
       }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       _created++;
-      return _json(201, {
-        'data': {
-          'task': _task('task-$_created', body['title'] as String, 'todo')
-        },
+      return _ok(201, {
+        'task': _task('task-$_created', body['title'] as String, 'todo'),
       });
     }
     if (request.method == 'PATCH' && path.contains('/tasks/')) {
-      return _json(200, {
-        'data': {'task': _task(path.split('/').last, 'Done', 'done')},
+      return _ok(200, {
+        'task': _task(path.split('/').last, 'Done', 'done'),
       });
     }
     if (request.method == 'PATCH' && path.endsWith('/users/me')) {
@@ -126,16 +128,12 @@ class _FakeServer {
           'error': {'code': 'UNAVAILABLE', 'message': 'Not now'},
         });
       }
-      return _json(200, {
-        'data': {
-          'user': _userJson(onboardingCompletedAt: '2026-11-10T08:00:00.000Z'),
-        },
+      return _ok(200, {
+        'user': _userJson(onboardingCompletedAt: '2026-11-10T08:00:00.000Z'),
       });
     }
     if (request.method == 'POST' && path.endsWith('/product-events')) {
-      return _json(202, {
-        'data': {'recorded': true},
-      });
+      return _ok(202, {'recorded': true});
     }
     return _json(404, {
       'error': {'code': 'NOT_FOUND', 'message': 'Unknown route'},
@@ -302,10 +300,17 @@ void main() {
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
 
+    await tester.scrollUntilVisible(find.text(ar.onboardingAreaWork), 120);
     await tester.tap(find.text(ar.onboardingAreaWork));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text(ar.starterTopPriority), findsOneWidget);
+    final firstTask = tester.getRect(find.text(ar.starterTopPriority));
+    final screenHeight =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    expect(firstTask.top, greaterThanOrEqualTo(0));
+    expect(firstTask.bottom, lessThanOrEqualTo(screenHeight),
+        reason: 'the next step starts at the top, not where step one was');
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     semantics.dispose();
   });

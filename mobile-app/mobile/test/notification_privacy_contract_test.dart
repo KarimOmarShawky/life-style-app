@@ -30,8 +30,7 @@ void main() {
     expect(details, greaterThanOrEqualTo(4));
   });
 
-  test('permissions are never requested at launch or from background work',
-      () {
+  test('permissions are never requested at launch or from background work', () {
     final init = _balanced(
         service, service.indexOf('{', service.indexOf('Future<void> init()')));
     expect(init, isNot(contains('Permission(')));

@@ -82,8 +82,7 @@ void main() {
 
     test('bodies carry only the event name, platform and app version',
         () async {
-      client.record(
-          AppUser.fromJson(_userJson()), ProductEvent.taskCompleted);
+      client.record(AppUser.fromJson(_userJson()), ProductEvent.taskCompleted);
       await Future<void>.delayed(Duration.zero);
       expect(sent, [
         {
@@ -94,8 +93,7 @@ void main() {
       ]);
     });
 
-    test('nothing is sent when opted out, unsupported or signed out',
-        () async {
+    test('nothing is sent when opted out, unsupported or signed out', () async {
       client.record(AppUser.fromJson(_userJson(productEventsEnabled: false)),
           ProductEvent.appOpened);
       client.record(AppUser.fromJson(_userJson(includeEvents: false)),

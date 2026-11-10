@@ -663,4 +663,8 @@ const Map<String, String> frCatalog = {
       '{n} tâches terminées · {m} min de concentration — l’élan grandit.',
   'weeklyWinsEmpty':
       'Une semaine fraîche — une petite session est déjà une victoire.',
+  'detoxAccessibilityOff':
+      'Blocage désactivé : l’accessibilité LifeStyle n’est pas activée dans les réglages Android, les applications choisies s’ouvriront donc normalement. Activez-la puis revenez. Sur Android 13+, si le commutateur est grisé, autorisez d’abord les paramètres restreints pour LifeStyle dans les infos de l’application.',
+  'detoxAccessibilityOn':
+      'Blocage prêt — l’accessibilité LifeStyle est activée.',
 };

@@ -657,4 +657,8 @@ const Map<String, String> deCatalog = {
       '{n} Aufgaben erledigt · {m} Min. Fokus — der Schwung wächst.',
   'weeklyWinsEmpty':
       'Eine frische Woche — eine kleine Sitzung ist schon ein Erfolg.',
+  'detoxAccessibilityOff':
+      'Blockierung aus: Die LifeStyle-Bedienungshilfe ist in den Android-Einstellungen nicht aktiviert, ausgewählte Apps öffnen sich also weiterhin. Aktiviere sie und komm dann zurück. Unter Android 13+: Ist der Schalter ausgegraut, erlaube zuerst eingeschränkte Einstellungen für LifeStyle in den App-Infos.',
+  'detoxAccessibilityOn':
+      'Blockierung bereit — die LifeStyle-Bedienungshilfe ist an.',
 };

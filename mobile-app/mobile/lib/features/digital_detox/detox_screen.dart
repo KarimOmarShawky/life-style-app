@@ -40,7 +40,8 @@ class DigitalDetoxPanel extends ConsumerStatefulWidget {
   ConsumerState<DigitalDetoxPanel> createState() => _DigitalDetoxPanelState();
 }
 
-class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel> {
+class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
+    with WidgetsBindingObserver {
   DetoxMode _mode = DetoxMode.selectedApps;
   final _focus = TextEditingController(text: '45');
   final _rest = TextEditingController(text: '15');
@@ -50,8 +51,45 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel> {
   bool _selectionSynced = false;
   String? _selectionError;
 
+  /// Live Android accessibility state: null = not checked yet (or not
+  /// Android). Blocking is impossible without it — the OS only lets an
+  /// accessibility service notice that a selected app came to the front —
+  /// so a session must never silently start while this is known to be off.
+  bool? _accessibilityOn;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _refreshAccessibility());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshAccessibility();
+    }
+  }
+
+  Future<void> _refreshAccessibility() async {
+    final controller = ref.read(detoxProvider);
+    if (!controller.enforcer.supported) return;
+    try {
+      final status =
+          await controller.enforcer.platform.invoke('getPermissionStatus');
+      if (mounted) {
+        setState(() => _accessibilityOn = status['accessibility'] == true);
+      }
+    } catch (_) {
+      // Unknown: leave the gate open; the native start still reports its
+      // own failure instead of the UI guessing wrongly.
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _focus.dispose();
     _rest.dispose();
     super.dispose();
@@ -338,6 +376,39 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel> {
                 child: Text(l10n.tr('detoxOpenAccessibility')),
               ),
             ),
+            if (_accessibilityOn != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    _accessibilityOn!
+                        ? Icons.verified_user
+                        : Icons.warning_amber,
+                    size: 18,
+                    color: _accessibilityOn!
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.tr(
+                        _accessibilityOn!
+                            ? 'detoxAccessibilityOn'
+                            : 'detoxAccessibilityOff',
+                      ),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _accessibilityOn!
+                            ? null
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               value: _timerOnly,
@@ -360,7 +431,12 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _consent ? _start : null,
+              // A blocking session cannot start while accessibility is
+              // known to be off; the explicit timer-only fallback stays
+              // available so the choice is the user's, never silent.
+              onPressed: _consent && (_accessibilityOn != false || _timerOnly)
+                  ? _start
+                  : null,
               child: Text(l10n.tr('detoxReviewStart')),
             ),
           ),

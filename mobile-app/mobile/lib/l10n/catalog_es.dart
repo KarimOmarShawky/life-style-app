@@ -655,4 +655,8 @@ const Map<String, String> esCatalog = {
   'weeklyWinsLine':
       '{n} tareas hechas · {m} min de concentración — el impulso crece.',
   'weeklyWinsEmpty': 'Semana nueva — una sesión pequeña ya es un logro.',
+  'detoxAccessibilityOff':
+      'Bloqueo desactivado: la accesibilidad de LifeStyle no está activada en los ajustes de Android, así que las aplicaciones elegidas se abrirán igual. Actívala y vuelve aquí. En Android 13+, si el interruptor está gris, permite primero los ajustes restringidos de LifeStyle en la información de la aplicación.',
+  'detoxAccessibilityOn':
+      'Bloqueo listo: la accesibilidad de LifeStyle está activada.',
 };

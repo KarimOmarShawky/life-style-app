@@ -635,4 +635,7 @@ const Map<String, String> enCatalog = {
   'weeklyWinsTitle': 'Wins this week',
   'weeklyWinsLine': '{n} tasks done · {m} min of focus — momentum is building.',
   'weeklyWinsEmpty': 'A fresh week — one small session is already a win.',
+  'detoxAccessibilityOff':
+      'Blocking is off: LifeStyle accessibility is not enabled in Android settings, so selected apps will still open. Enable it, then come back. On Android 13+, if the switch is greyed out, first allow restricted settings for LifeStyle under App info.',
+  'detoxAccessibilityOn': 'Blocking is ready — LifeStyle accessibility is on.',
 };

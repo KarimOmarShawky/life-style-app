@@ -635,4 +635,7 @@ const Map<String, String> trCatalog = {
   'weeklyWinsTitle': 'Haftanın başarıları',
   'weeklyWinsLine': '{n} görev tamamlandı · {m} dk odak — ivme büyüyor.',
   'weeklyWinsEmpty': 'Yeni bir hafta — küçük bir oturum bile bir başarı.',
+  'detoxAccessibilityOff':
+      'Engelleme kapalı: LifeStyle erişilebilirliği Android ayarlarında etkin değil, bu yüzden seçilen uygulamalar normal şekilde açılmaya devam eder. Etkinleştirip buraya dön. Android 13+ sürümünde anahtar griyse, önce uygulama bilgilerinden LifeStyle için kısıtlı ayarlara izin ver.',
+  'detoxAccessibilityOn': 'Engelleme hazır — LifeStyle erişilebilirliği açık.',
 };

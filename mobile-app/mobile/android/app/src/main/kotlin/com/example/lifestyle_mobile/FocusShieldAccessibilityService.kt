@@ -4,7 +4,6 @@ import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
 import android.os.Handler
 import android.os.Looper
-import java.lang.ref.WeakReference
 
 class FocusShieldAccessibilityService : AccessibilityService() {
     private val engine = ShieldDecisionEngine()
@@ -12,7 +11,7 @@ class FocusShieldAccessibilityService : AccessibilityService() {
     private var sessionId: String? = null
     private var foregroundPackage: String? = null
     override fun onServiceConnected() {
-        instance = WeakReference(this)
+        instance = this
         FocusShieldSessionStore(this).current()
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -49,7 +48,7 @@ class FocusShieldAccessibilityService : AccessibilityService() {
     }
     override fun onInterrupt() { lastEvents.clear() }
     override fun onDestroy() {
-        if (instance?.get() === this) {
+        if (instance === this) {
             instance = null
             // Do not report continued protection after the enforcing service
             // disconnects. An old instance must never stop a newer connection.
@@ -59,12 +58,22 @@ class FocusShieldAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
     companion object {
-        fun isConnected(): Boolean = instance?.get() != null
-        private var instance: WeakReference<FocusShieldAccessibilityService>? = null
+        fun isConnected(): Boolean = instance != null
+
+        // Deliberately a STRONG reference: the system keeps a bound
+        // accessibility service alive through its binder, which does not
+        // stop the garbage collector from clearing a weak reference to the
+        // Java object. With a weak reference, isConnected() could report
+        // false while the service was still bound and enforcing — and the
+        // status reconciler then stopped live sessions seconds after they
+        // started (seen on memory-aggressive OEM builds). The reference
+        // is cleared in onDestroy, so this cannot leak a dead service.
+        @Volatile
+        private var instance: FocusShieldAccessibilityService? = null
         private val handler = Handler(Looper.getMainLooper())
         fun scheduleBypassRecheck(packageName: String, untilMs: Long) {
             handler.postDelayed({
-                val service = instance?.get()
+                val service = instance
                 if (service != null && service.foregroundPackage == packageName) {
                     val state = FocusShieldSessionStore(service).current()
                     if (state.tempBypassPackage == packageName && state.tempBypassUntilMs == untilMs) service.enforcePackage(packageName)

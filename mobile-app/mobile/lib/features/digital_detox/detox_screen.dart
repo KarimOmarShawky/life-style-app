@@ -57,6 +57,12 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
   /// so a session must never silently start while this is known to be off.
   bool? _accessibilityOn;
 
+  /// Set while the user is in Android settings after choosing to enable
+  /// blocking, so returning with the switch on can continue the start
+  /// flow automatically — the closest Android allows to a permission
+  /// prompt: explain, jump to settings, resume where they left off.
+  bool _awaitingAccessibilityReturn = false;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +78,36 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
     }
   }
 
+  /// Explain-then-jump: show why the switch is needed (and what it can
+  /// never do), then open Android accessibility settings. The resume
+  /// hook in [_refreshAccessibility] picks the flow back up on return.
+  Future<void> _explainAndOpenAccessibility() async {
+    final l10n = AppLocalizations.of(context);
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.tr('detoxAccessWhyTitle')),
+        content: Text(l10n.tr('detoxAccessWhyBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.tr('detoxOpenAccessibility')),
+          ),
+        ],
+      ),
+    );
+    if (go != true || !mounted) return;
+    _awaitingAccessibilityReturn = true;
+    final controller = ref.read(detoxProvider);
+    await controller.run(() async {
+      await controller.enforcer.platform.invoke('openAccessibilitySettings');
+    });
+  }
+
   Future<void> _refreshAccessibility() async {
     final controller = ref.read(detoxProvider);
     if (!controller.enforcer.supported) return;
@@ -80,6 +116,19 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
           await controller.enforcer.platform.invoke('getPermissionStatus');
       if (mounted) {
         setState(() => _accessibilityOn = status['accessibility'] == true);
+        if (_accessibilityOn == true && _awaitingAccessibilityReturn) {
+          _awaitingAccessibilityReturn = false;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || !_consent) return;
+            final sessionState = ref.read(detoxProvider).session?.state;
+            if (sessionState == null ||
+                sessionState == DetoxState.IDLE ||
+                sessionState == DetoxState.STOPPED ||
+                sessionState == DetoxState.COMPLETED) {
+              _start();
+            }
+          });
+        }
       }
     } catch (_) {
       // Unknown: leave the gate open; the native start still reports its
@@ -365,16 +414,24 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
             ),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
-                onPressed: editable && _consent && controller.enforcer.supported
-                    ? () => controller.run(() async {
-                          await controller.enforcer.platform.invoke(
-                            'openAccessibilitySettings',
-                          );
-                        })
-                    : null,
-                child: Text(l10n.tr('detoxOpenAccessibility')),
-              ),
+              child: _accessibilityOn == false
+                  ? FilledButton(
+                      onPressed: editable && controller.enforcer.supported
+                          ? _explainAndOpenAccessibility
+                          : null,
+                      child: Text(l10n.tr('detoxEnableBlocking')),
+                    )
+                  : OutlinedButton(
+                      onPressed:
+                          editable && _consent && controller.enforcer.supported
+                              ? () => controller.run(() async {
+                                    await controller.enforcer.platform.invoke(
+                                      'openAccessibilitySettings',
+                                    );
+                                  })
+                              : null,
+                      child: Text(l10n.tr('detoxOpenAccessibility')),
+                    ),
             ),
             if (_accessibilityOn != null) ...[
               const SizedBox(height: 8),

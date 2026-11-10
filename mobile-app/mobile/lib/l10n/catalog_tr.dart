@@ -638,4 +638,8 @@ const Map<String, String> trCatalog = {
   'detoxAccessibilityOff':
       'Engelleme kapalı: LifeStyle erişilebilirliği Android ayarlarında etkin değil, bu yüzden seçilen uygulamalar normal şekilde açılmaya devam eder. Etkinleştirip buraya dön. Android 13+ sürümünde anahtar griyse, önce uygulama bilgilerinden LifeStyle için kısıtlı ayarlara izin ver.',
   'detoxAccessibilityOn': 'Engelleme hazır — LifeStyle erişilebilirliği açık.',
+  'detoxEnableBlocking': 'Engellemeyi aç',
+  'detoxAccessWhyTitle': 'Tek bir anahtar engellemeyi çalıştırır',
+  'detoxAccessWhyBody':
+      'Android, LifeStyle’ın seçtiğin bir uygulamanın açıldığını fark etmesine yalnızca LifeStyle erişilebilirlik ayarlarında açıkken izin verir. Tasarımı gereği LifeStyle ekranını, mesajlarını veya parolalarını okuyamaz — yalnızca hangi uygulamanın önde olduğunu bilir ve hiçbir şey kaydedilmez ya da bir yere gönderilmez. Aynı ayarlardan istediğin zaman kapatabilirsin.',
 };

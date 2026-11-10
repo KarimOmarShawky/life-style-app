@@ -661,4 +661,8 @@ const Map<String, String> deCatalog = {
       'Blockierung aus: Die LifeStyle-Bedienungshilfe ist in den Android-Einstellungen nicht aktiviert, ausgewählte Apps öffnen sich also weiterhin. Aktiviere sie und komm dann zurück. Unter Android 13+: Ist der Schalter ausgegraut, erlaube zuerst eingeschränkte Einstellungen für LifeStyle in den App-Infos.',
   'detoxAccessibilityOn':
       'Blockierung bereit — die LifeStyle-Bedienungshilfe ist an.',
+  'detoxEnableBlocking': 'Blockierung einschalten',
+  'detoxAccessWhyTitle': 'Ein Schalter lässt die Blockierung arbeiten',
+  'detoxAccessWhyBody':
+      'Android lässt LifeStyle nur dann bemerken, dass eine ausgewählte App geöffnet wurde, wenn LifeStyle in den Bedienungshilfen aktiviert ist. Bauartbedingt kann LifeStyle weder deinen Bildschirm, deine Nachrichten noch deine Passwörter lesen — es erkennt nur, welche App im Vordergrund ist, und nichts wird aufgezeichnet oder irgendwohin gesendet. Du kannst es jederzeit am selben Ort abschalten.',
 };

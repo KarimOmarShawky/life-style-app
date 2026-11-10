@@ -659,4 +659,8 @@ const Map<String, String> esCatalog = {
       'Bloqueo desactivado: la accesibilidad de LifeStyle no está activada en los ajustes de Android, así que las aplicaciones elegidas se abrirán igual. Actívala y vuelve aquí. En Android 13+, si el interruptor está gris, permite primero los ajustes restringidos de LifeStyle en la información de la aplicación.',
   'detoxAccessibilityOn':
       'Bloqueo listo: la accesibilidad de LifeStyle está activada.',
+  'detoxEnableBlocking': 'Activar el bloqueo',
+  'detoxAccessWhyTitle': 'Un solo interruptor hace que el bloqueo funcione',
+  'detoxAccessWhyBody':
+      'Android solo permite que LifeStyle note que se abrió una aplicación elegida si LifeStyle está activado en los ajustes de accesibilidad. Por diseño, LifeStyle no puede leer tu pantalla, tus mensajes ni tus contraseñas: solo sabe qué aplicación está en primer plano, y nada se graba ni se envía a ningún sitio. Puedes desactivarlo cuando quieras en los mismos ajustes.',
 };

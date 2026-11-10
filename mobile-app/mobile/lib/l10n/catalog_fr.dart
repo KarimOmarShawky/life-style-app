@@ -667,4 +667,8 @@ const Map<String, String> frCatalog = {
       'Blocage désactivé : l’accessibilité LifeStyle n’est pas activée dans les réglages Android, les applications choisies s’ouvriront donc normalement. Activez-la puis revenez. Sur Android 13+, si le commutateur est grisé, autorisez d’abord les paramètres restreints pour LifeStyle dans les infos de l’application.',
   'detoxAccessibilityOn':
       'Blocage prêt — l’accessibilité LifeStyle est activée.',
+  'detoxEnableBlocking': 'Activer le blocage',
+  'detoxAccessWhyTitle': 'Un seul interrupteur fait fonctionner le blocage',
+  'detoxAccessWhyBody':
+      'Android permet à LifeStyle de remarquer l’ouverture d’une application choisie uniquement si LifeStyle est activé dans les réglages d’accessibilité. Par conception, LifeStyle ne peut pas lire votre écran, vos messages ni vos mots de passe — il sait seulement quelle application est au premier plan, et rien n’est enregistré ni envoyé nulle part. Vous pouvez le désactiver à tout moment au même endroit.',
 };

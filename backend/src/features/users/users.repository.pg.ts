@@ -14,6 +14,10 @@ import type {
   UserExportData
 } from './users.types.js';
 import { AppError } from '../../core/errors/app-error.js';
+import {
+  isMissingSchemaObject,
+  tableExists
+} from '../../infrastructure/database/postgres/schema-capabilities.js';
 
 /**
  * Child tables owned by a user, ordered so foreign-key children (including
@@ -22,10 +26,27 @@ import { AppError } from '../../core/errors/app-error.js';
  */
 export const LEGACY_METADATA_ROW_LIMIT = 1000;
 
+/**
+ * Product events are bounded by one row per event per local day (six event
+ * names) and a 400-day retention purge, so 5000 rows can only be exceeded by
+ * misuse; overflow returns 413 instead of silent truncation.
+ */
+export const PRODUCT_EVENTS_EXPORT_LIMIT = 5000;
+
+/**
+ * Owned tables created by additive DDL that the owner-managed production
+ * database receives out of band. Purge skips such a table only while it does
+ * not exist (it then cannot hold rows); every other owned table is mandatory
+ * and a missing one still fails the purge closed.
+ */
+export const OPTIONAL_USER_OWNED_TABLES: ReadonlySet<string> = new Set(['product_events']);
+
 export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
   // Accepted password-reset metadata is user-owned security data: it must not
   // outlive the account (V-06). It has no incoming FKs, so it is safe first.
   'password_reset_requests',
+  // Content-free usage events (G5). Leaf table; also ON DELETE CASCADE.
+  'product_events',
   'ingest_tokens',
   'push_devices',
   'reminders',
@@ -93,6 +114,14 @@ export class PgUsersRepository implements UsersRepository {
       setClauses.push(`push_show_titles = $${paramIdx++}`);
       values.push(updates.pushShowTitles);
     }
+    if (updates.productEventsEnabled !== undefined) {
+      setClauses.push(`product_events_enabled = $${paramIdx++}`);
+      values.push(updates.productEventsEnabled);
+    }
+    if (updates.onboardingCompleted === true) {
+      // Idempotent: the first completion/skip time is kept.
+      setClauses.push('onboarding_completed_at = COALESCE(onboarding_completed_at, now())');
+    }
 
     const query = `
       UPDATE users 
@@ -101,8 +130,35 @@ export class PgUsersRepository implements UsersRepository {
       RETURNING *
     `;
 
-    const res = await this.pool.query<UserRow>(query, values);
-    return res.rows[0]!;
+    try {
+      if (updates.productEventsEnabled !== false) {
+        const res = await this.pool.query<UserRow>(query, values);
+        return res.rows[0]!;
+      }
+      // Opting out also erases what was already recorded, atomically with the
+      // preference change (G5: opt-out must not leave data behind).
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const res = await client.query<UserRow>(query, values);
+        await client.query('DELETE FROM product_events WHERE user_id = $1', [userId]);
+        await client.query('COMMIT');
+        return res.rows[0]!;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err) {
+      if (
+        isMissingSchemaObject(err) &&
+        (updates.productEventsEnabled !== undefined || updates.onboardingCompleted !== undefined)
+      ) {
+        throw AppError.serviceUnavailable('This setting is not available on the server yet');
+      }
+      throw err;
+    }
   }
 
   public async upsertPushDevice(
@@ -281,7 +337,12 @@ export class PgUsersRepository implements UsersRepository {
 
       // 2. Delete all user-owned domain records in FK-safe order (transactions, subscriptions,
       // and budgets before categories to satisfy ON DELETE RESTRICT on categories).
+      const absentOptional = new Set<string>();
+      for (const table of OPTIONAL_USER_OWNED_TABLES) {
+        if (!(await tableExists(client, table))) absentOptional.add(table);
+      }
       for (const table of USER_OWNED_TABLES_IN_DELETE_ORDER) {
+        if (absentOptional.has(table)) continue;
         await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
       }
 
@@ -370,6 +431,49 @@ export class PgUsersRepository implements UsersRepository {
       );
     }
 
+    // G5/G1 settings and content-free product events. Until the owner applies
+    // the product-events DDL these objects are absent: export what exists.
+    let settings:
+      { product_events_enabled: boolean; onboarding_completed_at: Date | null } | undefined;
+    try {
+      const settingsRes = await this.pool.query<{
+        product_events_enabled: boolean;
+        onboarding_completed_at: Date | null;
+      }>(`SELECT product_events_enabled, onboarding_completed_at FROM users WHERE id = $1`, [
+        userId
+      ]);
+      settings = settingsRes.rows[0];
+    } catch (err) {
+      if (!isMissingSchemaObject(err)) throw err;
+    }
+    let productEvents: UserExportData['productEvents'] = [];
+    try {
+      const eventsRes = await this.pool.query<{
+        event_name: string;
+        occurred_at: Date;
+        occurred_on: string;
+        platform: string;
+        app_version: string | null;
+      }>(
+        `SELECT event_name, occurred_at, occurred_on, platform, app_version
+         FROM product_events WHERE user_id = $1
+         ORDER BY occurred_at, event_name LIMIT ${PRODUCT_EVENTS_EXPORT_LIMIT + 1}`,
+        [userId]
+      );
+      if (eventsRes.rows.length > PRODUCT_EVENTS_EXPORT_LIMIT) {
+        throw AppError.payloadTooLarge('Product event export exceeds its limit');
+      }
+      productEvents = eventsRes.rows.map((e) => ({
+        event: e.event_name,
+        occurredAt: new Date(e.occurred_at).toISOString(),
+        occurredOn: String(e.occurred_on),
+        platform: e.platform,
+        appVersion: e.app_version
+      }));
+    } catch (err) {
+      if (!isMissingSchemaObject(err)) throw err;
+    }
+
     return {
       exportedAt: new Date().toISOString(),
       profile: {
@@ -381,7 +485,15 @@ export class PgUsersRepository implements UsersRepository {
         weekStart: user.week_start,
         defaultCurrency: user.default_currency,
         status: user.status,
-        createdAt: user.created_at.toISOString()
+        createdAt: user.created_at.toISOString(),
+        ...(settings
+          ? {
+              productEventsEnabled: settings.product_events_enabled,
+              onboardingCompletedAt: settings.onboarding_completed_at
+                ? new Date(settings.onboarding_completed_at).toISOString()
+                : null
+            }
+          : {})
       },
       sessions: sessionsRes.rows.map((s) => ({
         id: s.id,
@@ -397,7 +509,8 @@ export class PgUsersRepository implements UsersRepository {
         platform: p.platform,
         lastSeenAt: new Date(p.last_seen_at).toISOString(),
         createdAt: new Date(p.created_at).toISOString()
-      }))
+      })),
+      productEvents
     };
   }
 }

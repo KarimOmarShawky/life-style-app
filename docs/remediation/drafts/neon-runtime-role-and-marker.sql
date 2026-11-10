@@ -22,6 +22,8 @@
 --      and on retired tables only SELECT + DELETE (account cleanup)
 --      plus UPDATE(revoked_at) on ingest_tokens. No INSERT and no
 --      other UPDATE on retired tables — for the runtime AND PUBLIC.
+--      Where product_events exists (feature guide G5, added
+--      2026-11-10): SELECT, INSERT, DELETE only.
 --   5. Fails closed (whole transaction rolls back) if the financial
 --      erasure has not actually happened or if, at the end, the
 --      startup-guard conditions for `lifestyle_app` do not hold.
@@ -170,6 +172,17 @@ BEGIN
       EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO lifestyle_app', t);
     END IF;
   END LOOP;
+END
+$$;
+-- 4c. Content-free product events (feature guide G5, added 2026-11-10;
+-- this script itself already ran on production on 2026-11-07, where
+-- docs/analytics/sql/product-events-and-onboarding.sql grants the
+-- runtime directly). Append-only for the runtime: no UPDATE.
+DO $$
+BEGIN
+  IF to_regclass('public.product_events') IS NOT NULL THEN
+    GRANT SELECT, INSERT, DELETE ON public.product_events TO lifestyle_app;
+  END IF;
 END
 $$;
 GRANT SELECT, INSERT ON public.audit_logs TO lifestyle_app;

@@ -53,6 +53,9 @@ describe.skipIf(!enabled)('Neon runtime role + marker draft (rollback rehearsal)
       await db.query('UPDATE subscriptions SET category_id = NULL WHERE category_id IS NOT NULL');
       await db.query('DELETE FROM categories');
       await db.query('DELETE FROM ingest_tokens');
+      // The migration already granted product_events; remove it so the
+      // assertions below prove the draft grants it on its own (G5).
+      await db.query('REVOKE ALL ON product_events FROM lifestyle_app');
 
       await db.query(script);
 
@@ -119,6 +122,18 @@ describe.skipIf(!enabled)('Neon runtime role + marker draft (rollback rehearsal)
           `SELECT has_table_privilege('lifestyle_app', 'public.transactions', 'DELETE') AS ok`
         )
       ).toBe(true);
+      for (const [privilege, expected] of [
+        ['SELECT', true],
+        ['INSERT', true],
+        ['DELETE', true],
+        ['UPDATE', false]
+      ] as const) {
+        expect(
+          await priv(
+            `SELECT has_table_privilege('lifestyle_app', 'public.product_events', '${privilege}') AS ok`
+          )
+        ).toBe(expected);
+      }
     } finally {
       await db.query('ROLLBACK').catch(() => undefined);
       await db.end();

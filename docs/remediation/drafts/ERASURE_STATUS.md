@@ -19,6 +19,17 @@
 > `../SESSION_2026-11-06_ANALYTICS_REAL_DATA.md`. The text below is the
 > pre-execution status and is retained for history.
 >
+> **Update — 2026-11-10: product events (feature guide G5).** Both
+> runtime-grant drafts (`neon-runtime-role-and-marker.sql` step 4c and
+> `1792900000000_runtime_grants_rehearsal.cjs`) now also grant
+> `SELECT, INSERT, DELETE` on `product_events` where that table exists,
+> so either rollout order keeps account deletion working. Production is
+> unaffected by this edit: its runtime role already exists, and the owner
+> SQL `docs/analytics/sql/product-events-and-onboarding.sql` grants it
+> directly. The committed-erasure rehearsal caught the missing grant
+> (`permission denied for table product_events` during purge) before
+> anything shipped.
+>
 > **Update — 2026-11-07 (later): restricted runtime role, marker, and
 > production redeploy COMPLETED and verified.** The owner rehearsed
 > `neon-runtime-role-and-marker.sql` on a fresh Neon branch

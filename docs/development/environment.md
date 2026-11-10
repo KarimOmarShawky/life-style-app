@@ -38,3 +38,4 @@ The LifeStyle App backend requires strict validation of environment configuratio
 | `AI_USER_MINUTE_LIMIT` | No | `10` | Per-user AI requests allowed per minute |
 | `AI_USER_DAILY_LIMIT` | No | `200` | Per-user AI requests allowed per day |
 | `AI_UPSTREAM_TIMEOUT_MS` | No | `20000` | Timeout for upstream Gemini calls in milliseconds |
+| `PRODUCT_EVENTS_ENABLED` | No | `true` | Kill switch for content-free product events (G5); `false`/`0`/`off`/`no` stops recording, retention keeps running |

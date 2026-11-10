@@ -1,5 +1,11 @@
 # Change log
 
+## Unreleased — feature guide Phase 1, 2026-11-10
+- E1: CI job summaries now carry evidence rows (head commit, toolchain versions, test counts parsed from runner output; "counts unavailable" instead of guesses).
+- E2: npm overrides fix GHSA-3g3m-2fjr-6pw4 (glob) and GHSA-g3hv-75wg-m249 (minimatch); backend and tools/security audits report 0 vulnerabilities. Disposition table and manual rotation checklist in `docs/security/dependency-and-secret-hygiene.md`. No secret rotated.
+- E9: CI localisation gate (catalog parity, placeholders, Android strings, hard-coded literal ratchet); two Android strings translated into ar/de/es/fr/tr.
+- G5/G1 (backend): content-free `product_events` table, `POST /api/v1/product-events`, account opt-out and onboarding flag on `PATCH /users/me`, export/deletion coverage, 400-day retention, `PRODUCT_EVENTS_ENABLED` kill switch, Activation/D1/D7/D30 definitions (ADR-045). Production needs the owner-run SQL in `docs/analytics/sql/`; production metric values NOT RUN.
+
 ## Unreleased continuation — 2026-10-16
 - Executed real owned PostgreSQL16/Redis7 integration/security and bootstrap/migration/grant probes; fixed invalid paginated push-device DELETE exposed by three live failures. No user database or Docker volume touched.
 - Removed dead native Gemini upload/recording/helper scaffolding, kept OS speech/notification compatibility and existing alarms, removed unused microphone capabilities. Native build/device verification remains blocked.

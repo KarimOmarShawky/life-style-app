@@ -17,6 +17,8 @@ CREATE TABLE users (
       last_login_at TIMESTAMPTZ,
       deletion_scheduled_for TIMESTAMPTZ,
       push_show_titles BOOLEAN NOT NULL DEFAULT true,
+      product_events_enabled BOOLEAN NOT NULL DEFAULT true,
+      onboarding_completed_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       CHECK ((status = 'pending_deletion') = (deletion_scheduled_for IS NOT NULL))
@@ -871,5 +873,26 @@ CREATE TABLE wallet_owned_records (
     DO $grant$ BEGIN
       IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
         GRANT SELECT, INSERT ON wallet_owned_records TO lifestyle_app;
+      END IF;
+    END $grant$;
+
+
+-- Content-free product events (feature guide G5); one row per user, event and local day.
+CREATE TABLE product_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      event_name TEXT NOT NULL CHECK (event_name IN ('app_opened', 'onboarding_started', 'onboarding_completed', 'onboarding_skipped', 'task_completed', 'habit_checked_in')),
+      occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      occurred_on DATE NOT NULL,
+      platform TEXT NOT NULL CHECK (platform IN ('android', 'ios', 'unknown')),
+      app_version TEXT CHECK (app_version IS NULL OR app_version ~ '^[0-9A-Za-z.+-]{1,32}$'),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT product_events_one_per_local_day UNIQUE (user_id, event_name, occurred_on)
+    );
+    CREATE INDEX idx_product_events_user_occurred ON product_events (user_id, occurred_at);
+    CREATE INDEX idx_product_events_name_occurred ON product_events (event_name, occurred_at);
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT, DELETE ON product_events TO lifestyle_app;
       END IF;
     END $grant$;

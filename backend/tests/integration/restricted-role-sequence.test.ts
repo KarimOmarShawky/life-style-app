@@ -111,7 +111,12 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         const schema = await readFile(new URL('../../../schema.sql', import.meta.url), 'utf8');
         await owner.query(schema);
         await owner.query(
-          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests'
+          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events'
+        );
+        // Production has not received the owner-run product-events/onboarding
+        // DDL (feature guide G5/G1) yet; it is applied at the end below.
+        await owner.query(
+          'ALTER TABLE users DROP COLUMN product_events_enabled, DROP COLUMN onboarding_completed_at'
         );
         await owner.query('DROP FUNCTION wallet_session_revocation_is_final()');
         await owner.query('DROP INDEX idx_notes_body_trgm');
@@ -460,6 +465,52 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
           expect((await owner.query('SELECT id FROM playing_with_neon_fixture')).rows).toEqual([
             { id: 42 }
           ]);
+
+          // Feature guide G5/G1: the owner-run SQL file, applied after the
+          // restricted runtime role exists (the production order), adds the
+          // table and columns and grants the runtime exactly what code needs.
+          const productEventsSql = await readFile(
+            new URL(
+              '../../../docs/analytics/sql/product-events-and-onboarding.sql',
+              import.meta.url
+            ),
+            'utf8'
+          );
+          await owner.query(productEventsSql);
+          const can = async (privilege: string) =>
+            (
+              await owner.query<{ ok: boolean }>(
+                `SELECT has_table_privilege('lifestyle_app', 'public.product_events', $1) AS ok`,
+                [privilege]
+              )
+            ).rows[0]!.ok;
+          expect(await can('SELECT')).toBe(true);
+          expect(await can('INSERT')).toBe(true);
+          expect(await can('DELETE')).toBe(true);
+          expect(await can('UPDATE')).toBe(false);
+          expect(await can('TRUNCATE')).toBe(false);
+          await expect(owner.query(productEventsSql)).rejects.toMatchObject({ code: '42P07' });
+          await owner.query('ROLLBACK');
+          expect(
+            (
+              await runtime.query<{ done: Date | null }>(
+                'UPDATE users SET onboarding_completed_at = COALESCE(onboarding_completed_at, now()) WHERE id = $1 RETURNING onboarding_completed_at AS done',
+                [otherUser]
+              )
+            ).rows[0]!.done
+          ).toBeInstanceOf(Date);
+          await runtime.query(
+            `INSERT INTO product_events (user_id, event_name, occurred_on, platform) VALUES ($1, 'app_opened', CURRENT_DATE, 'android')`,
+            [otherUser]
+          );
+          await expect(
+            runtime.query(`UPDATE product_events SET platform = 'ios'`)
+          ).rejects.toMatchObject({ code: '42501' });
+          await users.scheduleDeletion(otherUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(otherUser)).toBe(true);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM product_events')).rows[0]!.n
+          ).toBe(0);
         } finally {
           await runtime.end();
         }

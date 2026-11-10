@@ -104,6 +104,13 @@ exports.up = (pgm) => {
     GRANT UPDATE (revoked_at) ON public.ingest_tokens TO lifestyle_app;
     GRANT SELECT, INSERT ON public.audit_logs TO lifestyle_app;
     GRANT USAGE, SELECT ON SEQUENCE public.audit_logs_id_seq TO lifestyle_app;
+    -- Feature guide G5 (2026-11-10): content-free product events are
+    -- append-only for the runtime (no UPDATE), wherever the table exists.
+    DO $product_events$ BEGIN
+      IF to_regclass('public.product_events') IS NOT NULL THEN
+        GRANT SELECT, INSERT, DELETE ON public.product_events TO lifestyle_app;
+      END IF;
+    END $product_events$;
   `);
 };
 

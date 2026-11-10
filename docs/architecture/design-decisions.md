@@ -67,6 +67,12 @@ This record captures the fundamental architectural decisions governing the LifeS
 * **Guardrails (standing):** No raw SMS in logs or third-party payloads; the mobile AI chat assistant and the SMS fallback may not send financial data beyond the sanitized transaction schema; ADR-039's dependency guard remains (no AI/ML SDK packages — the fallback calls the Gemini HTTPS API directly).
 * **Consequences:** `deferred-and-non-goals.md` keeps only what is genuinely excluded (see its "Scope amendments" section). The earlier lock rows are retired rather than contradicted in place.
 
+### ADR-045: First-Party, Content-Free Product Events (Feature Guide G5, 2026-11-10)
+* **Context:** Activation and D1/D7/D30 retention could not be measured, so no impact claim was possible. The owner approved G5 on 2026-11-10 with the recommended design.
+* **Decision:** A first-party `product_events` table, written only through the authenticated, strictly validated and rate-limited `POST /api/v1/product-events`. A row carries the event name (closed list of six), server time, the user's local day, platform and app version — nothing else. One row per user, event and local day. Accounts can opt out (`users.product_events_enabled`; opting out deletes their events). Events are included in the account metadata export, erased with the account, excluded from the v1 archive file as a documented exclusion, and deleted after 400 days. `PRODUCT_EVENTS_ENABLED` is the kill switch.
+* **Guardrails:** No third-party analytics SDK, no device identifiers, no titles or free text, no client timestamps. Adding an event name or column requires a new migration and an owner privacy review. Definitions live in `docs/analytics/product-events.md`.
+* **Consequences:** Production needs the owner-run SQL (`docs/analytics/sql/product-events-and-onboarding.sql`) because the production database has no migration ledger; the API degrades safely until then.
+
 
 ## 2026-10-15 implementation clarification (R-22)
 Voice dictation exists in the current application using platform speech recognition.

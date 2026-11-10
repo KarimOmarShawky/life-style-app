@@ -23,6 +23,8 @@ export interface UsersTable {
   last_login_at: Date | null;
   deletion_scheduled_for: Date | null;
   push_show_titles: Generated<boolean>;
+  product_events_enabled: Generated<boolean>;
+  onboarding_completed_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -85,6 +87,18 @@ export interface PushDevicesTable {
   app_version: string | null;
   last_seen_at: Generated<Date>;
   disabled_at: Date | null;
+  created_at: Generated<Date>;
+}
+
+/** Content-free usage events (feature guide G5); one row per user, event and local day. */
+export interface ProductEventsTable {
+  id: Generated<string>;
+  user_id: string;
+  event_name: string;
+  occurred_at: Generated<Date>;
+  occurred_on: string;
+  platform: 'android' | 'ios' | 'unknown';
+  app_version: string | null;
   created_at: Generated<Date>;
 }
 
@@ -439,6 +453,7 @@ export interface DatabaseSchema {
   reminders: RemindersTable;
   audit_logs: AuditLogsTable;
   password_reset_requests: PasswordResetRequestsTable;
+  product_events: ProductEventsTable;
 }
 
 let kyselyDb: Kysely<DatabaseSchema> | null = null;

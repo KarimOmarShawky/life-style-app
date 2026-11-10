@@ -123,6 +123,9 @@ import { DaysService } from './features/days/days.service.js';
 import { DashboardService } from './features/dashboard/dashboard.service.js';
 import { AnalyticsService } from './features/analytics/analytics.service.js';
 import { SearchService } from './features/search/search.service.js';
+// Content-free product events (feature guide G5)
+import { ProductEventsService } from './features/product-events/product-events.service.js';
+import { PgProductEventsRepository } from './features/product-events/product-events.repository.pg.js';
 import { PgPasswordResetRequestStore } from './features/auth/password-reset-request.repository.pg.js';
 import type { ResetRequestStore } from './core/security/reset-request-store.js';
 // AI assistant proxy (server-side Gemini, central key)
@@ -184,6 +187,7 @@ export interface AppContainer {
   analyticsService: AnalyticsService;
   aiService: AiService;
   searchService: SearchService;
+  productEventsService: ProductEventsService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
   resetRequestStore: ResetRequestStore;
@@ -360,6 +364,13 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   if (env.AI_ENABLED && env.GEMINI_API_KEY.trim() === '') {
     logger.warn('AI_ENABLED is true but GEMINI_API_KEY is not configured; AI endpoints disabled');
   }
+  const productEventsService =
+    overrides?.productEventsService ??
+    new ProductEventsService(
+      new PgProductEventsRepository(pgPool),
+      clock,
+      env.PRODUCT_EVENTS_ENABLED
+    );
   const searchService = new SearchService(
     taskReader,
     habitReader,
@@ -425,6 +436,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     analyticsService,
     aiService,
     searchService,
+    productEventsService,
     resetRequestStore
   };
 

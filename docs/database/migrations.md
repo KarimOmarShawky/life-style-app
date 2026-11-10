@@ -48,6 +48,21 @@ the runner. The historical manual upgrade SQL covers only ingest tokens and opti
 timer task, not a complete baseline. A general legacy adoption script remains BLOCKED
 pending the actual deployed schema/history; table-name parity is insufficient evidence.
 
+## Owner-applied additive DDL (production without a ledger)
+The owner-managed production database has no `pgmigrations` ledger, so the runner
+must never be pointed at it (not even with `--dry-run` or `--fake`, which create a
+ledger). Additive changes ship twice: as a forward-only migration for fresh and CI
+databases, and as an owner-run SQL file that a unit test keeps byte-identical to
+the migration body. The code must degrade safely until the owner applies the file.
+
+| Migration | Owner SQL | Degrades to |
+|---|---|---|
+| `1792750000000_product_events_and_onboarding` (G5/G1) | `docs/analytics/sql/product-events-and-onboarding.sql` | No onboarding prompt; events answer `recorded: false`; purge/export skip the absent table |
+
+Rehearse every owner SQL file on a Neon branch of production first, then run it once
+on production. The restricted-role rehearsal in CI applies it after the runtime role
+exists, matching the production order.
+
 ## Failure and recovery
 Migration errors propagate and gate deployment. Keep the runner's default migration
 lock and transactional behavior. Investigate failures on a restored copy; repair via

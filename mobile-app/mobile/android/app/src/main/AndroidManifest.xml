@@ -72,11 +72,14 @@
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".LifeStyleAppWidgetProvider" android:exported="false" android:label="LifeStyle Brain Report">
+        <receiver android:name=".LifeStyleAppWidgetProvider" android:exported="false" android:label="@string/lifestyle_widget_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.example.lifestyle_mobile.SHIELD_CHANGED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/lifestyle_widget_info" />
         </receiver>

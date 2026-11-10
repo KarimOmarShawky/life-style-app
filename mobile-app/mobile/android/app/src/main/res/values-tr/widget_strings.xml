@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget (feature guide G3). The widget uses the app language
+     when the user picked one, otherwise the device language. -->
+<resources>
+    <string name="lifestyle_widget_label">LifeStyle · Bugün</string>
+    <string name="widget_header">Son berraklık puanı</string>
+    <string name="widget_no_data">Henüz veri yok</string>
+    <string name="widget_level_xp">Seviye %1$d · %2$d XP</string>
+    <string name="widget_tasks_left">Bugün kalan görevler: %1$d</string>
+    <string name="widget_tasks_no_data">Bugünün görevleri: henüz veri yok</string>
+    <string name="widget_tasks_empty">Sıradaki önceliğini seç</string>
+    <string name="widget_refresh_hint">Yenilemek için Günlük Planı aç</string>
+    <string name="widget_shield_active">Odak Kalkanı: açık</string>
+    <string name="widget_shield_ready">Odaklanmaya hazır</string>
+    <string name="widget_daily_plan">Günlük Plan</string>
+</resources>

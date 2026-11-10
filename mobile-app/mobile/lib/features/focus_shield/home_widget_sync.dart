@@ -1,18 +1,25 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 import 'focus_shield_models.dart';
 import 'focus_shield_provider.dart';
 
+/// How many next tasks the home-screen widget lists (feature guide G3).
+const int homeWidgetTaskLimit = 3;
+
 /// Display whitelist. In particular: no messages, sender, package or notes.
+/// Task data is limited to the count and the next [homeWidgetTaskLimit]
+/// titles for today; [locale] is the app language, so the widget matches it.
 Map<String, Object?> buildHomeWidgetData(
     {required XpLedger ledger,
     required List<FocusSessionRecord> history,
     required DateTime now,
     List<Task>? tasks,
-    List<String> priorities = const []}) {
+    List<String> priorities = const [],
+    String locale = ''}) {
   final orderedHistory = [...history]
     ..sort((a, b) => b.endedAt.compareTo(a.endedAt));
   final today = localDateKey(now);
@@ -44,9 +51,12 @@ Map<String, Object?> buildHomeWidgetData(
         orderedHistory.isEmpty ? null : orderedHistory.first.clarityScore,
     'level': ledger.level,
     'xp': ledger.totalXp,
+    'locale': locale,
     if (pending != null) 'pendingTasksCount': pending.length,
     if (pending != null)
-      'topTaskTitle': pending.isEmpty ? '' : pending.first.title
+      'topTaskTitles': [
+        for (final task in pending.take(homeWidgetTaskLimit)) task.title
+      ]
   };
 }
 
@@ -56,6 +66,8 @@ final homeWidgetSyncProvider = Provider.autoDispose<void>((ref) {
     return data == null ? null : (data.ledger, data.history);
   }));
   final tasks = ref.watch(tasksProvider).asData?.value;
+  final locale =
+      ref.watch(settingsProvider.select((s) => s.locale.languageCode));
   final account = ref.watch(focusAccountIdProvider);
   final platform = ref.read(focusShieldPlatformProvider);
   if (stats == null) return;
@@ -75,7 +87,8 @@ final homeWidgetSyncProvider = Provider.autoDispose<void>((ref) {
               history: stats.$2,
               tasks: tasks,
               priorities: priorities,
-              now: now));
+              now: now,
+              locale: locale));
     } catch (_) {
       /* Unsupported platforms/widget errors never break productivity. */
     }

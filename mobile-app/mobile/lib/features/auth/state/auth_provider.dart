@@ -234,7 +234,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
             'level': 1,
             'xp': 0,
             'pendingTasksCount': 0,
-            'topTaskTitle': '',
+            'topTaskTitles': <String>[],
           });
         } catch (_) {/* Native support is optional. */}
         try {

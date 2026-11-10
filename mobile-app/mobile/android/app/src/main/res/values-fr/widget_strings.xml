@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget (feature guide G3). The widget uses the app language
+     when the user picked one, otherwise the device language. -->
+<resources>
+    <string name="lifestyle_widget_label">LifeStyle · Aujourd’hui</string>
+    <string name="widget_header">Dernier score de clarté</string>
+    <string name="widget_no_data">Pas encore de données</string>
+    <string name="widget_level_xp">Niveau %1$d · %2$d XP</string>
+    <string name="widget_tasks_left">Tâches restantes aujourd’hui : %1$d</string>
+    <string name="widget_tasks_no_data">Tâches du jour : pas encore de données</string>
+    <string name="widget_tasks_empty">Choisissez votre prochaine priorité</string>
+    <string name="widget_refresh_hint">Ouvrez le plan du jour pour actualiser</string>
+    <string name="widget_shield_active">Bouclier de concentration : activé</string>
+    <string name="widget_shield_ready">Prêt à vous concentrer</string>
+    <string name="widget_daily_plan">Plan du jour</string>
+</resources>

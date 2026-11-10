@@ -9,9 +9,9 @@ const bridge = readFileSync(base + 'FocusShieldBridge.kt', 'utf8');
 test('lost Accessibility service stops its active shield instead of claiming enforcement', () => {
   const destroy = service.split('override fun onDestroy()')[1]?.split('    companion object')[0];
   assert.ok(destroy);
-  assert.match(destroy, /instance\?\.get\(\) === this/);
+  assert.match(destroy, /instance === this/);
   assert.match(destroy, /stop\("accessibility_lost"\)/);
-  assert.ok(destroy.indexOf('instance?.get() === this') < destroy.indexOf('stop("accessibility_lost")'));
+  assert.ok(destroy.indexOf('instance === this') < destroy.indexOf('stop("accessibility_lost")'));
 });
 
 test('native status and completion reconcile an inactive Accessibility connection', () => {

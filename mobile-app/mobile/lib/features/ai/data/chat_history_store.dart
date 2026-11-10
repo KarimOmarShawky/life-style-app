@@ -20,7 +20,7 @@ class ChatHistoryStore {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return const [];
       return decoded
-          .whereType<Map>()
+          .whereType<Map<String, dynamic>>()
           .map(
               (entry) => ChatMessage.fromJson(Map<String, dynamic>.from(entry)))
           .where((message) => message.text.isNotEmpty)

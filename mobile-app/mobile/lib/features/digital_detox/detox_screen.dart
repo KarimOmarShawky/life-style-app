@@ -52,10 +52,17 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
   String? _selectionError;
 
   /// Live Android accessibility state: null = not checked yet (or not
-  /// Android). Blocking is impossible without it — the OS only lets an
-  /// accessibility service notice that a selected app came to the front —
-  /// so a session must never silently start while this is known to be off.
-  bool? _accessibilityOn;
+  /// Android). [_accessibilityReady] is the strict signal — switch on
+  /// AND service instance actually connected. On some OEM builds
+  /// (notably MIUI) Android reports the switch on while the service
+  /// never binds, which produced sessions that looked started but
+  /// blocked nothing; a session must never silently start unless this
+  /// is known to be ready (or the user picks the timer-only fallback).
+  bool? _accessibilityEnabled;
+  bool _accessibilityConnected = false;
+  bool get _accessibilityReady =>
+      _accessibilityEnabled == true && _accessibilityConnected;
+  int _accessibilityCheckToken = 0;
 
   /// Set while the user is in Android settings after choosing to enable
   /// blocking, so returning with the switch on can continue the start
@@ -109,14 +116,23 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
   }
 
   Future<void> _refreshAccessibility() async {
+    final token = ++_accessibilityCheckToken;
+    await _queryAccessibility(token, attempt: 0);
+  }
+
+  Future<void> _queryAccessibility(int token, {required int attempt}) async {
     final controller = ref.read(detoxProvider);
     if (!controller.enforcer.supported) return;
     try {
       final status =
           await controller.enforcer.platform.invoke('getPermissionStatus');
-      if (mounted) {
-        setState(() => _accessibilityOn = status['accessibility'] == true);
-        if (_accessibilityOn == true && _awaitingAccessibilityReturn) {
+      if (!mounted || token != _accessibilityCheckToken) return;
+      setState(() {
+        _accessibilityEnabled = status['accessibility'] == true;
+        _accessibilityConnected = status['accessibilityConnected'] == true;
+      });
+      if (_accessibilityReady) {
+        if (_awaitingAccessibilityReturn) {
           _awaitingAccessibilityReturn = false;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted || !_consent) return;
@@ -128,6 +144,17 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
               _start();
             }
           });
+        }
+        return;
+      }
+      // Enabled in settings but the service is not connected yet:
+      // binding can lag a few seconds behind the switch (and on some
+      // builds needs the toggle cycled). Poll briefly instead of
+      // leaving a stale not-ready state on screen.
+      if (_accessibilityEnabled == true && attempt < 4) {
+        await Future<void>.delayed(Duration(seconds: 2 + attempt * 2));
+        if (mounted && token == _accessibilityCheckToken) {
+          await _queryAccessibility(token, attempt: attempt + 1);
         }
       }
     } catch (_) {
@@ -414,7 +441,7 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
             ),
             SizedBox(
               width: double.infinity,
-              child: _accessibilityOn == false
+              child: _accessibilityEnabled != null && !_accessibilityReady
                   ? FilledButton(
                       onPressed: editable && controller.enforcer.supported
                           ? _explainAndOpenAccessibility
@@ -433,17 +460,17 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
                       child: Text(l10n.tr('detoxOpenAccessibility')),
                     ),
             ),
-            if (_accessibilityOn != null) ...[
+            if (_accessibilityEnabled != null) ...[
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    _accessibilityOn!
+                    _accessibilityReady
                         ? Icons.verified_user
                         : Icons.warning_amber,
                     size: 18,
-                    color: _accessibilityOn!
+                    color: _accessibilityReady
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.error,
                   ),
@@ -451,13 +478,15 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
                   Expanded(
                     child: Text(
                       l10n.tr(
-                        _accessibilityOn!
+                        _accessibilityReady
                             ? 'detoxAccessibilityOn'
-                            : 'detoxAccessibilityOff',
+                            : _accessibilityEnabled!
+                                ? 'detoxAccessibilityNotConnected'
+                                : 'detoxAccessibilityOff',
                       ),
                       style: TextStyle(
                         fontSize: 13,
-                        color: _accessibilityOn!
+                        color: _accessibilityReady
                             ? null
                             : Theme.of(context).colorScheme.error,
                       ),
@@ -491,7 +520,9 @@ class _DigitalDetoxPanelState extends ConsumerState<DigitalDetoxPanel>
               // A blocking session cannot start while accessibility is
               // known to be off; the explicit timer-only fallback stays
               // available so the choice is the user's, never silent.
-              onPressed: _consent && (_accessibilityOn != false || _timerOnly)
+              onPressed: _consent &&
+                      ((_accessibilityEnabled == null || _accessibilityReady) ||
+                          _timerOnly)
                   ? _start
                   : null,
               child: Text(l10n.tr('detoxReviewStart')),

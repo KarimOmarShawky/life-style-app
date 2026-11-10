@@ -665,4 +665,6 @@ const Map<String, String> deCatalog = {
   'detoxAccessWhyTitle': 'Ein Schalter lässt die Blockierung arbeiten',
   'detoxAccessWhyBody':
       'Android lässt LifeStyle nur dann bemerken, dass eine ausgewählte App geöffnet wurde, wenn LifeStyle in den Bedienungshilfen aktiviert ist. Bauartbedingt kann LifeStyle weder deinen Bildschirm, deine Nachrichten noch deine Passwörter lesen — es erkennt nur, welche App im Vordergrund ist, und nichts wird aufgezeichnet oder irgendwohin gesendet. Du kannst es jederzeit am selben Ort abschalten.',
+  'detoxAccessibilityNotConnected':
+      'Android zeigt den Focus Shield als eingeschaltet, aber sein Dienst läuft noch nicht — ausgewählte Apps würden sich normal öffnen. Schalte den Focus Shield unter „Heruntergeladene Apps“ aus und wieder ein (oder starte das Telefon neu) und komm dann zurück.',
 };

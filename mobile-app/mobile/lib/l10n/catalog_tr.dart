@@ -642,4 +642,6 @@ const Map<String, String> trCatalog = {
   'detoxAccessWhyTitle': 'Tek bir anahtar engellemeyi çalıştırır',
   'detoxAccessWhyBody':
       'Android, LifeStyle’ın seçtiğin bir uygulamanın açıldığını fark etmesine yalnızca LifeStyle erişilebilirlik ayarlarında açıkken izin verir. Tasarımı gereği LifeStyle ekranını, mesajlarını veya parolalarını okuyamaz — yalnızca hangi uygulamanın önde olduğunu bilir ve hiçbir şey kaydedilmez ya da bir yere gönderilmez. Aynı ayarlardan istediğin zaman kapatabilirsin.',
+  'detoxAccessibilityNotConnected':
+      'Android, Focus Shield’ı açık gösteriyor ama hizmeti henüz çalışmıyor — seçilen uygulamalar yine normal açılır. «İndirilen uygulamalar» bölümünden Focus Shield’ı kapatıp tekrar aç (veya telefonu yeniden başlat), sonra buraya dön.',
 };

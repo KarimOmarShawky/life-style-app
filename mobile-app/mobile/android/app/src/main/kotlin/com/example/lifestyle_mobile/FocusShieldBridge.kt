@@ -176,6 +176,10 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
         }
         return ok() + mapOf(
             "accessibility" to enabled(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, FocusShieldAccessibilityService::class.java.name),
+            // The settings switch alone is not proof of enforcement: on
+            // some OEM builds the service is enabled but never binds, and
+            // sessions then own no restriction while appearing started.
+            "accessibilityConnected" to FocusShieldAccessibilityService.isConnected(),
             "notificationListener" to enabled("enabled_notification_listeners", "com.example.lifestyle_mobile.FocusNotificationListenerService"),
             "notifications" to (Build.VERSION.SDK_INT < 33 || activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED),
         )

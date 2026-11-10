@@ -663,4 +663,6 @@ const Map<String, String> esCatalog = {
   'detoxAccessWhyTitle': 'Un solo interruptor hace que el bloqueo funcione',
   'detoxAccessWhyBody':
       'Android solo permite que LifeStyle note que se abrió una aplicación elegida si LifeStyle está activado en los ajustes de accesibilidad. Por diseño, LifeStyle no puede leer tu pantalla, tus mensajes ni tus contraseñas: solo sabe qué aplicación está en primer plano, y nada se graba ni se envía a ningún sitio. Puedes desactivarlo cuando quieras en los mismos ajustes.',
+  'detoxAccessibilityNotConnected':
+      'Android muestra Focus Shield activado, pero su servicio aún no está en marcha, así que las aplicaciones elegidas se abrirán igual. En «Aplicaciones descargadas», desactiva y vuelve a activar Focus Shield (o reinicia el teléfono) y regresa aquí.',
 };

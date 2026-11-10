@@ -642,4 +642,6 @@ const Map<String, String> enCatalog = {
   'detoxAccessWhyTitle': 'One switch makes blocking work',
   'detoxAccessWhyBody':
       'Android only lets LifeStyle notice that a picked app opened when LifeStyle is switched on in Accessibility settings. By design, LifeStyle cannot read your screen, messages, or passwords — it only learns which app is in front, and nothing is recorded or sent anywhere. You can switch it off anytime in the same settings.',
+  'detoxAccessibilityNotConnected':
+      'Android shows Focus Shield as on, but its service is not running yet — so selected apps would still open. In Downloaded apps, turn Focus Shield off and back on (or restart the phone), then return here.',
 };

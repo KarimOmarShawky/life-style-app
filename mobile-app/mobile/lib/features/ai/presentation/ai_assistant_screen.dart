@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/data/chat_history_store.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_markdown.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -24,18 +25,41 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   StreamSubscription<String>? _streamSub;
 
+  final _historyStore = ChatHistoryStore();
+  bool _historyLoaded = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_messages.isEmpty) {
-      final l10n = AppLocalizations.of(context);
-      _messages.add(
-        ChatMessage(
-          role: 'model',
-          text: l10n.aiWelcomeMessage,
-        ),
-      );
-    }
+    if (_historyLoaded) return;
+    _historyLoaded = true;
+    _restoreHistory();
+  }
+
+  /// Restores the on-device conversation; the greeting is only seeded
+  /// when there is nothing saved yet.
+  Future<void> _restoreHistory() async {
+    final saved = await _historyStore.load();
+    if (!mounted) return;
+    setState(() {
+      if (saved.isNotEmpty) {
+        _messages
+          ..clear()
+          ..addAll(saved);
+      } else if (_messages.isEmpty) {
+        _messages.add(
+          ChatMessage(
+            role: 'model',
+            text: AppLocalizations.of(context).aiWelcomeMessage,
+          ),
+        );
+      }
+    });
+    _scrollToBottom();
+  }
+
+  void _persistHistory() {
+    unawaited(_historyStore.save(List<ChatMessage>.of(_messages)));
   }
 
   @override
@@ -111,6 +135,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     setState(() {
       _messages.add(placeholder);
     });
+    _persistHistory();
     _scrollToBottom();
 
     final buffer = StringBuffer();
@@ -126,6 +151,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         }
         _isGenerating = false;
       });
+      _persistHistory();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.aiErrorMessage)),
       );
@@ -161,6 +187,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               return;
             }
             setState(() => _isGenerating = false);
+            _persistHistory();
             _scrollToBottom();
           },
           cancelOnError: true,
@@ -210,6 +237,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                 );
                 _isGenerating = false;
               });
+              unawaited(_historyStore.clear());
             },
           ),
         ],

@@ -46,8 +46,8 @@ class DetoxController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await operation();
     } catch (_) {
-      operationError =
-          'Action could not be confirmed. Check storage and Android permissions. Retry Stop if a restriction may still be active.';
+      // Stored as a localization key; the panel renders it translated.
+      operationError = 'detoxErrorAction';
     } finally {
       busy = false;
       if (!_disposed) notifyListeners();

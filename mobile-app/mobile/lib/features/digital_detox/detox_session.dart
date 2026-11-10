@@ -132,6 +132,11 @@ class DetoxSession {
   int pausedSeconds = 0;
   bool allowUnenforced = false;
   String? error;
+
+  /// Localization key for [error], when the failure is a known one.
+  /// The English [error] stays as the diagnostic/test-visible text; the
+  /// UI renders this key so users never see raw technical English.
+  String? errorCode;
   Future<void> _tail = Future.value();
   bool _closed = false;
   final Stopwatch _monotonic = Stopwatch()..start();
@@ -177,6 +182,7 @@ class DetoxSession {
           'restriction': restriction.status.name,
           'detail': restriction.detail,
           'error': error,
+          'errorCode': errorCode,
         }),
       );
 
@@ -211,6 +217,7 @@ class DetoxSession {
         startedAt = now().toUtc();
         phase = 'focus';
         error = null;
+        errorCode = null;
         await _move(DetoxState.PREPARING);
         await _beginFocus(focusMinutes * 60);
       });
@@ -239,6 +246,7 @@ class DetoxSession {
       if (!allowUnenforced) {
         await _fail(
           'Focus restriction was not confirmed. Stop and explicitly choose an unenforced timer if desired.',
+          'detoxErrorNotConfirmed',
         );
         return;
       }
@@ -257,8 +265,9 @@ class DetoxSession {
         _ => DetoxState.FOCUS_UNENFORCED,
       };
 
-  Future<void> _fail(String message) async {
+  Future<void> _fail(String message, [String? code]) async {
     error = message;
+    errorCode = code;
     await _move(DetoxState.ERROR);
   }
 
@@ -273,6 +282,7 @@ class DetoxSession {
     } catch (_) {
       await _fail(
         'Release not confirmed. Retry Stop, or disable LifeStyle accessibility in Android Settings.',
+        'detoxErrorRelease',
       );
       return false;
     }
@@ -294,6 +304,7 @@ class DetoxSession {
       if (await _release()) {
         await _fail(
           'Device time changed. Restrictions released; stop and start a new session.',
+          'detoxErrorTimeChanged',
         );
       }
       return;
@@ -321,6 +332,7 @@ class DetoxSession {
         if (!allowUnenforced) {
           await _fail(
             'Focus restriction was lost. Stop and explicitly choose an unenforced timer if desired.',
+            'detoxErrorLost',
           );
           return;
         }
@@ -456,11 +468,13 @@ class DetoxSession {
             'Rechecking native state',
           );
           error = json['error'] as String?;
+          errorCode = json['errorCode'] as String?;
           if (endAt!.isAfter(now().add(const Duration(hours: 4))) ||
               lastTransition!.isAfter(now().add(const Duration(minutes: 2)))) {
             if (await _release()) {
               await _fail(
                 'Clock or stored deadline inconsistent. Stop and start again.',
+                'detoxErrorClock',
               );
             }
           } else if ([
@@ -470,6 +484,7 @@ class DetoxSession {
             if (await _release()) {
               await _fail(
                 'Session interrupted while preparing. Stop and start again.',
+                'detoxErrorInterrupted',
               );
             }
           } else if (running) {
@@ -486,6 +501,7 @@ class DetoxSession {
           state = DetoxState.ERROR;
           error =
               'Session data could not be restored. Owned restrictions released; Stop to reset.';
+          errorCode = 'detoxErrorRestore';
           restriction = const RestrictionResult(
             RestrictionStatus.off,
             'Recovered without restoring a timer',

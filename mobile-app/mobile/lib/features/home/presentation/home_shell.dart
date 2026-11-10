@@ -94,6 +94,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
             _currentIndex = index;
           });
         },
+        labelBehavior: labelBehaviorForTextScale(
+          MediaQuery.textScalerOf(context).scale(14) / 14,
+        ),
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.check_box_outlined),
@@ -130,3 +133,11 @@ class _HomeShellState extends ConsumerState<HomeShell>
     );
   }
 }
+
+/// With six destinations, tab labels are the first thing to clip when
+/// the system font grows. Past this scale only the selected tab keeps
+/// its label, so nothing wraps or truncates on narrow screens.
+NavigationDestinationLabelBehavior labelBehaviorForTextScale(double scale) =>
+    scale > 1.4
+        ? NavigationDestinationLabelBehavior.onlyShowSelected
+        : NavigationDestinationLabelBehavior.alwaysShow;

@@ -51,6 +51,7 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                                 (call.argument<List<String>>("packages") ?: emptyList()).toSet().intersect(apps)
                             require(selected.isNotEmpty()) { "No restrictable applications selected" }
                             store.start(id, "Digital Detox", requireNotNull(call.argument<Number>("endTimestampMs")).toLong(), selected)
+                            FocusShieldAccessibilityService.refreshPackageFilter()
                         }
                         result.success(detoxStatus(id))
                     }
@@ -92,6 +93,7 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
                         store.start(requireNotNull(call.argument<String>("sessionId")), call.argument<String>("taskTitle") ?: "Focus",
                             requireNotNull(call.argument<Number>("endTimestampMs")).toLong(),
                             call.argument<List<String>>("blockedPackages")?.toSet() ?: emptySet())
+                        FocusShieldAccessibilityService.refreshPackageFilter()
                         result.success(store.snapshot())
                     }
                     "stopShield" -> {
@@ -176,6 +178,10 @@ class FocusShieldBridge(private val activity: MainActivity, messenger: BinaryMes
         }
         return ok() + mapOf(
             "accessibility" to enabled(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, FocusShieldAccessibilityService::class.java.name),
+            // The settings switch alone is not proof of enforcement: on
+            // some OEM builds the service is enabled but never binds, and
+            // sessions then own no restriction while appearing started.
+            "accessibilityConnected" to FocusShieldAccessibilityService.isConnected(),
             "notificationListener" to enabled("enabled_notification_listeners", "com.example.lifestyle_mobile.FocusNotificationListenerService"),
             "notifications" to (Build.VERSION.SDK_INT < 33 || activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED),
         )

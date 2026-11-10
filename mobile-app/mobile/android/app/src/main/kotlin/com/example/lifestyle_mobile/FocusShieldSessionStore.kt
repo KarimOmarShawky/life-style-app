@@ -107,7 +107,11 @@ class FocusShieldSessionStore(context: Context) {
     }
 
     fun recordAttempt(): Map<String, Any?> = synchronized(lock) {
-        if (current().active) prefs.edit().putInt("blockedAttemptsCount", prefs.getInt("blockedAttemptsCount", 0) + 1).commit()
+        // apply(), not commit(): the count is updated in memory
+        // synchronously (so snapshot() below is consistent) without a
+        // blocking disk write on the accessibility event thread.
+        // Durability-critical transitions (start/stop) keep commit().
+        if (current().active) prefs.edit().putInt("blockedAttemptsCount", prefs.getInt("blockedAttemptsCount", 0) + 1).apply()
         snapshot()
     }
     fun grantTemporaryBypass(packageName: String) = synchronized(lock) {

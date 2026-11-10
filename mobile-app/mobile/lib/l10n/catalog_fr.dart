@@ -663,4 +663,48 @@ const Map<String, String> frCatalog = {
       '{n} tâches terminées · {m} min de concentration — l’élan grandit.',
   'weeklyWinsEmpty':
       'Une semaine fraîche — une petite session est déjà une victoire.',
+  'detoxAccessibilityOff':
+      'Blocage désactivé : l’accessibilité LifeStyle n’est pas activée dans les réglages Android, les applications choisies s’ouvriront donc normalement. Activez-la puis revenez. Sur Android 13+, si le commutateur est grisé, autorisez d’abord les paramètres restreints pour LifeStyle dans les infos de l’application.',
+  'detoxAccessibilityOn':
+      'Blocage prêt — l’accessibilité LifeStyle est activée.',
+  'detoxEnableBlocking': 'Activer le blocage',
+  'detoxAccessWhyTitle': 'Un seul interrupteur fait fonctionner le blocage',
+  'detoxAccessWhyBody':
+      'Android permet à LifeStyle de remarquer l’ouverture d’une application choisie uniquement si LifeStyle est activé dans les réglages d’accessibilité. Par conception, LifeStyle ne peut pas lire votre écran, vos messages ni vos mots de passe — il sait seulement quelle application est au premier plan, et rien n’est enregistré ni envoyé nulle part. Vous pouvez le désactiver à tout moment au même endroit.',
+  'detoxAccessibilityNotConnected':
+      'Android affiche Focus Shield comme activé, mais son service ne fonctionne pas encore — les applications choisies s’ouvriraient donc normalement. Dans « Applications téléchargées », désactivez puis réactivez Focus Shield (ou redémarrez le téléphone), puis revenez ici.',
+  'detoxStateIdle': 'Pas encore commencée',
+  'detoxStatePreparing': 'Préparation…',
+  'detoxStatePending': 'Démarrage…',
+  'detoxStateActive': 'Blocage actif',
+  'detoxStatePartial': 'Blocage actif',
+  'detoxStateUnenforced': 'Minuteur seulement — aucun blocage',
+  'detoxStateBreak': 'Pause',
+  'detoxStatePaused': 'En pause',
+  'detoxStateCompleted': 'Terminée',
+  'detoxStateStopped': 'Arrêtée',
+  'detoxStateError': 'Session interrompue par un problème',
+  'detoxRestrictionOff': 'Aucune restriction n’est active pour le moment.',
+  'detoxRestrictionOn': 'Blocage de {n} applications choisies.',
+  'detoxRestrictionStrict': 'Blocage de toutes les applications blocables.',
+  'detoxRestrictionUnknown': 'La restriction n’a pas pu être vérifiée.',
+  'detoxErrorNotConfirmed':
+      'Le blocage n’a pas pu être confirmé. Vérifiez que l’accessibilité est activée, arrêtez puis recommencez — ou choisissez explicitement une session minuteur seul.',
+  'detoxErrorLost':
+      'Le blocage a été perdu pendant la session. Arrêtez, vérifiez que l’accessibilité est toujours active, puis recommencez.',
+  'detoxErrorRelease':
+      'La restriction n’a pas pu être levée proprement. Touchez à nouveau Arrêter, ou désactivez l’accessibilité LifeStyle dans les réglages Android.',
+  'detoxErrorTimeChanged':
+      'L’heure de l’appareil a changé, la session a donc été libérée. Arrêtez et recommencez.',
+  'detoxErrorInterrupted':
+      'La session a été interrompue pendant le démarrage. Arrêtez et recommencez.',
+  'detoxErrorClock':
+      'Les horaires enregistrés de la session semblent incohérents. Arrêtez et recommencez.',
+  'detoxErrorRestore':
+      'Les données de session n’ont pas pu être restaurées. Toute restriction a été levée — touchez Arrêter pour réinitialiser.',
+  'detoxErrorAction':
+      'Cette action n’a pas pu être confirmée. Vérifiez le stockage et les autorisations Android ; si une restriction peut encore être active, touchez Arrêter.',
+  'detoxBatteryButton': 'Réglages de batterie',
+  'detoxBatteryHint':
+      'Sur Xiaomi et les téléphones similaires, réglez la batterie de LifeStyle sur « Aucune restriction » et activez le démarrage automatique — sinon Android peut suspendre le service de blocage en pleine session.',
 };

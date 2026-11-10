@@ -635,4 +635,47 @@ const Map<String, String> trCatalog = {
   'weeklyWinsTitle': 'Haftanın başarıları',
   'weeklyWinsLine': '{n} görev tamamlandı · {m} dk odak — ivme büyüyor.',
   'weeklyWinsEmpty': 'Yeni bir hafta — küçük bir oturum bile bir başarı.',
+  'detoxAccessibilityOff':
+      'Engelleme kapalı: LifeStyle erişilebilirliği Android ayarlarında etkin değil, bu yüzden seçilen uygulamalar normal şekilde açılmaya devam eder. Etkinleştirip buraya dön. Android 13+ sürümünde anahtar griyse, önce uygulama bilgilerinden LifeStyle için kısıtlı ayarlara izin ver.',
+  'detoxAccessibilityOn': 'Engelleme hazır — LifeStyle erişilebilirliği açık.',
+  'detoxEnableBlocking': 'Engellemeyi aç',
+  'detoxAccessWhyTitle': 'Tek bir anahtar engellemeyi çalıştırır',
+  'detoxAccessWhyBody':
+      'Android, LifeStyle’ın seçtiğin bir uygulamanın açıldığını fark etmesine yalnızca LifeStyle erişilebilirlik ayarlarında açıkken izin verir. Tasarımı gereği LifeStyle ekranını, mesajlarını veya parolalarını okuyamaz — yalnızca hangi uygulamanın önde olduğunu bilir ve hiçbir şey kaydedilmez ya da bir yere gönderilmez. Aynı ayarlardan istediğin zaman kapatabilirsin.',
+  'detoxAccessibilityNotConnected':
+      'Android, Focus Shield’ı açık gösteriyor ama hizmeti henüz çalışmıyor — seçilen uygulamalar yine normal açılır. «İndirilen uygulamalar» bölümünden Focus Shield’ı kapatıp tekrar aç (veya telefonu yeniden başlat), sonra buraya dön.',
+  'detoxStateIdle': 'Başlamadı',
+  'detoxStatePreparing': 'Hazırlanıyor…',
+  'detoxStatePending': 'Başlıyor…',
+  'detoxStateActive': 'Engelleme açık',
+  'detoxStatePartial': 'Engelleme açık',
+  'detoxStateUnenforced': 'Yalnızca zamanlayıcı — engelleme yok',
+  'detoxStateBreak': 'Mola zamanı',
+  'detoxStatePaused': 'Duraklatıldı',
+  'detoxStateCompleted': 'Tamamlandı',
+  'detoxStateStopped': 'Durduruldu',
+  'detoxStateError': 'Oturum bir sorun nedeniyle durdu',
+  'detoxRestrictionOff': 'Şu anda aktif bir kısıtlama yok.',
+  'detoxRestrictionOn': 'Seçilen {n} uygulama engelleniyor.',
+  'detoxRestrictionStrict': 'Engellenebilir tüm uygulamalar engelleniyor.',
+  'detoxRestrictionUnknown': 'Kısıtlama doğrulanamadı.',
+  'detoxErrorNotConfirmed':
+      'Engelleme onaylanamadı. Erişilebilirliğin açık olduğunu kontrol et, durdurup yeniden başlat — veya açıkça yalnızca zamanlayıcı oturumu seç.',
+  'detoxErrorLost':
+      'Oturum sırasında engelleme kaybedildi. Durdur, erişilebilirliğin hâlâ açık olduğunu kontrol et ve yeniden başlat.',
+  'detoxErrorRelease':
+      'Kısıtlama temiz şekilde kaldırılamadı. Tekrar Durdur’a dokun veya Android ayarlarından LifeStyle erişilebilirliğini kapat.',
+  'detoxErrorTimeChanged':
+      'Cihaz saati değişti, bu yüzden oturum serbest bırakıldı. Durdur ve yenisini başlat.',
+  'detoxErrorInterrupted':
+      'Oturum başlarken kesintiye uğradı. Durdur ve yeniden başlat.',
+  'detoxErrorClock':
+      'Kaydedilen oturum saatleri tutarsız görünüyor. Durdur ve yeniden başlat.',
+  'detoxErrorRestore':
+      'Oturum verileri geri yüklenemedi. Varsa kısıtlama serbest bırakıldı — sıfırlamak için Durdur’a dokun.',
+  'detoxErrorAction':
+      'Bu işlem onaylanamadı. Depolamayı ve Android izinlerini kontrol et; bir kısıtlama hâlâ aktif olabilirse Durdur’a dokun.',
+  'detoxBatteryButton': 'Pil ayarları',
+  'detoxBatteryHint':
+      'Xiaomi ve benzeri telefonlarda LifeStyle pilini «Kısıtlama yok» yapıp otomatik başlatmayı aç — yoksa Android engelleme hizmetini oturum ortasında duraklatabilir.',
 };

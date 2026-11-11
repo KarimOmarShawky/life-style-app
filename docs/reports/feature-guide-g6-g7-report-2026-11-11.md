@@ -13,6 +13,7 @@ Source prompt: `LifeStyle_Next_Step_Prompt_G6_and_Closure.pdf`. Step 0 audit:
 - Batch A (SAFE NOW) approved in full: A1 G2-F1, A2 G7 widening, A3 Profile localization.
 - G6 (CAREFUL) approved as designed in the Step 0 audit.
 - P1-F15: wire the rank card and badges to the real XP ledger on the device.
+- CI toolchain (asked when Flutter 3.50.0 broke the analyzer, see §6 CI-F1): pin Flutter 3.47.9.
 
 ## 2. Verdict
 
@@ -37,7 +38,7 @@ signed release are NOT RUN.
 - Locked badges are announced to screen readers and use an accessible colour.
 - Tests: `test/xp_ledger_test.dart` and the Profile tests.
 
-**A2 — G7 widened** (`6e34cbb`; compile fix in `54e058a`)
+**A2 — G7 widened** (`6e34cbb`; fixes in `54e058a`, `6abe9a0`, `5bb67d2`, `7f229da`, `ad5d909`)
 - **Home tab bar:** a separate `HomeNavigationBar` widget.
 - **Tasks:**
   - The briefing card scrolls with the list (at 200% text it pushed the tasks off screen). Its header wraps.
@@ -48,6 +49,8 @@ signed release are NOT RUN.
   - It scrolls instead of cutting off its controls.
   - The dial grows with the font, and the countdown stays inside the ring.
   - Labels use accessible colours, and the clear-song button keeps its 48 dp target.
+  - Each task row is one semantics node: title, checkbox, long-press select and the delete action are announced together.
+  - The task picker fills the width. It used to size itself to the longest task title and overflowed the screen even at 100% text.
   - The native audio player is created on first use.
 - 9 strings in six languages.
 - Test: `test/g7_core_screens_test.dart` (Arabic, 200% text, 320×640).
@@ -76,6 +79,11 @@ signed release are NOT RUN.
 - Login no longer sends the fixed "Arena Mobile Client" device name.
 - 22 strings in six languages.
 
+**CI toolchain — Flutter pinned to 3.47.9** (`97cbbdc`)
+- All four `subosito/flutter-action` steps in `.github/workflows/ci.yml` and `isolated-runtime.yml` now pin 3.47.9.
+- The secret-triage provenance chain records the new `ci.yml` fingerprint.
+- The reason is documented in `docs/mobile/flutter-integration.md`.
+
 **B4 — tests**
 - **Unit** `sessions.test.ts` (16): validation; the service (password first, 404, audit without the password); repository SQL and transaction steps; the `logout` fallback and its 10-minute memory; owner-SQL identity; snapshots.
 - **Integration** `sessions-flow.test.ts` (10):
@@ -103,7 +111,15 @@ Hosted CI: CI Pipeline / isolated backend runtime / source secret detection.
 | `e73a36b` | format patch from CI | 43081057365 / 43081057173 / 43081056807 | PASS |
 | `3f2364f` | G6 backend | 43082880321 / 43082880338 / 43082880489 | PASS |
 | `6e34cbb` | A2 | 43085297479 / 43085297617 / 43085297439 | FAIL (Dart compile error in the task tile; backend jobs passed) |
-| `54e058a` | G6 app + A2 fix | 43086466551 / 43086466474 / 43086466385 | pending at the time of writing |
+| `54e058a` | G6 app + A2 compile fix | 43086466551 / 43086466474 / 43086466385 | FAIL (CI picked up Flutter 3.50.0 and its analyzer failed in 68 files; plus two harness bugs in the new device-screen tests and a test needing `API_BASE_URL`) |
+| `6abe9a0` | test-harness fixes, docs | 43087619845 / 43087620036 / 43087619865 | FAIL (Flutter 3.50 analyzer; the focus timer's task picker overflowed — a real bug — and the Tasks test asserted before scrolling); device-screen tests passed |
+| `97cbbdc` | Flutter pinned to 3.47.9 | 43088050853 / 43088050773 / 43088050779 | FAIL — the pin works: the analyzer dropped from 90 infos in 68 files to 2, both `containsSemantics` in the new G7 test. The task-picker overflow and the Tasks test order remained. |
+| `5bb67d2` | task picker fix, Tasks test order | 43088212912 / 43088212739 / 43088213008 | FAIL — the focus-timer G7 test and all device-screen tests passed. Still failing: the 2 `containsSemantics` infos, and two date-strip cells off the 320 dp test screen |
+| `7f229da` | `isSemantics`; tests scroll the date strip | 43089201292 / 43089201187 / 43089201170 | FAIL — static analysis passed. One Flutter test failed: the guideline check found an unlabelled semantics node on each task row (A2-F4, a real G7 gap) |
+| `ad5d909` | one semantics node per task row | 43090016533 / 43090016535 / 43090016572 | **PASS** — all three workflows: Flutter analyze/test and Android debug build on the pinned 3.47.9, backend gate, SDK fixture, isolated runtime, secret detection. The signed build job is skipped by design. |
+
+The commit that adds these final rows changes docs only; its own run is cited in the
+PR #31 description.
 
 Hosted CI job summaries are not readable through the API from this sandbox, so per-test
 counts on hosted CI are not quoted. A PASS means the job (unit, integration and security
@@ -140,6 +156,7 @@ successfully on that commit.
   - `docs/auth/signed-in-devices.md`, `docs/auth/sql/auth-sessions-user-revoked.sql`.
   - ADR-047, `docs/architecture/auth.md` §6, `docs/database/migrations.md`, `docs/api/openapi.yaml`.
   - `docs/mobile/manual-test-checklist.md` (G6-1..G6-5, G7-1..G7-3, P1-15, A3-1), `CHANGELOG.md`, `scripts/l10n-literal-baseline.json`.
+- **CI:** `.github/workflows/{ci,isolated-runtime}.yml` (Flutter pin), `docs/mobile/flutter-integration.md`, `docs/remediation/secret-triage.json` (provenance follow-up).
 
 ## 6. Findings
 
@@ -152,6 +169,10 @@ successfully on that commit.
 | A2-F1 | Open, Low (new) | The Tasks briefing card shows its own level (completed tasks × 10 XP, a level every 50 XP). It differs from the Profile ledger level. Owner decision: align, relabel or remove. |
 | G6-F1 | Open, owner decision (new) | The v1 archive file (`POST /users/me/export/archive`) contains the account's own `created_ip` values. This is the user's own data export, but the prompt's B4 says `created_ip` should appear in no response. The sessions API and the JSON export never return it. Keep it, or remove it with an archive version bump. |
 | G6-F2 | Open, Low (new) | Device names: no plugin gives a real device name without a new dependency, so devices show their platform. The app version sent at login is a fixed "1.0.1" (matches `pubspec.yaml` today; will go stale). |
+| CI-F1 | Mitigated (new) | Flutter 3.50.0 (stable since 2026-11-09) deprecates `package:flutter/material.dart` and the global localization delegates in favour of `material_ui`/`cupertino_ui`. CI used the floating `stable` channel, so `flutter analyze --fatal-infos` failed in 68 files on any branch, `main` included. Pinned to 3.47.9 (owner decision). Moving on needs that migration: a new dependency, so it needs owner approval. The 3.50 `pub get` also rewrote `pubspec.lock`; not applied. |
+| A2-F3 | Open (new, Low) | The Tasks date strip opens three days back. In the CI tests (320 dp screen), tomorrow's cell at 100% and today's cell at 200% started off-screen; the user reaches them by scrolling the strip. Opening the strip scrolled to today is a design choice, so it is not changed here. |
+| A2-F4 | Fixed (new) | Each task row had a second, unlabelled semantics node carrying the long-press select and the delete actions (`labeledTapTargetGuideline`). |
+| A2-F2 | Fixed (new) | The focus timer's task picker overflowed the screen with long task titles, even at 100% text. |
 | P0-F9, P0-F10, G2-F3 | Open | Unchanged from the earlier reports. |
 
 ## 7. Still NOT RUN
@@ -174,5 +195,5 @@ successfully on that commit.
 
 1. Apply the G2 and G6 SQL and run the device pass. Nothing else moves the release verdict.
 2. Decide G6-F1 (archive `created_ip`) and A2-F1 (briefing level).
-3. Approve the A1-F1 fix (SAFE, small).
+3. Approve the A1-F1 fix (SAFE, small). Decide when to plan the `material_ui` migration that lifts the Flutter pin (CI-F1).
 4. Next CAREFUL item: E3 server push. G2's policy gate and G6's per-device sign-out, which removes that device's push registration, are now both in place, so it is the logical next step. It needs an ADR and the Firebase approval (ADR-039).

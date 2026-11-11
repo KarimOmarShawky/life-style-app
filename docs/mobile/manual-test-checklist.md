@@ -300,7 +300,7 @@ out still works; the server stores the reason `logout` instead.
 - [ ] **G6-3** A wrong password says so and keeps B signed in. After five password attempts within 15 minutes, the next one is refused with the "too many attempts" message.
 - [ ] **G6-4** On A, sign out A itself: the app returns to sign-in, the home-screen widget is cleared and no reminder from the account arrives.
 - [ ] **G6-5** Arabic at the largest font on a small phone: the devices screen has no clipped text, runs right to left, and TalkBack reads each device and "Sign out <device>".
-- [ ] **G7-1** Arabic at the largest font: the Tasks tab scrolls the briefing with the list, day chips show Arabic weekday names, swiping a task from left to right shows the bin on the left, and TalkBack offers "Delete" on a task.
+- [ ] **G7-1** Arabic at the largest font: the Tasks tab scrolls the briefing with the list, day chips show Arabic weekday names, swiping a task from left to right shows the bin on the left, and TalkBack reads each task as one item (title, done state) that offers "Delete" in its actions.
 - [ ] **G7-2** Arabic at the largest font: the focus timer scrolls instead of cutting off Start/Reset, and the countdown stays inside the ring.
 - [ ] **G7-3** German, Spanish, French or Turkish: day chips and task subtitles (status, priority, due) are in that language, not English.
 - [ ] **P1-15** Profile → rank card shows level and XP that change after completing a focus session or task on this phone, with the "counted on this device" note; a fresh install shows level 1, 0 XP and locked badges.

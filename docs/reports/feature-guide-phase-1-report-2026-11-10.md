@@ -3,6 +3,15 @@
 > **Historical snapshot** — describes branch `arena/db60a1d0-life-style-app` (draft PR #30)
 > from `814e274` through code commit `0578fa8` on 2026-11-10. Every status applies to those
 > commits only. Re-verify after any later change. This is not a release approval.
+>
+> **Update — 2026-11-11: G5 owner SQL applied to production (owner-reported).** The owner
+> rehearsed `docs/analytics/sql/product-events-and-onboarding.sql` on the Neon branch
+> `g5-rehearsal`, applied it to production and deleted the branch. Seen in the owner's
+> rehearsal screenshots: before the SQL, verification failed with `relation
+> "public.product_events" does not exist` (never applied before; the `lifestyle_app` role
+> exists, or the error would name the role); after it, `pending_onboarding = 0` and
+> `opted_out = 0`. For production the owner confirmed privileges `t, t, f`. PR #30 stays
+> unmerged for now (owner decision), and G2 is approved as the next item.
 
 **Scope.** The owner-approved SAFE NOW batch from the Phase 0 audit
 (`docs/reports/feature-guide-phase-0-audit-2026-11-10.md`):
@@ -30,7 +39,7 @@ CAREFUL items (G2, E3, G6, E5, E7, streak grace) were **not started**. Each one 
 
 | Question | Answer |
 | :--- | :--- |
-| Program verdict (guide handoff) | **NO-GO** for a public release, as expected at this stage. Phase 4 is not done: no signed release build, no device matrix, G5 production SQL not applied, and Phases 2–3 not started. |
+| Program verdict (guide handoff) | **NO-GO** for a public release, as expected at this stage. Phase 4 is not done: no signed release build, no device matrix, new backend not yet deployed, and Phases 2–3 not started. |
 | Phase 1 batch | Implemented on the branch. On `0578fa8` every hosted CI gate passes (run 42909934455): backend, Dart format, Flutter analyze, Flutter tests, Kotlin JVM tests, and the debug APK build with signature check. |
 | Device-only criteria | **NOT RUN**: TalkBack, first win under 60 s, widget on a real home screen, lock-screen display. Owner device pass: `docs/mobile/manual-test-checklist.md`, items P1-1 to P1-12. |
 | PR #30 | Still a draft and not merged. Merging is the owner's decision. |
@@ -86,7 +95,7 @@ Backend tests (local, on `b11da4f`): unit 50 files / 490 tests, full suite 701 p
 | **E1** | Evidence row per gate for the final SHA; signed path identified or blocked. | `scripts/ci-evidence-summary.mjs` (+ tests) writes rows to each job summary: head SHA, toolchain versions, and test counts parsed from runner output ("counts unavailable" rather than a guess). The signed path is the `android-signed-release` job: manual dispatch on `main` only, needs the owner's signing secrets. | The evidence steps succeeded on every run in §3. The rows themselves are on each run's summary page. | Evidence rows **PASS**; signed release build **BLOCKED** (owner key, `main` only). |
 | **E2** | Advisories disposed; rotation checklist. | npm overrides: `glob ^14.0.4` (GHSA-3g3m-2fjr-6pw4), `minimatch ^11.0.5` (GHSA-g3hv-75wg-m249), tools/security `fast-uri` 3.1.9. `docs/security/dependency-and-secret-hygiene.md` has the disposition table and a manual rotation checklist. | npm audit reports 0 vulnerabilities (backend, tools/security). | npm **PASS**. Dart/pub advisory scan **NOT RUN** (no OSV tool; OSV-Scanner recommended). No secret rotated (owner action). |
 | **E9** | CI fails on drift; RTL recorded; translation notes. | `scripts/check-l10n.mjs` (+ tests) in CI. It fails on missing keys, placeholder drift, Android string or format drift, unescaped apostrophes and new hard-coded literals. Translation notes are in `docs/mobile/flutter-integration.md`. | The CI gate ran on every commit. Arabic RTL widget tests cover onboarding, the habit card and the Profile switches. | **PASS**. Native-speaker review **NOT RUN** (optional owner action). |
-| **G5** | Funnel computable; content-free; export, delete and opt-out work. | Server (`b11da4f`): `product_events` table and `POST /api/v1/product-events`. It has auth, a strict Zod body, and per-user and per-IP rate limits. The event set is closed, with one row per user, event and local day. Also: an opt-out on `PATCH /users/me` that deletes existing events, export and deletion coverage, 400-day retention, the `PRODUCT_EVENTS_ENABLED` kill switch, the funnel SQL and ADR-045. App (`e3f26e0`): fire-and-forget client that sends only while the opt-in is on, plus a Profile switch. | 22 unit and 8 integration tests plus the restricted-role replay on `b11da4f`; app tests in `product_events_test.dart`. | Code **PASS**. Production metric values **NOT RUN** (owner SQL not applied). |
+| **G5** | Funnel computable; content-free; export, delete and opt-out work. | Server (`b11da4f`): `product_events` table and `POST /api/v1/product-events`. It has auth, a strict Zod body, and per-user and per-IP rate limits. The event set is closed, with one row per user, event and local day. Also: an opt-out on `PATCH /users/me` that deletes existing events, export and deletion coverage, 400-day retention, the `PRODUCT_EVENTS_ENABLED` kill switch, the funnel SQL and ADR-045. App (`e3f26e0`): fire-and-forget client that sends only while the opt-in is on, plus a Profile switch. | 22 unit and 8 integration tests plus the restricted-role replay on `b11da4f`; app tests in `product_events_test.dart`. | Code **PASS**. Production metric values **NOT RUN** (SQL applied 2026-11-11, owner-reported; no events until the new backend and app version are live). |
 | **E4 + G1** | First win in under 60 s with no typing; skip works; denial is safe; measurable. | Onboarding: choose study, work or routine; three starter tasks due today; tick one; celebration; then the reminder question, which can be declined. Skip is offered until the first win, and offline never traps the user. The completion flag is stored locally and on the server. Events record onboarding started, completed or skipped, and task completion. | `onboarding_test.dart` covers the first win without typing, skip, offline, a retry after finishing offline, Arabic at 200% text, and the cold-start link. All PASS on `0578fa8`. | CI **PASS**. Time under 60 s and real OS permission denial **NOT RUN** (device). |
 | **G7** (new UI) | TalkBack usable; no clipping at 200%; RTL reviewed; CI prevents regressions. | Tooltips and labels, layouts that wrap, and higher-contrast colours. A real overflow was found and fixed (§5). | `meetsGuideline` tap-target and label checks run for onboarding, the habit card and the Profile switches, plus text contrast for the habit card. Arabic RTL and 200% text are tested on the same screens. All PASS on `0578fa8`. | CI **PASS** for covered screens. TalkBack on a device **NOT RUN**. HomeShell, TasksScreen and FocusTimerScreen have no widget tests (**NOT RUN**). |
 | **G3** (display) | Real next actions; language match; deep links survive process death; timely refresh. | Up to three of today's next tasks, chosen Top 3 first. App language with strings in six languages. Path-form links, and cold-start links wait for the session restore. The widget redraws on language, clock and time-zone changes and shows a refresh hint for a stale day. | `home_widget_test.dart`, `deep_link_parser_test.dart` and the cold-start test PASS on `0578fa8`. Kotlin `WidgetContentTest` and the provider compile PASS on `0578fa8`, and the debug APK (layout, strings, manifest) builds. | CI **PASS**. Widget on a device **NOT RUN**. |
@@ -149,7 +158,7 @@ Definitions are in ADR-045 and `docs/analytics/product-events.md`; the SQL is in
 - **Activation**: a task or habit completion within 30 minutes of signup, reported with the median time to first win.
 - **Day N retention (D1, D7, D30)**: a user counts once local day N has ended; users who turned usage statistics off are excluded.
 
-**Values: NOT RUN.** The production SQL has not been applied, and there is no production data access from this environment.
+**Values: NOT RUN.** The owner applied the production SQL on 2026-11-11 (owner-reported), but no events exist until the new backend and app version are live, and this environment has no production data access.
 
 ## 8. Changed files
 
@@ -174,7 +183,7 @@ Definitions are in ADR-045 and `docs/analytics/product-events.md`; the SQL is in
 
 ## 10. Owner actions
 
-1. Run `docs/analytics/sql/product-events-and-onboarding.sql`, first on a Neon branch with the verification queries in `docs/analytics/product-events.md`, then on production. It can run before or after the backend deploy: the live backend was checked compatible with the new columns. If it runs before the app version with onboarding is published, re-run its one backfill line right before publishing. Never run `npm run migrate` against Neon.
+1. **Done on 2026-11-11 (owner-reported):** `docs/analytics/sql/product-events-and-onboarding.sql` was rehearsed on the Neon branch `g5-rehearsal` and applied to production, with verification `t, t, f` and `0, 0`. Still due: re-run its one backfill line right before publishing the app version with onboarding. Never run `npm run migrate` against Neon.
 2. Decide whether to merge PR #30.
 3. Update the Play Data safety form: "App interactions", collected for Analytics, optional, user can stop and delete. Update the privacy policy to match.
 4. Run the device pass in `docs/mobile/manual-test-checklist.md` (P1-1 to P1-12): TalkBack, largest font, Arabic, widget, lock-screen notifications.

@@ -108,6 +108,11 @@ events accumulate.
 The production database is owner-managed and has **no migration ledger**.
 Never run `npm run migrate:*` against it (see `docs/database/migrations.md`).
 
+**Status (2026-11-11, owner-reported):** applied to production after a
+rehearsal on the Neon branch `g5-rehearsal`; verification returned
+`t, t, f` and `0, 0`. The backfill re-run in step 4 is still due before the
+app version with onboarding is published.
+
 The SQL and the backend deploy can happen in either order:
 
 - The new backend works before the SQL: no onboarding prompt,

@@ -810,4 +810,13 @@ const Map<String, String> frCatalog = {
   'xpDeviceNote': 'Les XP et les badges sont comptés sur cet appareil.',
   'badgeEarned': 'Obtenu',
   'badgeLocked': 'Pas encore obtenu',
+  'weekdayShort1': 'lun.',
+  'weekdayShort2': 'mar.',
+  'weekdayShort3': 'mer.',
+  'weekdayShort4': 'jeu.',
+  'weekdayShort5': 'ven.',
+  'weekdayShort6': 'sam.',
+  'weekdayShort7': 'dim.',
+  'statusInProgress': 'En cours',
+  'statusCancelled': 'Annulé',
 };

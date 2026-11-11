@@ -19,7 +19,9 @@ class SessionAudioPlayer {
   static const int _sampleRate = 22050;
   static const int _loopSeconds = 6;
 
-  final AudioPlayer _player = AudioPlayer();
+  // Created on first use, so screens that never play audio (and widget
+  // tests) do not start the native player.
+  late final AudioPlayer _player = AudioPlayer();
   String? _currentTag;
 
   String? get currentTag => _currentTag;

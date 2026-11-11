@@ -802,4 +802,13 @@ const Map<String, String> deCatalog = {
   'xpDeviceNote': 'XP und Abzeichen werden auf diesem Gerät gezählt.',
   'badgeEarned': 'Erreicht',
   'badgeLocked': 'Noch nicht erreicht',
+  'weekdayShort1': 'Mo.',
+  'weekdayShort2': 'Di.',
+  'weekdayShort3': 'Mi.',
+  'weekdayShort4': 'Do.',
+  'weekdayShort5': 'Fr.',
+  'weekdayShort6': 'Sa.',
+  'weekdayShort7': 'So.',
+  'statusInProgress': 'In Arbeit',
+  'statusCancelled': 'Abgebrochen',
 };

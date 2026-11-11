@@ -800,4 +800,13 @@ const Map<String, String> esCatalog = {
   'xpDeviceNote': 'Los XP y las insignias se cuentan en este dispositivo.',
   'badgeEarned': 'Conseguida',
   'badgeLocked': 'Aún no conseguida',
+  'weekdayShort1': 'lun',
+  'weekdayShort2': 'mar',
+  'weekdayShort3': 'mié',
+  'weekdayShort4': 'jue',
+  'weekdayShort5': 'vie',
+  'weekdayShort6': 'sáb',
+  'weekdayShort7': 'dom',
+  'statusInProgress': 'En curso',
+  'statusCancelled': 'Cancelado',
 };

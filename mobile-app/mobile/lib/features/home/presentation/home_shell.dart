@@ -80,8 +80,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
   @override
   Widget build(BuildContext context) {
     ref.watch(focusShieldProvider);
-    final l10n = AppLocalizations.of(context);
-
     final screens = [
       const TasksScreen(),
       const HabitsScreen(),
@@ -90,52 +88,74 @@ class _HomeShellState extends ConsumerState<HomeShell>
       const FocusHomeScreen(),
       const MoreScreen(),
     ];
-
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: HomeNavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        labelBehavior: labelBehaviorForTextScale(
-          MediaQuery.textScalerOf(context).scale(14) / 14,
-        ),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.check_box_outlined),
-            selectedIcon: const Icon(Icons.check_box),
-            label: l10n.tasks,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.repeat),
-            selectedIcon: const Icon(Icons.repeat),
-            label: l10n.habits,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.auto_awesome_outlined),
-            selectedIcon: const Icon(Icons.auto_awesome),
-            label: l10n.aiAssistant,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.notes_outlined),
-            selectedIcon: const Icon(Icons.notes),
-            label: l10n.notes,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.center_focus_strong_outlined),
-            selectedIcon: const Icon(Icons.center_focus_strong),
-            label: l10n.tr('focus'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.grid_view_outlined),
-            selectedIcon: const Icon(Icons.grid_view),
-            label: l10n.moreTitle,
-          ),
-        ],
       ),
+    );
+  }
+}
+
+/// The six-tab bar of [HomeShell], separate so the G7 test can pump it alone.
+/// Every destination keeps its spoken label and tooltip, also when only the
+/// selected tab shows its text.
+class HomeNavigationBar extends StatelessWidget {
+  const HomeNavigationBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return NavigationBar(
+      selectedIndex: selectedIndex,
+      onDestinationSelected: onDestinationSelected,
+      labelBehavior: labelBehaviorForTextScale(
+        MediaQuery.textScalerOf(context).scale(14) / 14,
+      ),
+      destinations: [
+        NavigationDestination(
+          icon: const Icon(Icons.check_box_outlined),
+          selectedIcon: const Icon(Icons.check_box),
+          label: l10n.tasks,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.repeat),
+          selectedIcon: const Icon(Icons.repeat),
+          label: l10n.habits,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.auto_awesome_outlined),
+          selectedIcon: const Icon(Icons.auto_awesome),
+          label: l10n.aiAssistant,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.notes_outlined),
+          selectedIcon: const Icon(Icons.notes),
+          label: l10n.notes,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.center_focus_strong_outlined),
+          selectedIcon: const Icon(Icons.center_focus_strong),
+          label: l10n.tr('focus'),
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.grid_view_outlined),
+          selectedIcon: const Icon(Icons.grid_view),
+          label: l10n.moreTitle,
+        ),
+      ],
     );
   }
 }

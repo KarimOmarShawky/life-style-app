@@ -774,4 +774,13 @@ const Map<String, String> enCatalog = {
   'xpDeviceNote': 'XP and badges are counted on this device.',
   'badgeEarned': 'Earned',
   'badgeLocked': 'Not earned yet',
+  'weekdayShort1': 'Mon',
+  'weekdayShort2': 'Tue',
+  'weekdayShort3': 'Wed',
+  'weekdayShort4': 'Thu',
+  'weekdayShort5': 'Fri',
+  'weekdayShort6': 'Sat',
+  'weekdayShort7': 'Sun',
+  'statusInProgress': 'In progress',
+  'statusCancelled': 'Cancelled',
 };

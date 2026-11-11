@@ -1,6 +1,7 @@
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_screen.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -334,14 +335,6 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
     final l10n = AppLocalizations.of(context);
     final tasksAsync = ref.watch(tasksProvider);
 
-    final totalSeconds = _isBreak ? breakDurationSeconds : focusDurationSeconds;
-    final progress = _remainingSeconds / totalSeconds;
-
-    final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (_remainingSeconds % 60).toString().padLeft(2, '0');
-
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.focusTimer),
@@ -366,201 +359,246 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            children: [
-              // Segmented Button: Focus vs Break
-              SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(
-                    value: false,
-                    label: Text(l10n.focusSession),
-                    icon: const Icon(Icons.timer_outlined),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    label: Text(l10n.breakSession),
-                    icon: const Icon(Icons.coffee_outlined),
-                  ),
-                ],
-                selected: {_isBreak},
-                onSelectionChanged: (set) => _switchMode(set.first),
-              ),
-              const SizedBox(height: 24),
-
-              // Task Selector Dropdown
-              tasksAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (tasks) {
-                  final activeTasks = tasks.where((t) => !t.isDone).toList();
-                  return DropdownButtonFormField<Task?>(
-                    initialValue: _selectedTask,
-                    decoration: InputDecoration(
-                      labelText: l10n.selectTask,
-                      prefixIcon: const Icon(Icons.check_circle_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: [
-                      DropdownMenuItem<Task?>(
-                        value: null,
-                        child: Text(l10n.noTaskSelected),
-                      ),
-                      ...activeTasks.map(
-                        (t) => DropdownMenuItem<Task?>(
-                          value: t,
-                          child: Text(
-                            t.title,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: _isRunning
-                        ? null
-                        : (val) {
-                            setState(() => _selectedTask = val);
-                          },
-                  );
-                },
-              ),
-              const Spacer(),
-
-              // Circular Countdown Timer
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 240,
-                    height: 240,
-                    child: CircularProgressIndicator(
-                      value: progress,
-                      strokeWidth: 12,
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      color: _isBreak ? Colors.teal : colorScheme.primary,
-                    ),
-                  ),
-                  Column(
+          // Scrolls instead of overflowing at large text sizes (G7); on a tall
+          // screen the three groups are spread out as before.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '$minutes:$seconds',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                          letterSpacing: 2,
-                        ),
+                      _buildSetup(l10n, tasksAsync),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: _buildDialAndSound(l10n, constraints.maxWidth),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _isBreak ? l10n.breakSession : l10n.focusSession,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: colorScheme.outline,
-                        ),
-                      ),
+                      _buildControls(l10n),
                     ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
-              // Ambient Soundscapes + user music selector
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildAmbientChip('quiet', Icons.volume_off_outlined),
-                    const SizedBox(width: 8),
-                    _buildAmbientChip('rain', Icons.water_drop_outlined),
-                    const SizedBox(width: 8),
-                    _buildAmbientChip('cafe', Icons.coffee_outlined),
-                    const SizedBox(width: 8),
-                    _buildAmbientChip('waves', Icons.waves_outlined),
-                    const SizedBox(width: 8),
-                    _buildAmbientChip('white_noise', Icons.graphic_eq_outlined),
-                    const SizedBox(width: 8),
-                    _buildAmbientChip('music', Icons.library_music_outlined),
-                  ],
+  /// Focus or break, and the optional task.
+  Widget _buildSetup(
+    AppLocalizations l10n,
+    AsyncValue<List<Task>> tasksAsync,
+  ) {
+    return Column(
+      children: [
+        // Segmented Button: Focus vs Break
+        SegmentedButton<bool>(
+          segments: [
+            ButtonSegment(
+              value: false,
+              label: Text(l10n.focusSession),
+              icon: const Icon(Icons.timer_outlined),
+            ),
+            ButtonSegment(
+              value: true,
+              label: Text(l10n.breakSession),
+              icon: const Icon(Icons.coffee_outlined),
+            ),
+          ],
+          selected: {_isBreak},
+          onSelectionChanged: (set) => _switchMode(set.first),
+        ),
+        const SizedBox(height: 24),
+        // Task Selector Dropdown
+        tasksAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (tasks) {
+            final activeTasks = tasks.where((t) => !t.isDone).toList();
+            return DropdownButtonFormField<Task?>(
+              initialValue: _selectedTask,
+              decoration: InputDecoration(
+                labelText: l10n.selectTask,
+                prefixIcon: const Icon(Icons.check_circle_outline),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              if (_songName != null) ...[
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.music_note_outlined,
-                      size: 16,
-                      color: colorScheme.outline,
+              items: [
+                DropdownMenuItem<Task?>(
+                  value: null,
+                  child: Text(l10n.noTaskSelected),
+                ),
+                ...activeTasks.map(
+                  (t) => DropdownMenuItem<Task?>(
+                    value: t,
+                    child: Text(
+                      t.title,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        _songName!,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.outline,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 16),
-                      tooltip: l10n.tr('timer.clearSong'),
-                      visualDensity: VisualDensity.compact,
-                      onPressed: _clearSong,
-                    ),
-                  ],
+                  ),
                 ),
               ],
-              TextButton.icon(
-                onPressed: _pickSong,
-                icon: const Icon(Icons.library_add_outlined, size: 18),
-                label: Text(
-                  l10n.tr('timer.pickSong'),
-                  style: const TextStyle(fontSize: 12),
+              onChanged: _isRunning
+                  ? null
+                  : (val) {
+                      setState(() => _selectedTask = val);
+                    },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Countdown dial, ambient sounds and the user's own track.
+  Widget _buildDialAndSound(AppLocalizations l10n, double maxWidth) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final totalSeconds = _isBreak ? breakDurationSeconds : focusDurationSeconds;
+    final progress = _remainingSeconds / totalSeconds;
+    final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_remainingSeconds % 60).toString().padLeft(2, '0');
+    // The dial grows with the font size up to the available width; its text
+    // shrinks only if it still does not fit (G7: no clipping at 200 %).
+    final scaled = MediaQuery.textScalerOf(context).scale(240);
+    final dial = math.min(scaled, maxWidth);
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: dial,
+              height: dial,
+              child: CircularProgressIndicator(
+                value: progress,
+                strokeWidth: 12,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+                color: _isBreak ? Colors.teal : colorScheme.primary,
+              ),
+            ),
+            SizedBox(
+              width: dial - 48,
+              height: dial - 48,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$minutes:$seconds',
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _isBreak ? l10n.breakSession : l10n.focusSession,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-              const Spacer(),
-
-              // Timer Controls
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _resetTimer,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(l10n.reset),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  FilledButton.icon(
-                    onPressed: _toggleTimer,
-                    icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
-                    label: Text(_isRunning ? l10n.pause : l10n.start),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Ambient Soundscapes + user music selector
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildAmbientChip('quiet', Icons.volume_off_outlined),
+              const SizedBox(width: 8),
+              _buildAmbientChip('rain', Icons.water_drop_outlined),
+              const SizedBox(width: 8),
+              _buildAmbientChip('cafe', Icons.coffee_outlined),
+              const SizedBox(width: 8),
+              _buildAmbientChip('waves', Icons.waves_outlined),
+              const SizedBox(width: 8),
+              _buildAmbientChip('white_noise', Icons.graphic_eq_outlined),
+              const SizedBox(width: 8),
+              _buildAmbientChip('music', Icons.library_music_outlined),
             ],
           ),
         ),
+        if (_songName != null) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.music_note_outlined,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  _songName!,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                tooltip: l10n.tr('timer.clearSong'),
+                onPressed: _clearSong,
+              ),
+            ],
+          ),
+        ],
+        TextButton.icon(
+          onPressed: _pickSong,
+          icon: const Icon(Icons.library_add_outlined, size: 18),
+          label: Text(
+            l10n.tr('timer.pickSong'),
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Reset and start/pause; they wrap onto two lines when the text is large.
+  Widget _buildControls(AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 32),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 20,
+        runSpacing: 12,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _resetTimer,
+            icon: const Icon(Icons.refresh),
+            label: Text(l10n.reset),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: _toggleTimer,
+            icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
+            label: Text(_isRunning ? l10n.pause : l10n.start),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            ),
+          ),
+        ],
       ),
     );
   }

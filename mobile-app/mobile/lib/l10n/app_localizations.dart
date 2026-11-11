@@ -663,6 +663,15 @@ class AppLocalizations {
   String get xpDeviceNote => _s('xpDeviceNote');
   String get badgeEarned => _s('badgeEarned');
   String get badgeLocked => _s('badgeLocked');
+  String get weekdayShort1 => _s('weekdayShort1');
+  String get weekdayShort2 => _s('weekdayShort2');
+  String get weekdayShort3 => _s('weekdayShort3');
+  String get weekdayShort4 => _s('weekdayShort4');
+  String get weekdayShort5 => _s('weekdayShort5');
+  String get weekdayShort6 => _s('weekdayShort6');
+  String get weekdayShort7 => _s('weekdayShort7');
+  String get statusInProgress => _s('statusInProgress');
+  String get statusCancelled => _s('statusCancelled');
   String tr(String key) => _s(key);
 }
 

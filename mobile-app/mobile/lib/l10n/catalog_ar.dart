@@ -754,4 +754,13 @@ const Map<String, String> arCatalog = {
   'xpDeviceNote': 'نقاط الخبرة والأوسمة محسوبة على هذا الجهاز.',
   'badgeEarned': 'تم الحصول عليه',
   'badgeLocked': 'لم يتم الحصول عليه بعد',
+  'weekdayShort1': 'إثنين',
+  'weekdayShort2': 'ثلاثاء',
+  'weekdayShort3': 'أربعاء',
+  'weekdayShort4': 'خميس',
+  'weekdayShort5': 'جمعة',
+  'weekdayShort6': 'سبت',
+  'weekdayShort7': 'أحد',
+  'statusInProgress': 'جارٍ التنفيذ',
+  'statusCancelled': 'ملغى',
 };

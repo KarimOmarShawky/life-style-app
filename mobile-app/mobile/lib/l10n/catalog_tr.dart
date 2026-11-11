@@ -774,4 +774,13 @@ const Map<String, String> trCatalog = {
   'xpDeviceNote': 'XP ve rozetler bu cihazda sayılır.',
   'badgeEarned': 'Kazanıldı',
   'badgeLocked': 'Henüz kazanılmadı',
+  'weekdayShort1': 'Pzt',
+  'weekdayShort2': 'Sal',
+  'weekdayShort3': 'Çar',
+  'weekdayShort4': 'Per',
+  'weekdayShort5': 'Cum',
+  'weekdayShort6': 'Cmt',
+  'weekdayShort7': 'Paz',
+  'statusInProgress': 'Devam ediyor',
+  'statusCancelled': 'İptal edildi',
 };

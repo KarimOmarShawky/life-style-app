@@ -22,6 +22,10 @@ companion. Path shorthand in this report: `be/` = `backend/src/`, `app/` =
   current build plus the pre-launch slice AI-P. Ship AI-1, AI-2 and AI-3 as closed-track
   updates during the 14 days. The public launch carries only AI slices whose tests and
   device checks passed.
+- **Testers must use AI too** (owner, later on 2026-11-11). Google reviews the first
+  closed-test release before testers receive it, so AI-P must be in that first build. AI
+  must also be enabled on the production backend with a paid-tier Gemini key (owner
+  action, §8).
 - Part I asks for an explicit owner choice before AI implementation runs in parallel with
   launch verification. This audit treats AI-P as launch work (Play requires it, §3
   AI0-F2) and asks for that choice for AI-1 onward (decision D0).
@@ -374,6 +378,16 @@ realistic calendar is **4–6 weeks**. These are planning ranges, not commitment
 1. **Week 1.**
    - **Owner:** signing key and the `android-release` environment; device pass; recruit
      15–20 testers; Play Console app setup.
+   - **Owner, AI for testers:**
+     - A Gemini API key from a Google Cloud project with an active billing account (paid
+       tier), plus a budget alert. On the unpaid tier, prompts and replies may be used to
+       improve Google products and read by human reviewers. Apps offered in the EEA,
+       Switzerland or the UK must use paid services, and the app ships German, Spanish
+       and French.
+     - Railway variables `AI_ENABLED=true` and `GEMINI_API_KEY`. Startup logs a warning
+       when the key is missing (`be/container.ts:371-372`).
+     - This environment cannot read Railway, so whether AI is on in production today is
+       unknown.
    - **Agent:** AI-P; an App Bundle (`.aab`) release build (the signed job builds an APK
      only); privacy-policy and Data safety drafts that name Google Gemini and AI reports.
    - **Owner:** AI-P SQL, then merge, then the signed bundle, then the closed test starts.
@@ -414,6 +428,13 @@ realistic calendar is **4–6 weeks**. These are planning ranges, not commitment
   quoted by: <https://www.sume.com/blog/google-play-ai-generated-content-policy-in-app-report-button-ai-video-app>
   and <https://dev.to/mdodeja/ai-chatbots-in-mobile-apps-where-the-article-50-disclosure-goes-3g7l>.
   The owner should read the policy page in Play Console when filling in the store forms.
+- Gemini API data use, unpaid versus paid tier, as summarised by:
+  <https://jazz.security/dlp-explained/dlp-basics/is-gemini-safe-for-company-data/> and
+  <https://www.januscompliance.co.uk/blog/is-the-gemini-api-gdpr-compliant-2026>. The owner
+  should confirm against Google's Gemini API Additional Terms before launch.
+- Closed-test releases are reviewed before testers receive them:
+  <https://www.testerscommunity.com/guides/internal-vs-closed-vs-open-testing-google-play>
+  and <https://catdoes.com/blog/testflight-for-android>.
 - Closed-testing rule for new personal accounts (12 testers, 14 continuous days, then a
   production-access review): <https://cadrant.ai/blog/google-play-closed-testing> and
   <https://vmobify.com/blog/google-play-closed-testing-requirement>.

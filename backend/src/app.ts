@@ -40,6 +40,7 @@ import { createAiRouter } from './features/ai/ai.routes.js';
 import { createSearchRouter } from './features/search/search.routes.js';
 import { createProductEventsRouter } from './features/product-events/product-events.routes.js';
 import { createNotificationPreferencesRouter } from './features/notifications/notification-preferences.routes.js';
+import { createSessionsRouter } from './features/sessions/sessions.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
@@ -318,6 +319,17 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/notification-preferences',
     createNotificationPreferencesRouter({
       service: container.notificationPreferencesService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Signed-in devices (feature guide G6, ADR-047): auth + strict Zod +
+  // 30 / 60 s per user; revoking also needs the current password.
+  v1Router.use(
+    '/sessions',
+    createSessionsRouter({
+      service: container.sessionsService,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

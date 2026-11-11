@@ -419,7 +419,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           Text(activeUser.email, textAlign: TextAlign.center),
           const SizedBox(height: 20),
-
           if (activeUser.isPendingDeletion) ...[
             Card(
               color: Colors.orange.withAlpha(35),
@@ -455,7 +454,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
           ],
-
           const _XpProgressSection(),
           const SizedBox(height: 24),
           _ProfileRow(label: localization.timeZone, value: activeUser.timezone),
@@ -564,7 +562,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
-
 }
 
 class _ProfileRow extends StatelessWidget {

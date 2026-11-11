@@ -111,6 +111,7 @@ class XpLedger {
     }
     return longest;
   }
+
   String get rank => switch (level) {
         >= 10 => 'Monk Mode Legend',
         >= 8 => 'Dopamine Master',

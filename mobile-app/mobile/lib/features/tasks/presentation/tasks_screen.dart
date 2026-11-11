@@ -607,8 +607,7 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     // Swipe-to-delete has a spoken alternative: a custom delete action (G7).
-    return Semantics(
-      container: true,
+    final row = Semantics(
       customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
         CustomSemanticsAction(label: l10n.delete): widget.onDelete,
       },
@@ -666,6 +665,9 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
         ),
       ),
     );
+    // One node per task: the select (long-press) and delete actions are
+    // announced together with its title and checkbox (G7).
+    return MergeSemantics(child: row);
   }
 }
 

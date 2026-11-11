@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:lifestyle_mobile/data/notification_policy.dart';
+import 'package:lifestyle_mobile/data/notification_scheduler.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_event_model.dart';
 
@@ -82,7 +84,7 @@ Future<void> removeCalendarReminder(String eventId, String reminderId) async {
   if (entry == null) {
     return;
   }
-  await NotificationService.instance.cancelAlarm(
+  await NotificationScheduler.instance.cancel(
     calendarReminderNotificationId(reminderId),
   );
   final remaining = entry.reminders
@@ -98,6 +100,13 @@ Future<void> removeCalendarReminder(String eventId, String reminderId) async {
     );
   }
   await _writeRegistry(registry);
+}
+
+/// Sign-out: forgets every event's reminders. The notifications themselves
+/// are cancelled by NotificationScheduler.clear().
+Future<void> clearCalendarReminders() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove(_registryKey);
 }
 
 /// Called at app start. Re-registers the reminders that are still upcoming and drops the rest.
@@ -132,23 +141,27 @@ Future<void> rescheduleCalendarReminders() async {
 
 /// The title stays generic so the event name is never the headline on a
 /// lock screen; the name is in the body, which Android hides on secure lock
-/// screens when the user chose to hide sensitive content (P0-F1).
+/// screens when the user chose to hide sensitive content (P0-F1). Calendar
+/// reminders are "Normal" tier: the shared policy applies quiet hours and
+/// the daily limit (feature guide G2).
 Future<void> _scheduleEntry(_RegistryEntry entry) async {
   final l10n = NotificationService.deviceL10n;
   final body = l10n.calendarStartsAt(entry.title, _clockText(entry.startAt));
   for (final reminder in entry.reminders) {
-    await NotificationService.instance.scheduleCalendarReminder(
+    await NotificationScheduler.instance.schedule(
       id: calendarReminderNotificationId(reminder.reminderId),
+      kind: ReminderKind.calendar,
+      tier: NotificationTier.normal,
       title: l10n.calendarReminderTitle,
       body: body,
-      when: reminder.remindAt,
+      at: reminder.remindAt,
     );
   }
 }
 
 Future<void> _cancelEntry(_RegistryEntry entry) async {
   for (final reminder in entry.reminders) {
-    await NotificationService.instance.cancelAlarm(
+    await NotificationScheduler.instance.cancel(
       calendarReminderNotificationId(reminder.reminderId),
     );
   }

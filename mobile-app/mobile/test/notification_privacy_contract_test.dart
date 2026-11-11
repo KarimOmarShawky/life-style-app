@@ -59,10 +59,11 @@ void main() {
     }
   });
 
-  test('task alarms keep the task name out of the notification title', () {
+  test('task reminders keep the task name out of the notification title', () {
     final tasks = File('lib/features/tasks/presentation/tasks_screen.dart')
         .readAsStringSync();
-    final calls = RegExp(r'\.scheduleAlarm\(').allMatches(tasks).toList();
+    // Task reminders and alarms go through the G2 scheduler.
+    final calls = RegExp(r'\.schedule\(').allMatches(tasks).toList();
     expect(calls, isNotEmpty);
     for (final match in calls) {
       expect(_balanced(tasks, match.end - 1),

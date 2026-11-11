@@ -711,4 +711,32 @@ const Map<String, String> arCatalog = {
   'habitFreshStart': 'بداية جديدة النهارده',
   'habitCheckInTooltip': 'علّم إنها اتعملت النهارده',
   'habitCheckInFailed': 'معرفناش نحفظ التسجيل ده. جرّب تاني.',
+  'notificationSettingsTitle': 'الإشعارات',
+  'notificationSettingsSubtitle': 'ساعات الهدوء والحد اليومي',
+  'notificationsMasterSwitch': 'التذكيرات والمنبهات',
+  'notificationsMasterSwitchHint':
+      'لما تقفلها، LifeStyle مش هيظهر أي تذكير أو منبه.',
+  'quietHoursTitle': 'ساعات الهدوء',
+  'quietHoursHint': 'التذكيرات بتستنى لحد ما ساعات الهدوء تخلص.',
+  'quietHoursStart': 'من',
+  'quietHoursEnd': 'لحد',
+  'alarmsBreakQuietTitle': 'المنبهات ترن في ساعات الهدوء',
+  'alarmsBreakQuietHint': 'بس المهام اللي اخترت إنها ترن كمنبه.',
+  'dailyLimitTitle': 'الحد اليومي',
+  'dailyLimitHint': 'التذكيرات اللي تزيد عن الحد بتتجمع في إشعار واحد.',
+  'dailyLimitNone': 'من غير حد',
+  'dailyLimitPerDay': 'لحد {n} في اليوم',
+  'notificationTimeZoneNote':
+      'المواعيد ماشية على المنطقة الزمنية بتاعة حسابك ({zone}).',
+  'notificationSettingsSaveFailed':
+      'معرفناش نحفظ. الإعدادات القديمة لسه زي ما هي.',
+  'notificationSettingsUnavailable':
+      'الإعدادات دي لسه مش متاحة للحفظ. جرّب بعدين.',
+  'notificationSettingsLoadFailed': 'معرفناش نحمّل إعدادات الإشعارات.',
+  'ringAsAlarm': 'يرن كمنبه',
+  'ringAsAlarmHint': 'يفضل يرن لحد ما تقفله.',
+  'reminderScheduled': 'تم ضبط التذكير',
+  'detectedTime': 'الوقت',
+  'notificationSummaryTitle': 'تذكيرات',
+  'notificationSummaryBody': 'تذكيرات مستنياك في LifeStyle: {n}',
 };

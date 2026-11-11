@@ -10,6 +10,7 @@ import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/account_export_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
+import 'package:lifestyle_mobile/features/notifications/notification_settings_screen.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 const supportedCurrencies = [
@@ -157,6 +158,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (agreed != true) return;
     }
     await ref.read(aiTaskParsingProvider.notifier).setEnabled(enabled);
+  }
+
+  void _openNotificationSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const NotificationSettingsScreen(),
+      ),
+    );
   }
 
   Future<void> _changeLanguage(BuildContext context) async {
@@ -588,6 +597,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onTap: activeUser.isPendingDeletion
                 ? null
                 : () => _changeCurrency(context, activeUser),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.notifications_outlined),
+            title: Text(localization.notificationSettingsTitle),
+            subtitle: Text(localization.notificationSettingsSubtitle),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _openNotificationSettings(context),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,

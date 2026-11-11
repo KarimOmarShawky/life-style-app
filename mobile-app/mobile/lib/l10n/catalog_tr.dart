@@ -730,4 +730,32 @@ const Map<String, String> trCatalog = {
   'habitFreshStart': 'Bugün yeni bir başlangıç',
   'habitCheckInTooltip': 'Bugün için tamamlandı olarak işaretle',
   'habitCheckInFailed': 'Bu kaydedilemedi. Tekrar dene.',
+  'notificationSettingsTitle': 'Bildirimler',
+  'notificationSettingsSubtitle': 'Sessiz saatler ve günlük sınır',
+  'notificationsMasterSwitch': 'Hatırlatıcılar ve alarmlar',
+  'notificationsMasterSwitchHint':
+      'Kapalıyken LifeStyle hatırlatıcı veya alarm göstermez.',
+  'quietHoursTitle': 'Sessiz saatler',
+  'quietHoursHint': 'Hatırlatıcılar sessiz saatler bitene kadar bekler.',
+  'quietHoursStart': 'Başlangıç',
+  'quietHoursEnd': 'Bitiş',
+  'alarmsBreakQuietTitle': 'Alarmlar sessiz saatlerde çalabilir',
+  'alarmsBreakQuietHint': 'Yalnızca alarm olarak çalmasını seçtiğin görevler.',
+  'dailyLimitTitle': 'Günlük sınır',
+  'dailyLimitHint': 'Sınırı aşan hatırlatıcılar tek bir özette toplanır.',
+  'dailyLimitNone': 'Sınır yok',
+  'dailyLimitPerDay': 'Günde en fazla {n}',
+  'notificationTimeZoneNote':
+      'Saatler hesabının saat dilimine göredir ({zone}).',
+  'notificationSettingsSaveFailed':
+      'Kaydedilemedi. Önceki ayarların korunuyor.',
+  'notificationSettingsUnavailable':
+      'Bu ayarlar henüz kaydedilemiyor. Daha sonra tekrar dene.',
+  'notificationSettingsLoadFailed': 'Bildirim ayarların yüklenemedi.',
+  'ringAsAlarm': 'Alarm olarak çal',
+  'ringAsAlarmHint': 'Sen kapatana kadar çalar.',
+  'reminderScheduled': 'Hatırlatıcı kuruldu',
+  'detectedTime': 'Saat',
+  'notificationSummaryTitle': 'Hatırlatıcılar',
+  'notificationSummaryBody': 'LifeStyle’da bekleyen hatırlatıcılar: {n}',
 };

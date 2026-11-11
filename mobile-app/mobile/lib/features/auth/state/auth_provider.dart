@@ -8,6 +8,8 @@ import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/onboarding/onboarding_store.dart';
 import 'package:lifestyle_mobile/data/retired_wallet_cleanup.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
+import 'package:lifestyle_mobile/data/notification_scheduler.dart';
+import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepository(
@@ -241,6 +243,13 @@ class AuthController extends AsyncNotifier<AppUser?> {
           await SubscriptionReminders.clear();
         } catch (_) {
           /* Sign-out must still clear credentials if native cleanup fails. */
+        }
+        // Reminders and the notification plan belong to this account (G2).
+        try {
+          await NotificationScheduler.instance.clear();
+          await clearCalendarReminders();
+        } catch (_) {
+          /* Sign-out must still clear credentials if this cleanup fails. */
         }
         // Also clear account-specific focus data. The AI assistant keeps no
         // per-account key on the device (server proxy); only its failure

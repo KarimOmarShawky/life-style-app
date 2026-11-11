@@ -751,4 +751,35 @@ const Map<String, String> esCatalog = {
   'habitFreshStart': 'Hoy empiezas de nuevo',
   'habitCheckInTooltip': 'Marcar como hecho hoy',
   'habitCheckInFailed': 'No se pudo guardar. Inténtalo de nuevo.',
+  'notificationSettingsTitle': 'Notificaciones',
+  'notificationSettingsSubtitle': 'Horas de silencio y límite diario',
+  'notificationsMasterSwitch': 'Recordatorios y alarmas',
+  'notificationsMasterSwitchHint':
+      'Si lo desactivas, LifeStyle no muestra recordatorios ni alarmas.',
+  'quietHoursTitle': 'Horas de silencio',
+  'quietHoursHint':
+      'Los recordatorios esperan a que terminen las horas de silencio.',
+  'quietHoursStart': 'Empieza',
+  'quietHoursEnd': 'Termina',
+  'alarmsBreakQuietTitle': 'Las alarmas pueden sonar en horas de silencio',
+  'alarmsBreakQuietHint': 'Solo las tareas que pusiste como alarma.',
+  'dailyLimitTitle': 'Límite diario',
+  'dailyLimitHint':
+      'Los recordatorios que pasen del límite llegan juntos en un resumen.',
+  'dailyLimitNone': 'Sin límite',
+  'dailyLimitPerDay': 'Hasta {n} al día',
+  'notificationTimeZoneNote':
+      'Las horas siguen la zona horaria de tu cuenta ({zone}).',
+  'notificationSettingsSaveFailed':
+      'No se pudo guardar. Se mantienen tus ajustes anteriores.',
+  'notificationSettingsUnavailable':
+      'Estos ajustes aún no se pueden guardar. Inténtalo más tarde.',
+  'notificationSettingsLoadFailed':
+      'No se pudieron cargar tus ajustes de notificaciones.',
+  'ringAsAlarm': 'Sonar como alarma',
+  'ringAsAlarmHint': 'Suena hasta que la apagues.',
+  'reminderScheduled': 'Recordatorio guardado',
+  'detectedTime': 'Hora',
+  'notificationSummaryTitle': 'Recordatorios',
+  'notificationSummaryBody': 'Recordatorios pendientes en LifeStyle: {n}',
 };

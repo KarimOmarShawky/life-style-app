@@ -760,4 +760,36 @@ const Map<String, String> frCatalog = {
   'habitFreshStart': 'Nouveau départ aujourd’hui',
   'habitCheckInTooltip': 'Marquer comme fait aujourd’hui',
   'habitCheckInFailed': 'Ce n’a pas été enregistré. Réessayez.',
+  'notificationSettingsTitle': 'Notifications',
+  'notificationSettingsSubtitle': 'Heures calmes et limite quotidienne',
+  'notificationsMasterSwitch': 'Rappels et alarmes',
+  'notificationsMasterSwitchHint':
+      'Désactivé, LifeStyle n’affiche ni rappel ni alarme.',
+  'quietHoursTitle': 'Heures calmes',
+  'quietHoursHint': 'Les rappels attendent la fin des heures calmes.',
+  'quietHoursStart': 'Début',
+  'quietHoursEnd': 'Fin',
+  'alarmsBreakQuietTitle':
+      'Les alarmes peuvent sonner pendant les heures calmes',
+  'alarmsBreakQuietHint':
+      'Seulement les tâches réglées pour sonner comme une alarme.',
+  'dailyLimitTitle': 'Limite quotidienne',
+  'dailyLimitHint':
+      'Les rappels au-delà de la limite arrivent ensemble dans un résumé.',
+  'dailyLimitNone': 'Aucune limite',
+  'dailyLimitPerDay': 'Jusqu’à {n} par jour',
+  'notificationTimeZoneNote':
+      'Les heures suivent le fuseau horaire de votre compte ({zone}).',
+  'notificationSettingsSaveFailed':
+      'Échec de l’enregistrement. Vos réglages précédents sont conservés.',
+  'notificationSettingsUnavailable':
+      'Ces réglages ne peuvent pas encore être enregistrés. Réessayez plus tard.',
+  'notificationSettingsLoadFailed':
+      'Impossible de charger vos réglages de notifications.',
+  'ringAsAlarm': 'Sonner comme une alarme',
+  'ringAsAlarmHint': 'Sonne jusqu’à ce que vous l’arrêtiez.',
+  'reminderScheduled': 'Rappel enregistré',
+  'detectedTime': 'Heure',
+  'notificationSummaryTitle': 'Rappels',
+  'notificationSummaryBody': 'Rappels en attente dans LifeStyle : {n}',
 };

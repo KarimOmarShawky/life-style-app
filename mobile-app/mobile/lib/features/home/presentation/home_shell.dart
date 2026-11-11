@@ -1,6 +1,7 @@
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/data/notification_preferences.dart';
 import 'package:lifestyle_mobile/data/product_events.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_assistant_screen.dart';
 import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
@@ -36,6 +37,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.recordProductEvent(ProductEvent.appOpened);
       rescheduleCalendarReminders();
+      syncNotificationPreferences(ref);
       _syncRenewalReminders();
       ref.read(focusShieldProvider.notifier).refreshNative();
     });
@@ -51,6 +53,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.recordProductEvent(ProductEvent.appOpened);
+      syncNotificationPreferences(ref);
       _syncRenewalReminders();
       ref.read(focusShieldProvider.notifier).refreshNative();
     }

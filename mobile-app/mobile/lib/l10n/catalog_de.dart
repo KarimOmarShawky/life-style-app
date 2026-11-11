@@ -755,4 +755,34 @@ const Map<String, String> deCatalog = {
   'habitFreshStart': 'Heute ein neuer Anfang',
   'habitCheckInTooltip': 'Für heute als erledigt markieren',
   'habitCheckInFailed': 'Das wurde nicht gespeichert. Versuch es noch einmal.',
+  'notificationSettingsTitle': 'Benachrichtigungen',
+  'notificationSettingsSubtitle': 'Ruhezeiten und Tageslimit',
+  'notificationsMasterSwitch': 'Erinnerungen und Wecker',
+  'notificationsMasterSwitchHint':
+      'Wenn das aus ist, zeigt LifeStyle keine Erinnerungen und keine Wecker.',
+  'quietHoursTitle': 'Ruhezeiten',
+  'quietHoursHint': 'Erinnerungen warten, bis die Ruhezeit endet.',
+  'quietHoursStart': 'Beginn',
+  'quietHoursEnd': 'Ende',
+  'alarmsBreakQuietTitle': 'Wecker dürfen in der Ruhezeit klingeln',
+  'alarmsBreakQuietHint': 'Nur Aufgaben, die du als Wecker eingestellt hast.',
+  'dailyLimitTitle': 'Tageslimit',
+  'dailyLimitHint':
+      'Erinnerungen über dem Limit kommen gesammelt in einer Übersicht.',
+  'dailyLimitNone': 'Kein Limit',
+  'dailyLimitPerDay': 'Bis zu {n} pro Tag',
+  'notificationTimeZoneNote':
+      'Die Zeiten richten sich nach der Zeitzone deines Kontos ({zone}).',
+  'notificationSettingsSaveFailed':
+      'Nicht gespeichert. Deine bisherigen Einstellungen bleiben.',
+  'notificationSettingsUnavailable':
+      'Diese Einstellungen können noch nicht gespeichert werden. Versuch es später noch einmal.',
+  'notificationSettingsLoadFailed':
+      'Die Benachrichtigungseinstellungen konnten nicht geladen werden.',
+  'ringAsAlarm': 'Als Wecker klingeln',
+  'ringAsAlarmHint': 'Klingelt, bis du ihn ausschaltest.',
+  'reminderScheduled': 'Erinnerung gespeichert',
+  'detectedTime': 'Uhrzeit',
+  'notificationSummaryTitle': 'Erinnerungen',
+  'notificationSummaryBody': 'Wartende Erinnerungen in LifeStyle: {n}',
 };

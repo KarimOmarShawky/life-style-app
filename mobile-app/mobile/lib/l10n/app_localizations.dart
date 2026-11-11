@@ -618,6 +618,37 @@ class AppLocalizations {
   String get habitFreshStart => _s('habitFreshStart');
   String get habitCheckInTooltip => _s('habitCheckInTooltip');
   String get habitCheckInFailed => _s('habitCheckInFailed');
+  String get notificationSettingsTitle => _s('notificationSettingsTitle');
+  String get notificationSettingsSubtitle => _s('notificationSettingsSubtitle');
+  String get notificationsMasterSwitch => _s('notificationsMasterSwitch');
+  String get notificationsMasterSwitchHint =>
+      _s('notificationsMasterSwitchHint');
+  String get quietHoursTitle => _s('quietHoursTitle');
+  String get quietHoursHint => _s('quietHoursHint');
+  String get quietHoursStart => _s('quietHoursStart');
+  String get quietHoursEnd => _s('quietHoursEnd');
+  String get alarmsBreakQuietTitle => _s('alarmsBreakQuietTitle');
+  String get alarmsBreakQuietHint => _s('alarmsBreakQuietHint');
+  String get dailyLimitTitle => _s('dailyLimitTitle');
+  String get dailyLimitHint => _s('dailyLimitHint');
+  String get dailyLimitNone => _s('dailyLimitNone');
+  String dailyLimitPerDay(int n) =>
+      _f('dailyLimitPerDay', <String, Object>{'n': n});
+  String notificationTimeZoneNote(String zone) =>
+      _f('notificationTimeZoneNote', <String, Object>{'zone': zone});
+  String get notificationSettingsSaveFailed =>
+      _s('notificationSettingsSaveFailed');
+  String get notificationSettingsUnavailable =>
+      _s('notificationSettingsUnavailable');
+  String get notificationSettingsLoadFailed =>
+      _s('notificationSettingsLoadFailed');
+  String get ringAsAlarm => _s('ringAsAlarm');
+  String get ringAsAlarmHint => _s('ringAsAlarmHint');
+  String get reminderScheduled => _s('reminderScheduled');
+  String get detectedTime => _s('detectedTime');
+  String get notificationSummaryTitle => _s('notificationSummaryTitle');
+  String notificationSummaryBody(int n) =>
+      _f('notificationSummaryBody', <String, Object>{'n': n});
   String tr(String key) => _s(key);
 }
 

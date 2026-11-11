@@ -169,7 +169,10 @@ describe('Notification preferences (G2) on PostgreSQL', () => {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        await client.query('DROP TABLE notification_preferences');
+        // The test role does not own the table, so hide it instead: with
+        // only pg_catalog on the search path, PostgreSQL itself answers
+        // 42P01 (relation does not exist), as on a database without the SQL.
+        await client.query('SET LOCAL search_path = pg_catalog');
         const withoutTable = createApp({
           notificationPreferencesService: new NotificationPreferencesService(
             new PgNotificationPreferencesRepository(client)

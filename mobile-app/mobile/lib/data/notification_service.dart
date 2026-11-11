@@ -225,7 +225,10 @@ class NotificationService {
     }
   }
 
-  /// Persistent Loud Alarm (Repeats audio continuously until user clicks Dismiss or Snooze)
+  /// Persistent loud alarm (repeats until Dismiss or Snooze). Only for the
+  /// "Critical" tier: a task the user chose to ring as an alarm (G2). On
+  /// Android 14+ Google Play revokes the full-screen permission for apps
+  /// that are not alarm or calling apps, so it may show as a banner.
   Future<void> scheduleAlarm({
     required int id,
     required String title,
@@ -362,47 +365,99 @@ class NotificationService {
     }
   }
 
-  /// Test Persistent Alarm immediately
-  Future<void> triggerInstantPersistentAlarm({
+  /// A task reminder in the "Normal" tier (feature guide G2): a regular
+  /// notification, not an alarm. Callers pass a generic title (P0-F1).
+  Future<void> scheduleTaskReminder({
     required int id,
     required String title,
     required String body,
+    required DateTime when,
   }) async {
     try {
-      final androidDetails = AndroidNotificationDetails(
-        alarmChannelId,
-        alarmChannelName,
-        channelDescription: alarmChannelDesc,
-        importance: Importance.max,
-        priority: Priority.max,
-        playSound: true,
-        enableVibration: true,
-        audioAttributesUsage: AudioAttributesUsage.alarm,
-        category: AndroidNotificationCategory.alarm,
+      const androidDetails = AndroidNotificationDetails(
+        normalChannelId,
+        normalChannelName,
+        channelDescription: normalChannelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+        category: AndroidNotificationCategory.reminder,
         visibility: NotificationVisibility.private,
-        fullScreenIntent: true,
-        ongoing: true,
-        autoCancel: false,
-        additionalFlags: Int32List.fromList([4]),
-        actions: [
-          AndroidNotificationAction(
-            'dismiss_alarm',
-            _deviceL10n.alarmDismissAction,
-            cancelNotification: true,
-            showsUserInterface: true,
-          ),
-          AndroidNotificationAction(
-            'snooze_alarm',
-            _deviceL10n.alarmSnoozeAction,
-            cancelNotification: true,
-          ),
-        ],
       );
-
-      final details = NotificationDetails(android: androidDetails);
-      await _notificationsPlugin.show(id, title, body, details);
+      await _scheduleAt(
+        id,
+        title,
+        body,
+        when,
+        const NotificationDetails(android: androidDetails),
+      );
     } catch (e) {
-      developer.log('triggerInstantPersistentAlarm error: $e');
+      developer.log('scheduleTaskReminder error: $e');
+    }
+  }
+
+  /// One summary for the reminders over the daily limit (feature guide G2).
+  /// The text is generic and content-free, so it is safe on a lock screen.
+  Future<void> scheduleSummary({
+    required int id,
+    required int count,
+    required DateTime when,
+  }) async {
+    try {
+      final l10n = _deviceL10n;
+      const androidDetails = AndroidNotificationDetails(
+        normalChannelId,
+        normalChannelName,
+        channelDescription: normalChannelDesc,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        category: AndroidNotificationCategory.reminder,
+        visibility: NotificationVisibility.private,
+      );
+      await _scheduleAt(
+        id,
+        l10n.notificationSummaryTitle,
+        l10n.notificationSummaryBody(count),
+        when,
+        const NotificationDetails(android: androidDetails),
+      );
+    } catch (e) {
+      developer.log('scheduleSummary error: $e');
+    }
+  }
+
+  /// Schedules at [when], inexactly when exact alarms are not permitted.
+  /// Times that have passed are skipped.
+  Future<void> _scheduleAt(
+    int id,
+    String title,
+    String body,
+    DateTime when,
+    NotificationDetails details,
+  ) async {
+    final scheduled = tz.TZDateTime.from(when, tz.local);
+    if (scheduled.isBefore(tz.TZDateTime.now(tz.local))) return;
+    try {
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduled,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } on PlatformException {
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduled,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
     }
   }
 

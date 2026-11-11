@@ -12,6 +12,10 @@
 > exists, or the error would name the role); after it, `pending_onboarding = 0` and
 > `opted_out = 0`. For production the owner confirmed privileges `t, t, f`. PR #30 stays
 > unmerged for now (owner decision), and G2 is approved as the next item.
+>
+> **Update — 2026-11-11 (later): G2 delivered in the same PR.** See
+> `docs/reports/feature-guide-g2-report-2026-11-11.md`. The owner asked to merge PR #30
+> once G2 was finished.
 
 **Scope.** The owner-approved SAFE NOW batch from the Phase 0 audit
 (`docs/reports/feature-guide-phase-0-audit-2026-11-10.md`):

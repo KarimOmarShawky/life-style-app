@@ -226,9 +226,9 @@ class NotificationService {
   }
 
   /// Persistent loud alarm (repeats until Dismiss or Snooze). Only for the
-  /// "Critical" tier: a task the user chose to ring as an alarm (G2). On
-  /// Android 14+ Google Play revokes the full-screen permission for apps
-  /// that are not alarm or calling apps, so it may show as a banner.
+  /// "Critical" tier: a task the user chose to ring as an alarm (G2). The
+  /// app does not declare USE_FULL_SCREEN_INTENT, so Android shows it as a
+  /// ringing heads-up notification rather than a full-screen alarm.
   Future<void> scheduleAlarm({
     required int id,
     required String title,

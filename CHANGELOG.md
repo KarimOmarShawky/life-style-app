@@ -1,8 +1,11 @@
 # Change log
 
-## Unreleased — feature guide Phase 2: G2 notification policy (in progress, 2026-11-11)
-
-- G2 policy core (ADR-046, owner decisions recorded): `backend/src/features/notifications/notification-policy.ts` decides allow, delay, digest or drop for each notification from the account's quiet hours, daily limit, summary setting, master switch and time zone, with Critical/Normal/Low tiers. 28 shared cases (26 decisions, 2 summaries) in `mobile-app/mobile/test/fixtures/notification_policy_cases.json` (including daylight-saving gaps and repeated hours in Cairo, Berlin and New York) will also drive the Dart implementation. A sweep test checks every 10 minutes across three zones and three DST periods that nothing non-critical lands in quiet hours. Not yet wired: preference storage and endpoint, worker push, device scheduler and settings screen.
+## Unreleased — feature guide Phase 2: G2 notification policy, 2026-11-11
+- G2 (ADR-046; owner decisions recorded): one notification policy for the device and for server push. Each notification is sent, delayed out of quiet hours, combined into the day's summary, or dropped when the master switch is off. Tiers: alarm the user chose / normal reminder / low priority. Defaults change nothing until the user sets something; quiet hours suggest 22:00–07:00.
+- Policy in TypeScript (`backend/src/features/notifications/notification-policy.ts`) and Dart (`lib/data/notification_policy.dart`), both run against 28 shared cases (`test/fixtures/notification_policy_cases.json`), including DST gaps and repeated hours in Cairo, Berlin and New York.
+- Backend: `notification_preferences` table (forward-only migration plus owner SQL `docs/notifications/sql/notification-preferences.sql`), `GET/PUT /api/v1/notification-preferences` (auth, strict Zod, 30/60 s per user, 503 `NOTIFICATION_PREFERENCES_UNAVAILABLE` before the SQL), export and deletion coverage, archive exclusion, grants in both runtime drafts. The worker requires the policy for push (E3 gate); with no push provider nothing changes.
+- App: Profile → Notifications (master switch, quiet hours, alarms during quiet hours, daily limit, account time zone note); task and calendar reminders go through a policy-aware scheduler that re-plans on every change and keeps one content-free summary per day; "Ring as an alarm" switch per timed task (default off: normal reminder, closing P0-F3); settings sync at start and resume; sign-out clears the plan and the calendar registry. 24 strings in six languages; G7 test at 200% Arabic text.
+- Report: `docs/reports/feature-guide-g2-report-2026-11-11.md`. Device checks G2-1..G2-9 are NOT RUN.
 
 ## Unreleased — feature guide Phase 1, 2026-11-10
 - E1: CI job summaries now carry evidence rows (head commit, toolchain versions, test counts parsed from runner output; "counts unavailable" instead of guesses).

@@ -280,7 +280,7 @@ The production database needs `docs/notifications/sql/notification-preferences.s
 can be saved. Times below are in the account time zone shown on the screen.
 
 - [ ] **G2-1** Profile → Notifications opens. With the defaults, add a task with a time 2–3 minutes ahead and "Ring as an alarm" off: a normal notification arrives on time, with no full screen and no looping sound, and its title is generic.
-- [ ] **G2-2** Same with "Ring as an alarm" on: it rings until Dismiss or Snooze. On Android 14 and later it may show as a ringing banner instead of full screen.
+- [ ] **G2-2** Same with "Ring as an alarm" on: it keeps ringing until Dismiss or Snooze. It appears as a ringing banner, not full screen (the app does not request the full-screen permission).
 - [ ] **G2-3** Turn quiet hours on and set them to cover the next few minutes. A normal reminder inside them arrives when they end. An alarm inside them also waits, unless "Alarms can ring in quiet hours" is on.
 - [ ] **G2-4** Set the daily limit to 3 and add 5 timed tasks for later today. Three arrive one by one. One summary ("Reminders waiting in LifeStyle: 2") arrives at the fourth one's time, with no task names.
 - [ ] **G2-5** Turn "Reminders and alarms" off: nothing arrives, alarms included. Turn it back on: the upcoming reminders come back.

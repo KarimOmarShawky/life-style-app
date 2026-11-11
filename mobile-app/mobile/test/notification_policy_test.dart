@@ -14,10 +14,10 @@ void main() {
   final fixture = jsonDecode(
     File('test/fixtures/notification_policy_cases.json').readAsStringSync(),
   ) as Map<String, Object?>;
-  final decisionCases = (fixture['decisionCases']! as List<Object?>)
-      .cast<Map<String, Object?>>();
-  final summaryCases = (fixture['summaryCases']! as List<Object?>)
-      .cast<Map<String, Object?>>();
+  final decisionCases =
+      (fixture['decisionCases']! as List<Object?>).cast<Map<String, Object?>>();
+  final summaryCases =
+      (fixture['summaryCases']! as List<Object?>).cast<Map<String, Object?>>();
 
   NotificationPreferences preferencesFrom(Map<String, Object?> raw) {
     final start = raw['quietStart'];

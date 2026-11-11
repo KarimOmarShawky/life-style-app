@@ -273,6 +273,22 @@ Strings for these screens exist in all six languages. Run the list once in Engli
 - [ ] **P1-11** With TalkBack on, the habit check button is announced as "Mark done for today", and the onboarding cards and both Profile switches read their titles.
 - [ ] **P1-12** Set the largest system font size. Onboarding, the habit list and Profile show no clipped or overlapping text, and the Arabic layout runs right to left.
 
+### Feature guide G2: notification settings (2026-11-11). Needs a phone
+
+The production database needs `docs/notifications/sql/notification-preferences.sql`
+(owner-run, see `docs/notifications/notification-preferences.md`) before settings
+can be saved. Times below are in the account time zone shown on the screen.
+
+- [ ] **G2-1** Profile → Notifications opens. With the defaults, add a task with a time 2–3 minutes ahead and "Ring as an alarm" off: a normal notification arrives on time, with no full screen and no looping sound, and its title is generic.
+- [ ] **G2-2** Same with "Ring as an alarm" on: it rings until Dismiss or Snooze. On Android 14 and later it may show as a ringing banner instead of full screen.
+- [ ] **G2-3** Turn quiet hours on and set them to cover the next few minutes. A normal reminder inside them arrives when they end. An alarm inside them also waits, unless "Alarms can ring in quiet hours" is on.
+- [ ] **G2-4** Set the daily limit to 3 and add 5 timed tasks for later today. Three arrive one by one. One summary ("Reminders waiting in LifeStyle: 2") arrives at the fourth one's time, with no task names.
+- [ ] **G2-5** Turn "Reminders and alarms" off: nothing arrives, alarms included. Turn it back on: the upcoming reminders come back.
+- [ ] **G2-6** Change a setting on one phone, then open the app on a second phone with the same account: its reminders follow the new setting.
+- [ ] **G2-7** Before the SQL is applied, the screen shows a notice and changes say they can't be saved yet; nothing crashes. After it is applied, saving works.
+- [ ] **G2-8** Sign out: no reminder from that account arrives afterwards.
+- [ ] **G2-9** Arabic at the largest font: the Notifications screen has no clipped text, runs right to left, and TalkBack reads every switch and time.
+
 ### Quick regression
 
 - [ ] **X-1** Log out and log in.

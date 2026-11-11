@@ -59,7 +59,11 @@ class NotificationScheduler {
 
   final NotificationSink _sink;
   final DateTime Function() _clock;
-  Future<void> _tail = Future<void>.value();
+
+  /// The last queued operation, or null when the scheduler is idle. It is
+  /// created lazily and cleared when idle, so no future outlives the zone it
+  /// was created in (widget tests run in a fake-async zone).
+  Future<void>? _tail;
 
   /// Schedules or replaces reminder [id]. A time that has passed only
   /// removes what was scheduled before.
@@ -141,8 +145,13 @@ class NotificationScheduler {
   }
 
   Future<void> _serialized(Future<void> Function() action) {
-    final run = _tail.then((_) => action());
-    _tail = run.catchError((Object _) {});
+    final previous = _tail;
+    final run = previous == null ? action() : previous.then((_) => action());
+    late final Future<void> tail;
+    tail = run.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
+      if (identical(_tail, tail)) _tail = null;
+    });
+    _tail = tail;
     return run;
   }
 

@@ -108,17 +108,39 @@ events accumulate.
 The production database is owner-managed and has **no migration ledger**.
 Never run `npm run migrate:*` against it (see `docs/database/migrations.md`).
 
-1. Deploy the backend. It is safe before the SQL is applied: no onboarding
-   prompt, `recorded: false` for events, and export/deletion behave exactly
-   as before.
-2. Create a Neon **branch** of production and run
+The SQL and the backend deploy can happen in either order:
+
+- The new backend works before the SQL: no onboarding prompt,
+  `recorded: false` for events, and export/deletion behave exactly as before.
+- The backend already in production keeps working after the SQL. This was
+  checked on 2026-11-10 against `main` at `05f7a04` and the production
+  runtime-role SQL (`docs/remediation/drafts/neon-runtime-role-and-marker.sql`).
+  The runtime role `lifestyle_app` has table-level privileges on `users`, so
+  `SELECT *` still works with the new columns. User rows are mapped field by
+  field (`toUserDto`), and inserts name their columns. The startup guard
+  checks only the eight retired money tables, so the new grant on
+  `product_events` does not trip it.
+
+Steps:
+
+1. Create a Neon **branch** of production and run
    [`sql/product-events-and-onboarding.sql`](sql/product-events-and-onboarding.sql)
-   there. Then run the verification queries below on the branch.
-3. Run the same file on production in the Neon SQL editor. It is a single
-   transaction. Running it twice fails harmlessly with "relation already
-   exists".
-4. Existing accounts are backfilled as "onboarding done", so only accounts
-   created afterwards see onboarding.
+   there in the SQL editor. Then run the verification queries below on the
+   branch.
+2. Run the same file on production. It is a single transaction. Running it
+   twice fails harmlessly with "relation already exists".
+3. Run the verification queries on production, sign in once with the app to
+   confirm nothing changed, then delete the rehearsal branch.
+4. Existing accounts are backfilled as "onboarding done". The app shows
+   onboarding only when the server sends `onboardingCompletedAt: null`, so
+   accounts created after the SQL but before the app version with onboarding
+   is published would see it on their first launch of that version. To avoid
+   that, re-run only the backfill **right before publishing that app
+   version**, never after (genuinely new users would then skip onboarding):
+
+   ```sql
+   UPDATE users SET onboarding_completed_at = created_at WHERE onboarding_completed_at IS NULL;
+   ```
 
 Verification (read-only):
 

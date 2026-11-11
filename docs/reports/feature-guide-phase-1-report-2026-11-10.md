@@ -174,7 +174,7 @@ Definitions are in ADR-045 and `docs/analytics/product-events.md`; the SQL is in
 
 ## 10. Owner actions
 
-1. After merge and deploy, run `docs/analytics/sql/product-events-and-onboarding.sql`, first on a Neon branch with its verification queries, then on production. Never run `npm run migrate` against Neon.
+1. Run `docs/analytics/sql/product-events-and-onboarding.sql`, first on a Neon branch with the verification queries in `docs/analytics/product-events.md`, then on production. It can run before or after the backend deploy: the live backend was checked compatible with the new columns. If it runs before the app version with onboarding is published, re-run its one backfill line right before publishing. Never run `npm run migrate` against Neon.
 2. Decide whether to merge PR #30.
 3. Update the Play Data safety form: "App interactions", collected for Analytics, optional, user can stop and delete. Update the privacy policy to match.
 4. Run the device pass in `docs/mobile/manual-test-checklist.md` (P1-1 to P1-12): TalkBack, largest font, Arabic, widget, lock-screen notifications.

@@ -169,8 +169,8 @@ const Map<String, String> deCatalog = {
   'currencyUpdated': 'Währung aktualisiert auf',
   'currencyUpdateFailed': 'Währung konnte nicht aktualisiert werden',
   'accountRank': 'Rang: Aktiver Macher',
-  'levelXpBadge': 'Level 2 • 140 XP',
-  'xpRemainingText': '60 XP bis Level 3 (Profi)',
+  'levelXpBadge': 'Level {level} • {xp} XP',
+  'xpRemainingText': 'Noch {xp} XP bis Level {level}',
   'achievementBadges': 'Erfolgsabzeichen',
   'badgeStrongStart': 'Starker Start',
   'badgeFirstTask': 'Erste Aufgabe erledigt',
@@ -785,4 +785,21 @@ const Map<String, String> deCatalog = {
   'detectedTime': 'Uhrzeit',
   'notificationSummaryTitle': 'Erinnerungen',
   'notificationSummaryBody': 'Wartende Erinnerungen in LifeStyle: {n}',
+  'deletionScheduleTitle': 'Kontolöschung planen',
+  'deletionScheduleBody':
+      'Dein Konto erhält eine Schonfrist von 14 Tagen, und deine anderen aktiven Sitzungen werden vor der endgültigen Löschung abgemeldet. Du kannst die Löschung während der Schonfrist jederzeit abbrechen.',
+  'deletionScheduledSnack': 'Kontolöschung geplant (Schonfrist 14 Tage)',
+  'deletionCancelledSnack':
+      'Kontolöschung abgebrochen, voller Zugriff wiederhergestellt',
+  'accountStatusPendingDeletion':
+      'Zur Löschung vorgemerkt (Schonfrist 14 Tage)',
+  'deletionPendingBanner':
+      'Dein Konto ist zur Löschung vorgemerkt. Du kannst es jetzt wiederherstellen, bevor die Schonfrist von 14 Tagen endet.',
+  'deletionRestoreAction': 'Löschung abbrechen und Konto wiederherstellen',
+  'aiAssistantSubtitle':
+      'In deinem Konto enthalten, läuft über den LifeStyle-Server – kein Schlüssel nötig',
+  'deleteAccountAction': 'Konto löschen (Schonfrist 14 Tage)',
+  'xpDeviceNote': 'XP und Abzeichen werden auf diesem Gerät gezählt.',
+  'badgeEarned': 'Erreicht',
+  'badgeLocked': 'Noch nicht erreicht',
 };

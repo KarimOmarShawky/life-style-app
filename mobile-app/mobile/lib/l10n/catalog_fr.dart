@@ -170,8 +170,8 @@ const Map<String, String> frCatalog = {
   'currencyUpdated': 'Devise mise à jour :',
   'currencyUpdateFailed': 'Échec de la mise à jour de la devise',
   'accountRank': 'Rang : achieveur actif',
-  'levelXpBadge': 'Niveau 2 • 140 XP',
-  'xpRemainingText': '60 XP restants avant le niveau 3 (Pro)',
+  'levelXpBadge': 'Niveau {level} • {xp} XP',
+  'xpRemainingText': 'Encore {xp} XP avant le niveau {level}',
   'achievementBadges': 'Badges de réussite',
   'badgeStrongStart': 'Bon départ',
   'badgeFirstTask': 'Première tâche accomplie',
@@ -792,4 +792,22 @@ const Map<String, String> frCatalog = {
   'detectedTime': 'Heure',
   'notificationSummaryTitle': 'Rappels',
   'notificationSummaryBody': 'Rappels en attente dans LifeStyle : {n}',
+  'deletionScheduleTitle': 'Programmer la suppression du compte',
+  'deletionScheduleBody':
+      'Votre compte entrera dans un délai de grâce de 14 jours et vos autres sessions actives seront fermées avant la suppression définitive. Vous pouvez annuler la suppression à tout moment pendant ce délai.',
+  'deletionScheduledSnack':
+      'Suppression du compte programmée (délai de grâce de 14 jours)',
+  'deletionCancelledSnack':
+      'Suppression du compte annulée, accès complet rétabli',
+  'accountStatusPendingDeletion':
+      'Suppression programmée (délai de grâce de 14 jours)',
+  'deletionPendingBanner':
+      'Votre compte est programmé pour suppression. Vous pouvez le restaurer maintenant, avant la fin du délai de grâce de 14 jours.',
+  'deletionRestoreAction': 'Annuler la suppression et restaurer le compte',
+  'aiAssistantSubtitle':
+      'Inclus avec votre compte, fonctionne via le serveur LifeStyle — aucune clé nécessaire',
+  'deleteAccountAction': 'Supprimer le compte (délai de grâce de 14 jours)',
+  'xpDeviceNote': 'Les XP et les badges sont comptés sur cet appareil.',
+  'badgeEarned': 'Obtenu',
+  'badgeLocked': 'Pas encore obtenu',
 };

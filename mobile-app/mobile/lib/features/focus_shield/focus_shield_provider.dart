@@ -16,6 +16,12 @@ final focusShieldProvider =
     AsyncNotifierProvider<FocusShieldController, FocusData>(
         FocusShieldController.new);
 
+/// Focus Shield XP ledger for the Profile rank card (P1-F15). Null while the
+/// on-device data loads or cannot be read, so no number is shown before then.
+final xpLedgerProvider = Provider<XpLedger?>((ref) {
+  return ref.watch(focusShieldProvider).asData?.value.ledger;
+});
+
 class FocusData {
   FocusData(
       {XpLedger? ledger,

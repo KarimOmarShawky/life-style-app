@@ -300,8 +300,10 @@ class AppLocalizations {
   String get currencyUpdated => _s('currencyUpdated');
   String get currencyUpdateFailed => _s('currencyUpdateFailed');
   String get accountRank => _s('accountRank');
-  String get levelXpBadge => _s('levelXpBadge');
-  String get xpRemainingText => _s('xpRemainingText');
+  String levelXpBadge(int level, int xp) =>
+      _f('levelXpBadge', <String, Object>{'level': level, 'xp': xp});
+  String xpRemainingText(int xp, int level) =>
+      _f('xpRemainingText', <String, Object>{'xp': xp, 'level': level});
   String get achievementBadges => _s('achievementBadges');
   String get badgeStrongStart => _s('badgeStrongStart');
   String get badgeFirstTask => _s('badgeFirstTask');
@@ -649,6 +651,18 @@ class AppLocalizations {
   String get notificationSummaryTitle => _s('notificationSummaryTitle');
   String notificationSummaryBody(int n) =>
       _f('notificationSummaryBody', <String, Object>{'n': n});
+  String get deletionScheduleTitle => _s('deletionScheduleTitle');
+  String get deletionScheduleBody => _s('deletionScheduleBody');
+  String get deletionScheduledSnack => _s('deletionScheduledSnack');
+  String get deletionCancelledSnack => _s('deletionCancelledSnack');
+  String get accountStatusPendingDeletion => _s('accountStatusPendingDeletion');
+  String get deletionPendingBanner => _s('deletionPendingBanner');
+  String get deletionRestoreAction => _s('deletionRestoreAction');
+  String get aiAssistantSubtitle => _s('aiAssistantSubtitle');
+  String get deleteAccountAction => _s('deleteAccountAction');
+  String get xpDeviceNote => _s('xpDeviceNote');
+  String get badgeEarned => _s('badgeEarned');
+  String get badgeLocked => _s('badgeLocked');
   String tr(String key) => _s(key);
 }
 

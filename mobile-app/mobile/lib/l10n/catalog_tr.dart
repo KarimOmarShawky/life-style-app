@@ -166,8 +166,8 @@ const Map<String, String> trCatalog = {
   'currencyUpdated': 'Para birimi şu şekilde güncellendi:',
   'currencyUpdateFailed': 'Para birimi güncellenemedi',
   'accountRank': 'Rütbe: Aktif Başarıcı',
-  'levelXpBadge': 'Seviye 2 • 140 XP',
-  'xpRemainingText': 'Seviye 3 (Pro) için 60 XP kaldı',
+  'levelXpBadge': 'Seviye {level} • {xp} XP',
+  'xpRemainingText': 'Seviye {level} için {xp} XP kaldı',
   'achievementBadges': 'Başarı Rozetleri',
   'badgeStrongStart': 'Güçlü Başlangıç',
   'badgeFirstTask': 'İlk görev tamam',
@@ -758,4 +758,20 @@ const Map<String, String> trCatalog = {
   'detectedTime': 'Saat',
   'notificationSummaryTitle': 'Hatırlatıcılar',
   'notificationSummaryBody': 'LifeStyle’da bekleyen hatırlatıcılar: {n}',
+  'deletionScheduleTitle': 'Hesap silmeyi planla',
+  'deletionScheduleBody':
+      'Hesabın 14 günlük bir bekleme süresine girecek ve kalıcı silmeden önce diğer etkin oturumların kapatılacak. Bu süre içinde silmeyi istediğin zaman iptal edebilirsin.',
+  'deletionScheduledSnack': 'Hesap silme planlandı (14 günlük bekleme süresi)',
+  'deletionCancelledSnack': 'Hesap silme iptal edildi, tam erişim geri geldi',
+  'accountStatusPendingDeletion':
+      'Silinmek üzere planlandı (14 günlük bekleme süresi)',
+  'deletionPendingBanner':
+      'Hesabın silinmek üzere planlandı. 14 günlük bekleme süresi bitmeden hesabını şimdi geri yükleyebilirsin.',
+  'deletionRestoreAction': 'Silmeyi iptal et ve hesabı geri yükle',
+  'aiAssistantSubtitle':
+      'Hesabına dahildir ve LifeStyle sunucusu üzerinden çalışır; anahtar gerekmez',
+  'deleteAccountAction': 'Hesabı sil (14 günlük bekleme süresi)',
+  'xpDeviceNote': 'XP ve rozetler bu cihazda sayılır.',
+  'badgeEarned': 'Kazanıldı',
+  'badgeLocked': 'Henüz kazanılmadı',
 };

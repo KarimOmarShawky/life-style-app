@@ -10,6 +10,8 @@ import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/account_export_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:lifestyle_mobile/features/notifications/notification_settings_screen.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
@@ -303,20 +305,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _handleScheduleDeletion(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
-    final isAr = l10n.isArabic;
     final messenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          isAr ? 'جدولة حذف الحساب' : 'Schedule Account Deletion',
-        ),
-        content: Text(
-          isAr
-              ? 'سيتم وضع حسابك في فترة سماح لمدة 14 يوماً وإلغاء جميع الجلسات الأخرى قبل الحذف النهائي. يمكنك إلغاء طلب الحذف في أي وقت خلال فترة السماح.'
-              : 'Your account will enter a 14-day grace period and other active sessions will be revoked before permanent deletion. You can cancel deletion anytime during the grace window.',
-        ),
+        title: Text(l10n.deletionScheduleTitle),
+        content: Text(l10n.deletionScheduleBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -341,11 +336,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           .scheduleAccountDeletion(currentPassword);
       messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            isAr
-                ? 'تمت جدولة حذف الحساب (مهلة السماح 14 يوماً)'
-                : 'Account deletion scheduled (14-day grace period)',
-          ),
+          content: Text(l10n.deletionScheduledSnack),
         ),
       );
     } catch (e) {
@@ -359,18 +350,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _handleCancelDeletion(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
-    final isAr = l10n.isArabic;
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busyAction = true);
     try {
       await ref.read(authProvider.notifier).cancelAccountDeletion();
       messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            isAr
-                ? 'تم إلغاء حذف الحساب واستعادة النشاط الكامل'
-                : 'Account deletion cancelled and full access restored',
-          ),
+          content: Text(l10n.deletionCancelledSnack),
         ),
       );
     } catch (e) {
@@ -385,7 +371,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final localization = AppLocalizations.of(context);
-    final isAr = localization.isArabic;
     final settings = ref.watch(settingsProvider);
     ref.listen(authProvider, (_, next) {
       if (_archiveUserId != null && next.valueOrNull?.id != _archiveUserId) {
@@ -409,9 +394,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         settings.locale.languageCode;
 
     final statusLabel = activeUser.isPendingDeletion
-        ? (isAr
-            ? 'مجدول للحذف (مهلة 14 يوماً)'
-            : 'pending_deletion (14-day grace)')
+        ? localization.accountStatusPendingDeletion
         : localization.activeStatus;
 
     return Scaffold(
@@ -452,9 +435,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            isAr
-                                ? 'حسابك مجدول للحذف النهائي. يمكنك استعادته الآن قبل انتهاء مهلة الـ 14 يوماً.'
-                                : 'Your account is scheduled for deletion. You can restore it now before the 14-day grace period ends.',
+                            localization.deletionPendingBanner,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
@@ -466,11 +447,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ? null
                           : () => _handleCancelDeletion(context),
                       icon: const Icon(Icons.restore),
-                      label: Text(
-                        isAr
-                            ? 'إلغاء حذف الحساب واستعادته'
-                            : 'Cancel Deletion & Restore Account',
-                      ),
+                      label: Text(localization.deletionRestoreAction),
                     ),
                   ],
                 ),
@@ -479,100 +456,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 16),
           ],
 
-          // Level & XP Gamification Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color:
-                  Theme.of(context).colorScheme.primaryContainer.withAlpha(90),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).colorScheme.primary.withAlpha(50),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Wraps instead of overflowing at large text sizes (G7).
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    Text(
-                      localization.accountRank,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        localization.levelXpBadge,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: 0.7,
-                    minHeight: 6,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  localization.xpRemainingText,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Achievements Badges Section
-          Text(
-            localization.achievementBadges,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildBadgeItem(context, localization.badgeStrongStart,
-                  localization.badgeFirstTask, Icons.verified_outlined, true),
-              const SizedBox(width: 8),
-              _buildBadgeItem(context, localization.badgeFocusHero,
-                  localization.badgePomodoro, Icons.timer_outlined, true),
-              const SizedBox(width: 8),
-              _buildBadgeItem(
-                  context,
-                  localization.badgeDiscipline,
-                  localization.badgeStreak7,
-                  Icons.local_fire_department_outlined,
-                  false),
-            ],
-          ),
+          const _XpProgressSection(),
           const SizedBox(height: 24),
           _ProfileRow(label: localization.timeZone, value: activeUser.timezone),
           ListTile(
@@ -609,10 +493,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.auto_awesome),
-            title: Text(isAr ? 'مساعد الذكاء الاصطناعي' : 'AI Assistant'),
-            subtitle: Text(isAr
-                ? 'مُضمَّن مع حسابك ويعمل عبر خادم LifeStyle — لا حاجة لأي مفتاح'
-                : 'Included with your account and runs via the LifeStyle server — no key needed'),
+            title: Text(localization.aiAssistant),
+            subtitle: Text(localization.aiAssistantSubtitle),
           ),
           if (usageStats != null)
             SwitchListTile(
@@ -657,9 +539,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               leading:
                   const Icon(Icons.delete_forever_outlined, color: Colors.red),
               title: Text(
-                isAr
-                    ? 'حذف الحساب (مهلة سماح 14 يوماً)'
-                    : 'Delete Account (14-day grace period)',
+                localization.deleteAccountAction,
                 style: const TextStyle(color: Colors.red),
               ),
               trailing: const Icon(Icons.arrow_forward_ios,
@@ -685,66 +565,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildBadgeItem(
-    BuildContext context,
-    String title,
-    String desc,
-    IconData icon,
-    bool unlocked,
-  ) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: unlocked
-              ? theme.colorScheme.primaryContainer.withAlpha(50)
-              : theme.colorScheme.surfaceContainerHighest.withAlpha(40),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: unlocked
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outlineVariant,
-            width: 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: unlocked
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: unlocked
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.outline,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              desc,
-              style: TextStyle(
-                fontSize: 9,
-                color: theme.colorScheme.outline,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ProfileRow extends StatelessWidget {
@@ -759,4 +579,201 @@ class _ProfileRow extends StatelessWidget {
         title: Text(label),
         subtitle: Text(value),
       );
+}
+
+/// Profile rank card and badges (P1-F15). Every number comes from the Focus
+/// Shield XP ledger stored on this device; nothing shows until it has loaded.
+class _XpProgressSection extends ConsumerWidget {
+  const _XpProgressSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ledger = ref.watch(xpLedgerProvider);
+    if (ledger == null) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withAlpha(90),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: scheme.primary.withAlpha(50)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Wraps instead of overflowing at large text sizes (G7).
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Text(
+                    l10n.accountRank,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: scheme.primary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      l10n.levelXpBadge(ledger.level, ledger.totalXp),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: ledger.levelProgress,
+                  minHeight: 6,
+                  backgroundColor: scheme.surfaceContainerHighest,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.xpRemainingText(ledger.xpToNextLevel, ledger.level + 1),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                l10n.xpDeviceNote,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          l10n.achievementBadges,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _BadgeTile(
+              title: l10n.badgeStrongStart,
+              description: l10n.badgeFirstTask,
+              icon: Icons.verified_outlined,
+              earned: ledger.hasWin(XpType.task),
+            ),
+            const SizedBox(width: 8),
+            _BadgeTile(
+              title: l10n.badgeFocusHero,
+              description: l10n.badgePomodoro,
+              icon: Icons.timer_outlined,
+              earned: ledger.hasWin(XpType.focus),
+            ),
+            const SizedBox(width: 8),
+            _BadgeTile(
+              title: l10n.badgeDiscipline,
+              description: l10n.badgeStreak7,
+              icon: Icons.local_fire_department_outlined,
+              earned: ledger.longestDayStreak >= 7,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// One badge: earned or not is announced to screen readers, and locked
+/// badges use an accessible colour instead of the outline colour (G7).
+class _BadgeTile extends StatelessWidget {
+  const _BadgeTile({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.earned,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+  final bool earned;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final state = earned ? l10n.badgeEarned : l10n.badgeLocked;
+    return Expanded(
+      child: Semantics(
+        container: true,
+        label: '$title. $description. $state',
+        child: ExcludeSemantics(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            decoration: BoxDecoration(
+              color: earned
+                  ? scheme.primaryContainer.withAlpha(50)
+                  : scheme.surfaceContainerHighest.withAlpha(40),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: earned ? scheme.primary : scheme.outlineVariant,
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  earned ? icon : Icons.lock_outline,
+                  size: 24,
+                  color: earned ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: earned ? scheme.onSurface : scheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

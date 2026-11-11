@@ -165,8 +165,8 @@ const Map<String, String> arCatalog = {
   'currencyUpdated': 'تم تحديث العملة إلى',
   'currencyUpdateFailed': 'فشل تحديث العملة',
   'accountRank': 'رتبة الحساب: منجز نشط',
-  'levelXpBadge': 'المستوى 2 • 140 XP',
-  'xpRemainingText': 'متبقي 60 XP للترقية إلى المستوى 3 (محترف)',
+  'levelXpBadge': 'المستوى {level} • {xp} XP',
+  'xpRemainingText': 'متبقي {xp} XP للوصول إلى المستوى {level}',
   'achievementBadges': 'أوسمة الإنجاز',
   'badgeStrongStart': 'البداية القوية',
   'badgeFirstTask': 'أول مهمة منجزة',
@@ -739,4 +739,19 @@ const Map<String, String> arCatalog = {
   'detectedTime': 'الوقت',
   'notificationSummaryTitle': 'تذكيرات',
   'notificationSummaryBody': 'تذكيرات مستنياك في LifeStyle: {n}',
+  'deletionScheduleTitle': 'جدولة حذف الحساب',
+  'deletionScheduleBody':
+      'سيتم وضع حسابك في فترة سماح لمدة 14 يوماً وإلغاء جميع الجلسات الأخرى قبل الحذف النهائي. يمكنك إلغاء طلب الحذف في أي وقت خلال فترة السماح.',
+  'deletionScheduledSnack': 'تمت جدولة حذف الحساب (مهلة السماح 14 يوماً)',
+  'deletionCancelledSnack': 'تم إلغاء حذف الحساب واستعادة النشاط الكامل',
+  'accountStatusPendingDeletion': 'مجدول للحذف (مهلة 14 يوماً)',
+  'deletionPendingBanner':
+      'حسابك مجدول للحذف النهائي. يمكنك استعادته الآن قبل انتهاء مهلة الـ 14 يوماً.',
+  'deletionRestoreAction': 'إلغاء حذف الحساب واستعادته',
+  'aiAssistantSubtitle':
+      'مُضمَّن مع حسابك ويعمل عبر خادم LifeStyle — لا حاجة لأي مفتاح',
+  'deleteAccountAction': 'حذف الحساب (مهلة سماح 14 يوماً)',
+  'xpDeviceNote': 'نقاط الخبرة والأوسمة محسوبة على هذا الجهاز.',
+  'badgeEarned': 'تم الحصول عليه',
+  'badgeLocked': 'لم يتم الحصول عليه بعد',
 };

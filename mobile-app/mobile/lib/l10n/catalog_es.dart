@@ -167,8 +167,8 @@ const Map<String, String> esCatalog = {
   'currencyUpdated': 'Moneda actualizada a',
   'currencyUpdateFailed': 'Error al actualizar la moneda',
   'accountRank': 'Rango: realizador activo',
-  'levelXpBadge': 'Nivel 2 • 140 XP',
-  'xpRemainingText': 'Faltan 60 XP para el nivel 3 (Pro)',
+  'levelXpBadge': 'Nivel {level} • {xp} XP',
+  'xpRemainingText': 'Faltan {xp} XP para el nivel {level}',
   'achievementBadges': 'Insignias de logros',
   'badgeStrongStart': 'Buen comienzo',
   'badgeFirstTask': 'Primera tarea completada',
@@ -782,4 +782,22 @@ const Map<String, String> esCatalog = {
   'detectedTime': 'Hora',
   'notificationSummaryTitle': 'Recordatorios',
   'notificationSummaryBody': 'Recordatorios pendientes en LifeStyle: {n}',
+  'deletionScheduleTitle': 'Programar la eliminación de la cuenta',
+  'deletionScheduleBody':
+      'Tu cuenta entrará en un periodo de gracia de 14 días y tus otras sesiones activas se cerrarán antes de la eliminación definitiva. Puedes cancelar la eliminación en cualquier momento durante el periodo de gracia.',
+  'deletionScheduledSnack':
+      'Eliminación de la cuenta programada (periodo de gracia de 14 días)',
+  'deletionCancelledSnack':
+      'Eliminación de la cuenta cancelada y acceso completo restaurado',
+  'accountStatusPendingDeletion':
+      'Programada para eliminarse (periodo de gracia de 14 días)',
+  'deletionPendingBanner':
+      'Tu cuenta está programada para eliminarse. Puedes restaurarla ahora, antes de que termine el periodo de gracia de 14 días.',
+  'deletionRestoreAction': 'Cancelar la eliminación y restaurar la cuenta',
+  'aiAssistantSubtitle':
+      'Incluido con tu cuenta y funciona a través del servidor de LifeStyle; no necesitas ninguna clave',
+  'deleteAccountAction': 'Eliminar la cuenta (periodo de gracia de 14 días)',
+  'xpDeviceNote': 'Los XP y las insignias se cuentan en este dispositivo.',
+  'badgeEarned': 'Conseguida',
+  'badgeLocked': 'Aún no conseguida',
 };

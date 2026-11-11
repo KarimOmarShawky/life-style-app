@@ -1,6 +1,6 @@
 {
   "description": "Ratchet for hard-coded user-facing Dart literals (scripts/check-l10n.mjs). Counts may only go down; move copy into the catalogs instead of raising a number.",
-  "total": 95,
+  "total": 85,
   "files": {
     "lib/app.dart": 1,
     "lib/data/api_client.dart": 17,
@@ -8,7 +8,6 @@
     "lib/features/ai/data/ai_service.dart": 4,
     "lib/features/analytics/presentation/analytics_screen.dart": 18,
     "lib/features/auth/data/auth_repository.dart": 4,
-    "lib/features/auth/presentation/profile_screen.dart": 10,
     "lib/features/focus_shield/routine_wizard_screen.dart": 25,
     "lib/features/habits/data/habits_repository.dart": 2,
     "lib/features/home/presentation/widgets/global_search_delegate.dart": 1,

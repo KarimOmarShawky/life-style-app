@@ -1664,6 +1664,78 @@ paths:
         '503':
           description: NOTIFICATION_PREFERENCES_UNAVAILABLE before the owner-run SQL is applied
 
+  /sessions:
+    get:
+      summary: List Signed-in Devices
+      security:
+        - BearerAuth: []
+      description: >-
+        Active sessions of the authenticated account (feature guide G6,
+        ADR-047): not revoked and not past their absolute expiry. The session
+        that made the request comes first and has current true; the rest follow
+        by last use. Only device metadata is returned: never an IP address, a
+        token or a token hash. At most 50 sessions are listed; truncated says
+        whether more exist. Rate limit: 30 requests per 60 seconds per user.
+      responses:
+        '200':
+          description: Signed-in devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionList'
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+
+  /sessions/{id}/revoke:
+    post:
+      summary: Sign Out One Device
+      security:
+        - BearerAuth: []
+      description: >-
+        Ends one session of the authenticated account after checking the
+        current password: the session is revoked, its refresh tokens stop
+        working and the push devices it registered are removed, in one
+        transaction. Access tokens of that session are rejected on their next
+        request. A session id that is unknown or belongs to another account
+        answers 404. Revoking a session that already ended answers 200 again.
+        current is true when the caller signed out its own session; the app
+        then finishes signing out. Rate limits: 30 requests per 60 seconds per
+        user, and the shared re-authentication budget of 5 attempts per 15
+        minutes per account (also used by change-password, account deletion
+        and export).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeSessionRequest'
+      responses:
+        '200':
+          description: The session is ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokeSessionResult'
+        '400':
+          description: Validation failed
+        '401':
+          description: Missing or invalid access token
+        '403':
+          description: REAUTHENTICATION_FAILED (wrong current password)
+        '404':
+          description: No such session for this account
+        '429':
+          description: Rate limit or re-authentication budget exceeded
+
   /search:
     get:
       summary: Global Search
@@ -3335,6 +3407,79 @@ components:
           required:
             - timeZone
             - available
+
+    SessionList:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+        truncated:
+          type: boolean
+          description: More than 50 active sessions exist; the oldest are not listed.
+      required:
+        - sessions
+        - truncated
+
+    Session:
+      type: object
+      description: Device metadata of one active session. No IP address, token or hash.
+      properties:
+        id:
+          type: string
+          format: uuid
+        devicePlatform:
+          type: string
+          enum: [ios, android, unknown]
+        deviceName:
+          type: string
+          nullable: true
+        appVersion:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          description: Last sign-in or token refresh of the session.
+        current:
+          type: boolean
+          description: The session that made this request.
+      required:
+        - id
+        - devicePlatform
+        - deviceName
+        - appVersion
+        - createdAt
+        - lastUsedAt
+        - current
+
+    RevokeSessionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 1024
+      required:
+        - currentPassword
+
+    RevokeSessionResult:
+      type: object
+      properties:
+        revoked:
+          type: boolean
+          enum: [true]
+        current:
+          type: boolean
+          description: The caller signed out its own session.
+      required:
+        - revoked
+        - current
 
     RegisterDeviceRequest:
       type: object

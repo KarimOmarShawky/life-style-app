@@ -17,6 +17,8 @@
  * Pure module: no I/O, no logging, and it never sees notification text.
  */
 
+import { instantsForWallClock, resolveTimeZone, wallClockOf } from '../../core/time/wall-clock.js';
+
 /** Critical: an alarm the user chose. Normal: task and calendar reminders. Low: nudges. */
 export type NotificationTier = 'critical' | 'normal' | 'low';
 
@@ -73,15 +75,6 @@ interface QuietWindow {
   end: number;
 }
 
-interface WallClock {
-  year: number;
-  month: number;
-  day: number;
-  minuteOfDay: number;
-  second: number;
-}
-
-const DAY_MS = 86_400_000;
 const MINUTES_PER_DAY = 24 * 60;
 
 export function decideNotification(input: NotificationPolicyInput): NotificationDecision {
@@ -203,74 +196,4 @@ function quietEndAfter(at: Date, zone: string, quiet: QuietWindow): Date {
     if (next !== undefined) return new Date(next);
   }
   return at;
-}
-
-/** Instants (ascending) whose wall clock in `zone` reads the given local date and minute. */
-function instantsForWallClock(
-  year: number,
-  month: number,
-  day: number,
-  minuteOfDay: number,
-  zone: string
-): number[] {
-  const wall = Date.UTC(year, month - 1, day, 0, minuteOfDay);
-  const offsetBefore = offsetAt(wall - DAY_MS, zone);
-  const offsetAfter = offsetAt(wall + DAY_MS, zone);
-  const valid = [...new Set([wall - offsetBefore, wall - offsetAfter])]
-    .filter((candidate) => candidate + offsetAt(candidate, zone) === wall)
-    .sort((a, b) => a - b);
-  if (valid.length > 0) return valid;
-  // Spring-forward gap: keep the earlier offset, which moves the time forward by the gap.
-  return [wall - offsetBefore];
-}
-
-/** UTC offset of `zone` at an instant, in milliseconds (positive east of Greenwich). */
-function offsetAt(instantMs: number, zone: string): number {
-  const wall = wallClockOf(instantMs, zone);
-  const wallAsUtc = Date.UTC(wall.year, wall.month - 1, wall.day, 0, wall.minuteOfDay, wall.second);
-  return wallAsUtc - Math.floor(instantMs / 1000) * 1000;
-}
-
-const formatters = new Map<string, Intl.DateTimeFormat>();
-
-function formatterFor(zone: string): Intl.DateTimeFormat {
-  let formatter = formatters.get(zone);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: zone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-    formatters.set(zone, formatter);
-  }
-  return formatter;
-}
-
-function resolveTimeZone(zone: string): string {
-  try {
-    formatterFor(zone);
-    return zone;
-  } catch {
-    return 'UTC';
-  }
-}
-
-function wallClockOf(instantMs: number, zone: string): WallClock {
-  const parts = formatterFor(zone).formatToParts(new Date(instantMs));
-  const read = (type: Intl.DateTimeFormatPartTypes): number =>
-    Number(parts.find((part) => part.type === type)?.value ?? 0);
-  // Some runtimes print midnight as hour 24 even with h23.
-  const hour = read('hour') % 24;
-  return {
-    year: read('year'),
-    month: read('month'),
-    day: read('day'),
-    minuteOfDay: hour * 60 + read('minute'),
-    second: read('second')
-  };
 }

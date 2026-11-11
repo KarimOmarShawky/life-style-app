@@ -300,8 +300,10 @@ class AppLocalizations {
   String get currencyUpdated => _s('currencyUpdated');
   String get currencyUpdateFailed => _s('currencyUpdateFailed');
   String get accountRank => _s('accountRank');
-  String get levelXpBadge => _s('levelXpBadge');
-  String get xpRemainingText => _s('xpRemainingText');
+  String levelXpBadge(int level, int xp) =>
+      _f('levelXpBadge', <String, Object>{'level': level, 'xp': xp});
+  String xpRemainingText(int xp, int level) =>
+      _f('xpRemainingText', <String, Object>{'xp': xp, 'level': level});
   String get achievementBadges => _s('achievementBadges');
   String get badgeStrongStart => _s('badgeStrongStart');
   String get badgeFirstTask => _s('badgeFirstTask');
@@ -649,6 +651,60 @@ class AppLocalizations {
   String get notificationSummaryTitle => _s('notificationSummaryTitle');
   String notificationSummaryBody(int n) =>
       _f('notificationSummaryBody', <String, Object>{'n': n});
+  String get deletionScheduleTitle => _s('deletionScheduleTitle');
+  String get deletionScheduleBody => _s('deletionScheduleBody');
+  String get deletionScheduledSnack => _s('deletionScheduledSnack');
+  String get deletionCancelledSnack => _s('deletionCancelledSnack');
+  String get accountStatusPendingDeletion => _s('accountStatusPendingDeletion');
+  String get deletionPendingBanner => _s('deletionPendingBanner');
+  String get deletionRestoreAction => _s('deletionRestoreAction');
+  String get aiAssistantSubtitle => _s('aiAssistantSubtitle');
+  String get deleteAccountAction => _s('deleteAccountAction');
+  String get xpDeviceNote => _s('xpDeviceNote');
+  String get badgeEarned => _s('badgeEarned');
+  String get badgeLocked => _s('badgeLocked');
+  String get weekdayShort1 => _s('weekdayShort1');
+  String get weekdayShort2 => _s('weekdayShort2');
+  String get weekdayShort3 => _s('weekdayShort3');
+  String get weekdayShort4 => _s('weekdayShort4');
+  String get weekdayShort5 => _s('weekdayShort5');
+  String get weekdayShort6 => _s('weekdayShort6');
+  String get weekdayShort7 => _s('weekdayShort7');
+  String get statusInProgress => _s('statusInProgress');
+  String get statusCancelled => _s('statusCancelled');
+  String get signedInDevicesTitle => _s('signedInDevicesTitle');
+  String get signedInDevicesSubtitle => _s('signedInDevicesSubtitle');
+  String get signedInDevicesLoading => _s('signedInDevicesLoading');
+  String get signedInDevicesThisDevice => _s('signedInDevicesThisDevice');
+  String signedInDevicesLastActive(String when) =>
+      _f('signedInDevicesLastActive', <String, Object>{'when': when});
+  String signedInDevicesSignedInAt(String when) =>
+      _f('signedInDevicesSignedInAt', <String, Object>{'when': when});
+  String signedInDevicesAppVersion(String version) =>
+      _f('signedInDevicesAppVersion', <String, Object>{'version': version});
+  String get signedInDevicesSignOut => _s('signedInDevicesSignOut');
+  String signedInDevicesSignOutDevice(String device) =>
+      _f('signedInDevicesSignOutDevice', <String, Object>{'device': device});
+  String signedInDevicesConfirmOther(String device) =>
+      _f('signedInDevicesConfirmOther', <String, Object>{'device': device});
+  String get signedInDevicesConfirmCurrent =>
+      _s('signedInDevicesConfirmCurrent');
+  String signedInDevicesSignedOutOther(String device) =>
+      _f('signedInDevicesSignedOutOther', <String, Object>{'device': device});
+  String get signedInDevicesEmpty => _s('signedInDevicesEmpty');
+  String get signedInDevicesMore => _s('signedInDevicesMore');
+  String get signedInDevicesLoadFailed => _s('signedInDevicesLoadFailed');
+  String get signedInDevicesWrongPassword => _s('signedInDevicesWrongPassword');
+  String get signedInDevicesTooManyAttempts =>
+      _s('signedInDevicesTooManyAttempts');
+  String get signedInDevicesAlreadySignedOut =>
+      _s('signedInDevicesAlreadySignedOut');
+  String get signedInDevicesSignOutFailed => _s('signedInDevicesSignOutFailed');
+  String get signedInDevicesPlatformAndroid =>
+      _s('signedInDevicesPlatformAndroid');
+  String get signedInDevicesPlatformIos => _s('signedInDevicesPlatformIos');
+  String get signedInDevicesPlatformUnknown =>
+      _s('signedInDevicesPlatformUnknown');
   String tr(String key) => _s(key);
 }
 

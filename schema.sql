@@ -37,7 +37,7 @@ CREATE TABLE auth_sessions (
       revoked_at TIMESTAMPTZ,
       revoked_reason TEXT CHECK (revoked_reason IN (
         'logout', 'logout_all', 'password_change', 'password_reset', 
-        'reuse_detected', 'account_disabled', 'account_deletion'
+        'reuse_detected', 'account_disabled', 'account_deletion', 'user_revoked'
       )),
       device_platform TEXT NOT NULL CHECK (device_platform IN ('ios', 'android', 'unknown')),
       device_name VARCHAR(100),

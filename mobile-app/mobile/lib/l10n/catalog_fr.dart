@@ -170,8 +170,8 @@ const Map<String, String> frCatalog = {
   'currencyUpdated': 'Devise mise à jour :',
   'currencyUpdateFailed': 'Échec de la mise à jour de la devise',
   'accountRank': 'Rang : achieveur actif',
-  'levelXpBadge': 'Niveau 2 • 140 XP',
-  'xpRemainingText': '60 XP restants avant le niveau 3 (Pro)',
+  'levelXpBadge': 'Niveau {level} • {xp} XP',
+  'xpRemainingText': 'Encore {xp} XP avant le niveau {level}',
   'achievementBadges': 'Badges de réussite',
   'badgeStrongStart': 'Bon départ',
   'badgeFirstTask': 'Première tâche accomplie',
@@ -792,4 +792,60 @@ const Map<String, String> frCatalog = {
   'detectedTime': 'Heure',
   'notificationSummaryTitle': 'Rappels',
   'notificationSummaryBody': 'Rappels en attente dans LifeStyle : {n}',
+  'deletionScheduleTitle': 'Programmer la suppression du compte',
+  'deletionScheduleBody':
+      'Votre compte entrera dans un délai de grâce de 14 jours et vos autres sessions actives seront fermées avant la suppression définitive. Vous pouvez annuler la suppression à tout moment pendant ce délai.',
+  'deletionScheduledSnack':
+      'Suppression du compte programmée (délai de grâce de 14 jours)',
+  'deletionCancelledSnack':
+      'Suppression du compte annulée, accès complet rétabli',
+  'accountStatusPendingDeletion':
+      'Suppression programmée (délai de grâce de 14 jours)',
+  'deletionPendingBanner':
+      'Votre compte est programmé pour suppression. Vous pouvez le restaurer maintenant, avant la fin du délai de grâce de 14 jours.',
+  'deletionRestoreAction': 'Annuler la suppression et restaurer le compte',
+  'aiAssistantSubtitle':
+      'Inclus avec votre compte, fonctionne via le serveur LifeStyle — aucune clé nécessaire',
+  'deleteAccountAction': 'Supprimer le compte (délai de grâce de 14 jours)',
+  'xpDeviceNote': 'Les XP et les badges sont comptés sur cet appareil.',
+  'badgeEarned': 'Obtenu',
+  'badgeLocked': 'Pas encore obtenu',
+  'weekdayShort1': 'lun.',
+  'weekdayShort2': 'mar.',
+  'weekdayShort3': 'mer.',
+  'weekdayShort4': 'jeu.',
+  'weekdayShort5': 'ven.',
+  'weekdayShort6': 'sam.',
+  'weekdayShort7': 'dim.',
+  'statusInProgress': 'En cours',
+  'statusCancelled': 'Annulé',
+  'signedInDevicesTitle': 'Appareils connectés',
+  'signedInDevicesSubtitle':
+      'Voyez où votre compte est connecté et déconnectez un appareil',
+  'signedInDevicesLoading': 'Chargement des appareils',
+  'signedInDevicesThisDevice': 'Cet appareil',
+  'signedInDevicesLastActive': 'Dernière activité : {when}',
+  'signedInDevicesSignedInAt': 'Connecté : {when}',
+  'signedInDevicesAppVersion': 'Version de l’app {version}',
+  'signedInDevicesSignOut': 'Déconnecter',
+  'signedInDevicesSignOutDevice': 'Déconnecter {device}',
+  'signedInDevicesConfirmOther':
+      'Déconnecter {device} ? Le mot de passe sera nécessaire pour s’y reconnecter.',
+  'signedInDevicesConfirmCurrent':
+      'Déconnecter cet appareil ? Vous aurez besoin de votre mot de passe pour vous reconnecter.',
+  'signedInDevicesSignedOutOther': '{device} est déconnecté.',
+  'signedInDevicesEmpty': 'Aucun autre appareil n’est connecté.',
+  'signedInDevicesMore':
+      'Seuls les 50 appareils utilisés le plus récemment sont affichés.',
+  'signedInDevicesLoadFailed':
+      'Impossible de charger vos appareils. Vérifiez votre connexion et réessayez.',
+  'signedInDevicesWrongPassword': 'Ce mot de passe est incorrect.',
+  'signedInDevicesTooManyAttempts':
+      'Trop de tentatives. Réessayez dans 15 minutes.',
+  'signedInDevicesAlreadySignedOut': 'Cet appareil était déjà déconnecté.',
+  'signedInDevicesSignOutFailed':
+      'Impossible de déconnecter l’appareil. Réessayez.',
+  'signedInDevicesPlatformAndroid': 'Appareil Android',
+  'signedInDevicesPlatformIos': 'iPhone ou iPad',
+  'signedInDevicesPlatformUnknown': 'Appareil inconnu',
 };

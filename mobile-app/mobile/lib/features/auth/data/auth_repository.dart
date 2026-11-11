@@ -206,10 +206,10 @@ class AuthRepository {
     return AppUser.fromJson(response['user'] as Map<String, dynamic>);
   }
 
+  // No device name is sent: the app has no source for a real one, and a fixed
+  // placeholder made every device look the same in Signed-in devices (G6).
   Map<String, Object?> _device() => {
         'platform': _platformName(),
-        'name': 'Arena Mobile Client',
-        'deviceName': 'Arena Mobile Client',
         'appVersion': '1.0.1',
       };
 

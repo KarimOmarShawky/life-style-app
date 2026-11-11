@@ -59,6 +59,10 @@ the migration body. The code must degrade safely until the owner applies the fil
 |---|---|---|
 | `1792750000000_product_events_and_onboarding` (G5/G1) | `docs/analytics/sql/product-events-and-onboarding.sql` | No onboarding prompt; events answer `recorded: false`; purge/export skip the absent table |
 | `1792760000000_notification_preferences` (G2) | `docs/notifications/sql/notification-preferences.sql` | Settings read as the defaults with `available: false`; saving answers 503 `NOTIFICATION_PREFERENCES_UNAVAILABLE`; the worker uses the defaults; purge/export skip the absent table |
+| `1792770000000_auth_sessions_user_revoked` (G6) | `docs/auth/sql/auth-sessions-user-revoked.sql` | Signing a device out still works; the session is stored with reason `logout` instead of `user_revoked` |
+
+Production status (owner-reported, 2026-11-11): all three files are applied, G5
+first and then G2 and G6, each after a rehearsal on a Neon branch.
 
 Rehearse every owner SQL file on a Neon branch of production first, then run it once
 on production. The restricted-role rehearsal in CI applies it after the runtime role

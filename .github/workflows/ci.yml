@@ -282,6 +282,11 @@ jobs:
         id: flutter_sdk
         uses: subosito/flutter-action@v2
         with:
+          # Pinned (owner decision 2026-11-11): Flutter 3.50.0 deprecates
+          # package:flutter/material.dart in favour of package:material_ui, which
+          # fails `flutter analyze --fatal-infos` in every file. Moving past 3.47.9
+          # needs that migration (a new dependency, owner approval).
+          flutter-version: 3.47.9
           channel: stable
           cache: true
 
@@ -441,6 +446,11 @@ jobs:
           cache-disabled: true
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned (owner decision 2026-11-11): Flutter 3.50.0 deprecates
+          # package:flutter/material.dart in favour of package:material_ui, which
+          # fails `flutter analyze --fatal-infos` in every file. Moving past 3.47.9
+          # needs that migration (a new dependency, owner approval).
+          flutter-version: 3.47.9
           channel: stable
           cache: true
 

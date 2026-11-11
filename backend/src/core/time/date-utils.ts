@@ -4,6 +4,8 @@
  * Implements Section 7.2: Timezone-aware date calculations and pure date manipulations.
  */
 
+import { instantsForWallClock, resolveTimeZone } from './wall-clock.js';
+
 export function getUserTodayDate(timezone = 'UTC', date: Date = new Date()): string {
   try {
     const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -112,6 +114,12 @@ export function formatDateOnly(val: Date | string | null | undefined): string | 
  * Converts a civil date and local wall-clock time in an IANA timezone into a
  * UTC instant. Used when relative reminders are anchored to a task's local
  * due date/time (specification §9.2 and §14.13).
+ *
+ * The offset is the one in force at the resulting instant (G2-F1), with the
+ * notification policy's rules: a time inside a daylight-saving gap moves
+ * forward by the gap, a repeated time resolves to its first occurrence, and an
+ * unknown zone is treated as UTC. Malformed input yields an invalid Date, as
+ * before.
  */
 export function zonedDateTimeToUtc(dateStr: string, timeStr = '00:00', timeZone = 'UTC'): Date {
   const parts = dateStr.split('-').map(Number);
@@ -122,35 +130,8 @@ export function zonedDateTimeToUtc(dateStr: string, timeStr = '00:00', timeZone 
   const hour = clock[0] ?? 0;
   const minute = clock[1] ?? 0;
   const wallClockAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
-  const guess = new Date(wallClockAsUtc);
-
-  try {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-    const map: Record<string, string> = {};
-    for (const part of formatter.formatToParts(guess)) {
-      map[part.type] = part.value;
-    }
-    const observedHour = Number(map.hour ?? hour);
-    const observedAsUtc = Date.UTC(
-      Number(map.year ?? year),
-      Number(map.month ?? month) - 1,
-      Number(map.day ?? day),
-      observedHour === 24 ? 0 : observedHour,
-      Number(map.minute ?? minute),
-      Number(map.second ?? 0)
-    );
-    const offsetMs = observedAsUtc - guess.getTime();
-    return new Date(wallClockAsUtc - offsetMs);
-  } catch {
-    return guess;
-  }
+  if (!Number.isFinite(wallClockAsUtc)) return new Date(Number.NaN);
+  const zone = resolveTimeZone(timeZone);
+  const [first] = instantsForWallClock(year, month, day, hour * 60 + minute, zone);
+  return new Date(first ?? wallClockAsUtc);
 }

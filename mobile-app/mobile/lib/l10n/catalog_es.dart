@@ -167,8 +167,8 @@ const Map<String, String> esCatalog = {
   'currencyUpdated': 'Moneda actualizada a',
   'currencyUpdateFailed': 'Error al actualizar la moneda',
   'accountRank': 'Rango: realizador activo',
-  'levelXpBadge': 'Nivel 2 • 140 XP',
-  'xpRemainingText': 'Faltan 60 XP para el nivel 3 (Pro)',
+  'levelXpBadge': 'Nivel {level} • {xp} XP',
+  'xpRemainingText': 'Faltan {xp} XP para el nivel {level}',
   'achievementBadges': 'Insignias de logros',
   'badgeStrongStart': 'Buen comienzo',
   'badgeFirstTask': 'Primera tarea completada',
@@ -782,4 +782,61 @@ const Map<String, String> esCatalog = {
   'detectedTime': 'Hora',
   'notificationSummaryTitle': 'Recordatorios',
   'notificationSummaryBody': 'Recordatorios pendientes en LifeStyle: {n}',
+  'deletionScheduleTitle': 'Programar la eliminación de la cuenta',
+  'deletionScheduleBody':
+      'Tu cuenta entrará en un periodo de gracia de 14 días y tus otras sesiones activas se cerrarán antes de la eliminación definitiva. Puedes cancelar la eliminación en cualquier momento durante el periodo de gracia.',
+  'deletionScheduledSnack':
+      'Eliminación de la cuenta programada (periodo de gracia de 14 días)',
+  'deletionCancelledSnack':
+      'Eliminación de la cuenta cancelada y acceso completo restaurado',
+  'accountStatusPendingDeletion':
+      'Programada para eliminarse (periodo de gracia de 14 días)',
+  'deletionPendingBanner':
+      'Tu cuenta está programada para eliminarse. Puedes restaurarla ahora, antes de que termine el periodo de gracia de 14 días.',
+  'deletionRestoreAction': 'Cancelar la eliminación y restaurar la cuenta',
+  'aiAssistantSubtitle':
+      'Incluido con tu cuenta y funciona a través del servidor de LifeStyle; no necesitas ninguna clave',
+  'deleteAccountAction': 'Eliminar la cuenta (periodo de gracia de 14 días)',
+  'xpDeviceNote': 'Los XP y las insignias se cuentan en este dispositivo.',
+  'badgeEarned': 'Conseguida',
+  'badgeLocked': 'Aún no conseguida',
+  'weekdayShort1': 'lun',
+  'weekdayShort2': 'mar',
+  'weekdayShort3': 'mié',
+  'weekdayShort4': 'jue',
+  'weekdayShort5': 'vie',
+  'weekdayShort6': 'sáb',
+  'weekdayShort7': 'dom',
+  'statusInProgress': 'En curso',
+  'statusCancelled': 'Cancelado',
+  'signedInDevicesTitle': 'Dispositivos con sesión iniciada',
+  'signedInDevicesSubtitle':
+      'Mira dónde está abierta tu cuenta y cierra la sesión de un dispositivo',
+  'signedInDevicesLoading': 'Cargando dispositivos',
+  'signedInDevicesThisDevice': 'Este dispositivo',
+  'signedInDevicesLastActive': 'Última actividad: {when}',
+  'signedInDevicesSignedInAt': 'Sesión iniciada: {when}',
+  'signedInDevicesAppVersion': 'Versión de la app {version}',
+  'signedInDevicesSignOut': 'Cerrar sesión',
+  'signedInDevicesSignOutDevice': 'Cerrar sesión en {device}',
+  'signedInDevicesConfirmOther':
+      '¿Cerrar sesión en {device}? Para volver a iniciar sesión allí hará falta la contraseña.',
+  'signedInDevicesConfirmCurrent':
+      '¿Cerrar sesión en este dispositivo? Necesitarás tu contraseña para volver a iniciar sesión.',
+  'signedInDevicesSignedOutOther': 'Se cerró la sesión en {device}.',
+  'signedInDevicesEmpty': 'No hay otros dispositivos con sesión iniciada.',
+  'signedInDevicesMore':
+      'Solo se muestran los 50 dispositivos usados más recientemente.',
+  'signedInDevicesLoadFailed':
+      'No se pudieron cargar tus dispositivos. Revisa tu conexión e inténtalo de nuevo.',
+  'signedInDevicesWrongPassword': 'Esa contraseña no es correcta.',
+  'signedInDevicesTooManyAttempts':
+      'Demasiados intentos. Inténtalo de nuevo en 15 minutos.',
+  'signedInDevicesAlreadySignedOut':
+      'Ya se había cerrado la sesión en ese dispositivo.',
+  'signedInDevicesSignOutFailed':
+      'No se pudo cerrar la sesión en el dispositivo. Inténtalo de nuevo.',
+  'signedInDevicesPlatformAndroid': 'Dispositivo Android',
+  'signedInDevicesPlatformIos': 'iPhone o iPad',
+  'signedInDevicesPlatformUnknown': 'Dispositivo desconocido',
 };

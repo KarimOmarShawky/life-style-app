@@ -82,6 +82,11 @@ Production (owner-managed Neon) has no migration ledger: never run
 4. Switch to `production`, run the file once, then the verification queries.
 5. Delete the rehearsal branch.
 
+**Status (2026-11-11, owner-reported):** applied to production after a
+rehearsal on a Neon branch of production; the owner reported that the
+verification queries below returned the expected `t, t, t, t` and `0`. Device
+check G2-7 (saving works after the SQL) is still NOT RUN.
+
 It can run before or after the backend deploy. Until it runs, reading settings
 returns the defaults with `available: false`, saving answers 503
 `NOTIFICATION_PREFERENCES_UNAVAILABLE` (the app keeps the previous settings and

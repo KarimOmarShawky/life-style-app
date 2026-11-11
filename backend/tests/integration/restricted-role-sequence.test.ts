@@ -8,6 +8,10 @@ import { Client, Pool } from 'pg';
 import { describe, expect, it } from 'vitest';
 import { assertFinancialRetirement } from '../../src/infrastructure/database/postgres/financial-retirement-guard.js';
 import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
+import {
+  PgSessionsRepository,
+  resetSessionRevokeReasonCache
+} from '../../src/features/sessions/sessions.repository.pg.js';
 
 // REHEARSAL ONLY. This test creates cluster-wide roles and changes ownership
 // in its own empty database. The PostgreSQL INSTANCE itself must be disposable.
@@ -117,6 +121,14 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         // DDL (feature guide G5/G1) yet; it is applied at the end below.
         await owner.query(
           'ALTER TABLE users DROP COLUMN product_events_enabled, DROP COLUMN onboarding_completed_at'
+        );
+        // Nor the owner-run G6 SQL: restore the session reason list without
+        // 'user_revoked'; the file is applied at the end below.
+        await owner.query(
+          `ALTER TABLE auth_sessions DROP CONSTRAINT auth_sessions_revoked_reason_check;
+           ALTER TABLE auth_sessions ADD CONSTRAINT auth_sessions_revoked_reason_check CHECK (revoked_reason IN (
+             'logout', 'logout_all', 'password_change', 'password_reset',
+             'reuse_detected', 'account_disabled', 'account_deletion'))`
         );
         await owner.query('DROP FUNCTION wallet_session_revocation_is_final()');
         await owner.query('DROP INDEX idx_notes_body_trgm');
@@ -557,6 +569,58 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
             (await owner.query('SELECT count(*)::int AS n FROM notification_preferences')).rows[0]!
               .n
           ).toBe(0);
+
+          // Feature guide G6: signing one device out with the restricted
+          // runtime role, before and after the owner-run auth-sessions SQL.
+          const sessionUser = (
+            await owner.query<{ id: string }>(
+              `INSERT INTO users (email, password_hash, display_name, timezone, default_currency)
+               VALUES ('sessions-role@example.com', 'x', 'Sessions', 'UTC', 'USD') RETURNING id`
+            )
+          ).rows[0]!.id;
+          const newSession = async () =>
+            (
+              await runtime.query<{ id: string }>(
+                `INSERT INTO auth_sessions (user_id, absolute_expires_at, device_platform, created_ip)
+                 VALUES ($1, now() + interval '1 day', 'ios', '203.0.113.9') RETURNING id`,
+                [sessionUser]
+              )
+            ).rows[0]!.id;
+          const reasonOf = async (id: string) =>
+            (
+              await owner.query<{ revoked_reason: string | null }>(
+                'SELECT revoked_reason FROM auth_sessions WHERE id = $1',
+                [id]
+              )
+            ).rows[0]!.revoked_reason;
+          const sessions = new PgSessionsRepository(runtime);
+          resetSessionRevokeReasonCache();
+          const beforeSql = await newSession();
+          expect(await sessions.revoke(sessionUser, beforeSql)).toEqual({
+            outcome: 'revoked',
+            reason: 'logout'
+          });
+          expect(await reasonOf(beforeSql)).toBe('logout');
+          const sessionsSql = await readFile(
+            new URL('../../../docs/auth/sql/auth-sessions-user-revoked.sql', import.meta.url),
+            'utf8'
+          );
+          await owner.query(sessionsSql);
+          // A second run replaces the constraint with the same one.
+          await owner.query(sessionsSql);
+          resetSessionRevokeReasonCache();
+          const afterSql = await newSession();
+          expect(await sessions.revoke(randomUUID(), afterSql)).toEqual({ outcome: 'not_found' });
+          expect(await sessions.revoke(sessionUser, afterSql)).toEqual({
+            outcome: 'revoked',
+            reason: 'user_revoked'
+          });
+          expect(await reasonOf(afterSql)).toBe('user_revoked');
+          const listed = await sessions.listActive(sessionUser, null, 10);
+          expect(listed.map((session) => session.id)).not.toContain(afterSql);
+          expect(JSON.stringify(listed)).not.toContain('203.0.113.9');
+          await users.scheduleDeletion(sessionUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(sessionUser)).toBe(true);
         } finally {
           await runtime.end();
         }

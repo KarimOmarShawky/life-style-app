@@ -128,6 +128,9 @@ import { ProductEventsService } from './features/product-events/product-events.s
 import { PgProductEventsRepository } from './features/product-events/product-events.repository.pg.js';
 import { NotificationPreferencesService } from './features/notifications/notification-preferences.service.js';
 import { PgNotificationPreferencesRepository } from './features/notifications/notification-preferences.repository.pg.js';
+// Signed-in devices (feature guide G6, ADR-047)
+import { SessionsService } from './features/sessions/sessions.service.js';
+import { PgSessionsRepository } from './features/sessions/sessions.repository.pg.js';
 import { PgPasswordResetRequestStore } from './features/auth/password-reset-request.repository.pg.js';
 import type { ResetRequestStore } from './core/security/reset-request-store.js';
 // AI assistant proxy (server-side Gemini, central key)
@@ -191,6 +194,7 @@ export interface AppContainer {
   searchService: SearchService;
   productEventsService: ProductEventsService;
   notificationPreferencesService: NotificationPreferencesService;
+  sessionsService: SessionsService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
   resetRequestStore: ResetRequestStore;
@@ -377,6 +381,13 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const notificationPreferencesService =
     overrides?.notificationPreferencesService ??
     new NotificationPreferencesService(new PgNotificationPreferencesRepository(pgPool));
+  const sessionsService =
+    overrides?.sessionsService ??
+    new SessionsService(
+      new PgSessionsRepository(pgPool),
+      (userId, currentPassword) => usersService.reauthenticate(userId, currentPassword),
+      auditLogger
+    );
   const searchService = new SearchService(
     taskReader,
     habitReader,
@@ -444,6 +455,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     searchService,
     productEventsService,
     notificationPreferencesService,
+    sessionsService,
     resetRequestStore
   };
 

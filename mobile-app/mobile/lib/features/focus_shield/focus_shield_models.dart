@@ -77,8 +77,41 @@ class XpLedger {
       : events =
             Map.unmodifiable({for (final event in events) event.key: event});
   final Map<String, XpEvent> events;
+  static const xpPerLevel = 200;
+
   int get totalXp => events.values.fold(0, (sum, event) => sum + event.xp);
-  int get level => (totalXp ~/ 200) + 1;
+  int get level => (totalXp ~/ xpPerLevel) + 1;
+
+  /// XP still needed to reach the next level (1 to [xpPerLevel]).
+  int get xpToNextLevel => xpPerLevel - totalXp % xpPerLevel;
+
+  /// Share of the current level already earned, from 0 up to (not including) 1.
+  double get levelProgress => (totalXp % xpPerLevel) / xpPerLevel;
+
+  /// Whether at least one win of [type] is recorded.
+  bool hasWin(XpType type) => events.values.any((event) => event.type == type);
+
+  /// Longest run of consecutive local days with at least one recorded win.
+  int get longestDayStreak {
+    final days = <int>{};
+    for (final event in events.values) {
+      final date = DateTime.tryParse(event.dateKey);
+      if (date == null) continue;
+      final day = DateTime.utc(date.year, date.month, date.day);
+      days.add(day.millisecondsSinceEpoch ~/ Duration.millisecondsPerDay);
+    }
+    var longest = 0;
+    for (final day in days) {
+      if (days.contains(day - 1)) continue;
+      var length = 1;
+      while (days.contains(day + length)) {
+        length += 1;
+      }
+      if (length > longest) longest = length;
+    }
+    return longest;
+  }
+
   String get rank => switch (level) {
         >= 10 => 'Monk Mode Legend',
         >= 8 => 'Dopamine Master',

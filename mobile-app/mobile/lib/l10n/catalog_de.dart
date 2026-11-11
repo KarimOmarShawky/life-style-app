@@ -169,8 +169,8 @@ const Map<String, String> deCatalog = {
   'currencyUpdated': 'Währung aktualisiert auf',
   'currencyUpdateFailed': 'Währung konnte nicht aktualisiert werden',
   'accountRank': 'Rang: Aktiver Macher',
-  'levelXpBadge': 'Level 2 • 140 XP',
-  'xpRemainingText': '60 XP bis Level 3 (Profi)',
+  'levelXpBadge': 'Level {level} • {xp} XP',
+  'xpRemainingText': 'Noch {xp} XP bis Level {level}',
   'achievementBadges': 'Erfolgsabzeichen',
   'badgeStrongStart': 'Starker Start',
   'badgeFirstTask': 'Erste Aufgabe erledigt',
@@ -785,4 +785,59 @@ const Map<String, String> deCatalog = {
   'detectedTime': 'Uhrzeit',
   'notificationSummaryTitle': 'Erinnerungen',
   'notificationSummaryBody': 'Wartende Erinnerungen in LifeStyle: {n}',
+  'deletionScheduleTitle': 'Kontolöschung planen',
+  'deletionScheduleBody':
+      'Dein Konto erhält eine Schonfrist von 14 Tagen, und deine anderen aktiven Sitzungen werden vor der endgültigen Löschung abgemeldet. Du kannst die Löschung während der Schonfrist jederzeit abbrechen.',
+  'deletionScheduledSnack': 'Kontolöschung geplant (Schonfrist 14 Tage)',
+  'deletionCancelledSnack':
+      'Kontolöschung abgebrochen, voller Zugriff wiederhergestellt',
+  'accountStatusPendingDeletion':
+      'Zur Löschung vorgemerkt (Schonfrist 14 Tage)',
+  'deletionPendingBanner':
+      'Dein Konto ist zur Löschung vorgemerkt. Du kannst es jetzt wiederherstellen, bevor die Schonfrist von 14 Tagen endet.',
+  'deletionRestoreAction': 'Löschung abbrechen und Konto wiederherstellen',
+  'aiAssistantSubtitle':
+      'In deinem Konto enthalten, läuft über den LifeStyle-Server – kein Schlüssel nötig',
+  'deleteAccountAction': 'Konto löschen (Schonfrist 14 Tage)',
+  'xpDeviceNote': 'XP und Abzeichen werden auf diesem Gerät gezählt.',
+  'badgeEarned': 'Erreicht',
+  'badgeLocked': 'Noch nicht erreicht',
+  'weekdayShort1': 'Mo.',
+  'weekdayShort2': 'Di.',
+  'weekdayShort3': 'Mi.',
+  'weekdayShort4': 'Do.',
+  'weekdayShort5': 'Fr.',
+  'weekdayShort6': 'Sa.',
+  'weekdayShort7': 'So.',
+  'statusInProgress': 'In Arbeit',
+  'statusCancelled': 'Abgebrochen',
+  'signedInDevicesTitle': 'Angemeldete Geräte',
+  'signedInDevicesSubtitle':
+      'Sieh, wo dein Konto angemeldet ist, und melde ein Gerät ab',
+  'signedInDevicesLoading': 'Geräte werden geladen',
+  'signedInDevicesThisDevice': 'Dieses Gerät',
+  'signedInDevicesLastActive': 'Zuletzt aktiv {when}',
+  'signedInDevicesSignedInAt': 'Angemeldet {when}',
+  'signedInDevicesAppVersion': 'App-Version {version}',
+  'signedInDevicesSignOut': 'Abmelden',
+  'signedInDevicesSignOutDevice': '{device} abmelden',
+  'signedInDevicesConfirmOther':
+      '{device} abmelden? Zum erneuten Anmelden dort wird das Passwort benötigt.',
+  'signedInDevicesConfirmCurrent':
+      'Dieses Gerät abmelden? Zum erneuten Anmelden brauchst du dein Passwort.',
+  'signedInDevicesSignedOutOther': '{device} ist abgemeldet.',
+  'signedInDevicesEmpty': 'Keine anderen Geräte sind angemeldet.',
+  'signedInDevicesMore':
+      'Es werden nur die 50 zuletzt genutzten Geräte angezeigt.',
+  'signedInDevicesLoadFailed':
+      'Deine Geräte konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.',
+  'signedInDevicesWrongPassword': 'Dieses Passwort ist nicht korrekt.',
+  'signedInDevicesTooManyAttempts':
+      'Zu viele Versuche. Versuche es in 15 Minuten erneut.',
+  'signedInDevicesAlreadySignedOut': 'Dieses Gerät war bereits abgemeldet.',
+  'signedInDevicesSignOutFailed':
+      'Das Gerät konnte nicht abgemeldet werden. Versuche es erneut.',
+  'signedInDevicesPlatformAndroid': 'Android-Gerät',
+  'signedInDevicesPlatformIos': 'iPhone oder iPad',
+  'signedInDevicesPlatformUnknown': 'Unbekanntes Gerät',
 };

@@ -201,8 +201,8 @@ const Map<String, String> enCatalog = {
   'currencyUpdated': 'Currency updated to',
   'currencyUpdateFailed': 'Failed to update currency',
   'accountRank': 'Rank: Active Achiever',
-  'levelXpBadge': 'Level 2 • 140 XP',
-  'xpRemainingText': '60 XP remaining to Level 3 (Pro)',
+  'levelXpBadge': 'Level {level} • {xp} XP',
+  'xpRemainingText': '{xp} XP to Level {level}',
   'achievementBadges': 'Achievement Badges',
   'badgeStrongStart': 'Strong Start',
   'badgeFirstTask': 'First task done',
@@ -757,4 +757,57 @@ const Map<String, String> enCatalog = {
   'detectedTime': 'Time',
   'notificationSummaryTitle': 'Reminders',
   'notificationSummaryBody': 'Reminders waiting in LifeStyle: {n}',
+  'deletionScheduleTitle': 'Schedule account deletion',
+  'deletionScheduleBody':
+      'Your account will enter a 14-day grace period, and your other active sessions will be signed out before permanent deletion. You can cancel the deletion at any time during the grace period.',
+  'deletionScheduledSnack': 'Account deletion scheduled (14-day grace period)',
+  'deletionCancelledSnack':
+      'Account deletion cancelled and full access restored',
+  'accountStatusPendingDeletion':
+      'Scheduled for deletion (14-day grace period)',
+  'deletionPendingBanner':
+      'Your account is scheduled for deletion. You can restore it now, before the 14-day grace period ends.',
+  'deletionRestoreAction': 'Cancel deletion and restore account',
+  'aiAssistantSubtitle':
+      'Included with your account and runs via the LifeStyle server — no key needed',
+  'deleteAccountAction': 'Delete account (14-day grace period)',
+  'xpDeviceNote': 'XP and badges are counted on this device.',
+  'badgeEarned': 'Earned',
+  'badgeLocked': 'Not earned yet',
+  'weekdayShort1': 'Mon',
+  'weekdayShort2': 'Tue',
+  'weekdayShort3': 'Wed',
+  'weekdayShort4': 'Thu',
+  'weekdayShort5': 'Fri',
+  'weekdayShort6': 'Sat',
+  'weekdayShort7': 'Sun',
+  'statusInProgress': 'In progress',
+  'statusCancelled': 'Cancelled',
+  'signedInDevicesTitle': 'Signed-in devices',
+  'signedInDevicesSubtitle':
+      'See where your account is signed in and sign out a device',
+  'signedInDevicesLoading': 'Loading devices',
+  'signedInDevicesThisDevice': 'This device',
+  'signedInDevicesLastActive': 'Last active {when}',
+  'signedInDevicesSignedInAt': 'Signed in {when}',
+  'signedInDevicesAppVersion': 'App version {version}',
+  'signedInDevicesSignOut': 'Sign out',
+  'signedInDevicesSignOutDevice': 'Sign out {device}',
+  'signedInDevicesConfirmOther':
+      'Sign out {device}? Signing in there again will need the password.',
+  'signedInDevicesConfirmCurrent':
+      'Sign out of this device? You will need your password to sign in again.',
+  'signedInDevicesSignedOutOther': '{device} is signed out.',
+  'signedInDevicesEmpty': 'No other devices are signed in.',
+  'signedInDevicesMore': 'Only the 50 most recently used devices are shown.',
+  'signedInDevicesLoadFailed':
+      'Could not load your devices. Check your connection and try again.',
+  'signedInDevicesWrongPassword': 'That password is not correct.',
+  'signedInDevicesTooManyAttempts':
+      'Too many attempts. Try again in 15 minutes.',
+  'signedInDevicesAlreadySignedOut': 'That device was already signed out.',
+  'signedInDevicesSignOutFailed': 'Could not sign out the device. Try again.',
+  'signedInDevicesPlatformAndroid': 'Android device',
+  'signedInDevicesPlatformIos': 'iPhone or iPad',
+  'signedInDevicesPlatformUnknown': 'Unknown device',
 };

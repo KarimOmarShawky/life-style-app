@@ -1,5 +1,6 @@
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/core/widgets/owned_dialog.dart';
@@ -100,6 +101,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               backgroundColor:
                   Theme.of(context).colorScheme.surfaceContainerHighest,
               leading: IconButton(
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(() => _selectedTaskIds.clear()),
               ),
@@ -167,11 +169,16 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               ? allItems
               : allItems.where((t) => t.dueDate == selectedDateStr).toList();
 
+          // The briefing scrolls with the list, so large text never pushes
+          // the tasks off the screen (G7).
+          final header = <Widget>[
+            if (_selectedDate == null)
+              _buildDailyBriefingCard(context, localization, allItems),
+          ];
+
           return Column(
             children: [
               _buildDateStrip(context, localization, allItems),
-              if (_selectedDate == null)
-                _buildDailyBriefingCard(context, localization, allItems),
               const Divider(height: 1),
               Expanded(
                 child: RefreshIndicator(
@@ -182,7 +189,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            const SizedBox(height: 100),
+                            ...header,
+                            SizedBox(height: header.isEmpty ? 100 : 32),
                             Icon(
                               _selectedDate == null
                                   ? Icons.check_circle_outline
@@ -218,11 +226,16 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                       : ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: displayedItems.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1, indent: 72),
+                          itemCount: header.length + displayedItems.length,
+                          separatorBuilder: (_, index) {
+                            if (index < header.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return const Divider(height: 1, indent: 72);
+                          },
                           itemBuilder: (context, index) {
-                            final task = displayedItems[index];
+                            if (index < header.length) return header[index];
+                            final task = displayedItems[index - header.length];
                             return _TaskTile(
                               task: task,
                               isSelectionMode: _isSelectionMode,
@@ -287,8 +300,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       days.add(today.add(Duration(days: i)));
     }
 
+    // Day cells grow with the font size instead of clipping (G7).
+    final scaler = MediaQuery.textScalerOf(context);
+    final cellWidth = scaler.scale(54).clamp(54.0, 108.0);
+    final stripHeight = scaler.scale(62).clamp(62.0, 124.0) + 12;
+
     return Container(
-      height: 74,
+      height: stripHeight,
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -298,7 +316,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           if (index == 0) {
             final isAll = _selectedDate == null;
             return Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsetsDirectional.only(end: 8),
               child: ChoiceChip(
                 label: Text(localization.allTasks),
                 selected: isAll,
@@ -327,75 +345,83 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           if (isToday) {
             dayName = localization.today;
           } else {
-            dayName = _weekdayName(day.weekday, localization.isArabic);
+            dayName = _weekdayName(localization, day.weekday);
           }
 
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                if (isSelected) {
-                  _selectedDate = null;
-                } else {
-                  _selectedDate = day;
-                }
-              });
-            },
-            child: Container(
-              width: 54,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : isToday
-                        ? Theme.of(context).colorScheme.surfaceContainerHighest
-                        : Colors.transparent,
+          final scheme = Theme.of(context).colorScheme;
+          var background = Colors.transparent;
+          var outline = Colors.grey.withAlpha(50);
+          if (isSelected) {
+            background = scheme.primaryContainer;
+            outline = scheme.primary;
+          } else if (isToday) {
+            background = scheme.surfaceContainerHighest;
+            outline = scheme.outline;
+          }
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Semantics(
+              container: true,
+              button: true,
+              selected: isSelected,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : isToday
-                          ? Theme.of(context).colorScheme.outline
-                          : Colors.grey.withAlpha(50),
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedDate = null;
+                    } else {
+                      _selectedDate = day;
+                    }
+                  });
+                },
+                child: Container(
+                  width: cellWidth,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: outline),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          dayName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected || isToday
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color:
+                                isSelected ? scheme.onPrimaryContainer : null,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${day.day}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? scheme.primary : null,
+                          ),
+                        ),
+                        if (hasTasks) ...[
+                          const SizedBox(height: 2),
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: scheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    dayName,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isSelected || isToday
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.onPrimaryContainer
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${day.day}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                  ),
-                  if (hasTasks) ...[
-                    const SizedBox(height: 2),
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ],
               ),
             ),
           );
@@ -404,43 +430,18 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     );
   }
 
-  String _weekdayName(int weekday, bool isArabic) {
-    if (isArabic) {
-      switch (weekday) {
-        case DateTime.monday:
-          return 'إثنين';
-        case DateTime.tuesday:
-          return 'ثلاثاء';
-        case DateTime.wednesday:
-          return 'أربعاء';
-        case DateTime.thursday:
-          return 'خميس';
-        case DateTime.friday:
-          return 'جمعة';
-        case DateTime.saturday:
-          return 'سبت';
-        case DateTime.sunday:
-          return 'أحد';
-      }
-    } else {
-      switch (weekday) {
-        case DateTime.monday:
-          return 'Mon';
-        case DateTime.tuesday:
-          return 'Tue';
-        case DateTime.wednesday:
-          return 'Wed';
-        case DateTime.thursday:
-          return 'Thu';
-        case DateTime.friday:
-          return 'Fri';
-        case DateTime.saturday:
-          return 'Sat';
-        case DateTime.sunday:
-          return 'Sun';
-      }
-    }
-    return '';
+  /// Short weekday name in the app language (Monday is 1, as in [DateTime]).
+  String _weekdayName(AppLocalizations l10n, int weekday) {
+    final names = [
+      l10n.weekdayShort1,
+      l10n.weekdayShort2,
+      l10n.weekdayShort3,
+      l10n.weekdayShort4,
+      l10n.weekdayShort5,
+      l10n.weekdayShort6,
+      l10n.weekdayShort7,
+    ];
+    return names[(weekday - 1) % 7];
   }
 
   Widget _buildDailyBriefingCard(
@@ -461,7 +462,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final greeting = isMorning ? l10n.briefingMorning : l10n.briefingEvening;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      margin: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -469,8 +470,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             theme.colorScheme.primaryContainer.withAlpha(120),
             theme.colorScheme.surfaceContainerHighest.withAlpha(80),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -480,24 +481,33 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // Wraps instead of truncating at large text sizes (G7).
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Icon(Icons.auto_awesome,
-                  size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '$greeting • ${l10n.aiDailyBriefing}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 18,
                     color: theme.colorScheme.primary,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '$greeting • ${l10n.aiDailyBriefing}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -595,58 +605,69 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: Key(widget.task.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        color: Colors.red.shade700,
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      onDismissed: (_) => widget.onDelete(),
-      child: InkWell(
-        onLongPress: widget.onToggleSelect,
-        onTap: widget.isSelectionMode ? widget.onToggleSelect : null,
-        child: Container(
-          color: widget.isSelected
-              ? Theme.of(context).colorScheme.primaryContainer.withAlpha(60)
-              : null,
-          child: CheckboxListTile(
-            value:
-                widget.isSelectionMode ? widget.isSelected : widget.task.isDone,
-            onChanged: _saving
-                ? null
-                : (value) {
-                    if (widget.isSelectionMode) {
-                      widget.onToggleSelect();
-                    } else {
-                      _setDone(value ?? false);
-                    }
-                  },
-            secondary: _saving
-                ? const SizedBox.square(
-                    dimension: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+    final l10n = AppLocalizations.of(context);
+    // Swipe-to-delete has a spoken alternative: a custom delete action (G7).
+    final row = Semantics(
+      customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
+        CustomSemanticsAction(label: l10n.delete): widget.onDelete,
+      },
+      child: Dismissible(
+        key: Key(widget.task.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: AlignmentDirectional.centerEnd,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          color: Colors.red.shade700,
+          child: const Icon(Icons.delete_outline, color: Colors.white),
+        ),
+        onDismissed: (_) => widget.onDelete(),
+        child: InkWell(
+          onLongPress: widget.onToggleSelect,
+          onTap: widget.isSelectionMode ? widget.onToggleSelect : null,
+          child: Container(
+            color: widget.isSelected
+                ? Theme.of(context).colorScheme.primaryContainer.withAlpha(60)
                 : null,
-            title: Text(
-              widget.task.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: widget.task.isDone && !widget.isSelectionMode
-                  ? TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      decoration: TextDecoration.lineThrough,
+            child: CheckboxListTile(
+              value: widget.isSelectionMode
+                  ? widget.isSelected
+                  : widget.task.isDone,
+              onChanged: _saving
+                  ? null
+                  : (value) {
+                      if (widget.isSelectionMode) {
+                        widget.onToggleSelect();
+                      } else {
+                        _setDone(value ?? false);
+                      }
+                    },
+              secondary: _saving
+                  ? const SizedBox.square(
+                      dimension: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : null,
+              title: Text(
+                widget.task.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: widget.task.isDone && !widget.isSelectionMode
+                    ? TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        decoration: TextDecoration.lineThrough,
+                      )
+                    : null,
+              ),
+              subtitle: Text(_taskSubtitle(l10n, widget.task)),
+              controlAffinity: ListTileControlAffinity.leading,
             ),
-            subtitle: Text(_taskSubtitle(widget.task)),
-            controlAffinity: ListTileControlAffinity.leading,
           ),
         ),
       ),
     );
+    // One node per task: the select (long-press) and delete actions are
+    // announced together with its title and checkbox (G7).
+    return MergeSemantics(child: row);
   }
 }
 
@@ -1223,14 +1244,48 @@ class _RingAsAlarmSwitch extends StatelessWidget {
   }
 }
 
-String _taskSubtitle(Task task) {
-  final parts = <String>[task.status.replaceAll('_', ' '), task.priority];
+/// Status, priority and due time in the app language (previously raw English
+/// values such as "todo · none · Due ...").
+String _taskSubtitle(AppLocalizations l10n, Task task) {
+  final parts = <String>[_statusLabel(l10n, task.status)];
+  final priority = _priorityLabel(l10n, task.priority);
+  if (priority != null) parts.add(priority);
   if (task.dueDate != null) {
-    var dueStr = 'Due ${task.dueDate}';
+    var dueStr = '${l10n.duePrefix} ${task.dueDate}';
     if (task.dueTime != null) dueStr += ' ${task.dueTime}';
     parts.add(dueStr);
   }
   return parts.join(' · ');
+}
+
+String _statusLabel(AppLocalizations l10n, String status) {
+  switch (status) {
+    case 'todo':
+      return l10n.statusTodo;
+    case 'in_progress':
+      return l10n.statusInProgress;
+    case 'done':
+      return l10n.statusDone;
+    case 'cancelled':
+      return l10n.statusCancelled;
+  }
+  return status.replaceAll('_', ' ');
+}
+
+/// Null for "none": an unset priority is not worth a word in the list.
+String? _priorityLabel(AppLocalizations l10n, String priority) {
+  switch (priority) {
+    case 'low':
+      return l10n.priorityLow;
+    case 'medium':
+      return l10n.priorityMedium;
+    case 'high':
+      return l10n.priorityHigh;
+    case 'none':
+    case '':
+      return null;
+  }
+  return priority;
 }
 
 String _safeMessage(Object error) {

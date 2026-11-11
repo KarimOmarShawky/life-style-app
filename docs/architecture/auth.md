@@ -116,3 +116,7 @@ Every authenticated request passes through `authenticate` middleware in strict o
      - `GET /api/v1/users/me`
      - `DELETE /api/v1/users/me/deletion`
      - `POST /api/v1/users/me/export`
+
+## 6. Signed-in Devices (Feature Guide G6, ADR-047)
+
+`GET /api/v1/sessions` lists the active sessions of the authenticated account (device platform, device name, app version, created and last-used times, and `current` for the calling session). `POST /api/v1/sessions/{id}/revoke` ends one of them after the current-password check: the session is revoked with `revoked_reason = 'user_revoked'`, its refresh tokens are revoked and its push devices are deleted in one transaction. Its access tokens fail at the next request because step 4 above checks `revoked_at`. Another account's session id answers 404, `created_ip` is never returned, and the refresh path (ADR-041) is unchanged. Details, limits and the owner-run SQL: `docs/auth/signed-in-devices.md`.

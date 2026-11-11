@@ -78,6 +78,7 @@ companion. Path shorthand in this report: `be/` = `backend/src/`, `app/` =
 | AI0-F8 | Info | The analytics consent text includes a hard-coded English literal. | `analytics_screen.dart:106` | Already counted in the literal baseline; localize it when the screen is touched. |
 | AI0-F9 | Info | The server's fallback reply-language hint is `'Arabic'` when the client omits `language`; `users.locale` is not used. | `ai.service.ts:186` | AI-1 resolver order: latest message, then the client hint, then `users.locale`, then English. |
 | AI0-F10 | Info | The `product_events` CHECK constraint lists the six event names, so any AI usage event needs owner SQL. | `…/migrations/1792750000000_product_events_and_onboarding.cjs:31` | Optional, later (D7). |
+| **AI0-F11** | **High (compliance)** | **Age terms of the Gemini API.** The Additional Terms require users of the API to be 18 or older. They also forbid API clients that are directed towards, or likely to be accessed by, people under 18. The app has no age signal: the AI consent dialogs do not ask, and the Play target audience is not declared yet (an owner step in Play Console). | Gemini API Additional Terms, "Age Requirements" (§11); `ai_assistant_screen.dart:91-111` | Owner: declare an 18+ target audience in Play Console, and keep AI testers adult. Agent (AI-P, D9): a one-time "I am 18 or older" confirmation in the AI consent step; AI stays off until it is confirmed. |
 
 ## 4. Discrepancies in the specification
 
@@ -388,6 +389,17 @@ realistic calendar is **4–6 weeks**. These are planning ranges, not commitment
        when the key is missing (`be/container.ts:371-372`).
      - This environment cannot read Railway, so whether AI is on in production today is
        unknown.
+     - Google billing does not accept prepaid cards (including most virtual cards). A
+       standard credit or debit card is needed. Fallbacks if no eligible card is
+       available:
+       - A billing account owned by an adult family member, who grants the owner the
+         Billing Account Administrator role.
+       - For the closed test only: the unpaid tier, with the closed test limited to
+         countries outside the EEA, Switzerland and the UK (the terms require paid
+         services there). Testers are told that AI messages may be used to improve
+         Google products and must not contain personal information. No account data is
+         sent in prompts, so AI-2 waits for the paid tier. Switch to paid before the
+         public launch.
    - **Agent:** AI-P; an App Bundle (`.aab`) release build (the signed job builds an APK
      only); privacy-policy and Data safety drafts that name Google Gemini and AI reports.
    - **Owner:** AI-P SQL, then merge, then the signed bundle, then the closed test starts.
@@ -411,6 +423,7 @@ realistic calendar is **4–6 weeks**. These are planning ranges, not commitment
 | D6 | Delete the 17 unreachable prompt methods, including workout and meal plans | **Yes, in AI-1** |
 | D7 | Content-free G5 event `ai_turn_completed` to measure whether AI drives Day-7 retention (owner SQL widens the CHECK) | **Later, with AI-2** |
 | D8 | Chat history storage | **Stays on the device, with no server sync** (Part II §7.3) |
+| D9 | Age confirmation before AI features (AI0-F11) | **Yes:** a one-time "I am 18 or older" confirmation in the AI consent step (on the device in AI-P, on the account from AI-2), plus an 18+ Play target audience |
 
 ## 10. NOT RUN
 
@@ -428,6 +441,12 @@ realistic calendar is **4–6 weeks**. These are planning ranges, not commitment
   quoted by: <https://www.sume.com/blog/google-play-ai-generated-content-policy-in-app-report-button-ai-video-app>
   and <https://dev.to/mdodeja/ai-chatbots-in-mobile-apps-where-the-article-50-disclosure-goes-3g7l>.
   The owner should read the policy page in Play Console when filling in the store forms.
+- Gemini API Additional Terms (age requirements; paid services only for users in the
+  EEA, Switzerland and the UK): <https://ai.google.dev/gemini-api/terms>.
+- Google billing rejects prepaid cards and most virtual cards:
+  <https://evertry.co/blog/how-to-pay-for-ai-tools-when-your-card-keeps-getting-declined/>
+  and <https://groups.google.com/g/gce-discussion/c/jEvtXCZgfH4> (a Google Cloud
+  representative: debit cards may be accepted depending on the location).
 - Gemini API data use, unpaid versus paid tier, as summarised by:
   <https://jazz.security/dlp-explained/dlp-basics/is-gemini-safe-for-company-data/> and
   <https://www.januscompliance.co.uk/blog/is-the-gemini-api-gdpr-compliant-2026>. The owner

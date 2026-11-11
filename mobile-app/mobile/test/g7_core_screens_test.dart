@@ -149,6 +149,10 @@ Future<void> _pump(
 bool _isVerticalList(Widget widget) =>
     widget is Scrollable && widget.axisDirection == AxisDirection.down;
 
+bool _isHorizontalList(Widget widget) =>
+    widget is Scrollable &&
+    axisDirectionToAxis(widget.axisDirection) == Axis.horizontal;
+
 bool _hasCustomActions(Widget widget) =>
     widget is Semantics && widget.properties.customSemanticsActions != null;
 
@@ -198,23 +202,34 @@ void main() {
     final semantics = tester.ensureSemantics();
     await _pump(tester, const TasksScreen());
     expect(
-      Directionality.of(tester.element(find.text(ar.today))),
+      Directionality.of(tester.element(find.byType(TasksScreen))),
       TextDirection.rtl,
     );
 
-    // Day cells are buttons; weekday names use the catalog.
-    await tester.ensureVisible(find.text(ar.today));
+    // The date strip starts three days back and its cells grow with the
+    // text, so at 200 % today is reached by scrolling the strip.
+    await tester.scrollUntilVisible(
+      find.text(ar.today),
+      100,
+      scrollable: find.byWidgetPredicate(_isHorizontalList),
+    );
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // Day cells are buttons; weekday names use the catalog.
     final todayCell = find.ancestor(
       of: find.text(ar.today),
       matching: find.byType(InkWell),
     );
     expect(
       tester.getSemantics(todayCell.first),
-      containsSemantics(isButton: true, hasTapAction: true),
+      isSemantics(isButton: true, hasTapAction: true),
     );
     final tomorrow = DateTime.now().add(const Duration(days: 1)).weekday;
-    expect(find.text(_weekday(ar, tomorrow)), findsWidgets);
+    expect(
+      find.text(_weekday(ar, tomorrow), skipOffstage: false),
+      findsWidgets,
+    );
     await _meetsG7Guidelines(tester);
 
     // The briefing scrolls with the list; at 200 % text the first task is
@@ -240,7 +255,7 @@ void main() {
     expect(deleteAction, findsWidgets);
     expect(
       tester.getSemantics(deleteAction.first),
-      containsSemantics(
+      isSemantics(
         customActions: [CustomSemanticsAction(label: ar.delete)],
       ),
     );
@@ -309,8 +324,15 @@ void main() {
 
     await _pump(tester, const TasksScreen(), locale: 'de', textScale: 1);
     const de = AppLocalizations(Locale('de'));
+    // Tomorrow's cell is built but may sit past the edge of a 320 dp strip.
     final tomorrow = DateTime.now().add(const Duration(days: 1)).weekday;
-    expect(find.text(_weekday(de, tomorrow)), findsWidgets);
-    expect(find.textContaining(de.statusTodo), findsWidgets);
+    expect(
+      find.text(_weekday(de, tomorrow), skipOffstage: false),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining(de.statusTodo, skipOffstage: false),
+      findsWidgets,
+    );
   });
 }

@@ -1,5 +1,9 @@
 # Change log
 
+## Unreleased — feature guide Phase 2: G2 notification policy (in progress, 2026-11-11)
+
+- G2 policy core (ADR-046, owner decisions recorded): `backend/src/features/notifications/notification-policy.ts` decides allow, delay, digest or drop for each notification from the account's quiet hours, daily limit, summary setting, master switch and time zone, with Critical/Normal/Low tiers. 28 shared cases (26 decisions, 2 summaries) in `mobile-app/mobile/test/fixtures/notification_policy_cases.json` (including daylight-saving gaps and repeated hours in Cairo, Berlin and New York) will also drive the Dart implementation. A sweep test checks every 10 minutes across three zones and three DST periods that nothing non-critical lands in quiet hours. Not yet wired: preference storage and endpoint, worker push, device scheduler and settings screen.
+
 ## Unreleased — feature guide Phase 1, 2026-11-10
 - E1: CI job summaries now carry evidence rows (head commit, toolchain versions, test counts parsed from runner output; "counts unavailable" instead of guesses).
 - E2: npm overrides fix GHSA-3g3m-2fjr-6pw4 (glob) and GHSA-g3hv-75wg-m249 (minimatch); backend and tools/security audits report 0 vulnerabilities. Disposition table and manual rotation checklist in `docs/security/dependency-and-secret-hygiene.md`. No secret rotated.

@@ -197,13 +197,12 @@ void main() {
   testWidgets('Tasks: Arabic at 200% on a narrow screen (G7)', (tester) async {
     final semantics = tester.ensureSemantics();
     await _pump(tester, const TasksScreen());
-    expect(find.text(_longTitle), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text(_longTitle))),
+      Directionality.of(tester.element(find.text(ar.today))),
       TextDirection.rtl,
     );
 
-    // Day cells are buttons; weekday names and subtitles use the catalog.
+    // Day cells are buttons; weekday names use the catalog.
     await tester.ensureVisible(find.text(ar.today));
     await tester.pumpAndSettle();
     final todayCell = find.ancestor(
@@ -216,6 +215,20 @@ void main() {
     );
     final tomorrow = DateTime.now().add(const Duration(days: 1)).weekday;
     expect(find.text(_weekday(ar, tomorrow)), findsWidgets);
+    await _meetsG7Guidelines(tester);
+
+    // The briefing scrolls with the list; at 200 % text the first task is
+    // below it and is built only after scrolling.
+    await tester.scrollUntilVisible(
+      find.text(_longTitle),
+      120,
+      scrollable: find.byWidgetPredicate(_isVerticalList),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text(_longTitle), findsOneWidget);
+
+    // Subtitles use the catalog instead of raw English values.
     expect(find.textContaining(ar.statusTodo), findsWidgets);
     expect(find.textContaining(ar.priorityHigh), findsWidgets);
     expect(find.textContaining('Due '), findsNothing);
@@ -231,15 +244,6 @@ void main() {
         customActions: [CustomSemanticsAction(label: ar.delete)],
       ),
     );
-
-    // The briefing scrolls with the list; bring the first task into view.
-    await tester.scrollUntilVisible(
-      find.text(_longTitle),
-      120,
-      scrollable: find.byWidgetPredicate(_isVerticalList),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
 
     // In Arabic the swipe goes left to right and reveals the bin on the left.
     final tile = find.byType(Dismissible).first;

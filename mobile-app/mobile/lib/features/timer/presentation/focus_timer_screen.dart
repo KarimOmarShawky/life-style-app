@@ -420,6 +420,9 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
             final activeTasks = tasks.where((t) => !t.isDone).toList();
             return DropdownButtonFormField<Task?>(
               initialValue: _selectedTask,
+              // Fill the width and shorten long titles instead of widening
+              // past the screen (G7; long titles overflowed even at 100 %).
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: l10n.selectTask,
                 prefixIcon: const Icon(Icons.check_circle_outline),

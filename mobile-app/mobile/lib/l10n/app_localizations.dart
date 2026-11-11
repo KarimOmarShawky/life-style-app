@@ -672,6 +672,39 @@ class AppLocalizations {
   String get weekdayShort7 => _s('weekdayShort7');
   String get statusInProgress => _s('statusInProgress');
   String get statusCancelled => _s('statusCancelled');
+  String get signedInDevicesTitle => _s('signedInDevicesTitle');
+  String get signedInDevicesSubtitle => _s('signedInDevicesSubtitle');
+  String get signedInDevicesLoading => _s('signedInDevicesLoading');
+  String get signedInDevicesThisDevice => _s('signedInDevicesThisDevice');
+  String signedInDevicesLastActive(String when) =>
+      _f('signedInDevicesLastActive', <String, Object>{'when': when});
+  String signedInDevicesSignedInAt(String when) =>
+      _f('signedInDevicesSignedInAt', <String, Object>{'when': when});
+  String signedInDevicesAppVersion(String version) =>
+      _f('signedInDevicesAppVersion', <String, Object>{'version': version});
+  String get signedInDevicesSignOut => _s('signedInDevicesSignOut');
+  String signedInDevicesSignOutDevice(String device) =>
+      _f('signedInDevicesSignOutDevice', <String, Object>{'device': device});
+  String signedInDevicesConfirmOther(String device) =>
+      _f('signedInDevicesConfirmOther', <String, Object>{'device': device});
+  String get signedInDevicesConfirmCurrent =>
+      _s('signedInDevicesConfirmCurrent');
+  String signedInDevicesSignedOutOther(String device) =>
+      _f('signedInDevicesSignedOutOther', <String, Object>{'device': device});
+  String get signedInDevicesEmpty => _s('signedInDevicesEmpty');
+  String get signedInDevicesMore => _s('signedInDevicesMore');
+  String get signedInDevicesLoadFailed => _s('signedInDevicesLoadFailed');
+  String get signedInDevicesWrongPassword => _s('signedInDevicesWrongPassword');
+  String get signedInDevicesTooManyAttempts =>
+      _s('signedInDevicesTooManyAttempts');
+  String get signedInDevicesAlreadySignedOut =>
+      _s('signedInDevicesAlreadySignedOut');
+  String get signedInDevicesSignOutFailed => _s('signedInDevicesSignOutFailed');
+  String get signedInDevicesPlatformAndroid =>
+      _s('signedInDevicesPlatformAndroid');
+  String get signedInDevicesPlatformIos => _s('signedInDevicesPlatformIos');
+  String get signedInDevicesPlatformUnknown =>
+      _s('signedInDevicesPlatformUnknown');
   String tr(String key) => _s(key);
 }
 

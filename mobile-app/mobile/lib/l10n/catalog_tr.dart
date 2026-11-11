@@ -783,4 +783,31 @@ const Map<String, String> trCatalog = {
   'weekdayShort7': 'Paz',
   'statusInProgress': 'Devam ediyor',
   'statusCancelled': 'İptal edildi',
+  'signedInDevicesTitle': 'Oturum açık cihazlar',
+  'signedInDevicesSubtitle':
+      'Hesabının nerede açık olduğunu gör ve bir cihazda oturumu kapat',
+  'signedInDevicesLoading': 'Cihazlar yükleniyor',
+  'signedInDevicesThisDevice': 'Bu cihaz',
+  'signedInDevicesLastActive': 'Son etkinlik: {when}',
+  'signedInDevicesSignedInAt': 'Oturum açılışı: {when}',
+  'signedInDevicesAppVersion': 'Uygulama sürümü {version}',
+  'signedInDevicesSignOut': 'Oturumu kapat',
+  'signedInDevicesSignOutDevice': '{device} oturumunu kapat',
+  'signedInDevicesConfirmOther':
+      '{device} oturumu kapatılsın mı? Orada yeniden giriş için şifre gerekecek.',
+  'signedInDevicesConfirmCurrent':
+      'Bu cihazda oturum kapatılsın mı? Yeniden giriş yapmak için şifren gerekecek.',
+  'signedInDevicesSignedOutOther': '{device} oturumu kapatıldı.',
+  'signedInDevicesEmpty': 'Oturumu açık başka cihaz yok.',
+  'signedInDevicesMore': 'Yalnızca en son kullanılan 50 cihaz gösterilir.',
+  'signedInDevicesLoadFailed':
+      'Cihazların yüklenemedi. Bağlantını kontrol edip tekrar dene.',
+  'signedInDevicesWrongPassword': 'Bu şifre doğru değil.',
+  'signedInDevicesTooManyAttempts':
+      'Çok fazla deneme. 15 dakika sonra tekrar dene.',
+  'signedInDevicesAlreadySignedOut': 'Bu cihazın oturumu zaten kapatılmıştı.',
+  'signedInDevicesSignOutFailed': 'Cihazın oturumu kapatılamadı. Tekrar dene.',
+  'signedInDevicesPlatformAndroid': 'Android cihaz',
+  'signedInDevicesPlatformIos': 'iPhone veya iPad',
+  'signedInDevicesPlatformUnknown': 'Bilinmeyen cihaz',
 };

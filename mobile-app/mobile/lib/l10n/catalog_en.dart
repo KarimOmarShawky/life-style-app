@@ -783,4 +783,31 @@ const Map<String, String> enCatalog = {
   'weekdayShort7': 'Sun',
   'statusInProgress': 'In progress',
   'statusCancelled': 'Cancelled',
+  'signedInDevicesTitle': 'Signed-in devices',
+  'signedInDevicesSubtitle':
+      'See where your account is signed in and sign out a device',
+  'signedInDevicesLoading': 'Loading devices',
+  'signedInDevicesThisDevice': 'This device',
+  'signedInDevicesLastActive': 'Last active {when}',
+  'signedInDevicesSignedInAt': 'Signed in {when}',
+  'signedInDevicesAppVersion': 'App version {version}',
+  'signedInDevicesSignOut': 'Sign out',
+  'signedInDevicesSignOutDevice': 'Sign out {device}',
+  'signedInDevicesConfirmOther':
+      'Sign out {device}? Signing in there again will need the password.',
+  'signedInDevicesConfirmCurrent':
+      'Sign out of this device? You will need your password to sign in again.',
+  'signedInDevicesSignedOutOther': '{device} is signed out.',
+  'signedInDevicesEmpty': 'No other devices are signed in.',
+  'signedInDevicesMore': 'Only the 50 most recently used devices are shown.',
+  'signedInDevicesLoadFailed':
+      'Could not load your devices. Check your connection and try again.',
+  'signedInDevicesWrongPassword': 'That password is not correct.',
+  'signedInDevicesTooManyAttempts':
+      'Too many attempts. Try again in 15 minutes.',
+  'signedInDevicesAlreadySignedOut': 'That device was already signed out.',
+  'signedInDevicesSignOutFailed': 'Could not sign out the device. Try again.',
+  'signedInDevicesPlatformAndroid': 'Android device',
+  'signedInDevicesPlatformIos': 'iPhone or iPad',
+  'signedInDevicesPlatformUnknown': 'Unknown device',
 };

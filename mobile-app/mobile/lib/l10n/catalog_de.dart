@@ -811,4 +811,33 @@ const Map<String, String> deCatalog = {
   'weekdayShort7': 'So.',
   'statusInProgress': 'In Arbeit',
   'statusCancelled': 'Abgebrochen',
+  'signedInDevicesTitle': 'Angemeldete Geräte',
+  'signedInDevicesSubtitle':
+      'Sieh, wo dein Konto angemeldet ist, und melde ein Gerät ab',
+  'signedInDevicesLoading': 'Geräte werden geladen',
+  'signedInDevicesThisDevice': 'Dieses Gerät',
+  'signedInDevicesLastActive': 'Zuletzt aktiv {when}',
+  'signedInDevicesSignedInAt': 'Angemeldet {when}',
+  'signedInDevicesAppVersion': 'App-Version {version}',
+  'signedInDevicesSignOut': 'Abmelden',
+  'signedInDevicesSignOutDevice': '{device} abmelden',
+  'signedInDevicesConfirmOther':
+      '{device} abmelden? Zum erneuten Anmelden dort wird das Passwort benötigt.',
+  'signedInDevicesConfirmCurrent':
+      'Dieses Gerät abmelden? Zum erneuten Anmelden brauchst du dein Passwort.',
+  'signedInDevicesSignedOutOther': '{device} ist abgemeldet.',
+  'signedInDevicesEmpty': 'Keine anderen Geräte sind angemeldet.',
+  'signedInDevicesMore':
+      'Es werden nur die 50 zuletzt genutzten Geräte angezeigt.',
+  'signedInDevicesLoadFailed':
+      'Deine Geräte konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.',
+  'signedInDevicesWrongPassword': 'Dieses Passwort ist nicht korrekt.',
+  'signedInDevicesTooManyAttempts':
+      'Zu viele Versuche. Versuche es in 15 Minuten erneut.',
+  'signedInDevicesAlreadySignedOut': 'Dieses Gerät war bereits abgemeldet.',
+  'signedInDevicesSignOutFailed':
+      'Das Gerät konnte nicht abgemeldet werden. Versuche es erneut.',
+  'signedInDevicesPlatformAndroid': 'Android-Gerät',
+  'signedInDevicesPlatformIos': 'iPhone oder iPad',
+  'signedInDevicesPlatformUnknown': 'Unbekanntes Gerät',
 };

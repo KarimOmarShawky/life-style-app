@@ -171,6 +171,10 @@ void main() {
     expect(find.bySemanticsLabel(earnedFocus), findsOneWidget);
     expect(find.bySemanticsLabel(lockedStreak), findsOneWidget);
     await expectLater(tester, meetsGuideline(textContrastGuideline));
+
+    // G6: the signed-in devices entry is offered to active accounts.
+    await _scrollTo(tester, find.text(en.signedInDevicesTitle));
+    expect(find.text(en.signedInDevicesSubtitle), findsOneWidget);
     semantics.dispose();
   });
 
@@ -197,6 +201,7 @@ void main() {
       await _scrollTo(tester, find.text(l10n.aiAssistantSubtitle));
       expect(find.text(l10n.aiAssistant), findsOneWidget);
       await _scrollTo(tester, find.text(l10n.accountStatusPendingDeletion));
+      expect(find.text(l10n.signedInDevicesTitle), findsNothing);
       for (final english in [
         'AI Assistant',
         'Cancel Deletion & Restore Account',

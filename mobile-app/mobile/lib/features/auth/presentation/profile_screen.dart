@@ -8,6 +8,7 @@ import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
+import 'package:lifestyle_mobile/features/auth/presentation/signed_in_devices_screen.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/account_export_dialog.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
@@ -513,6 +514,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           _ProfileRow(label: localization.accountStatus, value: statusLabel),
           const Divider(height: 24),
+          // Feature guide G6. Hidden in the deletion grace period, when the
+          // API answers 403 and the other devices are already signed out.
+          if (!activeUser.isPendingDeletion)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.devices_outlined),
+              title: Text(localization.signedInDevicesTitle),
+              subtitle: Text(localization.signedInDevicesSubtitle),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SignedInDevicesScreen(),
+                ),
+              ),
+            ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.save_alt),

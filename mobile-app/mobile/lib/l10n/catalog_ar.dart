@@ -763,4 +763,32 @@ const Map<String, String> arCatalog = {
   'weekdayShort7': 'أحد',
   'statusInProgress': 'جارٍ التنفيذ',
   'statusCancelled': 'ملغى',
+  'signedInDevicesTitle': 'الأجهزة المسجّل الدخول عليها',
+  'signedInDevicesSubtitle':
+      'اطّلع على الأجهزة التي سُجّل فيها دخول حسابك وسجّل الخروج من أي جهاز',
+  'signedInDevicesLoading': 'جارٍ تحميل الأجهزة',
+  'signedInDevicesThisDevice': 'هذا الجهاز',
+  'signedInDevicesLastActive': 'آخر نشاط {when}',
+  'signedInDevicesSignedInAt': 'تسجيل الدخول {when}',
+  'signedInDevicesAppVersion': 'إصدار التطبيق {version}',
+  'signedInDevicesSignOut': 'تسجيل الخروج',
+  'signedInDevicesSignOutDevice': 'تسجيل الخروج من {device}',
+  'signedInDevicesConfirmOther':
+      'تسجيل الخروج من {device}؟ سيلزم إدخال كلمة المرور لتسجيل الدخول عليه مرة أخرى.',
+  'signedInDevicesConfirmCurrent':
+      'تسجيل الخروج من هذا الجهاز؟ ستحتاج إلى كلمة المرور لتسجيل الدخول مرة أخرى.',
+  'signedInDevicesSignedOutOther': 'تم تسجيل الخروج من {device}.',
+  'signedInDevicesEmpty': 'لا توجد أجهزة أخرى مسجّل الدخول عليها.',
+  'signedInDevicesMore': 'تظهر هنا أحدث 50 جهازًا استخدامًا فقط.',
+  'signedInDevicesLoadFailed':
+      'تعذّر تحميل أجهزتك. تحقّق من الاتصال وحاول مرة أخرى.',
+  'signedInDevicesWrongPassword': 'كلمة المرور غير صحيحة.',
+  'signedInDevicesTooManyAttempts':
+      'محاولات كثيرة جدًا. حاول مرة أخرى بعد 15 دقيقة.',
+  'signedInDevicesAlreadySignedOut': 'تم تسجيل الخروج من هذا الجهاز بالفعل.',
+  'signedInDevicesSignOutFailed':
+      'تعذّر تسجيل الخروج من الجهاز. حاول مرة أخرى.',
+  'signedInDevicesPlatformAndroid': 'جهاز Android',
+  'signedInDevicesPlatformIos': 'iPhone أو iPad',
+  'signedInDevicesPlatformUnknown': 'جهاز غير معروف',
 };

@@ -819,4 +819,33 @@ const Map<String, String> frCatalog = {
   'weekdayShort7': 'dim.',
   'statusInProgress': 'En cours',
   'statusCancelled': 'Annulé',
+  'signedInDevicesTitle': 'Appareils connectés',
+  'signedInDevicesSubtitle':
+      'Voyez où votre compte est connecté et déconnectez un appareil',
+  'signedInDevicesLoading': 'Chargement des appareils',
+  'signedInDevicesThisDevice': 'Cet appareil',
+  'signedInDevicesLastActive': 'Dernière activité : {when}',
+  'signedInDevicesSignedInAt': 'Connecté : {when}',
+  'signedInDevicesAppVersion': 'Version de l’app {version}',
+  'signedInDevicesSignOut': 'Déconnecter',
+  'signedInDevicesSignOutDevice': 'Déconnecter {device}',
+  'signedInDevicesConfirmOther':
+      'Déconnecter {device} ? Le mot de passe sera nécessaire pour s’y reconnecter.',
+  'signedInDevicesConfirmCurrent':
+      'Déconnecter cet appareil ? Vous aurez besoin de votre mot de passe pour vous reconnecter.',
+  'signedInDevicesSignedOutOther': '{device} est déconnecté.',
+  'signedInDevicesEmpty': 'Aucun autre appareil n’est connecté.',
+  'signedInDevicesMore':
+      'Seuls les 50 appareils utilisés le plus récemment sont affichés.',
+  'signedInDevicesLoadFailed':
+      'Impossible de charger vos appareils. Vérifiez votre connexion et réessayez.',
+  'signedInDevicesWrongPassword': 'Ce mot de passe est incorrect.',
+  'signedInDevicesTooManyAttempts':
+      'Trop de tentatives. Réessayez dans 15 minutes.',
+  'signedInDevicesAlreadySignedOut': 'Cet appareil était déjà déconnecté.',
+  'signedInDevicesSignOutFailed':
+      'Impossible de déconnecter l’appareil. Réessayez.',
+  'signedInDevicesPlatformAndroid': 'Appareil Android',
+  'signedInDevicesPlatformIos': 'iPhone ou iPad',
+  'signedInDevicesPlatformUnknown': 'Appareil inconnu',
 };

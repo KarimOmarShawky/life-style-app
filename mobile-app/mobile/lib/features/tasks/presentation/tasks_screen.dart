@@ -664,7 +664,8 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
               controlAffinity: ListTileControlAffinity.leading,
             ),
           ),
-        ),,
+        ),
+      ),
     );
   }
 }

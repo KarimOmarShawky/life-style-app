@@ -6,6 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lifestyle_mobile/core/theme/app_theme.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/core_providers.dart';
+import 'package:lifestyle_mobile/data/session_tokens.dart';
+import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_platform.dart';
@@ -27,6 +31,19 @@ class _SignedInAuth extends AuthController {
 
   @override
   Future<AppUser?> build() async => _user;
+}
+
+/// The focus timer reads the timer-sessions repository at start; a client
+/// with a dummy address keeps the test off the network and off API_BASE_URL.
+class _NoTokenStore implements TokenStore {
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<SessionTokens?> read() async => null;
+
+  @override
+  Future<void> write(SessionTokens tokens) async {}
 }
 
 const _longTitle = 'مراجعة تقرير المشروع الأسبوعي مع الفريق';
@@ -99,6 +116,12 @@ Future<void> _pump(
       authProvider.overrideWith(() => _SignedInAuth(user)),
       focusShieldPlatformProvider.overrideWithValue(FakeFocusShieldPlatform()),
       tasksProvider.overrideWith((ref) async => _tasks()),
+      apiClientProvider.overrideWithValue(
+        ApiClient(
+          baseUri: Uri.parse('https://api.example.test/api/v1/'),
+          tokenStore: _NoTokenStore(),
+        ),
+      ),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),

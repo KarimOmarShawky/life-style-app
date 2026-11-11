@@ -394,9 +394,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                             fontWeight: isSelected || isToday
                                 ? FontWeight.bold
                                 : FontWeight.normal,
-                            color: isSelected
-                                ? scheme.onPrimaryContainer
-                                : null,
+                            color:
+                                isSelected ? scheme.onPrimaryContainer : null,
                           ),
                         ),
                         const SizedBox(height: 2),

@@ -110,6 +110,8 @@ Future<void> _pump(
   tester.view.physicalSize = const Size(640, 1280);
   addTearDown(tester.view.reset);
   await tester.pumpWidget(ProviderScope(
+    // A fresh container and screen state for every pump.
+    key: UniqueKey(),
     overrides: [
       authProvider.overrideWith(() => auth),
       sessionsClientProvider.overrideWithValue(sessions),
@@ -170,11 +172,17 @@ void main() {
     // The placeholder name is replaced by the platform.
     expect(find.text(ar.signedInDevicesPlatformAndroid), findsOneWidget);
     expect(find.text('Arena Mobile Client'), findsNothing);
-    expect(find.text('iPad Pro'), findsOneWidget);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     await expectLater(tester, meetsGuideline(textContrastGuideline));
 
+    // Cards are built lazily; at 200 % text the others are below the fold.
+    await tester.scrollUntilVisible(
+      find.text('iPad Pro'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text(ar.signedInDevicesPlatformUnknown),
       120,

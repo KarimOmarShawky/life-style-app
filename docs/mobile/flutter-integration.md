@@ -135,6 +135,8 @@ The focus timer records each running focus period through `/timer-sessions`, on 
 
 Strings added from the feature guide Phase 1 onward (2026-11-10: onboarding, notification privacy, usage statistics, AI parsing consent, habit streak copy, home-screen widget) exist in all six catalogs (en, ar, de, es, fr, tr) and in all six Android `values*` folders. Some older screens still contain hard-coded English or Arabic text; those literals are frozen by the ratchet in `scripts/l10n-literal-baseline.json`.
 
+CI pins Flutter 3.47.9 (owner decision, 2026-11-11). Flutter 3.50.0 (stable since 2026-11-09) deprecates `package:flutter/material.dart` and the global localization delegates in favour of the separate `material_ui` and `cupertino_ui` packages, so `flutter analyze --fatal-infos` reports 90 `deprecated_member_use` infos in 68 files. Moving to 3.50 or later means migrating to those packages (a new dependency, owner approval) and updating `pubspec.lock`; until then keep the pin in `.github/workflows/ci.yml` and `isolated-runtime.yml`.
+
 CI runs `node scripts/check-l10n.mjs` (feature guide E9). It fails on a key missing from any catalog, `{placeholder}` drift against English, Android string name or `%1$d` format drift, unescaped Android apostrophes, and any new hard-coded UI literal. After removing literals, refresh the baseline with `--update-baseline`.
 
 Translation notes for new strings:

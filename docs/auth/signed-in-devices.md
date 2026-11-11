@@ -58,6 +58,11 @@ Production (owner-managed Neon) has no migration ledger: never run
 4. Switch to `production`, run the file once, then the verification queries.
 5. Delete the rehearsal branch.
 
+**Status (2026-11-11, owner-reported):** applied to production after a
+rehearsal on a Neon branch of production; the owner reported that the
+verification queries below returned the expected `1, 1` and `0`. Nothing stores
+`user_revoked` until a backend with the sessions routes (PR #31) is deployed.
+
 It can run before or after the backend deploy. Until it runs, signing a device
 out still works: the session is stored with reason `logout` instead of
 `user_revoked`, and the backend logs one warning. Running the file a second

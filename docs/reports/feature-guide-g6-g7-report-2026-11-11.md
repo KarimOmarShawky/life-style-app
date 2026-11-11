@@ -4,6 +4,11 @@
 > started from `main` at `f4fe7f2`, 2026-11-11. Evidence below is tied to the cited commits.
 > This is not a release approval: device behaviour, production SQL and the signed
 > release are NOT RUN here.
+>
+> **Update — 2026-11-11: G2 and G6 owner SQL applied to production (owner-reported).** The
+> owner rehearsed both files on a Neon branch of production, then applied them to production;
+> the verification queries returned the expected values (`t, t, t, t` and `0`; `1, 1` and
+> `0`). Not verified independently: this environment has no database access.
 
 Source prompt: `LifeStyle_Next_Step_Prompt_G6_and_Closure.pdf`. Step 0 audit:
 `docs/reports/feature-guide-g6-g7-step0-audit-2026-11-11.md`.
@@ -18,8 +23,8 @@ Source prompt: `LifeStyle_Next_Step_Prompt_G6_and_Closure.pdf`. Step 0 audit:
 ## 2. Verdict
 
 NO-GO for a public release, unchanged. Everything approved is implemented and passes
-hosted CI (see §4), but the device checklist, the production SQL (G2 and G6) and the
-signed release are NOT RUN.
+hosted CI (see §4), but the device checklist and the signed release are NOT RUN. The
+G2 and G6 production SQL was applied by the owner on 2026-11-11 (owner-reported).
 
 ## 3. What changed, item by item
 
@@ -178,22 +183,22 @@ successfully on that commit.
 ## 7. Still NOT RUN
 
 - **Device checklist:** P1-1..P1-12, G2-1..G2-9, G6-1..G6-5, G7-1..G7-3, P1-15, A3-1, on a real Android phone (two phones for G6).
-- **Production SQL:** G2 (`docs/notifications/sql/notification-preferences.sql`) and G6 (`docs/auth/sql/auth-sessions-user-revoked.sql`), not confirmed on Neon.
+- **Production SQL, run by the owner and not from here:** G2 (`docs/notifications/sql/notification-preferences.sql`) and G6 (`docs/auth/sql/auth-sessions-user-revoked.sql`) were applied on 2026-11-11 (owner-reported). This environment cannot check the database.
 - **Signed release build** and store listing (Data safety, privacy policy).
 
 ## 8. Owner checklist — deployment order
 
-1. **SQL first, on Neon**, each on a rehearsal branch, then on production, with its verification queries:
-   - G2: expected `t, t, t, t` and `0`.
-   - G6: expected `1, 1` and `0`.
+1. **Done on 2026-11-11 (owner-reported): SQL first, on Neon.** G2 and G6 were rehearsed on a Neon branch of production, then applied to production. Verification returned the expected values:
+   - G2: `t, t, t, t` and `0`.
+   - G6: `1, 1` and `0`.
    - Never run `npm run migrate` on Neon.
-2. **Then the backend:** merge PR #31 when satisfied. Merging deploys `main` to Railway automatically. G6 works before its SQL (stores `logout`); G2 settings can't be saved before theirs (503 by design).
+2. **Then the backend (next):** merge PR #31 when satisfied. Merging deploys `main` to Railway automatically.
 3. **Then the app:** publish only after steps 1 and 2. Re-run the onboarding backfill (`UPDATE users SET onboarding_completed_at = created_at WHERE onboarding_completed_at IS NULL;`) right before publishing.
 4. **Device pass** with the checklist above, then the signed release (`android-signed-release` workflow on `main`).
 
 ## 9. Recommendation for the next decision
 
-1. Apply the G2 and G6 SQL and run the device pass. Nothing else moves the release verdict.
+1. Merge PR #31 (the SQL it needs is applied), then publish the app and run the device pass. Nothing else moves the release verdict.
 2. Decide G6-F1 (archive `created_ip`) and A2-F1 (briefing level).
 3. Approve the A1-F1 fix (SAFE, small). Decide when to plan the `material_ui` migration that lifts the Flutter pin (CI-F1).
 4. Next CAREFUL item: E3 server push. G2's policy gate and G6's per-device sign-out, which removes that device's push registration, are now both in place, so it is the logical next step. It needs an ADR and the Firebase approval (ADR-039).

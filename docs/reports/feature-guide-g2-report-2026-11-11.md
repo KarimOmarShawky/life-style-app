@@ -3,6 +3,12 @@
 > **Historical snapshot** — describes branch `arena/db60a1d0-life-style-app` (PR #30)
 > from `7fd822a` through code commit `4448272` on 2026-11-11. Every status applies to those
 > commits only. Re-verify after any later change. This is not a release approval.
+>
+> **Update — 2026-11-11: G2 owner SQL applied to production (owner-reported).** The owner
+> rehearsed `docs/notifications/sql/notification-preferences.sql` on a Neon branch of
+> production, then applied it to production; the verification queries returned the
+> expected `t, t, t, t` and `0`. PR #30 had been merged as `f4fe7f2` and deployed earlier
+> that day.
 
 ## 1. Verdict
 
@@ -10,7 +16,7 @@
 |---|---|
 | G2 (CAREFUL, approved 2026-11-11) | **Implemented.** Every hosted CI gate passed on `4448272`. |
 | Device behaviour | **NOT RUN.** No phone in this environment; checks G2-1..G2-9 are in `docs/mobile/manual-test-checklist.md`. |
-| Production database | **G2 SQL not applied yet.** Until it is, the API degrades safely (§8). |
+| Production database | **G2 SQL applied on 2026-11-11 (owner-reported)**, see the update above. Until then the API degraded safely (§8). |
 | Program verdict (guide handoff) | **NO-GO** for a public release, unchanged: no signed release build, no device matrix, Phase 3 not started. |
 
 ## 2. Owner decisions (2026-11-11, ask_user)
@@ -116,8 +122,9 @@ verification queries), `docs/notifications/sql/notification-preferences.sql`,
 
 ## 9. Owner actions
 
-1. Apply `docs/notifications/sql/notification-preferences.sql` on Neon: a rehearsal branch
-   first, then production, with the verification queries (`t, t, t, t` and `0`).
+1. **Done on 2026-11-11 (owner-reported):** `docs/notifications/sql/notification-preferences.sql`
+   was applied on Neon, a rehearsal branch first, then production, with the expected
+   verification (`t, t, t, t` and `0`).
 2. Device pass: G2-1..G2-9 and P1-1..P1-12.
 3. Still due from G5: re-run the onboarding backfill line right before publishing the app
    version with onboarding.

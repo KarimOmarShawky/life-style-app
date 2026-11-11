@@ -256,6 +256,39 @@ adb -s emulator-5554 emu sms send BANKX "Money movement: EGP 320.00 to UNKNOWN S
 
 - [ ] **H-1** Mark a habit done for today. It stays done after you reopen the app.
 
+### Feature guide Phase 1 (2026-11-10). Needs a phone
+
+Strings for these screens exist in all six languages. Run the list once in English and once in Arabic.
+
+- [ ] **P1-1** Sign up with a new account. Onboarding opens. Pick a focus area: three starter tasks are added for today without typing. Tick one and the celebration screen appears. Note the time from the first screen to the celebration (target: under 60 seconds).
+- [ ] **P1-2** No permission prompt appears at app launch. The reminder question comes only after the first win, and "Not now" continues into the app.
+- [ ] **P1-3** On a second new account, Skip on the first screen opens the app at once and creates no tasks. In airplane mode, choosing an area shows a friendly error and Skip still works.
+- [ ] **P1-4** Create a task with a reminder in two minutes and lock the phone. The lock screen shows a generic title, not the task title. Repeat with a calendar event reminder.
+- [ ] **P1-5** With AI help off (the default), Smart Quick Add creates `Call mom tomorrow at 5pm` right away with the phone's own parser and shows no consent dialog. Note whether the date and time were recognised. Turning AI help on in Profile shows the consent dialog.
+- [ ] **P1-6** Profile → usage statistics: turn it off, restart the app, and confirm it is still off. Then request the JSON data export: it lists no product events.
+- [ ] **P1-7** Add the home-screen widget. It shows today's task count and up to three next tasks (your Top 3 first), level and XP, in the app language. Switch the app to Arabic: the widget follows within a few seconds and its text aligns right.
+- [ ] **P1-8** Tap the widget body (opens Focus) and its Daily Plan line (opens Daily Plan), once with the app in the background and once after force-stopping it. After signing out, the same taps lead to sign-in.
+- [ ] **P1-9** Without opening the app, move the device date to tomorrow (or wait past midnight). The widget shows the refresh hint, not yesterday's tasks.
+- [ ] **P1-10** A new habit shows "Start today". A habit whose streak ended shows "Fresh start today" and its best streak. In airplane mode, the check button shows a friendly message and nothing crashes.
+- [ ] **P1-11** With TalkBack on, the habit check button is announced as "Mark done for today", and the onboarding cards and both Profile switches read their titles.
+- [ ] **P1-12** Set the largest system font size. Onboarding, the habit list and Profile show no clipped or overlapping text, and the Arabic layout runs right to left.
+
+### Feature guide G2: notification settings (2026-11-11). Needs a phone
+
+The production database needs `docs/notifications/sql/notification-preferences.sql`
+(owner-run, see `docs/notifications/notification-preferences.md`) before settings
+can be saved. Times below are in the account time zone shown on the screen.
+
+- [ ] **G2-1** Profile → Notifications opens. With the defaults, add a task with a time 2–3 minutes ahead and "Ring as an alarm" off: a normal notification arrives on time, with no full screen and no looping sound, and its title is generic.
+- [ ] **G2-2** Same with "Ring as an alarm" on: it keeps ringing until Dismiss or Snooze. It appears as a ringing banner, not full screen (the app does not request the full-screen permission).
+- [ ] **G2-3** Turn quiet hours on and set them to cover the next few minutes. A normal reminder inside them arrives when they end. An alarm inside them also waits, unless "Alarms can ring in quiet hours" is on.
+- [ ] **G2-4** Set the daily limit to 3 and add 5 timed tasks for later today. Three arrive one by one. One summary ("Reminders waiting in LifeStyle: 2") arrives at the fourth one's time, with no task names.
+- [ ] **G2-5** Turn "Reminders and alarms" off: nothing arrives, alarms included. Turn it back on: the upcoming reminders come back.
+- [ ] **G2-6** Change a setting on one phone, then open the app on a second phone with the same account: its reminders follow the new setting.
+- [ ] **G2-7** Before the SQL is applied, the screen shows a notice and changes say they can't be saved yet; nothing crashes. After it is applied, saving works.
+- [ ] **G2-8** Sign out: no reminder from that account arrives afterwards.
+- [ ] **G2-9** Arabic at the largest font: the Notifications screen has no clipped text, runs right to left, and TalkBack reads every switch and time.
+
 ### Quick regression
 
 - [ ] **X-1** Log out and log in.

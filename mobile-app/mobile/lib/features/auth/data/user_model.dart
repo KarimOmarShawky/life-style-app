@@ -8,6 +8,8 @@ class AppUser {
     required this.defaultCurrency,
     required this.status,
     this.deletionScheduledFor,
+    this.productEventsEnabled,
+    this.onboardingPending = false,
   });
 
   final String id;
@@ -19,7 +21,29 @@ class AppUser {
   final String status;
   final DateTime? deletionScheduledFor;
 
+  /// Usage-statistics choice (feature guide G5). Null when the server does
+  /// not support it yet; then no usage event is sent at all.
+  final bool? productEventsEnabled;
+
+  /// True only when the server explicitly reports `onboardingCompletedAt:
+  /// null`. A missing field means the server has no onboarding support, so
+  /// existing installs never see onboarding by accident.
+  final bool onboardingPending;
+
   bool get isPendingDeletion => status == 'pending_deletion';
+
+  /// Same account with first-run onboarding treated as finished.
+  AppUser withOnboardingDone() => AppUser(
+        id: id,
+        email: email,
+        displayName: displayName,
+        timezone: timezone,
+        locale: locale,
+        defaultCurrency: defaultCurrency,
+        status: status,
+        deletionScheduledFor: deletionScheduledFor,
+        productEventsEnabled: productEventsEnabled,
+      );
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: _string(json, 'id'),
@@ -30,6 +54,11 @@ class AppUser {
         defaultCurrency: _string(json, 'defaultCurrency'),
         status: _string(json, 'status'),
         deletionScheduledFor: _optionalDateTime(json, 'deletionScheduledFor'),
+        productEventsEnabled: json['productEventsEnabled'] is bool
+            ? json['productEventsEnabled'] as bool
+            : null,
+        onboardingPending: json.containsKey('onboardingCompletedAt') &&
+            json['onboardingCompletedAt'] == null,
       );
 }
 

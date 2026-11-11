@@ -244,6 +244,10 @@ paths:
                 properties:
                   user:
                     $ref: '#/components/schemas/User'
+        '400':
+          description: Validation failed (unknown fields are rejected)
+        '503':
+          description: productEventsEnabled or onboardingCompleted was sent but the server database does not support it yet; nothing was changed
   /users/me/devices:
     put:
       summary: Register Push Device
@@ -324,7 +328,7 @@ paths:
                 currentPassword: { type: string, minLength: 1, maxLength: 1024, writeOnly: true }
       responses:
         '200':
-          description: Account profile, sessions, categories and push-device metadata only; not a complete data portability archive. Each list is capped at 1000 rows and overflow returns 413, never silent truncation
+          description: Account profile (including product-event and onboarding settings when supported), sessions, categories, push-device metadata and content-free product events only; not a complete data portability archive. Session and device lists are capped at 1000 rows and product events at 5000; overflow returns 413, never silent truncation
         '400':
           description: Missing or invalid current-password proof
         '403':
@@ -1560,6 +1564,105 @@ paths:
           description: Per-user AI quota exceeded
         '503':
           description: AI disabled
+
+  /product-events:
+    post:
+      summary: Record a Content-Free Product Event
+      security:
+        - BearerAuth: []
+      description: >-
+        Records one usage event for the Activation and D1/D7/D30 funnel. The
+        body carries only an event name from a closed list, the platform and an
+        optional app version: no titles, notes, identifiers, free text or
+        client timestamps (unknown fields are rejected). The server stamps the
+        time and the user's local calendar day; at most one row is kept per
+        user, event and local day. Nothing is recorded when the account opted
+        out (PATCH /users/me productEventsEnabled=false), when the server kill
+        switch is off or before the schema is applied; the response is still
+        202 with recorded=false. Rate limit: 60 requests per 60 seconds per
+        user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordProductEventRequest'
+      responses:
+        '202':
+          description: Accepted; recorded is false when nothing was stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recorded:
+                    type: boolean
+                required:
+                  - recorded
+        '400':
+          description: Validation failed (unknown event, platform or field)
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user event rate limit exceeded
+
+  /notification-preferences:
+    get:
+      summary: Read Notification Settings
+      security:
+        - BearerAuth: []
+      description: >-
+        Returns the account's settings for the shared notification policy
+        (feature guide G2, ADR-046): master switch, quiet hours, daily limit,
+        low-priority summary and whether alarms may ring during quiet hours.
+        Accounts that never saved settings get the defaults (everything on, no
+        quiet hours, no daily limit). Quiet hours are read in the account time
+        zone, returned as timeZone. available is false until the owner-run SQL
+        is applied; the defaults are returned then. Rate limit: 30 requests per
+        60 seconds per user.
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+    put:
+      summary: Replace Notification Settings
+      security:
+        - BearerAuth: []
+      description: >-
+        Replaces all settings at once. Unknown fields are rejected. Quiet hours
+        use 24-hour HH:MM local times, may cross midnight and need different
+        start and end times; null turns them off. dailyLimit is 1-50
+        non-critical notifications per local day, or null for no limit;
+        notifications over the limit are combined into one summary
+        notification. Rate limit: 30 requests per 60 seconds per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationPreferencesRequest'
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '400':
+          description: Validation failed
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+        '503':
+          description: NOTIFICATION_PREFERENCES_UNAVAILABLE before the owner-run SQL is applied
 
   /search:
     get:
@@ -3153,6 +3256,85 @@ components:
           maxLength: 3
         pushShowTitles:
           type: boolean
+        productEventsEnabled:
+          type: boolean
+          description: Opt in or out of content-free product events. false also deletes the events already recorded for this account.
+        onboardingCompleted:
+          type: boolean
+          const: true
+          description: Marks first-run onboarding as completed or skipped. Idempotent; the first time is kept.
+      additionalProperties: false
+
+    RecordProductEventRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        event:
+          type: string
+          enum: [app_opened, onboarding_started, onboarding_completed, onboarding_skipped, task_completed, habit_checked_in]
+        platform:
+          type: string
+          enum: [android, ios, unknown]
+        appVersion:
+          type: string
+          pattern: '^[0-9A-Za-z.+-]{1,32}$'
+      required:
+        - event
+        - platform
+
+    NotificationPreferencesRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        notificationsEnabled:
+          type: boolean
+          description: Master switch; false drops every policy-managed notification, alarms included.
+        quietHours:
+          type: object
+          nullable: true
+          additionalProperties: false
+          properties:
+            start:
+              type: string
+              pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+            end:
+              type: string
+              pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          required:
+            - start
+            - end
+        dailyLimit:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 50
+        digestEnabled:
+          type: boolean
+          description: Low-priority notifications join the day's summary instead of arriving one by one.
+        criticalBreaksQuiet:
+          type: boolean
+          description: Alarms the user chose may ring during quiet hours.
+      required:
+        - notificationsEnabled
+        - quietHours
+        - dailyLimit
+        - digestEnabled
+        - criticalBreaksQuiet
+
+    NotificationPreferences:
+      allOf:
+        - $ref: '#/components/schemas/NotificationPreferencesRequest'
+        - type: object
+          properties:
+            timeZone:
+              type: string
+              description: Account time zone (IANA) that quiet hours and days are read in.
+            available:
+              type: boolean
+              description: False until the owner-run SQL is applied.
+          required:
+            - timeZone
+            - available
 
     RegisterDeviceRequest:
       type: object
@@ -3196,6 +3378,14 @@ components:
           nullable: true
         pushShowTitles:
           type: boolean
+        productEventsEnabled:
+          type: boolean
+          description: Present only when the server supports product events; absent means unsupported.
+        onboardingCompletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Present only when the server supports onboarding. null means first-run onboarding has not been completed or skipped.
         createdAt:
           type: string
           format: date-time

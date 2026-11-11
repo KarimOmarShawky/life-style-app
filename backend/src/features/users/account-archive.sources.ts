@@ -125,7 +125,11 @@ export const ACCOUNT_ARCHIVE_SOURCES = [
  * order). Reset records are therefore a documented exclusion, not an oversight:
  * `tests/unit/account-archive.test.ts` asserts that they are owned and purged.
  */
-export const ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS = ['password_reset_requests'] as const;
+export const ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS = [
+  'password_reset_requests',
+  'product_events',
+  'notification_preferences'
+] as const;
 
 export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
   'password hashes and authentication/refresh/ingest/push token material',
@@ -136,5 +140,10 @@ export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
   // contract: adding a section would make older clients reject the export.
   'password-reset request records and their network metadata (IP address and user agent)',
   'retired financial categories, transactions, budgets and SMS-ingest device records',
+  // Content-free usage events (G5) are exported by POST /users/me/export and
+  // erased with the account; a v1 section would break installed clients.
+  'product events (content-free usage events; included in the account metadata export instead)',
+  // Notification settings (G2) follow the same rule as product events.
+  'notification preferences (quiet hours and daily limit; included in the account metadata export instead)',
   'device-only data, external-provider data and already purged records'
 ] as const;

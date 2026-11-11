@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget (feature guide G3). The widget uses the app language
+     when the user picked one, otherwise the device language. -->
+<resources>
+    <string name="lifestyle_widget_label">LifeStyle · اليوم</string>
+    <string name="widget_header">آخر درجة وضوح</string>
+    <string name="widget_no_data">لا توجد بيانات بعد</string>
+    <string name="widget_level_xp">المستوى %1$d · %2$d XP</string>
+    <string name="widget_tasks_left">المهام المتبقية اليوم: %1$d</string>
+    <string name="widget_tasks_no_data">مهام اليوم: لا توجد بيانات بعد</string>
+    <string name="widget_tasks_empty">اختر أولويتك التالية</string>
+    <string name="widget_refresh_hint">افتح خطة اليوم للتحديث</string>
+    <string name="widget_shield_active">درع التركيز: مفعّل</string>
+    <string name="widget_shield_ready">جاهز للتركيز</string>
+    <string name="widget_daily_plan">خطة اليوم</string>
+</resources>

@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_platform.dart';
 import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
@@ -24,8 +26,7 @@ Task _task(String id,
         version: 1);
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('widget exposes only score, XP, level, pending count and one top title',
-      () {
+  test('widget exposes only score, XP, level, language and the next tasks', () {
     final ledger = XpLedger([
       const XpEvent(
           type: XpType.task, entityId: 't', dateKey: '2026-10-14', xp: 25)
@@ -34,21 +35,31 @@ void main() {
         ledger: ledger,
         history: [],
         now: DateTime(2026, 10, 14),
+        locale: 'ar',
         tasks: [
           _task('a',
               dueDate: '2026-10-14', title: 'Top priority', priority: 'high'),
-          _task('b', dueDate: '2026-10-14', title: 'Never exposed'),
-          _task('c', dueDate: '2026-10-14', status: 'done'),
-          _task('d', dueDate: '2026-10-15')
+          _task('b', dueDate: '2026-10-14', title: 'Second'),
+          _task('e', dueDate: '2026-10-14', title: 'Third', priority: 'low'),
+          _task('f',
+              dueDate: '2026-10-14', title: 'Fourth hidden', priority: 'none'),
+          _task('c', dueDate: '2026-10-14', title: 'Done', status: 'done'),
+          _task('d', dueDate: '2026-10-15', title: 'Tomorrow')
         ]);
-    expect(data.keys.toSet(),
-        {'clarityScore', 'level', 'xp', 'pendingTasksCount', 'topTaskTitle'});
+    expect(data.keys.toSet(), {
+      'clarityScore',
+      'level',
+      'xp',
+      'locale',
+      'pendingTasksCount',
+      'topTaskTitles'
+    });
     expect(data['clarityScore'], isNull);
     expect(data['xp'], 25);
     expect(data['level'], 1);
-    expect(data['pendingTasksCount'], 2);
-    expect(data['topTaskTitle'], 'Top priority');
-    expect(data.values, isNot(contains('Never exposed')));
+    expect(data['locale'], 'ar');
+    expect(data['pendingTasksCount'], 4);
+    expect(data['topTaskTitles'], ['Top priority', 'Second', 'Third']);
     expect(data,
         isNot(contains('active'))); // Shield status is exclusively native.
   });
@@ -64,21 +75,25 @@ void main() {
           _task('b', title: 'Chosen priority')
         ],
         priorities: ['b']);
-    expect(data['topTaskTitle'], 'Chosen priority');
+    expect(data['topTaskTitles'], ['Chosen priority', 'Task']);
     expect(data['pendingTasksCount'], 2);
     final unknown = buildHomeWidgetData(
         ledger: XpLedger(), history: [], now: DateTime(2026, 10, 14));
     expect(unknown, isNot(contains('pendingTasksCount')));
-    expect(unknown, isNot(contains('topTaskTitle')));
+    expect(unknown, isNot(contains('topTaskTitles')));
+    expect(unknown['locale'], '');
   });
   test('widget routes remain explicitly allowlisted and strip extra data', () {
     expect(DeepLinkParser.routeFor('lifestyle://focus?text=private'), '/focus');
     expect(DeepLinkParser.routeFor('lifestyle://daily-plan#private'),
         '/daily-plan');
     expect(DeepLinkParser.routeFor('lifestyle://not-a-route'), '/tasks');
+    expect(DeepLinkParser.routeFor('lifestyle:///focus'), '/focus');
+    expect(DeepLinkParser.routeFor('lifestyle:///daily-plan'), '/daily-plan');
   });
   test('Riverpod pushes updates after both XP and task changes', () async {
-    SharedPreferences.setMockInitialValues({});
+    // A stored app language, so the result does not depend on the device.
+    SharedPreferences.setMockInitialValues({'app_locale': 'ar'});
     final fake = FakeFocusShieldPlatform();
     final today = localDateKey(DateTime.now());
     final source =
@@ -98,6 +113,13 @@ void main() {
     await container.read(tasksProvider.future);
     await Future<void>.delayed(const Duration(milliseconds: 30));
     expect(fake.widgetUpdates.last['pendingTasksCount'], 1);
+    expect(fake.widgetUpdates.last['topTaskTitles'], ['Task']);
+    expect(fake.widgetUpdates.last['locale'], 'ar');
+    final settings = container.read(settingsProvider.notifier);
+    await settings.setLocale(const Locale('fr'));
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(fake.widgetUpdates.last['locale'], 'fr',
+        reason: 'a language change redraws the widget in the new language');
     await container
         .read(focusShieldProvider.notifier)
         .award(XpType.task, 'today');

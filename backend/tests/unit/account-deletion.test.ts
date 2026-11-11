@@ -30,6 +30,8 @@ function createTransactionalPoolMock(options?: {
     deletion_scheduled_for: Date | null;
   } | null;
   failOnPattern?: RegExp;
+  /** Owned tables that the to_regclass() existence probe reports as absent. */
+  absentTables?: string[];
 }): {
   pool: pg.Pool;
   queries: RecordedQuery[];
@@ -54,6 +56,11 @@ function createTransactionalPoolMock(options?: {
 
       if (options?.failOnPattern && options.failOnPattern.test(normalized)) {
         throw new Error('SIMULATED_DB_FAILURE');
+      }
+
+      if (normalized.startsWith('SELECT to_regclass(')) {
+        const table = String(params[0]).replace(/^public\./, '');
+        return { rows: [{ present: !(options?.absentTables ?? []).includes(table) }], rowCount: 1 };
       }
 
       if (normalized.startsWith('SELECT') && normalized.includes('FROM users')) {
@@ -258,6 +265,38 @@ describe('Account Deletion & Data Lifecycle (B-07)', () => {
     }
 
     expect(events).toHaveLength(1);
+  });
+
+  it('erases product events with the account, and skips that optional table only while it does not exist', async () => {
+    const pending = {
+      id: userA,
+      email: 'private@example.com',
+      status: 'pending_deletion' as const,
+      deletion_scheduled_for: new Date(Date.now() - 60_000)
+    };
+    const present = createTransactionalPoolMock({ userRow: pending });
+    expect(await new PgUsersRepository(present.pool).purgeAccount(userA)).toBe(true);
+    const probe = present.queries.findIndex((q) => q.sql.startsWith('SELECT to_regclass('));
+    expect(present.queries[probe]?.params).toEqual(['public.product_events']);
+    expect(probe).toBeGreaterThan(present.queries.findIndex((q) => q.sql === 'BEGIN'));
+    expect(
+      present.queries.some((q) => q.sql === 'DELETE FROM product_events WHERE user_id = $1')
+    ).toBe(true);
+
+    // Before the owner applies the product-events DDL the table cannot hold
+    // rows: skip it, but still erase every mandatory owned table.
+    const absent = createTransactionalPoolMock({
+      userRow: pending,
+      absentTables: ['product_events']
+    });
+    expect(await new PgUsersRepository(absent.pool).purgeAccount(userA)).toBe(true);
+    expect(absent.queries.some((q) => q.sql.includes('FROM product_events'))).toBe(false);
+    for (const table of USER_OWNED_TABLES_IN_DELETE_ORDER.filter((t) => t !== 'product_events')) {
+      expect(absent.queries.some((q) => q.sql === `DELETE FROM ${table} WHERE user_id = $1`)).toBe(
+        true
+      );
+    }
+    expect(absent.queries.at(-1)?.sql).toBe('COMMIT');
   });
 
   it('is idempotent when purging a non-existent or active account', async () => {

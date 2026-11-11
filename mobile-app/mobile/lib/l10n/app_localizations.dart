@@ -569,6 +569,86 @@ class AppLocalizations {
   String get weekdaySun => _s('weekdaySun');
 
   /// Generic catalog lookup for keys without a dedicated getter.
+  // First-run onboarding (G1), usage statistics (G5), AI parsing consent
+  // (P0-F2) and content-light notification copy (P0-F1).
+  String get onboardingTitle => _s('onboardingTitle');
+  String get onboardingSubtitle => _s('onboardingSubtitle');
+  String get onboardingSkip => _s('onboardingSkip');
+  String get onboardingAreaStudy => _s('onboardingAreaStudy');
+  String get onboardingAreaWork => _s('onboardingAreaWork');
+  String get onboardingAreaRoutine => _s('onboardingAreaRoutine');
+  String get starterClearDesk => _s('starterClearDesk');
+  String get starterPickLesson => _s('starterPickLesson');
+  String get starterFocusSession => _s('starterFocusSession');
+  String get starterTopPriority => _s('starterTopPriority');
+  String get starterReplyMessage => _s('starterReplyMessage');
+  String get starterWater => _s('starterWater');
+  String get starterWalk => _s('starterWalk');
+  String get starterStretch => _s('starterStretch');
+  String get onboardingFirstWinTitle => _s('onboardingFirstWinTitle');
+  String get onboardingFirstWinSubtitle => _s('onboardingFirstWinSubtitle');
+  String get onboardingCelebrateTitle => _s('onboardingCelebrateTitle');
+  String get onboardingCelebrateBody => _s('onboardingCelebrateBody');
+  String get onboardingRemindersQuestion => _s('onboardingRemindersQuestion');
+  String get onboardingEnableReminders => _s('onboardingEnableReminders');
+  String get onboardingNotNow => _s('onboardingNotNow');
+  String get onboardingAddFailed => _s('onboardingAddFailed');
+  String get onboardingCompleteFailed => _s('onboardingCompleteFailed');
+  String get usageStatsTitle => _s('usageStatsTitle');
+  String get usageStatsSubtitle => _s('usageStatsSubtitle');
+  String get settingSaveFailed => _s('settingSaveFailed');
+  String get aiTaskParsingTitle => _s('aiTaskParsingTitle');
+  String get aiTaskParsingSubtitle => _s('aiTaskParsingSubtitle');
+  String get aiTaskParsingConsentTitle => _s('aiTaskParsingConsentTitle');
+  String get aiTaskParsingConsentBody => _s('aiTaskParsingConsentBody');
+  String get aiTaskParsingAgree => _s('aiTaskParsingAgree');
+  String get taskReminderTitle => _s('taskReminderTitle');
+  String get snoozeReminderTitle => _s('snoozeReminderTitle');
+  String get snoozeReminderBody => _s('snoozeReminderBody');
+  String get alarmDismissAction => _s('alarmDismissAction');
+  String get alarmSnoozeAction => _s('alarmSnoozeAction');
+  String get calendarReminderTitle => _s('calendarReminderTitle');
+  String calendarStartsAt(String title, String time) =>
+      _f('calendarStartsAt', {'title': title, 'time': time});
+  String habitStreakDays(int n) =>
+      _f('habitStreakDays', <String, Object>{'n': n});
+  String habitBestStreak(int n) =>
+      _f('habitBestStreak', <String, Object>{'n': n});
+  String get habitStartToday => _s('habitStartToday');
+  String get habitFreshStart => _s('habitFreshStart');
+  String get habitCheckInTooltip => _s('habitCheckInTooltip');
+  String get habitCheckInFailed => _s('habitCheckInFailed');
+  String get notificationSettingsTitle => _s('notificationSettingsTitle');
+  String get notificationSettingsSubtitle => _s('notificationSettingsSubtitle');
+  String get notificationsMasterSwitch => _s('notificationsMasterSwitch');
+  String get notificationsMasterSwitchHint =>
+      _s('notificationsMasterSwitchHint');
+  String get quietHoursTitle => _s('quietHoursTitle');
+  String get quietHoursHint => _s('quietHoursHint');
+  String get quietHoursStart => _s('quietHoursStart');
+  String get quietHoursEnd => _s('quietHoursEnd');
+  String get alarmsBreakQuietTitle => _s('alarmsBreakQuietTitle');
+  String get alarmsBreakQuietHint => _s('alarmsBreakQuietHint');
+  String get dailyLimitTitle => _s('dailyLimitTitle');
+  String get dailyLimitHint => _s('dailyLimitHint');
+  String get dailyLimitNone => _s('dailyLimitNone');
+  String dailyLimitPerDay(int n) =>
+      _f('dailyLimitPerDay', <String, Object>{'n': n});
+  String notificationTimeZoneNote(String zone) =>
+      _f('notificationTimeZoneNote', <String, Object>{'zone': zone});
+  String get notificationSettingsSaveFailed =>
+      _s('notificationSettingsSaveFailed');
+  String get notificationSettingsUnavailable =>
+      _s('notificationSettingsUnavailable');
+  String get notificationSettingsLoadFailed =>
+      _s('notificationSettingsLoadFailed');
+  String get ringAsAlarm => _s('ringAsAlarm');
+  String get ringAsAlarmHint => _s('ringAsAlarmHint');
+  String get reminderScheduled => _s('reminderScheduled');
+  String get detectedTime => _s('detectedTime');
+  String get notificationSummaryTitle => _s('notificationSummaryTitle');
+  String notificationSummaryBody(int n) =>
+      _f('notificationSummaryBody', <String, Object>{'n': n});
   String tr(String key) => _s(key);
 }
 

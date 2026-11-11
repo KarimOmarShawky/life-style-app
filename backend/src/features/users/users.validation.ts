@@ -19,7 +19,13 @@ export const updateProfileSchema = z
     locale: z.string().max(16).optional(),
     weekStart: z.number().int().min(1).max(7).optional(),
     defaultCurrency: currencySchema.optional(),
-    pushShowTitles: z.boolean().optional()
+    pushShowTitles: z.boolean().optional(),
+    // G5: per-account opt-out of content-free product events. false also
+    // deletes the account's recorded events in the same transaction.
+    productEventsEnabled: z.boolean().optional(),
+    // G1: account-scoped first-run flag. Only `true` is accepted: onboarding
+    // is completed or skipped once and is never re-armed by a client.
+    onboardingCompleted: z.literal(true).optional()
   })
   .strict();
 

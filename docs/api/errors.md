@@ -27,3 +27,4 @@ The LifeStyle API enforces a predictable catalog of machine-readable error codes
 | **429** | `RATE_LIMITED` | Rate limit exceeded. Response includes `Retry-After` header. |
 | **500** | `INTERNAL_ERROR` | Unexpected server condition. Technical details logged internally; masked to client. |
 | **503** | `SERVICE_UNAVAILABLE` | Database deadlock/timeout or dependency connectivity degradation. Client should retry with exponential backoff. |
+| **503** | `NOTIFICATION_PREFERENCES_UNAVAILABLE` | `PUT /notification-preferences` before the owner-run SQL (`docs/notifications/sql/notification-preferences.sql`) is applied. Do not retry automatically; reading still returns the defaults with `available: false`. |

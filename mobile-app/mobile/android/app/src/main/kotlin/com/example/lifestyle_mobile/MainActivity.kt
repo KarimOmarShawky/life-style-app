@@ -101,7 +101,9 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.data?.scheme == "lifestyle" && intent.data?.host == "focus") {
+        val link = intent.data
+        // Path form (lifestyle:///focus) since G3; the host form is still accepted for older links.
+        if (WidgetContent.isFocusLink(link?.scheme, link?.host, link?.path)) {
             FocusShieldEvents.emit(mapOf("type" to "navigateFocus"))
         }
     }

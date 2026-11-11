@@ -11,6 +11,8 @@ export interface UpdateUserProfileInput {
   weekStart?: number | undefined;
   defaultCurrency?: string | undefined;
   pushShowTitles?: boolean | undefined;
+  productEventsEnabled?: boolean | undefined;
+  onboardingCompleted?: true | undefined;
 }
 
 export interface RegisterPushDeviceInput {
@@ -43,6 +45,9 @@ export interface UserExportData {
     defaultCurrency: string;
     status: string;
     createdAt: string;
+    /** Present once the product-events schema (migration 1792750000000) exists. */
+    productEventsEnabled?: boolean;
+    onboardingCompletedAt?: string | null;
   };
   sessions: Array<{
     id: string;
@@ -62,5 +67,22 @@ export interface UserExportData {
     platform: string;
     lastSeenAt: string;
     createdAt: string;
+  }>;
+  /** Notification settings (G2); null when never saved or the schema is not yet applied. */
+  notificationPreferences: {
+    notificationsEnabled: boolean;
+    quietHours: { start: string; end: string } | null;
+    dailyLimit: number | null;
+    digestEnabled: boolean;
+    criticalBreaksQuiet: boolean;
+    updatedAt: string;
+  } | null;
+  /** Content-free usage events (G5); empty when none exist or the schema is not yet applied. */
+  productEvents: Array<{
+    event: string;
+    occurredAt: string;
+    occurredOn: string;
+    platform: string;
+    appVersion: string | null;
   }>;
 }

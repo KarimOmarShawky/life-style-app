@@ -31,20 +31,27 @@ class SmartTaskParser {
   @visibleForTesting
   static Future<String> Function(String prompt)? replyProviderForTesting;
 
-  /// Attempts to parse using the AI assistant via the backend proxy for
-  /// accurate natural-language understanding. Seamlessly falls back to the
-  /// local heuristic parser when the assistant is unavailable, paused, or
+  /// Upper bound for the optional AI round trip. The local parser answers
+  /// at once, so a slow assistant never holds a new task back for long.
+  static const Duration aiTimeout = Duration(seconds: 4);
+
+  /// Parses on the device unless [useAi] is true. [useAi] must come from the
+  /// account's explicit opt-in (`aiTaskParsingProvider`, feature guide
+  /// P0-F2); no task text leaves the device otherwise. The AI path falls back
+  /// to the local parser when the assistant is unavailable, slow, paused, or
   /// returns something that is not the requested JSON object.
   static Future<ParsedTaskResult> parseAsync(
     String rawInput, {
     DateTime? now,
-    Duration timeout = const Duration(seconds: 10),
+    bool useAi = false,
+    Duration timeout = aiTimeout,
   }) async {
     final current = now ?? DateTime.now();
     final trimmed = rawInput.trim();
     if (trimmed.isEmpty) {
       return const ParsedTaskResult(title: '');
     }
+    if (!useAi) return parse(trimmed, current);
 
     try {
       final nowFormatted =
@@ -62,7 +69,7 @@ Reply with ONLY a JSON object (no markdown fences, no explanation) with:
 
       final provider = replyProviderForTesting;
       final reply = provider != null
-          ? await provider(prompt)
+          ? await provider(prompt).timeout(timeout)
           : await AiService.instance.sendMessage(
               conversationHistory: const [],
               newMessage: prompt,

@@ -250,6 +250,8 @@ class _FocusTimerScreenState extends ConsumerState<FocusTimerScreen> {
       _stopSessionSync();
     } else {
       setState(() => _isRunning = true);
+      // The end-of-session notification needs permission; ask on start.
+      unawaited(NotificationService.instance.requestPermissionsIfNeeded());
       _startSessionSync();
       await _startAudio();
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {

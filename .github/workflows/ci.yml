@@ -26,6 +26,9 @@ jobs:
   backend-gate:
     name: Backend Quality, Security & API Contract Gate
     runs-on: ubuntu-latest
+    env:
+      # E1: evidence rows cite the PR head commit, not the synthetic merge ref.
+      EVIDENCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     services:
       postgres:
@@ -105,6 +108,13 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Evidence header (E1, commit and toolchain)
+        run: |
+          node scripts/ci-evidence-summary.mjs header "Backend gate" \
+            "npm=$(npm --version)" \
+            "PostgreSQL (port 5432)=$(PGPASSWORD=postgres_local_pass psql -X -h localhost -U postgres -d lifestyle_test -tAc 'SHOW server_version' 2>/dev/null || echo unavailable)" \
+            "Service images=$(docker ps --format '{{.Image}}' 2>/dev/null | sort | tr '\n' ' ')"
+
       - name: Forbidden-dependency guard (ADR-039)
         run: node --test scripts/check-forbidden.test.mjs && node scripts/check-forbidden.mjs
 
@@ -116,6 +126,14 @@ jobs:
 
       - name: Documentation consistency (package paths, canonical routes, historical labelling)
         run: node scripts/check-docs-consistency.mjs
+
+      - name: Localisation parity, Android strings and literal ratchet (E9)
+        run: |
+          if node --test scripts/check-l10n.test.mjs scripts/ci-evidence-summary.test.mjs > l10n-test.log 2>&1; then status=0; else status=$?; fi
+          cat l10n-test.log
+          node scripts/ci-evidence-summary.mjs node-test "E9 l10n + E1 evidence script tests (node --test)" l10n-test.log
+          test "$status" -eq 0
+          node scripts/check-l10n.mjs
 
       - name: Code style & lint
         working-directory: backend
@@ -166,6 +184,7 @@ jobs:
             grep -E "FAIL|AssertionError|Error:|×|→" npm-test.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
             exit 1
           }
+          node ../scripts/ci-evidence-summary.mjs vitest "Backend unit + integration + security (npm test, PG16 + Redis 7)" npm-test.log
 
       - name: Committed erasure concurrency on a separate disposable database
         working-directory: backend
@@ -221,6 +240,7 @@ jobs:
     # Public pilot ingress returned HTTP403; no implicit connected endpoint or fallback to production.
     env:
       VALIDATION_API_BASE_URL: ${{ inputs.validation_api_base_url || 'https://validation.invalid/api/v1' }}
+      EVIDENCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     defaults:
       run:
         working-directory: mobile-app/mobile
@@ -267,6 +287,13 @@ jobs:
 
       - name: Resolve Flutter dependencies
         run: flutter pub get
+
+      - name: Evidence header (E1, commit and toolchain)
+        run: |
+          node ../../scripts/ci-evidence-summary.mjs header "Mobile gate" \
+            "Flutter=$(flutter --version 2>/dev/null | head -n 1)" \
+            "Dart=$(dart --version 2>&1 | head -n 1)" \
+            "Java=$(java -version 2>&1 | head -n 1)"
 
       - name: Dart formatting
         id: dart_format
@@ -348,6 +375,7 @@ jobs:
             grep -E "FAILED|Error|Exception|Expected" flutter-test.log | head -60 | sed 's/^/::error title=gate-failure::/' | cut -c1-240
             exit 1
           }
+          node ../../scripts/ci-evidence-summary.mjs flutter "Flutter tests (flutter test --coverage)" flutter-test.log
 
       - name: Kotlin JVM unit tests
         run: |
@@ -359,6 +387,7 @@ jobs:
             grep -E "^e:| FAILED$|Exception|^\* What went wrong" kotlin-test.log | head -40 | sed 's/^/::error title=kotlin-gate-failure::/' | cut -c1-500
             exit 1
           }
+          node ../../../../scripts/ci-evidence-summary.mjs junit "Kotlin JVM unit tests (testDebugUnitTest)" ../../build/app/test-results/testDebugUnitTest
 
       - name: Build Android debug validation APK (offline by default, not release)
         run: |

@@ -182,7 +182,7 @@ class FocusShieldSessionStore(context: Context) {
         const val ACTION_STOP = "com.example.lifestyle_mobile.SHIELD_STOP"
         const val NOTIFICATION_ID = 4400
         fun focusIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
-            .setAction(Intent.ACTION_VIEW).setData(Uri.parse("lifestyle://focus"))
+            .setAction(Intent.ACTION_VIEW).setData(Uri.parse(WidgetContent.FOCUS_URI))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 }

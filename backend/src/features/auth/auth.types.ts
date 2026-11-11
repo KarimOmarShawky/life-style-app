@@ -37,6 +37,13 @@ export interface UserRow {
   last_login_at: Date | null;
   deletion_scheduled_for: Date | null;
   push_show_titles: boolean;
+  /**
+   * Added by migration 1792750000000. Optional because the owner-managed
+   * production database receives that DDL out of band; until then the
+   * columns are absent and the DTO omits the matching fields.
+   */
+  product_events_enabled?: boolean;
+  onboarding_completed_at?: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -83,6 +90,10 @@ export interface UserDto {
   weekStart: number;
   defaultCurrency: string;
   pushShowTitles: boolean;
+  /** Present only when the server schema supports product events (G5). */
+  productEventsEnabled?: boolean;
+  /** Present only when the server schema supports onboarding; null = not yet completed or skipped. */
+  onboardingCompletedAt?: string | null;
   status: string;
   emailVerified: boolean;
   createdAt: string;

@@ -1,19 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Texts are set by LifeStyleAppWidgetProvider in the app language; the defaults below are what the
+     widget picker preview shows. Text views use the default start gravity, so Arabic lines align right. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="16dp" android:background="@drawable/lifestyle_widget_background">
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="LifeStyle · Last clarity" android:textSize="12sp" android:textColor="#B7CEC6" />
+    android:orientation="vertical" android:padding="14dp" android:background="@drawable/lifestyle_widget_background">
+    <TextView android:id="@+id/widget_header" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/widget_header" android:textSize="12sp" android:textColor="#B7CEC6"
+        android:maxLines="1" android:ellipsize="end" />
     <TextView android:id="@+id/widget_clarity" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="No data" android:textSize="26sp" android:textStyle="bold" android:textColor="#FFFFFF" />
-    <TextView android:id="@+id/widget_level" android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="Lv.1 · 0 XP" android:textSize="12sp" android:textStyle="bold" android:textColor="#E8D59E" />
+        android:text="@string/widget_no_data" android:textSize="24sp" android:textStyle="bold" android:textColor="#FFFFFF"
+        android:maxLines="1" android:ellipsize="end" />
+    <TextView android:id="@+id/widget_level" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="12sp" android:textStyle="bold" android:textColor="#E8D59E"
+        android:maxLines="1" android:ellipsize="end" />
     <TextView android:id="@+id/widget_pending" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="8dp" android:text="Tasks today: No data" android:textColor="#FFFFFF" android:textSize="13sp" />
-    <TextView android:id="@+id/widget_top_task" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="Choose your next priority" android:maxLines="1" android:ellipsize="end" android:textColor="#B7CEC6" android:textSize="13sp" />
+        android:layout_marginTop="6dp" android:text="@string/widget_tasks_no_data" android:textColor="#FFFFFF"
+        android:textSize="13sp" android:maxLines="1" android:ellipsize="end" />
+    <!-- The next one to three tasks take the remaining height and clip first, so the Daily Plan link below
+         always stays visible and tappable on small widget sizes. -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="vertical">
+        <TextView android:id="@+id/widget_task_1" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/widget_tasks_empty" android:textColor="#B7CEC6" android:textSize="13sp"
+            android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/widget_task_2" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:visibility="gone" android:textColor="#B7CEC6" android:textSize="13sp"
+            android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/widget_task_3" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:visibility="gone" android:textColor="#B7CEC6" android:textSize="13sp"
+            android:maxLines="1" android:ellipsize="end" />
+    </LinearLayout>
     <TextView android:id="@+id/widget_shield" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="6dp" android:text="Ready to Focus" android:textColor="#8EE5B6" android:textStyle="bold" android:textSize="13sp" />
+        android:layout_marginTop="4dp" android:text="@string/widget_shield_ready" android:textColor="#8EE5B6"
+        android:textStyle="bold" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" />
+    <!-- 48dp minimum touch target (feature guide G7). -->
     <TextView android:id="@+id/widget_daily_plan" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:paddingTop="8dp" android:paddingBottom="4dp" android:text="Daily Plan →" android:textColor="#FFFFFF" android:textSize="12sp" />
+        android:minHeight="48dp" android:gravity="center_vertical|start" android:text="@string/widget_daily_plan"
+        android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="13sp"
+        android:maxLines="1" android:ellipsize="end" />
 </LinearLayout>

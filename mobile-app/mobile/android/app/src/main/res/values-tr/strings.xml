@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_shield_accessibility_description">İsteğe bağlı: Odak oturumu sırasında seni seçili uygulamalardan geri döndürür. Ekran içeriği okunmaz. Kalkanı istediğin zaman LifeStyle\'da veya bildiriminden bitirebilirsin.</string>
+    <string name="lifestyle_widget_description">Bugünkü sıradaki görevlerin, Odak Kalkanı durumu ve ilerlemen.</string>
+</resources>

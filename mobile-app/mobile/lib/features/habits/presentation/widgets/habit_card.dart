@@ -1,7 +1,8 @@
-import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
-import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/data/product_events.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_models.dart';
+import 'package:lifestyle_mobile/features/focus_shield/focus_shield_provider.dart';
 import 'package:lifestyle_mobile/features/habits/data/habit_model.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
@@ -17,6 +18,35 @@ class HabitCard extends ConsumerStatefulWidget {
 
 class _HabitCardState extends ConsumerState<HabitCard> {
   bool _checkingIn = false;
+
+  Future<void> _checkIn(String today) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final habit = widget.habit;
+    setState(() => _checkingIn = true);
+    var saved = false;
+    try {
+      await ref
+          .read(habitsRepositoryProvider)
+          .checkinHabit(habit.id, today, status: 'done');
+      saved = true;
+      ref.recordProductEvent(ProductEvent.habitCheckedIn);
+      await ref
+          .read(focusShieldProvider.notifier)
+          .award(XpType.habit, habit.id, dateKey: today);
+    } catch (_) {
+      // Reported below. A failed XP award never hides a saved check-in.
+    }
+    if (!mounted) return;
+    if (saved) ref.invalidate(habitsProvider);
+    setState(() => _checkingIn = false);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(saved ? l10n.completedToday : l10n.habitCheckInFailed),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +67,10 @@ class _HabitCardState extends ConsumerState<HabitCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Habit Name, Streaks, Checkin Button
+            // Name, description and streak status beside the check-in button.
+            // Everything wraps, so large text sizes never overflow (G7).
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
@@ -57,71 +89,26 @@ class _HabitCardState extends ConsumerState<HabitCard> {
                         Text(
                           habit.description!,
                           style: TextStyle(
-                            color: colorScheme.outline,
+                            color: colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-                // Streak Badges
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.deepOrange.withAlpha(30),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.local_fire_department,
-                          size: 16, color: Colors.deepOrange),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${habit.currentStreak} ${l10n.days}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.deepOrange,
-                        ),
-                      ),
+                      const SizedBox(height: 8),
+                      _StreakSummary(habit: habit),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Checkin button
                 IconButton.filledTonal(
+                  tooltip: l10n.habitCheckInTooltip,
                   icon: _checkingIn
                       ? const SizedBox.square(
                           dimension: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.check),
-                  onPressed: _checkingIn
-                      ? null
-                      : () async {
-                          setState(() => _checkingIn = true);
-                          try {
-                            await ref
-                                .read(habitsRepositoryProvider)
-                                .checkinHabit(habit.id, today, status: 'done');
-                            await ref
-                                .read(focusShieldProvider.notifier)
-                                .award(XpType.habit, habit.id, dateKey: today);
-                            ref.invalidate(habitsProvider);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(l10n.completedToday),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          } finally {
-                            if (mounted) setState(() => _checkingIn = false);
-                          }
-                        },
+                  onPressed: _checkingIn ? null : () => _checkIn(today),
                 ),
               ],
             ),
@@ -129,110 +116,152 @@ class _HabitCardState extends ConsumerState<HabitCard> {
             const Divider(height: 1),
             const SizedBox(height: 10),
 
-            // 7-Day Weekly Progress Strip
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: _build7DayStrip(context, l10n, now),
+            // The last seven days, for orientation only. It carries no habit
+            // data, so screen readers skip it, and it shrinks instead of
+            // clipping at large text sizes.
+            ExcludeSemantics(
+              child: Row(
+                children: [
+                  for (var i = 6; i >= 0; i--)
+                    Expanded(
+                      child: _DayMark(
+                        day: DateTime(now.year, now.month, now.day - i),
+                        isToday: i == 0,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  List<Widget> _build7DayStrip(
-    BuildContext context,
-    AppLocalizations l10n,
-    DateTime now,
-  ) {
-    final widgets = <Widget>[];
-    final colorScheme = Theme.of(context).colorScheme;
+/// Streak status without guilt (feature guide G4): a zero streak invites a
+/// start, and the best streak stays visible after a break.
+class _StreakSummary extends StatelessWidget {
+  const _StreakSummary({required this.habit});
 
-    // Last 6 days + today
-    for (var i = 6; i >= 0; i--) {
-      final day = now.subtract(Duration(days: i));
-      final isToday = i == 0;
+  final Habit habit;
 
-      final dayLetter = _dayLetter(day.weekday, l10n.isArabic);
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final current = habit.currentStreak;
+    final best = habit.longestStreak;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        if (current > 0)
+          _StreakChip(
+            icon: Icons.local_fire_department,
+            label: l10n.habitStreakDays(current),
+          )
+        else
+          _StreakChip(
+            icon: Icons.wb_sunny_outlined,
+            label: best > 0 ? l10n.habitFreshStart : l10n.habitStartToday,
+          ),
+        if (best > current)
+          _StreakChip(
+            icon: Icons.emoji_events_outlined,
+            label: l10n.habitBestStreak(best),
+          ),
+      ],
+    );
+  }
+}
 
-      widgets.add(
-        Column(
-          children: [
-            Text(
-              dayLetter,
+class _StreakChip extends StatelessWidget {
+  const _StreakChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: colors.secondaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: colors.onSecondaryContainer),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: colors.onSecondaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayMark extends StatelessWidget {
+  const _DayMark({required this.day, required this.isToday});
+
+  final DateTime day;
+  final bool isToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    // Narrow weekday names in the app language; the list starts on Sunday.
+    final letter =
+        MaterialLocalizations.of(context).narrowWeekdays[day.weekday % 7];
+    // The circle grows with the text so the date is never clipped.
+    final size = MediaQuery.textScalerOf(context).scale(28);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            letter,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+              color: isToday ? colors.primary : colors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isToday
+                  ? colors.primaryContainer
+                  : colors.surfaceContainerHighest,
+              border:
+                  isToday ? Border.all(color: colors.primary, width: 2) : null,
+            ),
+            child: Text(
+              '${day.day}',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                color: isToday ? colorScheme.primary : colorScheme.outline,
+                color: isToday ? colors.onPrimaryContainer : null,
               ),
             ),
-            const SizedBox(height: 6),
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isToday
-                    ? colorScheme.primaryContainer
-                    : colorScheme.surfaceContainerHighest,
-                border: isToday
-                    ? Border.all(color: colorScheme.primary, width: 2)
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  '${day.day}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                    color: isToday ? colorScheme.primary : null,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return widgets;
-  }
-
-  String _dayLetter(int weekday, bool isArabic) {
-    if (isArabic) {
-      switch (weekday) {
-        case DateTime.saturday:
-          return 'س';
-        case DateTime.sunday:
-          return 'ح';
-        case DateTime.monday:
-          return 'ن';
-        case DateTime.tuesday:
-          return 'ث';
-        case DateTime.wednesday:
-          return 'ر';
-        case DateTime.thursday:
-          return 'خ';
-        case DateTime.friday:
-          return 'ج';
-      }
-    } else {
-      switch (weekday) {
-        case DateTime.saturday:
-          return 'S';
-        case DateTime.sunday:
-          return 'S';
-        case DateTime.monday:
-          return 'M';
-        case DateTime.tuesday:
-          return 'T';
-        case DateTime.wednesday:
-          return 'W';
-        case DateTime.thursday:
-          return 'T';
-        case DateTime.friday:
-          return 'F';
-      }
-    }
-    return '';
+          ),
+        ],
+      ),
+    );
   }
 }

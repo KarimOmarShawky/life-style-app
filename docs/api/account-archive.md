@@ -77,6 +77,12 @@ internal idempotency fingerprints, generated search vectors, internal delivery e
 payloads, audit logs, Redis/queue state, external-provider or device-only data are
 exported. The manifest discloses these exclusions. This is the reviewed version-1
 **domain** scope, not a claim to every infrastructure record or every legal request.
+Content-free product events (feature guide G5) are also outside the v1 file: they are
+owned by the account, erased with it and returned by `POST /users/me/export` as
+`productEvents`. They are a documented manifest exclusion rather than a new section,
+because installed clients pin the v1 section order. Notification settings (feature
+guide G2: quiet hours, daily limit) follow the same rule and are returned as
+`notificationPreferences`.
 User-authored text can itself be sensitive; the resulting plaintext attachment must
 be treated as personal data, never logged/uploaded as a test artifact.
 

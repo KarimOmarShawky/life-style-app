@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/core/widgets/owned_dialog.dart';
+import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/notification_policy.dart';
+import 'package:lifestyle_mobile/data/notification_scheduler.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
+import 'package:lifestyle_mobile/data/product_events.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
@@ -570,6 +574,7 @@ class _TaskTileState extends ConsumerState<_TaskTile> {
     setState(() => _saving = true);
     try {
       await ref.read(tasksRepositoryProvider).setDone(widget.task, done);
+      if (done) ref.recordProductEvent(ProductEvent.taskCompleted);
       if (done) {
         await ref
             .read(focusShieldProvider.notifier)
@@ -678,6 +683,7 @@ Future<void> _showSmartQuickAdd(
   final controller = TextEditingController();
   ParsedTaskResult? parsed;
   var busy = false;
+  var ringAsAlarm = false;
   String? error;
 
   await showDialog<void>(
@@ -694,9 +700,13 @@ Future<void> _showSmartQuickAdd(
               error = null;
             });
             try {
+              // On-device parsing by default (P0-F2/F4); the AI proxy is
+              // used only after the account opted in from Profile.
               var p = parsed ?? SmartTaskParser.parse(rawText);
               try {
-                p = await SmartTaskParser.parseAsync(rawText);
+                if (await ref.read(aiTaskParsingProvider.future)) {
+                  p = await SmartTaskParser.parseAsync(rawText, useAi: true);
+                }
               } catch (_) {}
 
               final task = await ref.read(tasksRepositoryProvider).createTask(
@@ -707,11 +717,18 @@ Future<void> _showSmartQuickAdd(
 
               if (p.scheduledDateTime != null &&
                   p.scheduledDateTime!.isAfter(DateTime.now())) {
-                await NotificationService.instance.scheduleAlarm(
+                await NotificationService.instance
+                    .requestPermissionsIfNeeded(exactAlarms: true);
+                // Generic title: the task name is never the lock-screen
+                // headline (P0-F1). A normal reminder unless the user chose
+                // an alarm; the shared policy decides when it arrives (G2).
+                await NotificationScheduler.instance.schedule(
                   id: task.id.hashCode,
-                  title: '${l10n.tasks}: ${task.title}',
-                  body: l10n.taskDueNowText,
-                  scheduledDateTime: p.scheduledDateTime!,
+                  kind: ReminderKind.task,
+                  tier: _reminderTier(ringAsAlarm),
+                  title: l10n.taskReminderTitle,
+                  body: task.title,
+                  at: p.scheduledDateTime!,
                 );
               }
 
@@ -863,7 +880,7 @@ Future<void> _showSmartQuickAdd(
                                       size: 14, color: Colors.deepOrange),
                                   const SizedBox(width: 6),
                                   Text(
-                                    '${l10n.detectedAlarm}: ${parsed!.dueTime}',
+                                    '${l10n.detectedTime}: ${parsed!.dueTime}',
                                     style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
@@ -878,6 +895,14 @@ Future<void> _showSmartQuickAdd(
                       ),
                     ),
                   ],
+                  if (parsed?.dueTime != null)
+                    _RingAsAlarmSwitch(
+                      value: ringAsAlarm,
+                      enabled: !busy,
+                      onChanged: (value) {
+                        setDialogState(() => ringAsAlarm = value);
+                      },
+                    ),
                   if (error != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -905,8 +930,8 @@ Future<void> _showSmartQuickAdd(
                         dimension: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.alarm_add, size: 18),
-                label: Text(l10n.saveAndSetAlarm),
+                    : const Icon(Icons.add_task, size: 18),
+                label: Text(ringAsAlarm ? l10n.saveAndSetAlarm : l10n.save),
               ),
             ],
           );
@@ -928,6 +953,7 @@ Future<void> _showAddTask(
   DateTime? selectedDate = initialDate;
   TimeOfDay? selectedTime = initialDate != null ? TimeOfDay.now() : null;
   var busy = false;
+  var ringAsAlarm = false;
   String? error;
 
   await showDialog<void>(
@@ -1004,12 +1030,16 @@ Future<void> _showAddTask(
 
               if (fullDateTime != null &&
                   fullDateTime.isAfter(DateTime.now())) {
-                final alarmId = task.id.hashCode;
-                await NotificationService.instance.scheduleAlarm(
-                  id: alarmId,
-                  title: '${l10n.tasks}: ${task.title}',
-                  body: l10n.taskTitle,
-                  scheduledDateTime: fullDateTime,
+                await NotificationService.instance
+                    .requestPermissionsIfNeeded(exactAlarms: true);
+                // Same rules as quick add (P0-F1, G2).
+                await NotificationScheduler.instance.schedule(
+                  id: task.id.hashCode,
+                  kind: ReminderKind.task,
+                  tier: _reminderTier(ringAsAlarm),
+                  title: l10n.taskReminderTitle,
+                  body: task.title,
+                  at: fullDateTime,
                 );
               }
 
@@ -1020,7 +1050,9 @@ Future<void> _showAddTask(
               }
               if (fullDateTime != null && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.alarmScheduled)),
+                  SnackBar(
+                    content: Text(_scheduledMessage(l10n, ringAsAlarm)),
+                  ),
                 );
               }
             } catch (exception) {
@@ -1095,6 +1127,14 @@ Future<void> _showAddTask(
                         ),
                       ],
                     ),
+                    if (selectedTime != null)
+                      _RingAsAlarmSwitch(
+                        value: ringAsAlarm,
+                        enabled: !busy,
+                        onChanged: (value) {
+                          setDialogState(() => ringAsAlarm = value);
+                        },
+                      ),
                     if (selectedDate != null)
                       Align(
                         alignment: AlignmentDirectional.centerEnd,
@@ -1148,6 +1188,39 @@ Future<void> _showAddTask(
       ),
     ),
   );
+}
+
+/// Feature guide G2: a timed task is a normal reminder unless the user chose
+/// to have it ring as an alarm (owner decision, 2026-11-11).
+NotificationTier _reminderTier(bool ringAsAlarm) =>
+    ringAsAlarm ? NotificationTier.critical : NotificationTier.normal;
+
+String _scheduledMessage(AppLocalizations l10n, bool ringAsAlarm) =>
+    ringAsAlarm ? l10n.alarmScheduled : l10n.reminderScheduled;
+
+class _RingAsAlarmSwitch extends StatelessWidget {
+  const _RingAsAlarmSwitch({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: const Icon(Icons.alarm),
+      title: Text(l10n.ringAsAlarm),
+      subtitle: Text(l10n.ringAsAlarmHint),
+      value: value,
+      onChanged: enabled ? onChanged : null,
+    );
+  }
 }
 
 String _taskSubtitle(Task task) {

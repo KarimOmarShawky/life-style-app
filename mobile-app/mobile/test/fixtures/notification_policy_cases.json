@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "description": "Feature guide G2 (ADR-046). Shared cases for the notification policy. backend/tests/unit/notification-policy.test.ts and mobile-app/mobile/test/notification_policy_test.dart must both pass every case. Preferences list only the fields that differ from the defaults (master switch on, quiet hours off, no daily limit, digest off, critical does not break quiet hours). Times are UTC; Africa/Cairo is UTC+2, and UTC+3 from 2026-04-23T22:00Z to 2026-10-29T21:00Z.",
+  "decisionCases": [
+    {
+      "name": "defaults: a normal notification arrives at its time",
+      "timeZone": "Africa/Cairo",
+      "preferences": {},
+      "tier": "normal",
+      "at": "2026-11-11T08:00:00Z",
+      "expect": { "action": "allow", "at": "2026-11-11T08:00:00Z" }
+    },
+    {
+      "name": "master switch off drops a normal notification",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "notificationsEnabled": false },
+      "tier": "normal",
+      "at": "2026-11-11T08:00:00Z",
+      "expect": { "action": "drop" }
+    },
+    {
+      "name": "master switch off also drops a critical alarm",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "notificationsEnabled": false, "criticalBreaksQuiet": true },
+      "tier": "critical",
+      "at": "2026-11-11T08:00:00Z",
+      "expect": { "action": "drop" }
+    },
+    {
+      "name": "critical inside quiet hours waits for the end by default",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00" },
+      "tier": "critical",
+      "at": "2026-11-11T21:30:00Z",
+      "expect": { "action": "delay", "at": "2026-11-12T05:00:00Z" }
+    },
+    {
+      "name": "critical breaks quiet hours when the user allows it",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00", "criticalBreaksQuiet": true },
+      "tier": "critical",
+      "at": "2026-11-11T21:30:00Z",
+      "expect": { "action": "allow", "at": "2026-11-11T21:30:00Z" }
+    },
+    {
+      "name": "normal after the start of an overnight window moves to the next morning",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00" },
+      "tier": "normal",
+      "at": "2026-11-11T21:00:00Z",
+      "expect": { "action": "delay", "at": "2026-11-12T05:00:00Z" }
+    },
+    {
+      "name": "normal after midnight moves to the same morning",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00" },
+      "tier": "normal",
+      "at": "2026-11-12T01:00:00Z",
+      "expect": { "action": "delay", "at": "2026-11-12T05:00:00Z" }
+    },
+    {
+      "name": "the start minute is quiet",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00" },
+      "tier": "normal",
+      "at": "2026-11-11T20:00:00Z",
+      "expect": { "action": "delay", "at": "2026-11-12T05:00:00Z" }
+    },
+    {
+      "name": "the end minute is not quiet",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00" },
+      "tier": "normal",
+      "at": "2026-11-12T05:00:00Z",
+      "expect": { "action": "allow", "at": "2026-11-12T05:00:00Z" }
+    },
+    {
+      "name": "a daytime window delays to its end the same day",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "13:00", "quietEnd": "15:00" },
+      "tier": "normal",
+      "at": "2026-11-11T11:30:00Z",
+      "expect": { "action": "delay", "at": "2026-11-11T13:00:00Z" }
+    },
+    {
+      "name": "outside a daytime window is allowed",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "13:00", "quietEnd": "15:00" },
+      "tier": "normal",
+      "at": "2026-11-11T14:00:00Z",
+      "expect": { "action": "allow", "at": "2026-11-11T14:00:00Z" }
+    },
+    {
+      "name": "low priority joins the summary when digests are on",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "digestEnabled": true },
+      "tier": "low",
+      "at": "2026-11-11T08:00:00Z",
+      "expect": { "action": "digest", "localDate": "2026-11-11" }
+    },
+    {
+      "name": "low priority without digests behaves like normal",
+      "timeZone": "Africa/Cairo",
+      "preferences": {},
+      "tier": "low",
+      "at": "2026-11-11T08:00:00Z",
+      "expect": { "action": "allow", "at": "2026-11-11T08:00:00Z" }
+    },
+    {
+      "name": "a low-priority digest uses the local date, not the UTC date",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "digestEnabled": true },
+      "tier": "low",
+      "at": "2026-11-11T23:30:00Z",
+      "expect": { "action": "digest", "localDate": "2026-11-12" }
+    },
+    {
+      "name": "at the daily limit, the rest join the summary",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "dailyCap": 3 },
+      "tier": "normal",
+      "at": "2026-11-11T10:00:00Z",
+      "deliveredOn": { "2026-11-11": 3 },
+      "expect": { "action": "digest", "localDate": "2026-11-11" }
+    },
+    {
+      "name": "below the daily limit is allowed",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "dailyCap": 3 },
+      "tier": "normal",
+      "at": "2026-11-11T10:00:00Z",
+      "deliveredOn": { "2026-11-11": 2 },
+      "expect": { "action": "allow", "at": "2026-11-11T10:00:00Z" }
+    },
+    {
+      "name": "the limit counts the day the notification is moved to",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00", "dailyCap": 2 },
+      "tier": "normal",
+      "at": "2026-11-11T21:00:00Z",
+      "deliveredOn": { "2026-11-11": 0, "2026-11-12": 2 },
+      "expect": { "action": "digest", "localDate": "2026-11-12" }
+    },
+    {
+      "name": "critical alarms are not limited",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "dailyCap": 1 },
+      "tier": "critical",
+      "at": "2026-11-11T10:00:00Z",
+      "deliveredOn": { "2026-11-11": 5 },
+      "expect": { "action": "allow", "at": "2026-11-11T10:00:00Z" }
+    },
+    {
+      "name": "the limit uses the local day",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "dailyCap": 1 },
+      "tier": "normal",
+      "at": "2026-11-11T23:30:00Z",
+      "deliveredOn": { "2026-11-11": 1, "2026-11-12": 0 },
+      "expect": { "action": "allow", "at": "2026-11-11T23:30:00Z" }
+    },
+    {
+      "name": "Cairo spring forward: a quiet end inside the skipped hour moves forward by the gap",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "00:30" },
+      "tier": "normal",
+      "at": "2026-04-23T21:00:00Z",
+      "expect": { "action": "delay", "at": "2026-04-23T22:30:00Z" }
+    },
+    {
+      "name": "Cairo fall back: a quiet end in the repeated hour uses its first occurrence",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "23:30" },
+      "tier": "normal",
+      "at": "2026-10-29T19:30:00Z",
+      "expect": { "action": "delay", "at": "2026-10-29T20:30:00Z" }
+    },
+    {
+      "name": "Cairo fall back: inside the second occurrence, quiet ends at the second 23:30",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "23:00", "quietEnd": "23:30" },
+      "tier": "normal",
+      "at": "2026-10-29T21:10:00Z",
+      "expect": { "action": "delay", "at": "2026-10-29T21:30:00Z" }
+    },
+    {
+      "name": "Berlin spring forward: a quiet end of 02:30 does not exist and becomes 03:30",
+      "timeZone": "Europe/Berlin",
+      "preferences": { "quietStart": "22:00", "quietEnd": "02:30" },
+      "tier": "normal",
+      "at": "2026-03-28T22:30:00Z",
+      "expect": { "action": "delay", "at": "2026-03-29T01:30:00Z" }
+    },
+    {
+      "name": "New York fall back: first pass through the repeated hour",
+      "timeZone": "America/New_York",
+      "preferences": { "quietStart": "00:00", "quietEnd": "01:30" },
+      "tier": "normal",
+      "at": "2026-11-01T04:15:00Z",
+      "expect": { "action": "delay", "at": "2026-11-01T05:30:00Z" }
+    },
+    {
+      "name": "New York fall back: the second pass waits for the second 01:30",
+      "timeZone": "America/New_York",
+      "preferences": { "quietStart": "00:00", "quietEnd": "01:30" },
+      "tier": "normal",
+      "at": "2026-11-01T06:10:00Z",
+      "expect": { "action": "delay", "at": "2026-11-01T06:30:00Z" }
+    },
+    {
+      "name": "an unknown time zone falls back to UTC",
+      "timeZone": "Mars/Olympus_Mons",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00" },
+      "tier": "normal",
+      "at": "2026-11-11T23:00:00Z",
+      "expect": { "action": "delay", "at": "2026-11-12T07:00:00Z" }
+    }
+  ],
+  "summaryCases": [
+    {
+      "name": "without quiet hours the summary arrives with its first item",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "dailyCap": 2 },
+      "firstItemAt": "2026-11-11T16:00:00Z",
+      "expectAt": "2026-11-11T16:00:00Z"
+    },
+    {
+      "name": "a summary whose first item is in quiet hours waits for the end",
+      "timeZone": "Africa/Cairo",
+      "preferences": { "quietStart": "22:00", "quietEnd": "07:00", "dailyCap": 2 },
+      "firstItemAt": "2026-11-11T21:00:00Z",
+      "expectAt": "2026-11-12T05:00:00Z"
+    }
+  ]
+}

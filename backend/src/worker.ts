@@ -27,6 +27,8 @@ import { PasswordResetProcessor } from './features/auth/password-reset.processor
 import { PgAuthRepository } from './features/auth/auth.repository.pg.js';
 import { RedisOtpStore } from './core/security/otp-service.js';
 import { PgAuditLogger } from './infrastructure/database/postgres/audit-logger.js';
+import { ProductEventsService } from './features/product-events/product-events.service.js';
+import { PgProductEventsRepository } from './features/product-events/product-events.repository.pg.js';
 import {
   processReminderDispatch,
   processRecurringGeneration,
@@ -65,6 +67,13 @@ const recurringStore = new PgRecurringGenerationStore(db);
 const timerStore = new PgTimerMaintenanceStore(db);
 const purgeStore = new PgPurgeStore(db);
 const sessionRetentionStore = new PgSessionRetentionStore(db);
+// Product events (G5) are erased with the account and expire after
+// PRODUCT_EVENT_RETENTION_DAYS; the runtime role holds DELETE on the table.
+const productEvents = new ProductEventsService(
+  new PgProductEventsRepository(getPgPool()),
+  clock,
+  env.PRODUCT_EVENTS_ENABLED
+);
 
 // Audit-log retention runs under the maintenance role: DELETE on audit_logs
 // is granted to lifestyle_maintenance only (least privilege). When the
@@ -162,7 +171,8 @@ const maintenanceWorker = new Worker(
           reminderStore,
           userEmails,
           emailSender,
-          pushSender
+          pushSender,
+          reminderStore
         );
         logger.info('Reminder dispatch tick', result);
         break;
@@ -187,6 +197,12 @@ const maintenanceWorker = new Worker(
       case 'purge-expired-sessions': {
         const result = await processSessionRetention(clock, sessionRetentionStore);
         logger.info('Expired-session purge tick', result);
+        break;
+      }
+      case 'purge-product-events': {
+        // Retention runs even when recording is switched off.
+        const purged = await productEvents.purgeExpired();
+        logger.info('Product event retention tick', { purged });
         break;
       }
       case 'reset-request-recovery': {
@@ -259,6 +275,11 @@ async function registerSchedules(): Promise<void> {
     'purge-expired-sessions',
     { pattern: '45 3 * * *' },
     { name: 'purge-expired-sessions', data: {} }
+  );
+  await maintenanceQueue.upsertJobScheduler(
+    'purge-product-events',
+    { pattern: '50 3 * * *' },
+    { name: 'purge-product-events', data: {} }
   );
   if (auditRetentionStore) {
     await maintenanceQueue.upsertJobScheduler(

@@ -133,4 +133,14 @@ Calendar reminders are scheduled as local notifications by `calendar_reminder_no
 
 The focus timer records each running focus period through `/timer-sessions`, on the selected task or without one. Breaks stay on the device.
 
-New UI strings have English and Arabic catalog entries. The other locales fall back to English until they are translated.
+Strings added from the feature guide Phase 1 onward (2026-11-10: onboarding, notification privacy, usage statistics, AI parsing consent, habit streak copy, home-screen widget) exist in all six catalogs (en, ar, de, es, fr, tr) and in all six Android `values*` folders. Some older screens still contain hard-coded English or Arabic text; those literals are frozen by the ratchet in `scripts/l10n-literal-baseline.json`.
+
+CI runs `node scripts/check-l10n.mjs` (feature guide E9). It fails on a key missing from any catalog, `{placeholder}` drift against English, Android string name or `%1$d` format drift, unescaped Android apostrophes, and any new hard-coded UI literal. After removing literals, refresh the baseline with `--update-baseline`.
+
+Translation notes for new strings:
+
+- Tone follows the existing catalogs: German *du*, French *vous*, Spanish *tú*, informal Turkish, and Egyptian colloquial Arabic.
+- Fixed terms: Focus Shield = درع التركيز / Fokus-Schild / Escudo de concentración / Bouclier de concentration / Odak Kalkanı. Streak = سلسلة / Serie / racha / série / seri.
+- The catalogs have no plural support. Prefer forms that read correctly for every number, such as "{n}-day streak" or "Best streak: {n}".
+- Habit and streak copy uses no loss or guilt words such as "broke", "lost", "failed" or "missed"; a widget test checks all six languages.
+- In Android XML, write apostrophes as `\'` or use the typographic ’.

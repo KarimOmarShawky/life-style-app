@@ -120,6 +120,13 @@ class ApiClient {
         authenticated: authenticated,
       );
 
+  Future<Object?> put(
+    String path, {
+    Object? body,
+    bool authenticated = true,
+  }) =>
+      request('PUT', path, body: body, authenticated: authenticated);
+
   Future<Object?> patch(
     String path, {
     Object? body,

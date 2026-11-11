@@ -5,8 +5,11 @@ import 'package:lifestyle_mobile/data/core_providers.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/auth/data/auth_repository.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/onboarding/onboarding_store.dart';
 import 'package:lifestyle_mobile/data/retired_wallet_cleanup.dart';
 import 'package:lifestyle_mobile/features/money/data/subscription_reminders.dart';
+import 'package:lifestyle_mobile/data/notification_scheduler.dart';
+import 'package:lifestyle_mobile/features/calendar/data/calendar_reminder_notifications.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepository(
@@ -143,6 +146,41 @@ class AuthController extends AsyncNotifier<AppUser?> {
     state = AsyncData(updated);
   }
 
+  /// Saves the usage-statistics choice (feature guide G5). Turning it off
+  /// also deletes this account's recorded events on the server.
+  Future<void> setProductEventsEnabled(bool enabled) async {
+    final account = _activeAccountForProfileWork();
+    final generation = _sessionGeneration;
+    final updated = await ref.read(authRepositoryProvider).updateProfile(
+          productEventsEnabled: enabled,
+        );
+    _checkProfileWork(account, generation, updated);
+    state = AsyncData(updated);
+  }
+
+  /// Ends first-run onboarding, whether it was completed or skipped. The app
+  /// moves on at once; a local flag keeps onboarding from coming back when
+  /// the server cannot be reached, and the onboarding screen retries the
+  /// server flag on the next launch.
+  Future<void> completeOnboarding() async {
+    final account = _activeAccountForProfileWork();
+    final generation = _sessionGeneration;
+    final current = state.valueOrNull;
+    if (current == null || !current.onboardingPending) return;
+    await markOnboardingDoneLocally(current.id);
+    _checkProfileWork(account, generation);
+    state = AsyncData(current.withOnboardingDone());
+    try {
+      final updated = await ref
+          .read(authRepositoryProvider)
+          .updateProfile(onboardingCompleted: true);
+      _checkProfileWork(account, generation, updated);
+      state = AsyncData(updated.withOnboardingDone());
+    } catch (_) {
+      // Already finished locally; the server flag is retried next launch.
+    }
+  }
+
   Future<Map<String, dynamic>> exportUserData(String currentPassword) =>
       ref.read(authRepositoryProvider).exportUserData(currentPassword);
 
@@ -198,13 +236,20 @@ class AuthController extends AsyncNotifier<AppUser?> {
             'level': 1,
             'xp': 0,
             'pendingTasksCount': 0,
-            'topTaskTitle': '',
+            'topTaskTitles': <String>[],
           });
         } catch (_) {/* Native support is optional. */}
         try {
           await SubscriptionReminders.clear();
         } catch (_) {
           /* Sign-out must still clear credentials if native cleanup fails. */
+        }
+        // Reminders and the notification plan belong to this account (G2).
+        try {
+          await NotificationScheduler.instance.clear();
+          await clearCalendarReminders();
+        } catch (_) {
+          /* Sign-out must still clear credentials if this cleanup fails. */
         }
         // Also clear account-specific focus data. The AI assistant keeps no
         // per-account key on the device (server proxy); only its failure

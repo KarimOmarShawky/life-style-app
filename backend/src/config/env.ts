@@ -94,7 +94,16 @@ const baseEnvSchema = z.object({
   // Per-user chat quotas enforced through the shared rate limiter.
   AI_USER_MINUTE_LIMIT: z.coerce.number().int().positive().default(10),
   AI_USER_DAILY_LIMIT: z.coerce.number().int().positive().default(200),
-  AI_UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(20000)
+  AI_UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(20000),
+
+  // Content-free product events (feature guide G5). On by default; set to
+  // false/0/off/no to stop recording instantly without a deploy of new code.
+  // POST /product-events then answers 202 { recorded: false } so clients
+  // never retry or surface an error.
+  PRODUCT_EVENTS_ENABLED: z
+    .string()
+    .transform((val) => !['false', '0', 'off', 'no'].includes(val.trim().toLowerCase()))
+    .default(true)
 });
 
 const envSchema = baseEnvSchema.superRefine((env, context) => {

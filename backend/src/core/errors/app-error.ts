@@ -38,7 +38,8 @@ export type ErrorCode =
   | 'AI_PROVIDER_ERROR'
   | 'WALLET_OWNER_MISMATCH'
   | 'INTERNAL_ERROR'
-  | 'SERVICE_UNAVAILABLE';
+  | 'SERVICE_UNAVAILABLE'
+  | 'NOTIFICATION_PREFERENCES_UNAVAILABLE';
 
 export interface FieldError {
   field: string;

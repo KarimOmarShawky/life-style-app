@@ -56,6 +56,8 @@ describe.skipIf(!enabled)('Neon runtime role + marker draft (rollback rehearsal)
       // The migration already granted product_events; remove it so the
       // assertions below prove the draft grants it on its own (G5).
       await db.query('REVOKE ALL ON product_events FROM lifestyle_app');
+      // Same for notification_preferences (G2).
+      await db.query('REVOKE ALL ON notification_preferences FROM lifestyle_app');
 
       await db.query(script);
 
@@ -133,6 +135,13 @@ describe.skipIf(!enabled)('Neon runtime role + marker draft (rollback rehearsal)
             `SELECT has_table_privilege('lifestyle_app', 'public.product_events', '${privilege}') AS ok`
           )
         ).toBe(expected);
+      }
+      for (const privilege of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {
+        expect(
+          await priv(
+            `SELECT has_table_privilege('lifestyle_app', 'public.notification_preferences', '${privilege}') AS ok`
+          )
+        ).toBe(true);
       }
     } finally {
       await db.query('ROLLBACK').catch(() => undefined);

@@ -5,10 +5,16 @@ import { PgUsersRepository } from '../../src/features/users/users.repository.pg.
 function fixture(
   missing = false,
   overflow = '',
-  productEvents: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {}
+  productEvents: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {},
+  notificationPreferences: Array<Record<string, unknown>> = []
 ) {
   const schemaApplied = productEvents.schema ?? true;
   const query = vi.fn(async (sql: string, _params: unknown[]) => {
+    if (sql.includes('FROM notification_preferences')) {
+      if (!schemaApplied)
+        throw Object.assign(new Error('relation does not exist'), { code: '42P01' });
+      return { rows: notificationPreferences };
+    }
     if (sql.includes('product_events_enabled, onboarding_completed_at FROM users')) {
       if (!schemaApplied)
         throw Object.assign(new Error('column does not exist'), { code: '42703' });
@@ -74,14 +80,23 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
       pushDevices: []
     });
     expect(Object.keys(result).sort()).toEqual(
-      ['exportedAt', 'profile', 'sessions', 'categories', 'pushDevices', 'productEvents'].sort()
+      [
+        'exportedAt',
+        'profile',
+        'sessions',
+        'categories',
+        'pushDevices',
+        'productEvents',
+        'notificationPreferences'
+      ].sort()
     );
     expect(result.profile).toMatchObject({
       productEventsEnabled: true,
       onboardingCompletedAt: '2026-01-02T00:00:00.000Z'
     });
     expect(result.productEvents).toEqual([]);
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(result.notificationPreferences).toBeNull();
+    expect(query).toHaveBeenCalledTimes(6);
     expect(query.mock.calls.map(([sql]) => sql).join(' \n')).not.toContain('FROM categories');
     for (const [sql, params] of query.mock.calls) {
       expect(params).toEqual(['user-1']);
@@ -142,6 +157,35 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     expect(result.productEvents).toEqual([]);
     expect(result.profile).not.toHaveProperty('productEventsEnabled');
     expect(result.profile).not.toHaveProperty('onboardingCompletedAt');
+    expect(result.notificationPreferences).toBeNull();
+  });
+
+  it('exports saved notification settings (G2) as the API shows them, without the account id', async () => {
+    const { repo, query } = fixture(false, '', {}, [
+      {
+        notifications_enabled: true,
+        quiet_start_minute: 22 * 60,
+        quiet_end_minute: 7 * 60,
+        daily_cap: 5,
+        digest_enabled: false,
+        critical_breaks_quiet: true,
+        updated_at: new Date('2026-11-11T08:00:00Z')
+      }
+    ]);
+    const result = await repo.getUserExportData('user-1');
+    expect(result.notificationPreferences).toEqual({
+      notificationsEnabled: true,
+      quietHours: { start: '22:00', end: '07:00' },
+      dailyLimit: 5,
+      digestEnabled: false,
+      criticalBreaksQuiet: true,
+      updatedAt: '2026-11-11T08:00:00.000Z'
+    });
+    const sql = query.mock.calls
+      .map(([text]) => text)
+      .find((text) => text.includes('FROM notification_preferences'));
+    expect(sql).toMatch(/WHERE user_id = \$1$/);
+    expect(sql).not.toMatch(/SELECT\s+\*/);
   });
 
   for (const table of ['auth_sessions', 'push_devices']) {

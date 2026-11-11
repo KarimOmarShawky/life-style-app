@@ -14,6 +14,8 @@ import type { DatabaseSchema } from '../infrastructure/database/postgres/kysely.
 import type {
   ReminderDispatchStore,
   DispatchableReminder,
+  PushPolicyStore,
+  PushSettings,
   UserEmailLookup,
   RecurringGenerationStore,
   TimerMaintenanceStore,
@@ -27,9 +29,137 @@ import type {
   RecurringTaskRow
 } from '../features/recurring-tasks/recurring-tasks.types.js';
 import { formatDateOnly } from '../core/time/date-utils.js';
+import { isMissingSchemaObject } from '../infrastructure/database/postgres/schema-capabilities.js';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../features/notifications/notification-policy.js';
+import {
+  noteNotificationPreferencesUnavailable,
+  preferencesFromRow
+} from '../features/notifications/notification-preferences.repository.pg.js';
 
-export class PgReminderDispatchStore implements ReminderDispatchStore {
+interface PushSettingsRow {
+  id: string;
+  timezone: string | null;
+  has_row: boolean;
+  notifications_enabled: boolean | null;
+  quiet_start_minute: number | null;
+  quiet_end_minute: number | null;
+  daily_cap: number | null;
+  digest_enabled: boolean | null;
+  critical_breaks_quiet: boolean | null;
+}
+
+export class PgReminderDispatchStore implements ReminderDispatchStore, PushPolicyStore {
   constructor(private readonly db: Kysely<DatabaseSchema>) {}
+
+  // Feature guide G2 (ADR-046): the push policy's reads and writes.
+
+  public async loadPushSettings(userIds: string[]): Promise<Map<string, PushSettings>> {
+    const settings = new Map<string, PushSettings>();
+    if (userIds.length === 0) return settings;
+    let rows: PushSettingsRow[];
+    try {
+      rows = (
+        await sql<PushSettingsRow>`
+          SELECT u.id, u.timezone, (np.user_id IS NOT NULL) AS has_row,
+                 np.notifications_enabled, np.quiet_start_minute, np.quiet_end_minute,
+                 np.daily_cap, np.digest_enabled, np.critical_breaks_quiet
+          FROM users u
+          LEFT JOIN notification_preferences np ON np.user_id = u.id
+          WHERE u.id = ANY(${userIds}::uuid[])
+        `.execute(this.db)
+      ).rows;
+    } catch (err) {
+      if (!isMissingSchemaObject(err)) throw err;
+      noteNotificationPreferencesUnavailable();
+      rows = (
+        await sql<PushSettingsRow>`
+          SELECT u.id, u.timezone, false AS has_row,
+                 NULL::boolean AS notifications_enabled, NULL::smallint AS quiet_start_minute,
+                 NULL::smallint AS quiet_end_minute, NULL::smallint AS daily_cap,
+                 NULL::boolean AS digest_enabled, NULL::boolean AS critical_breaks_quiet
+          FROM users u
+          WHERE u.id = ANY(${userIds}::uuid[])
+        `.execute(this.db)
+      ).rows;
+    }
+    for (const row of rows) {
+      settings.set(row.id, {
+        timeZone: row.timezone || 'UTC',
+        preferences: row.has_row
+          ? preferencesFromRow({
+              notifications_enabled: row.notifications_enabled ?? true,
+              quiet_start_minute: row.quiet_start_minute,
+              quiet_end_minute: row.quiet_end_minute,
+              daily_cap: row.daily_cap,
+              digest_enabled: row.digest_enabled ?? false,
+              critical_breaks_quiet: row.critical_breaks_quiet ?? false
+            })
+          : DEFAULT_NOTIFICATION_PREFERENCES
+      });
+    }
+    return settings;
+  }
+
+  public async countSentPushes(userId: string, from: Date, to: Date): Promise<number> {
+    const res = await sql<{ n: number }>`
+      SELECT count(*)::int AS n FROM reminders
+      WHERE user_id = ${userId} AND channel = 'push' AND status = 'sent'
+        AND sent_at >= ${from} AND sent_at < ${to}
+    `.execute(this.db);
+    return res.rows[0]?.n ?? 0;
+  }
+
+  public async listPendingPushes(
+    userId: string,
+    after: Date,
+    before: Date
+  ): Promise<Array<{ id: string; remindAt: Date }>> {
+    const res = await sql<{ id: string; remind_at: Date }>`
+      SELECT id, remind_at FROM reminders
+      WHERE user_id = ${userId} AND channel = 'push' AND status = 'pending'
+        AND next_attempt_at IS NOT NULL AND attempt_count < 5
+        AND remind_at > ${after} AND remind_at < ${before}
+      ORDER BY remind_at
+      LIMIT 200
+    `.execute(this.db);
+    return res.rows.map((row) => ({ id: row.id, remindAt: row.remind_at }));
+  }
+
+  public async claimForSummary(
+    ids: string[],
+    now: Date
+  ): Promise<Array<{ id: string; attemptCount: number }>> {
+    if (ids.length === 0) return [];
+    const res = await sql<{ id: string; attempt_count: number }>`
+      UPDATE reminders
+      SET status = 'processing', processing_started_at = ${now},
+          attempt_count = attempt_count + 1, updated_at = ${now}
+      WHERE id = ANY(${ids}::uuid[]) AND status = 'pending' AND attempt_count < 5
+      RETURNING id, attempt_count
+    `.execute(this.db);
+    return res.rows.map((row) => ({ id: row.id, attemptCount: row.attempt_count }));
+  }
+
+  public async markDeferred(id: string, until: Date, attemptCount: number): Promise<void> {
+    // A deferral is not a delivery attempt: give back the one claimDue took.
+    await sql`
+      UPDATE reminders
+      SET status = 'pending', next_attempt_at = ${until}, attempt_count = attempt_count - 1,
+          processing_started_at = NULL, updated_at = now()
+      WHERE id = ${id} AND status = 'processing' AND attempt_count = ${attemptCount}
+    `.execute(this.db);
+  }
+
+  public async markSuppressed(id: string, at: Date, attemptCount: number): Promise<void> {
+    await sql`
+      UPDATE reminders
+      SET status = 'cancelled', next_attempt_at = NULL, processing_started_at = NULL,
+          last_error_code = 'SUPPRESSED_BY_PREFERENCES',
+          last_error_message = 'Notifications are turned off for this account',
+          updated_at = ${at}
+      WHERE id = ${id} AND status = 'processing' AND attempt_count = ${attemptCount}
+    `.execute(this.db);
+  }
 
   public async claimDue(now: Date, limit: number): Promise<DispatchableReminder[]> {
     // A dead worker cannot strand a reminder forever. Five crashed attempts are terminal.

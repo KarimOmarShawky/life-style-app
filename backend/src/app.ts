@@ -39,6 +39,7 @@ import { createAnalyticsRouter } from './features/analytics/analytics.routes.js'
 import { createAiRouter } from './features/ai/ai.routes.js';
 import { createSearchRouter } from './features/search/search.routes.js';
 import { createProductEventsRouter } from './features/product-events/product-events.routes.js';
+import { createNotificationPreferencesRouter } from './features/notifications/notification-preferences.routes.js';
 import { buildContainer, type AppContainer } from './container.js';
 
 export function createApp(containerOverrides?: Partial<AppContainer>): Express {
@@ -306,6 +307,17 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/product-events',
     createProductEventsRouter({
       service: container.productEventsService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+
+  // Notification settings for the shared policy (feature guide G2, ADR-046):
+  // auth + strict Zod + 30 / 60 s per user.
+  v1Router.use(
+    '/notification-preferences',
+    createNotificationPreferencesRouter({
+      service: container.notificationPreferencesService,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

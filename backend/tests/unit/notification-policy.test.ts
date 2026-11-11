@@ -13,6 +13,7 @@ import {
   decideNotification,
   formatClockMinute,
   localDateOf,
+  localDayBounds,
   parseClockMinute,
   summaryDeliveryAt,
   type NotificationDecision,
@@ -221,6 +222,25 @@ describe('notification policy: clock helpers', () => {
     }
     expect(formatClockMinute(1440)).toBe('00:00');
     expect(formatClockMinute(-1)).toBe('23:59');
+  });
+
+  it('computes local day bounds, including a day whose midnight does not exist', () => {
+    expect(localDayBounds('2026-11-11', 'Africa/Cairo')).toEqual({
+      start: new Date('2026-11-10T22:00:00Z'),
+      end: new Date('2026-11-11T22:00:00Z')
+    });
+    // Cairo skips 00:00-01:00 on 2026-04-24: that day starts at 01:00 EEST.
+    expect(localDayBounds('2026-04-24', 'Africa/Cairo')).toEqual({
+      start: new Date('2026-04-23T22:00:00Z'),
+      end: new Date('2026-04-24T21:00:00Z')
+    });
+    // Cairo repeats 23:00-24:00 on 2026-10-29: a 25-hour day.
+    const fallBack = localDayBounds('2026-10-29', 'Africa/Cairo');
+    expect(fallBack.end.getTime() - fallBack.start.getTime()).toBe(25 * 3_600_000);
+    expect(localDayBounds('2026-11-11', 'Not/AZone')).toEqual({
+      start: new Date('2026-11-11T00:00:00Z'),
+      end: new Date('2026-11-12T00:00:00Z')
+    });
   });
 
   it('computes the local date in the account time zone', () => {

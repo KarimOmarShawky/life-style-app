@@ -16,7 +16,8 @@ import {
   processAuditRetention,
   type PurgeStore,
   type ReminderDispatchStore,
-  type DispatchableReminder
+  type DispatchableReminder,
+  type PushPolicyStore
 } from '../../src/jobs/job-processors.js';
 import type { EmailSender } from '../../src/infrastructure/external/email-sender.js';
 
@@ -62,6 +63,18 @@ function fakeStore(claimed: DispatchableReminder[]): ReminderDispatchStore & {
   };
 }
 
+/** Feature guide G2: a policy store with no saved settings (defaults everywhere). */
+function pushPolicy(): PushPolicyStore {
+  return {
+    loadPushSettings: vi.fn(async () => new Map()),
+    countSentPushes: vi.fn(async () => 0),
+    listPendingPushes: vi.fn(async () => []),
+    claimForSummary: vi.fn(async () => []),
+    markDeferred: vi.fn(async () => undefined),
+    markSuppressed: vi.fn(async () => undefined)
+  };
+}
+
 const emails = {
   findEmails: vi.fn(async (ids: string[]) => new Map(ids.map((id) => [id, `${id}@example.com`])))
 };
@@ -88,7 +101,7 @@ describe('processReminderDispatch', () => {
       sendPasswordResetEmail: vi.fn(),
       sendReminderEmail: vi.fn().mockRejectedValue(new Error('private person@example.com'))
     };
-    await processReminderDispatch(clock, store, emails, sender, pushAvailable);
+    await processReminderDispatch(clock, store, emails, sender, pushAvailable, pushPolicy());
     expect(store.markRetry).toHaveBeenCalled();
     expect(JSON.stringify(vi.mocked(store.markRetry).mock.calls)).not.toContain(
       'person@example.com'
@@ -97,7 +110,14 @@ describe('processReminderDispatch', () => {
 
   it('sends in_app and email reminders and marks them sent', async () => {
     const store = fakeStore([reminder(), reminder({ id: 'rem-2', channel: 'email' })]);
-    const result = await processReminderDispatch(clock, store, emails, emailSender, pushAvailable);
+    const result = await processReminderDispatch(
+      clock,
+      store,
+      emails,
+      emailSender,
+      pushAvailable,
+      pushPolicy()
+    );
 
     expect(result).toMatchObject({ claimed: 2, sent: 2, retried: 0, failed: 0 });
     expect(store.sent).toEqual(['rem-1', 'rem-2']);
@@ -106,7 +126,14 @@ describe('processReminderDispatch', () => {
 
   it('retries push reminders when no push sender is available, then fails at the cap', async () => {
     const store = fakeStore([reminder({ id: 'rem-3', channel: 'push', attemptCount: 1 })]);
-    const first = await processReminderDispatch(clock, store, emails, emailSender, pushUnavailable);
+    const first = await processReminderDispatch(
+      clock,
+      store,
+      emails,
+      emailSender,
+      pushUnavailable,
+      pushPolicy()
+    );
     expect(first).toMatchObject({ sent: 0, retried: 1, failed: 0 });
     expect(store.retried[0]?.id).toBe('rem-3');
 
@@ -116,7 +143,8 @@ describe('processReminderDispatch', () => {
       atCap,
       emails,
       emailSender,
-      pushUnavailable
+      pushUnavailable,
+      pushPolicy()
     );
     expect(second).toMatchObject({ sent: 0, retried: 0, failed: 1 });
     expect(atCap.failed).toEqual(['rem-4']);
@@ -129,7 +157,8 @@ describe('processReminderDispatch', () => {
       store,
       emails,
       emailSender,
-      pushUnavailable
+      pushUnavailable,
+      pushPolicy()
     );
     expect(result.retried).toBe(1);
     expect(store.retried[0]?.next).toEqual(new Date(NOW.getTime() + 20 * 60_000));
@@ -137,7 +166,7 @@ describe('processReminderDispatch', () => {
 
   it('cancels orphaned reminders before claiming', async () => {
     const store = fakeStore([]);
-    await processReminderDispatch(clock, store, emails, emailSender, pushAvailable);
+    await processReminderDispatch(clock, store, emails, emailSender, pushAvailable, pushPolicy());
     expect(store.cancelOrphans).toHaveBeenCalled();
     expect(store.claimDue).toHaveBeenCalledWith(NOW, 50);
   });
@@ -210,7 +239,8 @@ describe('processReminderDispatch push channel policy (F-04)', () => {
       store,
       emails,
       emailSender,
-      pushPermanentlyUnavailable
+      pushPermanentlyUnavailable,
+      pushPolicy()
     );
 
     expect(result).toMatchObject({ sent: 0, retried: 0, failed: 1 });
@@ -228,17 +258,31 @@ describe('processReminderDispatch push channel policy (F-04)', () => {
 
   it('still retries when push is only temporarily unavailable', async () => {
     const store = fakeStore([reminder({ id: 'rem-push-2', channel: 'push', attemptCount: 1 })]);
-    const result = await processReminderDispatch(clock, store, emails, emailSender, {
-      isAvailable: () => false,
-      send: vi.fn(async () => undefined)
-    });
+    const result = await processReminderDispatch(
+      clock,
+      store,
+      emails,
+      emailSender,
+      {
+        isAvailable: () => false,
+        send: vi.fn(async () => undefined)
+      },
+      pushPolicy()
+    );
     expect(result).toMatchObject({ sent: 0, retried: 1, failed: 0 });
   });
 
   it('delivers through the provider when push becomes available', async () => {
     const push = { isAvailable: () => true, send: vi.fn(async () => undefined) };
     const store = fakeStore([reminder({ id: 'rem-push-3', channel: 'push' })]);
-    const result = await processReminderDispatch(clock, store, emails, emailSender, push);
+    const result = await processReminderDispatch(
+      clock,
+      store,
+      emails,
+      emailSender,
+      push,
+      pushPolicy()
+    );
     expect(result).toMatchObject({ sent: 1, failed: 0 });
     expect(push.send).toHaveBeenCalledOnce();
   });

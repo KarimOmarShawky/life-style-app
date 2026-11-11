@@ -127,7 +127,8 @@ export const ACCOUNT_ARCHIVE_SOURCES = [
  */
 export const ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS = [
   'password_reset_requests',
-  'product_events'
+  'product_events',
+  'notification_preferences'
 ] as const;
 
 export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
@@ -142,5 +143,7 @@ export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
   // Content-free usage events (G5) are exported by POST /users/me/export and
   // erased with the account; a v1 section would break installed clients.
   'product events (content-free usage events; included in the account metadata export instead)',
+  // Notification settings (G2) follow the same rule as product events.
+  'notification preferences (quiet hours and daily limit; included in the account metadata export instead)',
   'device-only data, external-provider data and already purged records'
 ] as const;

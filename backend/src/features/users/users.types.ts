@@ -68,6 +68,15 @@ export interface UserExportData {
     lastSeenAt: string;
     createdAt: string;
   }>;
+  /** Notification settings (G2); null when never saved or the schema is not yet applied. */
+  notificationPreferences: {
+    notificationsEnabled: boolean;
+    quietHours: { start: string; end: string } | null;
+    dailyLimit: number | null;
+    digestEnabled: boolean;
+    criticalBreaksQuiet: boolean;
+    updatedAt: string;
+  } | null;
   /** Content-free usage events (G5); empty when none exist or the schema is not yet applied. */
   productEvents: Array<{
     event: string;

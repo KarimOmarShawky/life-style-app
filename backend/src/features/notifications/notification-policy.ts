@@ -144,6 +144,24 @@ export function formatClockMinute(minute: number): string {
   return `${hours}:${minutes}`;
 }
 
+/** First instant of a local date and first instant of the next one, in the account time zone. */
+export function localDayBounds(localDate: string, timeZone: string): { start: Date; end: Date } {
+  const zone = resolveTimeZone(timeZone);
+  const [year = 1970, month = 1, day = 1] = localDate.split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  const start =
+    instantsForWallClock(year, month, day, 0, zone)[0] ?? Date.UTC(year, month - 1, day);
+  const end =
+    instantsForWallClock(
+      next.getUTCFullYear(),
+      next.getUTCMonth() + 1,
+      next.getUTCDate(),
+      0,
+      zone
+    )[0] ?? next.getTime();
+  return { start: new Date(start), end: new Date(end) };
+}
+
 /** Local calendar date (YYYY-MM-DD) of an instant in the account time zone. */
 export function localDateOf(at: Date, timeZone: string): string {
   const wall = wallClockOf(at.getTime(), resolveTimeZone(timeZone));

@@ -24,6 +24,8 @@
 --      other UPDATE on retired tables — for the runtime AND PUBLIC.
 --      Where product_events exists (feature guide G5, added
 --      2026-11-10): SELECT, INSERT, DELETE only.
+--      Where notification_preferences exists (feature guide G2,
+--      added 2026-11-11): full CRUD.
 --   5. Fails closed (whole transaction rolls back) if the financial
 --      erasure has not actually happened or if, at the end, the
 --      startup-guard conditions for `lifestyle_app` do not hold.
@@ -182,6 +184,16 @@ DO $$
 BEGIN
   IF to_regclass('public.product_events') IS NOT NULL THEN
     GRANT SELECT, INSERT, DELETE ON public.product_events TO lifestyle_app;
+  END IF;
+END
+$$;
+-- 4d. Notification settings (feature guide G2, added 2026-11-11; on
+-- production docs/notifications/sql/notification-preferences.sql grants the
+-- runtime directly). Live app table: full CRUD.
+DO $$
+BEGIN
+  IF to_regclass('public.notification_preferences') IS NOT NULL THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_preferences TO lifestyle_app;
   END IF;
 END
 $$;

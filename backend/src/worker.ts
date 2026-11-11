@@ -171,7 +171,8 @@ const maintenanceWorker = new Worker(
           reminderStore,
           userEmails,
           emailSender,
-          pushSender
+          pushSender,
+          reminderStore
         );
         logger.info('Reminder dispatch tick', result);
         break;

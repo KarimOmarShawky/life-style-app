@@ -111,6 +111,13 @@ exports.up = (pgm) => {
         GRANT SELECT, INSERT, DELETE ON public.product_events TO lifestyle_app;
       END IF;
     END $product_events$;
+    -- Feature guide G2 (2026-11-11): notification settings are a live app
+    -- table (full CRUD), wherever the table exists.
+    DO $notification_preferences$ BEGIN
+      IF to_regclass('public.notification_preferences') IS NOT NULL THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_preferences TO lifestyle_app;
+      END IF;
+    END $notification_preferences$;
   `);
 };
 

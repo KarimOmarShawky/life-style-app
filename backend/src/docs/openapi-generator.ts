@@ -1606,6 +1606,64 @@ paths:
         '429':
           description: Per-user event rate limit exceeded
 
+  /notification-preferences:
+    get:
+      summary: Read Notification Settings
+      security:
+        - BearerAuth: []
+      description: >-
+        Returns the account's settings for the shared notification policy
+        (feature guide G2, ADR-046): master switch, quiet hours, daily limit,
+        low-priority summary and whether alarms may ring during quiet hours.
+        Accounts that never saved settings get the defaults (everything on, no
+        quiet hours, no daily limit). Quiet hours are read in the account time
+        zone, returned as timeZone. available is false until the owner-run SQL
+        is applied; the defaults are returned then. Rate limit: 30 requests per
+        60 seconds per user.
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+    put:
+      summary: Replace Notification Settings
+      security:
+        - BearerAuth: []
+      description: >-
+        Replaces all settings at once. Unknown fields are rejected. Quiet hours
+        use 24-hour HH:MM local times, may cross midnight and need different
+        start and end times; null turns them off. dailyLimit is 1-50
+        non-critical notifications per local day, or null for no limit;
+        notifications over the limit are combined into one summary
+        notification. Rate limit: 30 requests per 60 seconds per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationPreferencesRequest'
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '400':
+          description: Validation failed
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+        '503':
+          description: NOTIFICATION_PREFERENCES_UNAVAILABLE before the owner-run SQL is applied
+
   /search:
     get:
       summary: Global Search
@@ -3223,6 +3281,60 @@ components:
       required:
         - event
         - platform
+
+    NotificationPreferencesRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        notificationsEnabled:
+          type: boolean
+          description: Master switch; false drops every policy-managed notification, alarms included.
+        quietHours:
+          type: object
+          nullable: true
+          additionalProperties: false
+          properties:
+            start:
+              type: string
+              pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+            end:
+              type: string
+              pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          required:
+            - start
+            - end
+        dailyLimit:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 50
+        digestEnabled:
+          type: boolean
+          description: Low-priority notifications join the day's summary instead of arriving one by one.
+        criticalBreaksQuiet:
+          type: boolean
+          description: Alarms the user chose may ring during quiet hours.
+      required:
+        - notificationsEnabled
+        - quietHours
+        - dailyLimit
+        - digestEnabled
+        - criticalBreaksQuiet
+
+    NotificationPreferences:
+      allOf:
+        - $ref: '#/components/schemas/NotificationPreferencesRequest'
+        - type: object
+          properties:
+            timeZone:
+              type: string
+              description: Account time zone (IANA) that quiet hours and days are read in.
+            available:
+              type: boolean
+              description: False until the owner-run SQL is applied.
+          required:
+            - timeZone
+            - available
 
     RegisterDeviceRequest:
       type: object

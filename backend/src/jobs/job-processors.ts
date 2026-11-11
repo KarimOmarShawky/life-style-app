@@ -8,6 +8,15 @@
  */
 
 import type { EmailSender } from '../infrastructure/external/email-sender.js';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  decideNotification,
+  localDateOf,
+  localDayBounds,
+  summaryDeliveryAt,
+  type NotificationDecision,
+  type NotificationPreferences
+} from '../features/notifications/notification-policy.js';
 
 export interface DispatchableReminder {
   id: string;
@@ -53,6 +62,35 @@ export interface PushSender {
   send(userId: string, title: string, body: string): Promise<void>;
 }
 
+export interface PushSettings {
+  preferences: NotificationPreferences;
+  timeZone: string;
+}
+
+/**
+ * Feature guide G2 (ADR-046): what the worker needs to apply the account's
+ * notification settings before any push. processReminderDispatch requires it,
+ * so no push provider (E3) can be wired without the policy.
+ */
+export interface PushPolicyStore {
+  /** Settings and time zone per user; users without saved settings get the defaults. */
+  loadPushSettings(userIds: string[]): Promise<Map<string, PushSettings>>;
+  /** Push reminders already sent to the user in [from, to). */
+  countSentPushes(userId: string, from: Date, to: Date): Promise<number>;
+  /** The user's other pending push reminders due in (after, before), oldest first. */
+  listPendingPushes(
+    userId: string,
+    after: Date,
+    before: Date
+  ): Promise<Array<{ id: string; remindAt: Date }>>;
+  /** Claims pending reminders for a summary; rows another worker took are skipped. */
+  claimForSummary(ids: string[], now: Date): Promise<Array<{ id: string; attemptCount: number }>>;
+  /** Moves a claimed reminder to a later time without spending a delivery attempt. */
+  markDeferred(id: string, until: Date, attemptCount: number): Promise<void>;
+  /** Cancels a claimed reminder because the account turned notifications off. */
+  markSuppressed(id: string, at: Date, attemptCount: number): Promise<void>;
+}
+
 export interface RecurringGenerationStore {
   /** Generates missing task occurrences up to and including horizonDate. */
   generateDueOccurrences(horizonDate: string): Promise<number>;
@@ -96,20 +134,37 @@ const RETRY_BACKOFF_MS = 5 * 60_000;
  * through the API (the mobile client shows a local notification), `email`
  * reminders go through the SMTP sender, and `push` requires a configured push
  * sender — otherwise it retries and eventually fails with PUSH_UNAVAILABLE.
+ * When a sender exists, every push first goes through the account's
+ * notification policy (G2): it may be sent, deferred out of quiet hours,
+ * folded into one summary push, or cancelled when notifications are off.
  */
 export async function processReminderDispatch(
   clock: JobClock,
   store: ReminderDispatchStore,
   emails: UserEmailLookup,
   emailSender: EmailSender,
-  push: PushSender
-): Promise<{ claimed: number; sent: number; retried: number; failed: number; cancelled: number }> {
+  push: PushSender,
+  pushPolicy: PushPolicyStore
+): Promise<{
+  claimed: number;
+  sent: number;
+  retried: number;
+  failed: number;
+  cancelled: number;
+  deferred: number;
+  suppressed: number;
+  summarized: number;
+}> {
   const now = clock.now();
   const cancelled = await store.cancelOrphans();
   const claimed = await store.claimDue(now, 50);
   let sent = 0;
   let retried = 0;
   let failed = 0;
+  let deferred = 0;
+  let suppressed = 0;
+  let summarized = 0;
+  let pushSettings: Map<string, PushSettings> | undefined;
 
   const emailsById = await emails.findEmails([...new Set(claimed.map((r) => r.userId))]);
 
@@ -143,7 +198,26 @@ export async function processReminderDispatch(
           }
           throw new Error('PUSH_UNAVAILABLE');
         }
-        await push.send(reminder.userId, 'Reminder', 'You have a scheduled reminder');
+        pushSettings ??= await pushPolicy.loadPushSettings([
+          ...new Set(claimed.filter((r) => r.channel === 'push').map((r) => r.userId))
+        ]);
+        const outcome = await dispatchPolicyGatedPush(
+          reminder,
+          now,
+          push,
+          pushPolicy,
+          store,
+          pushSettings
+        );
+        if (outcome === 'deferred') {
+          deferred += 1;
+          continue;
+        }
+        if (outcome === 'suppressed') {
+          suppressed += 1;
+          continue;
+        }
+        if (outcome === 'summary') summarized += 1;
       }
       // 'in_app': delivered by presence in the API listing.
       await store.markSent(reminder.id, now, reminder.attemptCount);
@@ -167,7 +241,134 @@ export async function processReminderDispatch(
     }
   }
 
-  return { claimed: claimed.length, sent, retried, failed, cancelled };
+  return {
+    claimed: claimed.length,
+    sent,
+    retried,
+    failed,
+    cancelled,
+    deferred,
+    suppressed,
+    summarized
+  };
+}
+
+const PUSH_TITLE = 'Reminder';
+const PUSH_BODY = 'You have a scheduled reminder';
+const SUMMARY_TITLE = 'Reminders';
+const DEFAULT_PUSH_SETTINGS: PushSettings = {
+  preferences: DEFAULT_NOTIFICATION_PREFERENCES,
+  timeZone: 'UTC'
+};
+
+function summaryBody(count: number): string {
+  return count === 1 ? 'You have 1 reminder waiting' : `You have ${count} reminders waiting`;
+}
+
+/** Decides one push reminder; the daily limit counts pushes already sent that local day. */
+async function decidePush(
+  userId: string,
+  at: Date,
+  settings: PushSettings,
+  policy: PushPolicyStore
+): Promise<NotificationDecision> {
+  const base = {
+    tier: 'normal' as const,
+    at,
+    timeZone: settings.timeZone,
+    preferences: settings.preferences
+  };
+  const provisional = decideNotification({ ...base, deliveredOn: () => 0 });
+  if (
+    settings.preferences.dailyCap === null ||
+    (provisional.action !== 'allow' && provisional.action !== 'delay')
+  ) {
+    return provisional;
+  }
+  // The delivery day does not depend on the count, so count that day only.
+  const day = localDateOf(provisional.at, settings.timeZone);
+  const { start, end } = localDayBounds(day, settings.timeZone);
+  const sentThatDay = await policy.countSentPushes(userId, start, end);
+  return decideNotification({ ...base, deliveredOn: (d) => (d === day ? sentThatDay : 0) });
+}
+
+/**
+ * Applies the G2 policy to one claimed push reminder. 'sent' and 'summary'
+ * leave the reminder for the caller to mark sent; 'deferred' and
+ * 'suppressed' have already updated it.
+ */
+async function dispatchPolicyGatedPush(
+  reminder: DispatchableReminder,
+  now: Date,
+  push: PushSender,
+  policy: PushPolicyStore,
+  store: ReminderDispatchStore,
+  settingsByUser: Map<string, PushSettings>
+): Promise<'sent' | 'summary' | 'deferred' | 'suppressed'> {
+  const settings = settingsByUser.get(reminder.userId) ?? DEFAULT_PUSH_SETTINGS;
+  const decision = await decidePush(reminder.userId, reminder.remindAt, settings, policy);
+
+  if (decision.action === 'drop') {
+    await policy.markSuppressed(reminder.id, now, reminder.attemptCount);
+    return 'suppressed';
+  }
+  if (decision.action === 'delay' && decision.at.getTime() > now.getTime()) {
+    await policy.markDeferred(reminder.id, decision.at, reminder.attemptCount);
+    return 'deferred';
+  }
+  if (decision.action !== 'digest') {
+    await push.send(reminder.userId, PUSH_TITLE, PUSH_BODY);
+    return 'sent';
+  }
+
+  const summaryAt = summaryDeliveryAt(reminder.remindAt, settings.timeZone, settings.preferences);
+  if (summaryAt.getTime() > now.getTime()) {
+    await policy.markDeferred(reminder.id, summaryAt, reminder.attemptCount);
+    return 'deferred';
+  }
+
+  // One summary push covers the rest of that local day's reminders over the
+  // limit. Reminders that quiet hours move to the next day are not included.
+  const { end } = localDayBounds(decision.localDate, settings.timeZone);
+  const candidates = await policy.listPendingPushes(reminder.userId, now, end);
+  const sameDay = candidates.filter((candidate) => {
+    const provisional = decideNotification({
+      tier: 'normal',
+      at: candidate.remindAt,
+      timeZone: settings.timeZone,
+      preferences: settings.preferences,
+      deliveredOn: () => 0
+    });
+    return (
+      (provisional.action === 'allow' || provisional.action === 'delay') &&
+      localDateOf(provisional.at, settings.timeZone) === decision.localDate
+    );
+  });
+  const covered =
+    sameDay.length > 0
+      ? await policy.claimForSummary(
+          sameDay.map((c) => c.id),
+          now
+        )
+      : [];
+  try {
+    await push.send(reminder.userId, SUMMARY_TITLE, summaryBody(covered.length + 1));
+  } catch (err) {
+    for (const item of covered) {
+      await store.markRetry(
+        item.id,
+        new Date(now.getTime() + RETRY_BACKOFF_MS),
+        'DELIVERY_FAILED',
+        'Reminder delivery failed',
+        item.attemptCount
+      );
+    }
+    throw err;
+  }
+  for (const item of covered) {
+    await store.markSent(item.id, now, item.attemptCount);
+  }
+  return 'summary';
 }
 
 /** Rolls the recurring-task generation window forward. */

@@ -111,7 +111,7 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         const schema = await readFile(new URL('../../../schema.sql', import.meta.url), 'utf8');
         await owner.query(schema);
         await owner.query(
-          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events'
+          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events, notification_preferences'
         );
         // Production has not received the owner-run product-events/onboarding
         // DDL (feature guide G5/G1) yet; it is applied at the end below.
@@ -510,6 +510,52 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
           expect(await users.purgeAccount(otherUser)).toBe(true);
           expect(
             (await owner.query('SELECT count(*)::int AS n FROM product_events')).rows[0]!.n
+          ).toBe(0);
+
+          // Feature guide G2: the owner-run notification-preferences SQL, also
+          // applied after the restricted runtime role exists.
+          const preferencesSql = await readFile(
+            new URL(
+              '../../../docs/notifications/sql/notification-preferences.sql',
+              import.meta.url
+            ),
+            'utf8'
+          );
+          await owner.query(preferencesSql);
+          const canPrefs = async (privilege: string) =>
+            (
+              await owner.query<{ ok: boolean }>(
+                `SELECT has_table_privilege('lifestyle_app', 'public.notification_preferences', $1) AS ok`,
+                [privilege]
+              )
+            ).rows[0]!.ok;
+          for (const privilege of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {
+            expect(await canPrefs(privilege)).toBe(true);
+          }
+          expect(await canPrefs('TRUNCATE')).toBe(false);
+          await expect(owner.query(preferencesSql)).rejects.toMatchObject({ code: '42P07' });
+          await owner.query('ROLLBACK');
+          const prefsUser = (
+            await owner.query<{ id: string }>(
+              `INSERT INTO users (email, password_hash, display_name, timezone, default_currency)
+               VALUES ('prefs-role@example.com', 'x', 'Prefs', 'UTC', 'USD') RETURNING id`
+            )
+          ).rows[0]!.id;
+          await runtime.query(
+            `INSERT INTO notification_preferences (user_id, quiet_start_minute, quiet_end_minute)
+             VALUES ($1, 1320, 420)
+             ON CONFLICT (user_id) DO UPDATE SET daily_cap = 3`,
+            [prefsUser]
+          );
+          await runtime.query(
+            'UPDATE notification_preferences SET daily_cap = 5 WHERE user_id = $1',
+            [prefsUser]
+          );
+          await users.scheduleDeletion(prefsUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(prefsUser)).toBe(true);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM notification_preferences')).rows[0]!
+              .n
           ).toBe(0);
         } finally {
           await runtime.end();

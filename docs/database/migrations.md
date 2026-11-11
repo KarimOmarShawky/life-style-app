@@ -58,6 +58,7 @@ the migration body. The code must degrade safely until the owner applies the fil
 | Migration | Owner SQL | Degrades to |
 |---|---|---|
 | `1792750000000_product_events_and_onboarding` (G5/G1) | `docs/analytics/sql/product-events-and-onboarding.sql` | No onboarding prompt; events answer `recorded: false`; purge/export skip the absent table |
+| `1792760000000_notification_preferences` (G2) | `docs/notifications/sql/notification-preferences.sql` | Settings read as the defaults with `available: false`; saving answers 503 `NOTIFICATION_PREFERENCES_UNAVAILABLE`; the worker uses the defaults; purge/export skip the absent table |
 
 Rehearse every owner SQL file on a Neon branch of production first, then run it once
 on production. The restricted-role rehearsal in CI applies it after the runtime role

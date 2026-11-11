@@ -15,6 +15,11 @@ import type {
 } from './users.types.js';
 import { AppError } from '../../core/errors/app-error.js';
 import {
+  PREFERENCE_COLUMNS,
+  preferencesFromRow
+} from '../notifications/notification-preferences.repository.pg.js';
+import { toPreferencesView } from '../notifications/notification-preferences.service.js';
+import {
   isMissingSchemaObject,
   tableExists
 } from '../../infrastructure/database/postgres/schema-capabilities.js';
@@ -39,7 +44,10 @@ export const PRODUCT_EVENTS_EXPORT_LIMIT = 5000;
  * not exist (it then cannot hold rows); every other owned table is mandatory
  * and a missing one still fails the purge closed.
  */
-export const OPTIONAL_USER_OWNED_TABLES: ReadonlySet<string> = new Set(['product_events']);
+export const OPTIONAL_USER_OWNED_TABLES: ReadonlySet<string> = new Set([
+  'product_events',
+  'notification_preferences'
+]);
 
 export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
   // Accepted password-reset metadata is user-owned security data: it must not
@@ -47,6 +55,8 @@ export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
   'password_reset_requests',
   // Content-free usage events (G5). Leaf table; also ON DELETE CASCADE.
   'product_events',
+  // Notification settings (G2). Leaf table; also ON DELETE CASCADE.
+  'notification_preferences',
   'ingest_tokens',
   'push_devices',
   'reminders',
@@ -474,6 +484,37 @@ export class PgUsersRepository implements UsersRepository {
       if (!isMissingSchemaObject(err)) throw err;
     }
 
+    // G2 notification settings; absent until the owner applies the DDL.
+    let notificationPreferences: UserExportData['notificationPreferences'] = null;
+    try {
+      const prefsRes = await this.pool.query<{
+        notifications_enabled: boolean;
+        quiet_start_minute: number | null;
+        quiet_end_minute: number | null;
+        daily_cap: number | null;
+        digest_enabled: boolean;
+        critical_breaks_quiet: boolean;
+        updated_at: Date;
+      }>(
+        `SELECT ${PREFERENCE_COLUMNS}, updated_at FROM notification_preferences WHERE user_id = $1`,
+        [userId]
+      );
+      const row = prefsRes.rows[0];
+      if (row) {
+        const view = toPreferencesView(preferencesFromRow(row), user.timezone, true);
+        notificationPreferences = {
+          notificationsEnabled: view.notificationsEnabled,
+          quietHours: view.quietHours,
+          dailyLimit: view.dailyLimit,
+          digestEnabled: view.digestEnabled,
+          criticalBreaksQuiet: view.criticalBreaksQuiet,
+          updatedAt: new Date(row.updated_at).toISOString()
+        };
+      }
+    } catch (err) {
+      if (!isMissingSchemaObject(err)) throw err;
+    }
+
     return {
       exportedAt: new Date().toISOString(),
       profile: {
@@ -510,7 +551,8 @@ export class PgUsersRepository implements UsersRepository {
         lastSeenAt: new Date(p.last_seen_at).toISOString(),
         createdAt: new Date(p.created_at).toISOString()
       })),
-      productEvents
+      productEvents,
+      notificationPreferences
     };
   }
 }

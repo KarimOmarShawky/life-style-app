@@ -39,6 +39,13 @@ export const LEGACY_METADATA_ROW_LIMIT = 1000;
 export const PRODUCT_EVENTS_EXPORT_LIMIT = 5000;
 
 /**
+ * AI content reports are bounded by 30 per day per user and a 90-day
+ * retention purge (at most 2700 rows); overflow returns 413 instead of silent
+ * truncation.
+ */
+export const AI_CONTENT_REPORTS_EXPORT_LIMIT = 3000;
+
+/**
  * Owned tables created by additive DDL that the owner-managed production
  * database receives out of band. Purge skips such a table only while it does
  * not exist (it then cannot hold rows); every other owned table is mandatory
@@ -46,7 +53,8 @@ export const PRODUCT_EVENTS_EXPORT_LIMIT = 5000;
  */
 export const OPTIONAL_USER_OWNED_TABLES: ReadonlySet<string> = new Set([
   'product_events',
-  'notification_preferences'
+  'notification_preferences',
+  'ai_content_reports'
 ]);
 
 export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
@@ -57,6 +65,8 @@ export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
   'product_events',
   // Notification settings (G2). Leaf table; also ON DELETE CASCADE.
   'notification_preferences',
+  // In-app reports of AI output (AI-P). Leaf table; also ON DELETE CASCADE.
+  'ai_content_reports',
   'ingest_tokens',
   'push_devices',
   'reminders',
@@ -515,6 +525,37 @@ export class PgUsersRepository implements UsersRepository {
       if (!isMissingSchemaObject(err)) throw err;
     }
 
+    // AI-P reports of AI output; absent until the owner applies the DDL.
+    let aiContentReports: UserExportData['aiContentReports'] = [];
+    try {
+      const reportsRes = await this.pool.query<{
+        surface: string;
+        category: string;
+        reply_text: string | null;
+        note: string | null;
+        locale: string;
+        created_at: Date;
+      }>(
+        `SELECT surface, category, reply_text, note, locale, created_at
+         FROM ai_content_reports WHERE user_id = $1
+         ORDER BY created_at, id LIMIT ${AI_CONTENT_REPORTS_EXPORT_LIMIT + 1}`,
+        [userId]
+      );
+      if (reportsRes.rows.length > AI_CONTENT_REPORTS_EXPORT_LIMIT) {
+        throw AppError.payloadTooLarge('AI report export exceeds its limit');
+      }
+      aiContentReports = reportsRes.rows.map((r) => ({
+        surface: r.surface,
+        category: r.category,
+        replyText: r.reply_text,
+        note: r.note,
+        locale: r.locale,
+        createdAt: new Date(r.created_at).toISOString()
+      }));
+    } catch (err) {
+      if (!isMissingSchemaObject(err)) throw err;
+    }
+
     return {
       exportedAt: new Date().toISOString(),
       profile: {
@@ -552,7 +593,8 @@ export class PgUsersRepository implements UsersRepository {
         createdAt: new Date(p.created_at).toISOString()
       })),
       productEvents,
-      notificationPreferences
+      notificationPreferences,
+      aiContentReports
     };
   }
 }

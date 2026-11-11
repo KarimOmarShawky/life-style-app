@@ -118,6 +118,13 @@ exports.up = (pgm) => {
         GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_preferences TO lifestyle_app;
       END IF;
     END $notification_preferences$;
+    -- AI-P (2026-11-11): reports of AI output are append-only for the
+    -- runtime (no UPDATE), wherever the table exists.
+    DO $ai_content_reports$ BEGIN
+      IF to_regclass('public.ai_content_reports') IS NOT NULL THEN
+        GRANT SELECT, INSERT, DELETE ON public.ai_content_reports TO lifestyle_app;
+      END IF;
+    END $ai_content_reports$;
   `);
 };
 

@@ -85,4 +85,13 @@ export interface UserExportData {
     platform: string;
     appVersion: string | null;
   }>;
+  /** In-app reports of AI output (AI-P); empty when none exist or the schema is not yet applied. */
+  aiContentReports: Array<{
+    surface: string;
+    category: string;
+    replyText: string | null;
+    note: string | null;
+    locale: string;
+    createdAt: string;
+  }>;
 }

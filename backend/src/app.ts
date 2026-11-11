@@ -37,6 +37,7 @@ import { createDaysRouter } from './features/days/days.routes.js';
 import { createDashboardRouter } from './features/dashboard/dashboard.routes.js';
 import { createAnalyticsRouter } from './features/analytics/analytics.routes.js';
 import { createAiRouter } from './features/ai/ai.routes.js';
+import { createAiReportsRouter } from './features/ai-reports/ai-reports.routes.js';
 import { createSearchRouter } from './features/search/search.routes.js';
 import { createProductEventsRouter } from './features/product-events/product-events.routes.js';
 import { createNotificationPreferencesRouter } from './features/notifications/notification-preferences.routes.js';
@@ -280,6 +281,17 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/analytics',
     createAnalyticsRouter({
       service: container.analyticsService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  // In-app reports of AI output (AI-P, Google Play AI-Generated Content
+  // policy): auth + strict Zod + 10 / hour and 30 / day per user. Mounted
+  // before the AI router so reporting works while the AI kill switch is off.
+  v1Router.use(
+    '/ai/reports',
+    createAiReportsRouter({
+      service: container.aiReportsService,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

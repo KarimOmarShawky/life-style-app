@@ -19,6 +19,13 @@
 > `../SESSION_2026-11-06_ANALYTICS_REAL_DATA.md`. The text below is the
 > pre-execution status and is retained for history.
 >
+> **Update — 2026-11-11 (later): reports of AI output (AI-P).** Both runtime-grant
+> drafts (`neon-runtime-role-and-marker.sql` step 4e and
+> `1792900000000_runtime_grants_rehearsal.cjs`) now also grant
+> `SELECT, INSERT, DELETE` on `ai_content_reports` where that table exists.
+> Production is unaffected by this edit: the owner SQL
+> `docs/ai/sql/ai-content-reports.sql` grants the runtime role directly.
+>
 > **Update — 2026-11-11: notification settings (feature guide G2).** Both
 > runtime-grant drafts (`neon-runtime-role-and-marker.sql` step 4d and
 > `1792900000000_runtime_grants_rehearsal.cjs`) now also grant

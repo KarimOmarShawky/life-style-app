@@ -1565,6 +1565,49 @@ paths:
         '503':
           description: AI disabled
 
+  /ai/reports:
+    post:
+      summary: Report an AI Reply
+      security:
+        - BearerAuth: []
+      description: >-
+        In-app report of AI output (AI-P, Google Play AI-Generated Content
+        policy). The body names the screen that showed the reply and a
+        category. The reply text and a short note are sent only when the user
+        chose to include them; unknown fields are rejected and the body is
+        never logged. Works while the AI kill switch is off. Reports are kept
+        for 90 days, erased with the account and included in the JSON export.
+        Rate limits: 10 per hour and 30 per day per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiReportRequest'
+      responses:
+        '201':
+          description: Report stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reported:
+                    type: boolean
+                    const: true
+                required:
+                  - reported
+        '400':
+          description: Validation failed (unknown field, blank or over-long text, bad locale)
+        '401':
+          description: Missing or invalid access token
+        '404':
+          description: Account not found or not active
+        '429':
+          description: Per-user report limit exceeded
+        '503':
+          description: AI_REPORTS_UNAVAILABLE before the owner-run SQL is applied
+
   /product-events:
     post:
       summary: Record a Content-Free Product Event
@@ -3336,6 +3379,35 @@ components:
           const: true
           description: Marks first-run onboarding as completed or skipped. Idempotent; the first time is kept.
       additionalProperties: false
+
+    AiReportRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        surface:
+          type: string
+          enum: [assistant, weekly_coaching, analytics_insight]
+        category:
+          type: string
+          enum: [offensive, harmful, inaccurate, spam, other]
+        replyText:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: Only when the user chose to include the reply. Trimmed.
+        note:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Optional note from the user. Trimmed.
+        locale:
+          type: string
+          maxLength: 16
+          pattern: '^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})?$'
+      required:
+        - surface
+        - category
+        - locale
 
     RecordProductEventRequest:
       type: object

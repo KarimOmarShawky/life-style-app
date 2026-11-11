@@ -6,10 +6,16 @@ function fixture(
   missing = false,
   overflow = '',
   productEvents: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {},
-  notificationPreferences: Array<Record<string, unknown>> = []
+  notificationPreferences: Array<Record<string, unknown>> = [],
+  aiReports: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {}
 ) {
   const schemaApplied = productEvents.schema ?? true;
   const query = vi.fn(async (sql: string, _params: unknown[]) => {
+    if (sql.includes('FROM ai_content_reports')) {
+      if (!(aiReports.schema ?? true))
+        throw Object.assign(new Error('relation does not exist'), { code: '42P01' });
+      return { rows: aiReports.rows ?? [] };
+    }
     if (sql.includes('FROM notification_preferences')) {
       if (!schemaApplied)
         throw Object.assign(new Error('relation does not exist'), { code: '42P01' });
@@ -87,7 +93,8 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
         'categories',
         'pushDevices',
         'productEvents',
-        'notificationPreferences'
+        'notificationPreferences',
+        'aiContentReports'
       ].sort()
     );
     expect(result.profile).toMatchObject({
@@ -96,7 +103,8 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     });
     expect(result.productEvents).toEqual([]);
     expect(result.notificationPreferences).toBeNull();
-    expect(query).toHaveBeenCalledTimes(6);
+    expect(result.aiContentReports).toEqual([]);
+    expect(query).toHaveBeenCalledTimes(7);
     expect(query.mock.calls.map(([sql]) => sql).join(' \n')).not.toContain('FROM categories');
     for (const [sql, params] of query.mock.calls) {
       expect(params).toEqual(['user-1']);
@@ -186,6 +194,61 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
       .find((text) => text.includes('FROM notification_preferences'));
     expect(sql).toMatch(/WHERE user_id = \$1$/);
     expect(sql).not.toMatch(/SELECT\s+\*/);
+  });
+
+  it('exports AI content reports (AI-P) without the account id, oldest first', async () => {
+    const { repo, query } = fixture(false, '', {}, [], {
+      rows: [
+        {
+          surface: 'assistant',
+          category: 'offensive',
+          reply_text: 'the reply',
+          note: null,
+          locale: 'ar',
+          created_at: new Date('2026-11-11T10:00:00Z')
+        }
+      ]
+    });
+    const result = await repo.getUserExportData('user-1');
+    expect(result.aiContentReports).toEqual([
+      {
+        surface: 'assistant',
+        category: 'offensive',
+        replyText: 'the reply',
+        note: null,
+        locale: 'ar',
+        createdAt: '2026-11-11T10:00:00.000Z'
+      }
+    ]);
+    const sql = query.mock.calls
+      .map(([text]) => text)
+      .find((text) => text.includes('FROM ai_content_reports'))!;
+    expect(sql).toContain('WHERE user_id = $1');
+    expect(sql).toContain('ORDER BY created_at, id LIMIT 3001');
+    expect(sql).not.toMatch(/SELECT\s+\*/);
+  });
+
+  it('still exports when the AI-reports schema has not been applied yet', async () => {
+    const { repo } = fixture(false, '', {}, [], { schema: false });
+    const result = await repo.getUserExportData('user-1');
+    expect(result.aiContentReports).toEqual([]);
+  });
+
+  it('rejects an oversized AI-report export rather than truncating it', async () => {
+    const { repo } = fixture(false, '', {}, [], {
+      rows: Array.from({ length: 3001 }, () => ({
+        surface: 'assistant',
+        category: 'spam',
+        reply_text: null,
+        note: null,
+        locale: 'en',
+        created_at: new Date('2026-11-11T10:00:00Z')
+      }))
+    });
+    await expect(repo.getUserExportData('user-1')).rejects.toMatchObject({
+      httpStatus: 413,
+      code: 'PAYLOAD_TOO_LARGE'
+    });
   });
 
   for (const table of ['auth_sessions', 'push_devices']) {

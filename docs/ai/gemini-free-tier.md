@@ -54,8 +54,7 @@ insight, or a Smart Quick Add parse when AI help is on.
 
 When the daily limit is reached, AI requests fail with the backend's generic provider error and
 the app shows its "can't answer right now" message. After three failures in a row the app pauses
-AI requests until it is closed and opened again (the pause has no timer; finding AI1-F2 in
-`docs/reports/hybrid-ai-ai1-report-2026-11-12.md`). Nothing else in the app stops.
+AI requests for 10 minutes, then tries again (AI1-F2). Nothing else in the app stops.
 
 ## Before the public release
 

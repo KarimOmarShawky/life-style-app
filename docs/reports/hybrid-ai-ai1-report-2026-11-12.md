@@ -94,6 +94,10 @@ guide stays as the fallback. The AI notice is back to "Don't type passwords or s
 information"; the "personal details" wording was only for the unpaid terms. The owner actions
 above are replaced by the paid-tier guide. Commit and CI: PR #32 description.
 
+AI1-F2 is fixed (owner: "continue"): after three failures in a row, AI requests pause for
+10 minutes; then one request may retry, and a success clears the count. A clock set backwards does
+not stretch the pause. Tests: two cases in `test/daily_plan_and_lifecycle_test.dart`.
+
 ## Next
 
 AI-2 (settings table, durable versioned consent, server-side context; forward-only migration plus

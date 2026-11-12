@@ -27,11 +27,15 @@ class AiStreamingException implements Exception {
 /// after repeated failures so a struggling backend is not hammered; any
 /// successful call (or an explicit reset) clears it.
 class AiService {
-  AiService._([this._injectedTransport]);
+  AiService._([this._injectedTransport, DateTime Function()? clock])
+      : _now = clock ?? DateTime.now;
 
   @visibleForTesting
-  factory AiService.forTesting({AiTransport? transport}) =>
-      AiService._(transport ?? const _UnavailableTransport());
+  factory AiService.forTesting({
+    AiTransport? transport,
+    DateTime Function()? clock,
+  }) =>
+      AiService._(transport ?? const _UnavailableTransport(), clock);
 
   static final AiService instance = AiService._();
 
@@ -48,10 +52,18 @@ class AiService {
   static AiBackendGateway? _boundGateway;
 
   final AiTransport? _injectedTransport;
+  final DateTime Function() _now;
   AiTransport? _defaultTransport;
   int _consecutiveFailures = 0;
+  DateTime? _lastFailureAt;
 
   static const int maxConsecutiveFailures = 3;
+
+  /// AI1-F2: after [maxConsecutiveFailures] failures in a row, AI requests
+  /// pause for this long. Then one request may try again: another failure
+  /// pauses again, a success clears the count. Before, the pause lasted
+  /// until the app was restarted.
+  static const Duration pauseDuration = Duration(minutes: 10);
 
   AiTransport get _transport {
     final injected = _injectedTransport;
@@ -68,10 +80,24 @@ class AiService {
     return _defaultTransport = BackendAiTransport(gateway);
   }
 
-  bool get isPaused => _consecutiveFailures >= maxConsecutiveFailures;
+  bool get isPaused {
+    final last = _lastFailureAt;
+    if (_consecutiveFailures < maxConsecutiveFailures || last == null) {
+      return false;
+    }
+    final elapsed = _now().difference(last);
+    // A clock set backwards must not stretch the pause.
+    return !elapsed.isNegative && elapsed < pauseDuration;
+  }
 
   void resetFailureCount() {
     _consecutiveFailures = 0;
+    _lastFailureAt = null;
+  }
+
+  void _recordFailure() {
+    _consecutiveFailures++;
+    _lastFailureAt = _now();
   }
 
   /// The weekly coach accepts numbers only, with a fixed allowlist of names.
@@ -134,10 +160,10 @@ class AiService {
       onOutcome?.call(true);
       return reply;
     } on AiTransportException catch (error) {
-      if (error.code != 'unauthenticated') _consecutiveFailures++;
+      if (error.code != 'unauthenticated') _recordFailure();
       return _failureText(isArabic, error.code);
     } on Object {
-      _consecutiveFailures++;
+      _recordFailure();
       return _failureText(isArabic, 'unavailable');
     }
   }
@@ -181,14 +207,14 @@ class AiService {
         yield chunk;
       }
     } on AiTransportException catch (error) {
-      if (error.code != 'unauthenticated') _consecutiveFailures++;
+      if (error.code != 'unauthenticated') _recordFailure();
       throw AiStreamingException(error.code);
     } on Object {
-      _consecutiveFailures++;
+      _recordFailure();
       throw const AiStreamingException('stream_failed');
     }
     if (!sawText) {
-      _consecutiveFailures++;
+      _recordFailure();
       throw const AiStreamingException('empty_response');
     }
     _consecutiveFailures = 0;

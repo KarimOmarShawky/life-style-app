@@ -20,6 +20,11 @@ import {
 } from '../notifications/notification-preferences.repository.pg.js';
 import { toPreferencesView } from '../notifications/notification-preferences.service.js';
 import {
+  AI_SETTINGS_COLUMNS,
+  aiSettingsFromRow,
+  type AiSettingsRow
+} from '../ai-settings/ai-settings.repository.pg.js';
+import {
   isMissingSchemaObject,
   tableExists
 } from '../../infrastructure/database/postgres/schema-capabilities.js';
@@ -54,7 +59,8 @@ export const AI_CONTENT_REPORTS_EXPORT_LIMIT = 3000;
 export const OPTIONAL_USER_OWNED_TABLES: ReadonlySet<string> = new Set([
   'product_events',
   'notification_preferences',
-  'ai_content_reports'
+  'ai_content_reports',
+  'ai_user_settings'
 ]);
 
 export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
@@ -67,6 +73,8 @@ export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
   'notification_preferences',
   // In-app reports of AI output (AI-P). Leaf table; also ON DELETE CASCADE.
   'ai_content_reports',
+  // AI settings and the AI consent (AI-2). Leaf table; also ON DELETE CASCADE.
+  'ai_user_settings',
   'ingest_tokens',
   'push_devices',
   'reminders',
@@ -556,6 +564,24 @@ export class PgUsersRepository implements UsersRepository {
       if (!isMissingSchemaObject(err)) throw err;
     }
 
+    // AI-2 settings and consent; absent until the owner applies the DDL.
+    let aiSettings: UserExportData['aiSettings'] = null;
+    try {
+      const aiSettingsRes = await this.pool.query<AiSettingsRow & { updated_at: Date }>(
+        `SELECT ${AI_SETTINGS_COLUMNS}, updated_at FROM ai_user_settings WHERE user_id = $1`,
+        [userId]
+      );
+      const row = aiSettingsRes.rows[0];
+      if (row) {
+        aiSettings = {
+          ...aiSettingsFromRow(row),
+          updatedAt: new Date(row.updated_at).toISOString()
+        };
+      }
+    } catch (err) {
+      if (!isMissingSchemaObject(err)) throw err;
+    }
+
     return {
       exportedAt: new Date().toISOString(),
       profile: {
@@ -594,7 +620,8 @@ export class PgUsersRepository implements UsersRepository {
       })),
       productEvents,
       notificationPreferences,
-      aiContentReports
+      aiContentReports,
+      aiSettings
     };
   }
 }

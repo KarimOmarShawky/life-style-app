@@ -7,10 +7,16 @@ function fixture(
   overflow = '',
   productEvents: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {},
   notificationPreferences: Array<Record<string, unknown>> = [],
-  aiReports: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {}
+  aiReports: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {},
+  aiSettings: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {}
 ) {
   const schemaApplied = productEvents.schema ?? true;
   const query = vi.fn(async (sql: string, _params: unknown[]) => {
+    if (sql.includes('FROM ai_user_settings')) {
+      if (!(aiSettings.schema ?? true))
+        throw Object.assign(new Error('relation does not exist'), { code: '42P01' });
+      return { rows: aiSettings.rows ?? [] };
+    }
     if (sql.includes('FROM ai_content_reports')) {
       if (!(aiReports.schema ?? true))
         throw Object.assign(new Error('relation does not exist'), { code: '42P01' });
@@ -94,7 +100,8 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
         'pushDevices',
         'productEvents',
         'notificationPreferences',
-        'aiContentReports'
+        'aiContentReports',
+        'aiSettings'
       ].sort()
     );
     expect(result.profile).toMatchObject({
@@ -104,7 +111,8 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     expect(result.productEvents).toEqual([]);
     expect(result.notificationPreferences).toBeNull();
     expect(result.aiContentReports).toEqual([]);
-    expect(query).toHaveBeenCalledTimes(7);
+    expect(result.aiSettings).toBeNull();
+    expect(query).toHaveBeenCalledTimes(8);
     expect(query.mock.calls.map(([sql]) => sql).join(' \n')).not.toContain('FROM categories');
     for (const [sql, params] of query.mock.calls) {
       expect(params).toEqual(['user-1']);
@@ -226,6 +234,53 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     expect(sql).toContain('WHERE user_id = $1');
     expect(sql).toContain('ORDER BY created_at, id LIMIT 3001');
     expect(sql).not.toMatch(/SELECT\s+\*/);
+  });
+
+  it('exports AI settings and the AI consent (AI-2) without the account id', async () => {
+    const { repo, query } = fixture(
+      false,
+      '',
+      {},
+      [],
+      {},
+      {
+        rows: [
+          {
+            egress_consent_version: 1,
+            egress_consent_at: new Date('2026-11-12T09:00:00Z'),
+            memory_enabled: false,
+            explicit_memory_enabled: false,
+            learning_enabled: false,
+            quick_actions_enabled: false,
+            language_mode: 'app_locale',
+            updated_at: new Date('2026-11-12T09:05:00Z')
+          }
+        ]
+      }
+    );
+    const result = await repo.getUserExportData('user-1');
+    expect(result.aiSettings).toEqual({
+      egressConsentVersion: 1,
+      egressConsentAt: '2026-11-12T09:00:00.000Z',
+      memoryEnabled: false,
+      explicitMemoryEnabled: false,
+      learningEnabled: false,
+      quickActionsEnabled: false,
+      languageMode: 'app_locale',
+      updatedAt: '2026-11-12T09:05:00.000Z'
+    });
+    const sql = query.mock.calls
+      .map(([text]) => text)
+      .find((text) => text.includes('FROM ai_user_settings'))!;
+    expect(sql).toMatch(/WHERE user_id = \$1$/);
+    expect(sql).not.toMatch(/SELECT\s+\*/);
+    expect(sql).not.toContain('user_id,');
+  });
+
+  it('still exports when the AI-settings schema has not been applied yet', async () => {
+    const { repo } = fixture(false, '', {}, [], {}, { schema: false });
+    const result = await repo.getUserExportData('user-1');
+    expect(result.aiSettings).toBeNull();
   });
 
   it('still exports when the AI-reports schema has not been applied yet', async () => {

@@ -129,6 +129,8 @@ import { PgProductEventsRepository } from './features/product-events/product-eve
 import { NotificationPreferencesService } from './features/notifications/notification-preferences.service.js';
 import { AiReportsService } from './features/ai-reports/ai-reports.service.js';
 import { PgAiReportsRepository } from './features/ai-reports/ai-reports.repository.pg.js';
+import { AiSettingsService } from './features/ai-settings/ai-settings.service.js';
+import { PgAiSettingsRepository } from './features/ai-settings/ai-settings.repository.pg.js';
 import { PgNotificationPreferencesRepository } from './features/notifications/notification-preferences.repository.pg.js';
 // Signed-in devices (feature guide G6, ADR-047)
 import { SessionsService } from './features/sessions/sessions.service.js';
@@ -197,6 +199,7 @@ export interface AppContainer {
   productEventsService: ProductEventsService;
   notificationPreferencesService: NotificationPreferencesService;
   aiReportsService: AiReportsService;
+  aiSettingsService: AiSettingsService;
   sessionsService: SessionsService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
@@ -386,6 +389,9 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   // In-app reports of AI output (AI-P); independent of the AI kill switch.
   const aiReportsService =
     overrides?.aiReportsService ?? new AiReportsService(new PgAiReportsRepository(pgPool), clock);
+  // AI settings and the durable AI consent (AI-2); independent of the kill switch.
+  const aiSettingsService =
+    overrides?.aiSettingsService ?? new AiSettingsService(new PgAiSettingsRepository(pgPool));
   const sessionsService =
     overrides?.sessionsService ??
     new SessionsService(
@@ -461,6 +467,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     productEventsService,
     notificationPreferencesService,
     aiReportsService,
+    aiSettingsService,
     sessionsService,
     resetRequestStore
   };

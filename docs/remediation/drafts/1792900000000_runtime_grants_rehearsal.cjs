@@ -125,6 +125,13 @@ exports.up = (pgm) => {
         GRANT SELECT, INSERT, DELETE ON public.ai_content_reports TO lifestyle_app;
       END IF;
     END $ai_content_reports$;
+    -- AI-2 (2026-11-12): AI settings and the AI consent, full CRUD for the
+    -- runtime, wherever the table exists.
+    DO $ai_user_settings$ BEGIN
+      IF to_regclass('public.ai_user_settings') IS NOT NULL THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_user_settings TO lifestyle_app;
+      END IF;
+    END $ai_user_settings$;
   `);
 };
 

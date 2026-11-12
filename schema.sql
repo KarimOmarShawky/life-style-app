@@ -937,3 +937,23 @@ CREATE TABLE ai_content_reports (
         GRANT SELECT, INSERT, DELETE ON ai_content_reports TO lifestyle_app;
       END IF;
     END $grant$;
+
+-- AI settings and the durable AI consent (Hybrid AI AI-2); at most one row per account.
+CREATE TABLE ai_user_settings (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      egress_consent_version INTEGER CHECK (egress_consent_version IS NULL OR egress_consent_version > 0),
+      egress_consent_at TIMESTAMPTZ,
+      memory_enabled BOOLEAN NOT NULL DEFAULT false,
+      explicit_memory_enabled BOOLEAN NOT NULL DEFAULT false,
+      learning_enabled BOOLEAN NOT NULL DEFAULT false,
+      quick_actions_enabled BOOLEAN NOT NULL DEFAULT false,
+      language_mode TEXT NOT NULL DEFAULT 'auto' CHECK (language_mode IN ('auto', 'app_locale')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT ai_user_settings_consent_pair CHECK ((egress_consent_version IS NULL) = (egress_consent_at IS NULL))
+    );
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ai_user_settings TO lifestyle_app;
+      END IF;
+    END $grant$;

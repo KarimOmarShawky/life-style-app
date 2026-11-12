@@ -38,6 +38,7 @@ import { createDashboardRouter } from './features/dashboard/dashboard.routes.js'
 import { createAnalyticsRouter } from './features/analytics/analytics.routes.js';
 import { createAiRouter } from './features/ai/ai.routes.js';
 import { createAiReportsRouter } from './features/ai-reports/ai-reports.routes.js';
+import { createAiSettingsRouter } from './features/ai-settings/ai-settings.routes.js';
 import { createSearchRouter } from './features/search/search.routes.js';
 import { createProductEventsRouter } from './features/product-events/product-events.routes.js';
 import { createNotificationPreferencesRouter } from './features/notifications/notification-preferences.routes.js';
@@ -292,6 +293,17 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/ai/reports',
     createAiReportsRouter({
       service: container.aiReportsService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  // AI settings and the durable AI consent (Hybrid AI AI-2): auth + strict
+  // Zod + 30 / 60 s per user. Mounted before the AI router so the settings
+  // work while the AI kill switch is off and never use the chat quotas.
+  v1Router.use(
+    '/ai/settings',
+    createAiSettingsRouter({
+      service: container.aiSettingsService,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { assertFinancialRetirement } from '../../src/infrastructure/database/postgres/financial-retirement-guard.js';
 import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
 import { PgAiReportsRepository } from '../../src/features/ai-reports/ai-reports.repository.pg.js';
+import { PgAiSettingsRepository } from '../../src/features/ai-settings/ai-settings.repository.pg.js';
 import {
   PgSessionsRepository,
   resetSessionRevokeReasonCache
@@ -116,7 +117,7 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         const schema = await readFile(new URL('../../../schema.sql', import.meta.url), 'utf8');
         await owner.query(schema);
         await owner.query(
-          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events, notification_preferences, ai_content_reports'
+          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events, notification_preferences, ai_content_reports, ai_user_settings'
         );
         // Production has not received the owner-run product-events/onboarding
         // DDL (feature guide G5/G1) yet; it is applied at the end below.
@@ -674,6 +675,59 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
           expect(await users.purgeAccount(reportUser)).toBe(true);
           expect(
             (await owner.query('SELECT count(*)::int AS n FROM ai_content_reports')).rows[0]!.n
+          ).toBe(0);
+
+          // AI-2: AI settings and the AI consent with the restricted runtime
+          // role, before and after the owner-run ai-user-settings SQL.
+          const settingsUser = (
+            await owner.query<{ id: string }>(
+              `INSERT INTO users (email, password_hash, display_name, timezone, default_currency)
+               VALUES ('settings-role@example.com', 'x', 'Settings', 'UTC', 'USD') RETURNING id`
+            )
+          ).rows[0]!.id;
+          const aiSettings = new PgAiSettingsRepository(runtime);
+          expect(await aiSettings.find(settingsUser)).toEqual({ available: false });
+          expect(await aiSettings.update(settingsUser, { egressConsentVersion: 1 })).toEqual({
+            available: false
+          });
+          const settingsSql = await readFile(
+            new URL('../../../docs/ai/sql/ai-user-settings.sql', import.meta.url),
+            'utf8'
+          );
+          await owner.query(settingsSql);
+          const canSettings = async (privilege: string) =>
+            (
+              await owner.query<{ ok: boolean }>(
+                `SELECT has_table_privilege('lifestyle_app', 'public.ai_user_settings', $1) AS ok`,
+                [privilege]
+              )
+            ).rows[0]!.ok;
+          for (const [privilege, expected] of [
+            ['SELECT', true],
+            ['INSERT', true],
+            ['UPDATE', true],
+            ['DELETE', true],
+            ['TRUNCATE', false]
+          ] as const) {
+            expect(await canSettings(privilege)).toBe(expected);
+          }
+          await expect(owner.query(settingsSql)).rejects.toMatchObject({ code: '42P07' });
+          await owner.query('ROLLBACK');
+          const granted = await aiSettings.update(settingsUser, { egressConsentVersion: 1 });
+          expect(granted).toMatchObject({
+            available: true,
+            settings: { egressConsentVersion: 1, languageMode: 'auto' }
+          });
+          expect(
+            await aiSettings.update(settingsUser, { languageMode: 'app_locale' })
+          ).toMatchObject({
+            available: true,
+            settings: { egressConsentVersion: 1, languageMode: 'app_locale' }
+          });
+          await users.scheduleDeletion(settingsUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(settingsUser)).toBe(true);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM ai_user_settings')).rows[0]!.n
           ).toBe(0);
         } finally {
           await runtime.end();

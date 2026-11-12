@@ -1,5 +1,10 @@
 # Change log
 
+## Unreleased — Hybrid AI slice AI-2, part 1: AI settings and the durable AI consent, 2026-11-12
+- Backend: `GET` and `PATCH /api/v1/ai/settings` (auth, strict Zod, 30 per minute per user, OpenAPI). The consent to send AI requests to Google is stored per account and per version of the consent text (`AI_EGRESS_CONSENT_VERSION` = 1); a stale version answers 409 `AI_CONSENT_VERSION_MISMATCH`, `null` withdraws it. Also stored for later slices: memory, learning and quick-action switches (no effect yet) and the reply-language mode. PATCH changes only the fields sent, in one statement, for an active account. Works while `AI_ENABLED` is off and does not use the chat quotas.
+- Forward-only migration `1792790000000_ai_user_settings` plus owner SQL `docs/ai/sql/ai-user-settings.sql` (not applied). Before the SQL: GET shows the defaults with `available: false`, PATCH answers 503 `AI_SETTINGS_UNAVAILABLE`. The row is in the JSON export (`aiSettings`), erased with the account and left out of the v1 archive. Both runtime-grant drafts grant CRUD. Guide: `docs/ai/ai-settings.md`.
+- Tests: `tests/unit/ai-settings.test.ts` (22), export tests, `tests/integration/ai-settings-flow.test.ts` and the restricted-role rehearsal (PostgreSQL, CI).
+
 ## Unreleased — Hybrid AI slice AI-1 (provider-neutral core), 2026-11-12
 - Backend: the AI proxy now builds one provider-neutral request (`backend/src/features/ai/providers/ai-provider.ts`) and a Gemini adapter translates it. `AI_PROVIDER` (default `gemini`) accepts only `gemini`; any other value stops startup and there is no fallback to another provider. No API change: `/ai/chat` and `/ai/chat/stream` keep their shapes, quotas and `AI_ENABLED`.
 - AI0-F3: the server prompt and the reply-language rule go through Gemini's system-instruction field; user turns carry only the user's text.

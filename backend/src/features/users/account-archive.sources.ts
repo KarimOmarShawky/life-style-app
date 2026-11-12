@@ -129,7 +129,8 @@ export const ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS = [
   'password_reset_requests',
   'product_events',
   'notification_preferences',
-  'ai_content_reports'
+  'ai_content_reports',
+  'ai_user_settings'
 ] as const;
 
 export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
@@ -147,5 +148,6 @@ export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
   // Notification settings (G2) follow the same rule as product events.
   'notification preferences (quiet hours and daily limit; included in the account metadata export instead)',
   'ai content reports (reports of AI output for 90 days; included in the account metadata export instead)',
+  'ai user settings (AI switches, language mode and the AI consent version; included in the account metadata export instead)',
   'device-only data, external-provider data and already purged records'
 ] as const;

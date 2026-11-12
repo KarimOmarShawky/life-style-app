@@ -85,6 +85,17 @@ export interface UserExportData {
     platform: string;
     appVersion: string | null;
   }>;
+  /** AI settings and the AI consent (AI-2); null when never saved or the schema is not yet applied. */
+  aiSettings: {
+    egressConsentVersion: number | null;
+    egressConsentAt: string | null;
+    memoryEnabled: boolean;
+    explicitMemoryEnabled: boolean;
+    learningEnabled: boolean;
+    quickActionsEnabled: boolean;
+    languageMode: string;
+    updatedAt: string;
+  } | null;
   /** In-app reports of AI output (AI-P); empty when none exist or the schema is not yet applied. */
   aiContentReports: Array<{
     surface: string;

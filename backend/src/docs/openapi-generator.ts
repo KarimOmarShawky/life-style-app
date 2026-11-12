@@ -1608,6 +1608,69 @@ paths:
         '503':
           description: AI_REPORTS_UNAVAILABLE before the owner-run SQL is applied
 
+  /ai/settings:
+    get:
+      summary: Read AI Settings and Consent
+      security:
+        - BearerAuth: []
+      description: >-
+        The account's AI settings and its durable consent to send AI requests
+        to the provider (Hybrid AI slice AI-2, decision D5). currentConsentVersion
+        is the version of the consent text the app must show; the account has a
+        valid consent only when settings.egressConsentVersion equals it.
+        Accounts that never saved settings get the defaults (no consent; memory,
+        learning and quick actions off; languageMode auto). available is false
+        until the owner-run SQL is applied; the defaults are returned then.
+        Works while the AI kill switch is off and does not use the AI chat
+        quotas. Rate limit: 30 requests per 60 seconds per user.
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiSettingsView'
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+    patch:
+      summary: Change AI Settings or Consent
+      security:
+        - BearerAuth: []
+      description: >-
+        Changes only the fields sent (at least one; unknown fields are
+        rejected). egressConsentVersion records the consent: it must equal the
+        current version (else 409 AI_CONSENT_VERSION_MISMATCH, and the app shows
+        the current text again); null withdraws it. The switches for memory,
+        learning and quick actions are stored for later slices and have no
+        effect yet. Rate limit: 30 requests per 60 seconds per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiSettingsPatchRequest'
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiSettingsView'
+        '400':
+          description: Validation failed (empty body, unknown field or wrong type)
+        '401':
+          description: Missing or invalid access token
+        '404':
+          description: Account not found or not active
+        '409':
+          description: AI_CONSENT_VERSION_MISMATCH (the consent text changed)
+        '429':
+          description: Per-user rate limit exceeded
+        '503':
+          description: AI_SETTINGS_UNAVAILABLE before the owner-run SQL is applied
+
   /product-events:
     post:
       summary: Record a Content-Free Product Event
@@ -3408,6 +3471,78 @@ components:
         - surface
         - category
         - locale
+
+    AiSettings:
+      type: object
+      properties:
+        egressConsentVersion:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Consent version the account agreed to; null when never given or withdrawn.
+        egressConsentAt:
+          type: string
+          format: date-time
+          nullable: true
+        memoryEnabled:
+          type: boolean
+        explicitMemoryEnabled:
+          type: boolean
+        learningEnabled:
+          type: boolean
+        quickActionsEnabled:
+          type: boolean
+        languageMode:
+          type: string
+          enum: [auto, app_locale]
+          description: auto answers in the language of the message; app_locale in the account language.
+      required:
+        - egressConsentVersion
+        - egressConsentAt
+        - memoryEnabled
+        - explicitMemoryEnabled
+        - learningEnabled
+        - quickActionsEnabled
+        - languageMode
+
+    AiSettingsView:
+      type: object
+      properties:
+        settings:
+          $ref: '#/components/schemas/AiSettings'
+        currentConsentVersion:
+          type: integer
+          minimum: 1
+        available:
+          type: boolean
+          description: False until the owner-run SQL is applied.
+      required:
+        - settings
+        - currentConsentVersion
+        - available
+
+    AiSettingsPatchRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        egressConsentVersion:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 1000
+          description: The current consent version to agree, or null to withdraw.
+        memoryEnabled:
+          type: boolean
+        explicitMemoryEnabled:
+          type: boolean
+        learningEnabled:
+          type: boolean
+        quickActionsEnabled:
+          type: boolean
+        languageMode:
+          type: string
+          enum: [auto, app_locale]
 
     RecordProductEventRequest:
       type: object

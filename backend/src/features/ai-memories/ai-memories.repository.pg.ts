@@ -114,8 +114,17 @@ export class PgAiMemoriesRepository implements AiMemoriesRepository {
       );
       const switches = settings.rows[0];
       if (!switches?.memory_enabled || !switches.explicit_memory_enabled) {
+        // Like every other route, a missing table (owner SQL pending) wins
+        // over the switches.
+        const table = await client.query<{ present: boolean }>(
+          `SELECT to_regclass('ai_memory_items') IS NOT NULL AS present`
+        );
         await client.query('ROLLBACK');
         transactionOpen = false;
+        if (table.rows[0]?.present !== true) {
+          noteUnavailable();
+          return unavailable;
+        }
         return { available: true, outcome: 'disabled' };
       }
       const counted = await client.query<{ n: number }>(

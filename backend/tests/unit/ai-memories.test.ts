@@ -297,14 +297,30 @@ describe('PgAiMemoriesRepository', () => {
     ['saving is off', { rows: [{ memory_enabled: true, explicit_memory_enabled: false }] }],
     ['no settings were saved', { rows: [] }]
   ])('refuses without inserting when %s', async (_label, settings) => {
-    const { pool, statements } = transactionPool((sql) =>
-      sql.includes('FROM ai_user_settings') ? settings : { rows: [] }
-    );
+    const { pool, statements } = transactionPool((sql) => {
+      if (sql.includes('FROM ai_user_settings')) return settings;
+      if (sql.includes('to_regclass')) return { rows: [{ present: true }] };
+      return { rows: [] };
+    });
     const repo = new PgAiMemoriesRepository(pool as unknown as pg.Pool);
     await expect(
       repo.createExplicit('user-1', { kind: 'fact', content: 'x' }, 100)
     ).resolves.toEqual({ available: true, outcome: 'disabled' });
     expect(statements.map((s) => s.sql)).toContain('ROLLBACK');
+    expect(statements.some((s) => s.sql.includes('INSERT'))).toBe(false);
+  });
+
+  it('reports unavailable, not disabled, when the table is missing', async () => {
+    const { pool, statements } = transactionPool((sql) => {
+      if (sql.includes('FROM ai_user_settings')) return { rows: [] };
+      if (sql.includes('to_regclass')) return { rows: [{ present: false }] };
+      return { rows: [] };
+    });
+    const repo = new PgAiMemoriesRepository(pool as unknown as pg.Pool);
+    await expect(
+      repo.createExplicit('user-1', { kind: 'fact', content: 'x' }, 100)
+    ).resolves.toEqual({ available: false });
+    expect(statements.at(-1)!.sql).toBe('ROLLBACK');
     expect(statements.some((s) => s.sql.includes('INSERT'))).toBe(false);
   });
 

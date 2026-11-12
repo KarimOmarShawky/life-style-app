@@ -11,6 +11,25 @@ import 'package:lifestyle_mobile/features/ai/data/text_limits.dart';
 
 /// Slice AI-P: in-app reports of AI output (POST /api/v1/ai/reports).
 
+class _MemoryTokenStore implements TokenStore {
+  _MemoryTokenStore(this.tokens);
+
+  SessionTokens? tokens;
+
+  @override
+  Future<void> clear() async {
+    tokens = null;
+  }
+
+  @override
+  Future<SessionTokens?> read() async => tokens;
+
+  @override
+  Future<void> write(SessionTokens value) async {
+    tokens = value;
+  }
+}
+
 SessionTokens _tokens() => SessionTokens(
       accessToken: 'access',
       refreshToken: 'refresh',
@@ -40,7 +59,7 @@ void main() {
 
   ApiAiReportsClient client() => ApiAiReportsClient(ApiClient(
         baseUri: Uri.parse('https://api.example.test/api/v1/'),
-        tokenStore: MemoryTokenStore(_tokens()),
+        tokenStore: _MemoryTokenStore(_tokens()),
         httpClient: MockClient((request) async {
           requests.add(request);
           return respond(request);

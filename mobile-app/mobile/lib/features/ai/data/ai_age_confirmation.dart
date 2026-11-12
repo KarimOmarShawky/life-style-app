@@ -7,41 +7,41 @@ import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 /// Per-account "I am 18 or older" confirmation for the AI features (Hybrid
 /// AI audit AI0-F11, decision D9). The Gemini API terms require users of the
-/// API to be 18 or older, so every AI feature asks once per account before
-/// it sends anything. Signed-out sessions are never confirmed.
-class AiAgeConfirmationNotifier extends AsyncNotifier<bool> {
+/// API to be 18 or older, so every AI feature asks once per account on this
+/// device before it sends anything. Nothing is stored for signed-out
+/// sessions or when the user declines.
+class AiAgeConfirmationStore {
+  const AiAgeConfirmationStore._();
+
   static const String _prefix = 'ai_age_confirmed.v1.';
 
-  @override
-  Future<bool> build() async {
-    final userId = ref.watch(
-      authProvider.select((value) => value.valueOrNull?.id),
-    );
-    if (userId == null) return false;
+  static Future<bool> isConfirmed(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('$_prefix$userId') ?? false;
   }
 
-  Future<void> confirm() async {
-    final userId = ref.read(authProvider).valueOrNull?.id;
-    if (userId == null) return;
+  static Future<void> confirm(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('$_prefix$userId', true);
-    state = const AsyncData(true);
   }
 }
 
-final aiAgeConfirmationProvider =
-    AsyncNotifierProvider<AiAgeConfirmationNotifier, bool>(
-  AiAgeConfirmationNotifier.new,
-);
+Future<String?> _currentUserId(WidgetRef ref) async {
+  try {
+    return (await ref.read(authProvider.future))?.id;
+  } on Object {
+    return null;
+  }
+}
 
 /// Returns true when the AI may be used: the account already confirmed, or
 /// the user confirms now. Declining shows a short message and returns false;
-/// nothing is stored, so the question comes back next time.
+/// the question comes back next time.
 Future<bool> ensureAiAgeConfirmed(BuildContext context, WidgetRef ref) async {
-  final confirmed = await ref.read(aiAgeConfirmationProvider.future);
-  if (confirmed) return true;
+  final userId = await _currentUserId(ref);
+  if (userId != null && await AiAgeConfirmationStore.isConfirmed(userId)) {
+    return true;
+  }
   if (!context.mounted) return false;
   final l10n = AppLocalizations.of(context);
   final answer = await showDialog<bool>(
@@ -62,7 +62,7 @@ Future<bool> ensureAiAgeConfirmed(BuildContext context, WidgetRef ref) async {
     ),
   );
   if (answer == true) {
-    await ref.read(aiAgeConfirmationProvider.notifier).confirm();
+    if (userId != null) await AiAgeConfirmationStore.confirm(userId);
     return true;
   }
   if (answer == false) {

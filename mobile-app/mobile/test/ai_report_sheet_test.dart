@@ -206,12 +206,20 @@ void main() {
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     await expectLater(tester, meetsGuideline(textContrastGuideline));
 
-    // At 200 % text the buttons are below the fold of the sheet.
+    // At 200 % text the buttons are below the fold of the sheet. After
+    // scrolling, the chips are clipped by the scroll view, which the tap
+    // target guideline would misread, so the buttons are measured directly.
     await tester.ensureVisible(find.text(ar.aiReportSend));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    for (final button in [
+      find.widgetWithText(TextButton, ar.cancel),
+      find.widgetWithText(FilledButton, ar.aiReportSend),
+    ]) {
+      final size = tester.getSize(button);
+      expect(size.height, greaterThanOrEqualTo(48));
+      expect(size.width, greaterThanOrEqualTo(48));
+    }
     semantics.dispose();
   });
 

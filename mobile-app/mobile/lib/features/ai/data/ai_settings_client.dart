@@ -14,6 +14,8 @@ class AiSettingsSnapshot {
     required this.consentVersion,
     required this.currentConsentVersion,
     required this.available,
+    this.memoryEnabled = false,
+    this.explicitMemoryEnabled = false,
   });
 
   /// Parses the `GET` / `PATCH /ai/settings` view. Throws a
@@ -31,6 +33,8 @@ class AiSettingsSnapshot {
           consentVersion: version is int ? version : null,
           currentConsentVersion: current,
           available: available,
+          memoryEnabled: settings['memoryEnabled'] == true,
+          explicitMemoryEnabled: settings['explicitMemoryEnabled'] == true,
         );
       }
     }
@@ -46,6 +50,15 @@ class AiSettingsSnapshot {
   /// False until the owner-run SQL has created the settings table; then
   /// nothing can be stored and app data cannot be used.
   final bool available;
+
+  /// The assistant may use saved notes (AI-3).
+  final bool memoryEnabled;
+
+  /// New notes may be saved (AI-3); the app sets it with [memoryEnabled].
+  final bool explicitMemoryEnabled;
+
+  /// True when both memory switches are on: notes are used and can be saved.
+  bool get memoryOn => available && memoryEnabled && explicitMemoryEnabled;
 
   /// True when the account agreed to the consent text the server requires.
   bool get hasCurrentConsent =>
@@ -73,6 +86,9 @@ abstract interface class AiSettingsClient {
 
   /// Withdraws the stored consent; the assistant asks again before sending.
   Future<AiSettingsSnapshot> withdrawConsent();
+
+  /// Turns assistant memory on or off: both memory switches together (AI-3).
+  Future<AiSettingsSnapshot> setMemoryEnabled(bool enabled);
 }
 
 class ApiAiSettingsClient implements AiSettingsClient {
@@ -103,6 +119,18 @@ class ApiAiSettingsClient implements AiSettingsClient {
           body: const <String, Object?>{'egressConsentVersion': null},
         ),
       );
+
+  @override
+  Future<AiSettingsSnapshot> setMemoryEnabled(bool enabled) async =>
+      AiSettingsSnapshot.fromJson(
+        await _api.patch(
+          'ai/settings',
+          body: <String, Object?>{
+            'memoryEnabled': enabled,
+            'explicitMemoryEnabled': enabled,
+          },
+        ),
+      );
 }
 
 final aiSettingsClientProvider = Provider<AiSettingsClient>(
@@ -121,4 +149,17 @@ class AiConsentRevision extends Notifier<int> {
 
 final aiConsentRevisionProvider = NotifierProvider<AiConsentRevision, int>(
   AiConsentRevision.new,
+);
+
+/// Counts changes of other AI settings made outside the assistant (the
+/// memory switch, AI-3), so an open assistant reads the settings again.
+class AiSettingsRevision extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final aiSettingsRevisionProvider = NotifierProvider<AiSettingsRevision, int>(
+  AiSettingsRevision.new,
 );

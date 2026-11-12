@@ -50,6 +50,11 @@ class _WithdrawingSettings implements AiSettingsClient {
   }
 
   @override
+  Future<AiSettingsSnapshot> setMemoryEnabled(bool enabled) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<AiSettingsSnapshot> withdrawConsent() async {
     withdrawals++;
     final error = failure;

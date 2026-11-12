@@ -336,6 +336,18 @@ and the "Use my app data" switch does not appear; the rest works.
 - [ ] **AI2C-3** Profile → AI consent → Withdraw → "AI consent withdrawn…". Back on the AI tab, the next message asks "Send conversation to Google Gemini?" again. Cancel sends nothing.
 - [ ] **AI2C-4** Withdraw the consent on phone A, then on phone B (assistant already open, app data on) send a message: B shows "AI consent is needed…", removes the empty reply, and the next message asks again.
 - [ ] **AI2C-5** Arabic at the largest font on a small phone: the switch, its explanation and the Profile entry are readable, run right to left, and TalkBack reads the switch name, its on/off state and the send button ("إرسال الرسالة").
+
+### AI-3: assistant memory (2026-11-12). Needs a phone with AI turned on
+
+Needs the backend from PR #32, the owner SQL `docs/ai/sql/ai-user-settings.sql` and then
+`docs/ai/sql/ai-memory-items.sql`. Without the second file, Profile → Assistant memory says
+memory is not available yet.
+
+- [ ] **AI3-1** Profile → Assistant memory: the switch is off. Turning it on asks the 18+ question if this account never answered it. Add a note (Preference: "Keep answers short") → it appears in the list.
+- [ ] **AI3-2** In the AI tab, ask "Plan my evening": the reply is short. Turn the switch off and ask again: the note is not used (the reply length is normal), and the note is still listed.
+- [ ] **AI3-3** In the AI tab with memory on, tap the bookmark next to one of your own messages → the editor opens with that text → Save → "Saved to memory." and the note is in Profile → Assistant memory. With memory off the bookmark is not shown.
+- [ ] **AI3-4** Edit a note, delete one (asks first), then Delete all notes (asks first; Cancel keeps them). Profile → Export account metadata (JSON) lists the notes under `aiMemories` before deleting them.
+- [ ] **AI3-5** Arabic at the largest font on a small phone: the Memory screen, the editor and the confirmations are readable and scroll, run right to left, and TalkBack reads the switch, "تعديل الملاحظة", "حذف الملاحظة" and "حفظ في الذاكرة".
 - [ ] **PP-1** Signed build (with `ANDROID_PRIVACY_POLICY_URL`): Profile → Privacy policy opens the published page in the browser, in Arabic and English, also at 200% text. With every browser disabled, the app shows "Couldn't open the privacy policy…" and stays open. A debug build shows no Privacy policy entry.
 - [ ] **DEL-1** Deletion request by email (rehearse on a Neon branch with a test account): run `docs/auth/sql/schedule-account-deletion-on-request.sql` as in `docs/auth/account-deletion-requests.md`. The test phone is signed out; signing in shows the deletion banner and cancelling restores the account.
 

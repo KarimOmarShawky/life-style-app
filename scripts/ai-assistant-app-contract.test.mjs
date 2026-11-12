@@ -62,3 +62,43 @@ test('AI-2c: Profile can withdraw the stored consent', () => {
   assert.match(profile, /aiConsentRevisionProvider\.notifier/);
   assert.match(profile, /l10n\.aiConsentWithdrawBody/);
 });
+
+const memoryClient = read(mobile + 'features/ai/data/ai_memory_client.dart');
+const memoryScreen = read(mobile + 'features/ai/presentation/ai_memory_screen.dart');
+const memoryTypes = read('backend/src/features/ai-memories/ai-memories.types.ts');
+const assistantService = read('backend/src/features/ai/application/ai-assistant.service.ts');
+
+test('AI-3: the app uses the server memory limits and kinds', () => {
+  const pick = (source, pattern) => {
+    const match = source.match(pattern);
+    assert.ok(match, `missing ${pattern}`);
+    return match[1];
+  };
+  assert.equal(
+    pick(memoryClient, /const int aiMemoryMaxChars = (\d+);/),
+    pick(memoryTypes, /contentMaxChars: (\d+)/)
+  );
+  assert.equal(
+    pick(memoryClient, /const int aiMemoryMaxActive = (\d+);/),
+    pick(memoryTypes, /maxActive: (\d+)/)
+  );
+  assert.equal(
+    pick(memoryClient, /const int aiMemoryContextItems = (\d+);/),
+    pick(memoryTypes, /AI_MEMORY_CONTEXT_CAPS = \{\s*items: (\d+)/)
+  );
+  const appKinds = pick(memoryClient, /enum AiMemoryKind \{ ([^}]*) \}/)
+    .split(',')
+    .map((kind) => kind.trim())
+    .filter(Boolean);
+  const serverKinds = dartStrings(pick(memoryTypes, /AI_MEMORY_KINDS = \[([^\]]*)\]/));
+  assert.deepEqual(appKinds, serverKinds);
+});
+
+test('AI-3: only the user saves notes; turning memory on asks 18+ first', () => {
+  assert.match(memoryScreen, /ensureAiAgeConfirmed\(context, ref\)/);
+  assert.match(memoryScreen, /setMemoryEnabled\(enable\)/);
+  assert.match(screen, /showAiMemoryEditor\(context, content: text\)/);
+  // The assistant only reads memories; nothing on the AI path creates them.
+  assert.match(assistantService, /forContext\(user\.id\)/);
+  assert.doesNotMatch(assistantService, /createExplicit|memories\.create\(/);
+});

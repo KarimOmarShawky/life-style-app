@@ -1,5 +1,12 @@
 # Change log
 
+## Unreleased — Hybrid AI slice AI-3b: assistant memory in the app, 2026-11-12
+- Profile → Assistant memory: one switch "Use my notes in the assistant" (sets both memory switches; turning it on asks the 18+ question first), the list of saved notes with their kind, add, edit, delete (asks first) and delete all (asks first). Notes stay visible and deletable with memory off. Before the owner SQL the screen says memory is not available yet.
+- Assistant: a "Save to memory" button next to your own messages while memory is on opens the note editor with the message text (at most 500 characters; kind Preference or Fact; "Don't save passwords or sensitive information"). The assistant re-reads the switch when it changes in Profile.
+- The editor and the confirmations scroll as a whole at large text; every button has a label. 28 new strings in ar/en/de/es/fr/tr.
+- Tests: `test/ai_memory_test.dart` (clients, Memory screen, errors, Arabic at 200%, Save to memory, the Profile entry; Flutter, run in CI) and root contract tests that keep the app's limits and kinds equal to the server's.
+- Fix (`c6ce63e`): before the owner SQL a save answers 503 `AI_MEMORY_UNAVAILABLE` also while memory is off (CI 43308735347 had shown 403).
+
 ## Unreleased — Hybrid AI slice AI-3a: explicit memory on the server, 2026-11-12
 - Backend: `GET`, `POST`, `DELETE /api/v1/ai/memories` and `PATCH`, `DELETE /api/v1/ai/memories/:id` (auth, strict Zod, 30 per minute per user, OpenAPI; work with `AI_ENABLED` off, no chat quota). A memory is a short note (`preference` or `fact`, 1 to 500 characters) that only the user writes; the model never does (D4).
 - Saving needs both memory switches of the AI settings (403 `AI_MEMORY_DISABLED`) and fewer than 100 active memories (409 `AI_MEMORY_LIMIT`, checked in one locking transaction); listing, editing and deleting always work. Another account's id answers 404.

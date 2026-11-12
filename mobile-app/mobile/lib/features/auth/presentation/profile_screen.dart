@@ -9,6 +9,7 @@ import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_settings_client.dart';
+import 'package:lifestyle_mobile/features/ai/presentation/ai_memory_screen.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
@@ -585,6 +586,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             title: Text(localization.aiConsentTileTitle),
             subtitle: Text(localization.aiConsentTileSubtitle),
             onTap: _busyAction ? null : () => _withdrawAiConsent(context),
+          ),
+          // Hybrid AI AI-3: notes the user saved for the assistant.
+          ListTile(
+            key: const ValueKey('ai-memory-tile'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.psychology_outlined),
+            title: Text(localization.aiMemoryTitle),
+            subtitle: Text(localization.aiMemoryTileSubtitle),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AiMemoryScreen(),
+              ),
+            ),
           ),
           _ProfileRow(label: localization.accountStatus, value: statusLabel),
           const Divider(height: 24),

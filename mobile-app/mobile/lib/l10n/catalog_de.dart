@@ -24,6 +24,42 @@ const Map<String, String> deCatalog = {
   'aiConsentWithdrawAction': 'Widerrufen',
   'aiConsentWithdrawn':
       'KI-Einwilligung widerrufen. Der Assistent fragt erneut.',
+  'aiMemoryTitle': 'Assistent-Gedächtnis',
+  'aiMemoryTileSubtitle': 'Notizen, die sich der Assistent für dich merkt',
+  'aiMemorySwitchTitle': 'Meine Notizen im Assistenten nutzen',
+  'aiMemorySwitchSubtitle':
+      'Der Assistent liest bis zu 30 deiner zuletzt gespeicherten oder geänderten Notizen, und nur, nachdem du dem Senden von KI-Anfragen an Google Gemini zugestimmt hast. Notizen bleiben gespeichert, bis du sie löschst.',
+  'aiMemoryAdd': 'Notiz hinzufügen',
+  'aiMemoryEmpty':
+      'Noch keine Notizen. Füge hier eine hinzu oder nutze „Im Gedächtnis speichern“ bei einer deiner Nachrichten im Assistenten.',
+  'aiMemoryKindPreference': 'Vorliebe',
+  'aiMemoryKindFact': 'Fakt',
+  'aiMemoryEditTitle': 'Notiz bearbeiten',
+  'aiMemoryFieldLabel': 'Notiz',
+  'aiMemoryEditorHint': 'Zum Beispiel: Antworte kurz',
+  'aiMemoryEditorHelper':
+      'Speichere keine Passwörter oder sensiblen Informationen.',
+  'aiMemoryDeleteTooltip': 'Notiz löschen',
+  'aiMemoryDeleteTitle': 'Diese Notiz löschen?',
+  'aiMemoryDeleteBody':
+      'Der Assistent nutzt sie dann nicht mehr. Das kann nicht rückgängig gemacht werden.',
+  'aiMemoryDeleteAll': 'Alle Notizen löschen',
+  'aiMemoryDeleteAllTitle': 'Alle Notizen löschen?',
+  'aiMemoryDeleteAllBody':
+      'Alle Notizen, die du für den Assistenten gespeichert hast, werden gelöscht. Das kann nicht rückgängig gemacht werden.',
+  'aiMemorySaved': 'Im Gedächtnis gespeichert.',
+  'aiMemoryDeleted': 'Notiz gelöscht.',
+  'aiMemoryAllDeleted': 'Alle Notizen gelöscht.',
+  'aiMemoryDisabledError':
+      'Schalte zuerst „Meine Notizen im Assistenten nutzen“ unter Profil → Assistent-Gedächtnis ein.',
+  'aiMemoryLimitError':
+      'Du hast 100 Notizen. Lösche einige, um neue zu speichern.',
+  'aiMemoryUnavailable': 'Das Assistent-Gedächtnis ist noch nicht verfügbar.',
+  'aiMemorySaveFailed':
+      'Die Notiz konnte nicht gespeichert werden. Versuche es erneut.',
+  'aiMemoryLoadFailed': 'Deine Notizen konnten nicht geladen werden.',
+  'aiMemoryDeleteFailed': 'Löschen fehlgeschlagen. Versuche es erneut.',
+  'aiSaveToMemoryTooltip': 'Im Gedächtnis speichern',
   'appTitle': 'LifeStyle',
   'signIn': 'Anmelden',
   'createAccount': 'Konto erstellen',

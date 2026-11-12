@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_context_preference.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_memory_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_reports_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_settings_client.dart';
@@ -12,6 +14,7 @@ import 'package:lifestyle_mobile/features/ai/data/ai_transport.dart'
     show aiMaxTurnChars;
 import 'package:lifestyle_mobile/features/ai/data/chat_history_store.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_markdown.dart';
+import 'package:lifestyle_mobile/features/ai/presentation/ai_memory_editor.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_report_sheet.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
@@ -129,6 +132,29 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     _consentedToEgress = false;
     setState(() => _settings = null);
     unawaited(_fetchSettings());
+  }
+
+  /// "Save to memory" on one of the user's own messages (AI-3): the note
+  /// editor opens with the message text, and the note is saved on Save.
+  Future<void> _saveToMemory(String text) async {
+    final draft = await showAiMemoryEditor(context, content: text);
+    if (draft == null || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(aiMemoryClientProvider)
+          .create(kind: draft.kind, content: draft.content);
+      messenger.showSnackBar(SnackBar(content: Text(l10n.aiMemorySaved)));
+    } on Object catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(aiMemoryErrorMessage(l10n, error))),
+      );
+      // Memory was turned off elsewhere: hide the action.
+      if (error is ApiException && error.code == 'AI_MEMORY_DISABLED') {
+        unawaited(_fetchSettings());
+      }
+    }
   }
 
   /// Turning the switch on explains what is sent first (AI-2c); turning it
@@ -346,6 +372,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     ref.listen<int>(aiConsentRevisionProvider, (_, __) => _forgetConsent());
+    ref.listen<int>(
+      aiSettingsRevisionProvider,
+      (_, __) => unawaited(_fetchSettings()),
+    );
+    final memoryOn = _settings?.memoryOn ?? false;
 
     final suggestions = [
       l10n.aiSuggestion1,
@@ -426,6 +457,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                   final isUser = message.role == 'user';
                   // Replies from the AI (not the built-in greeting) can be
                   // reported once they finished streaming.
+                  // The user's own messages can be saved as a note for
+                  // the assistant while memory is on (AI-3).
+                  final savable =
+                      isUser && memoryOn && message.text.trim().isNotEmpty;
                   final reportable = !isUser &&
                       message.timestamp != null &&
                       message.text.trim().isNotEmpty &&
@@ -494,7 +529,25 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                               ),
                             ],
                           )
-                        : bubble,
+                        : savable
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    tooltip: l10n.aiSaveToMemoryTooltip,
+                                    icon: const Icon(
+                                      Icons.bookmark_add_outlined,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => unawaited(
+                                      _saveToMemory(message.text),
+                                    ),
+                                  ),
+                                  Flexible(child: bubble),
+                                ],
+                              )
+                            : bubble,
                   );
                 },
               ),

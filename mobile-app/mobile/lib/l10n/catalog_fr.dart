@@ -23,6 +23,42 @@ const Map<String, String> frCatalog = {
       'L’assistant redemandera votre accord avant d’envoyer quoi que ce soit à Google Gemini, et vos données de l’app ne seront plus utilisées tant que vous n’aurez pas de nouveau accepté. Votre historique de discussion reste sur ce téléphone.',
   'aiConsentWithdrawAction': 'Retirer',
   'aiConsentWithdrawn': 'Consentement IA retiré. L’assistant redemandera.',
+  'aiMemoryTitle': 'Mémoire de l’assistant',
+  'aiMemoryTileSubtitle': 'Des notes que l’assistant retient pour vous',
+  'aiMemorySwitchTitle': 'Utiliser mes notes dans l’assistant',
+  'aiMemorySwitchSubtitle':
+      'L’assistant lit jusqu’à 30 de vos notes les plus récemment enregistrées ou modifiées, et seulement après votre accord pour l’envoi des requêtes d’IA à Google Gemini. Les notes restent enregistrées jusqu’à ce que vous les supprimiez.',
+  'aiMemoryAdd': 'Ajouter une note',
+  'aiMemoryEmpty':
+      'Aucune note pour l’instant. Ajoutez-en une ici ou utilisez « Enregistrer en mémoire » sur l’un de vos messages dans l’assistant.',
+  'aiMemoryKindPreference': 'Préférence',
+  'aiMemoryKindFact': 'Fait',
+  'aiMemoryEditTitle': 'Modifier la note',
+  'aiMemoryFieldLabel': 'Note',
+  'aiMemoryEditorHint': 'Par exemple : Réponses courtes',
+  'aiMemoryEditorHelper':
+      'N’enregistrez pas de mots de passe ni d’informations sensibles.',
+  'aiMemoryDeleteTooltip': 'Supprimer la note',
+  'aiMemoryDeleteTitle': 'Supprimer cette note ?',
+  'aiMemoryDeleteBody':
+      'L’assistant ne l’utilisera plus. Cette action est irréversible.',
+  'aiMemoryDeleteAll': 'Supprimer toutes les notes',
+  'aiMemoryDeleteAllTitle': 'Supprimer toutes les notes ?',
+  'aiMemoryDeleteAllBody':
+      'Toutes les notes enregistrées pour l’assistant seront supprimées. Cette action est irréversible.',
+  'aiMemorySaved': 'Enregistré en mémoire.',
+  'aiMemoryDeleted': 'Note supprimée.',
+  'aiMemoryAllDeleted': 'Toutes les notes ont été supprimées.',
+  'aiMemoryDisabledError':
+      'Activez d’abord « Utiliser mes notes dans l’assistant » dans Profil → Mémoire de l’assistant.',
+  'aiMemoryLimitError':
+      'Vous avez 100 notes. Supprimez-en pour en enregistrer de nouvelles.',
+  'aiMemoryUnavailable':
+      'La mémoire de l’assistant n’est pas encore disponible.',
+  'aiMemorySaveFailed': 'Impossible d’enregistrer la note. Réessayez.',
+  'aiMemoryLoadFailed': 'Impossible de charger vos notes.',
+  'aiMemoryDeleteFailed': 'Impossible de supprimer. Réessayez.',
+  'aiSaveToMemoryTooltip': 'Enregistrer en mémoire',
   'appTitle': 'LifeStyle',
   'signIn': 'Se connecter',
   'createAccount': 'Créer un compte',

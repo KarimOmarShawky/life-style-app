@@ -23,6 +23,40 @@ const Map<String, String> trCatalog = {
   'aiConsentWithdrawAction': 'Geri çek',
   'aiConsentWithdrawn':
       'Yapay zekâ onayı geri çekildi. Asistan yeniden soracak.',
+  'aiMemoryTitle': 'Asistan hafızası',
+  'aiMemoryTileSubtitle': 'Asistanın senin için hatırladığı notlar',
+  'aiMemorySwitchTitle': 'Notlarımı asistanda kullan',
+  'aiMemorySwitchSubtitle':
+      'Asistan, en son kaydettiğin veya değiştirdiğin notlarından en fazla 30 tanesini okur ve bunu yalnızca yapay zekâ isteklerinin Google Gemini’ye gönderilmesini onayladıktan sonra yapar. Notlar sen silene kadar kayıtlı kalır.',
+  'aiMemoryAdd': 'Not ekle',
+  'aiMemoryEmpty':
+      'Henüz not yok. Buradan ekle ya da asistandaki mesajlarından birinde “Hafızaya kaydet” seçeneğini kullan.',
+  'aiMemoryKindPreference': 'Tercih',
+  'aiMemoryKindFact': 'Bilgi',
+  'aiMemoryEditTitle': 'Notu düzenle',
+  'aiMemoryFieldLabel': 'Not',
+  'aiMemoryEditorHint': 'Örneğin: Yanıtları kısa tut',
+  'aiMemoryEditorHelper': 'Şifre veya hassas bilgi kaydetme.',
+  'aiMemoryDeleteTooltip': 'Notu sil',
+  'aiMemoryDeleteTitle': 'Bu not silinsin mi?',
+  'aiMemoryDeleteBody':
+      'Asistan artık bunu kullanmayacak. Bu işlem geri alınamaz.',
+  'aiMemoryDeleteAll': 'Tüm notları sil',
+  'aiMemoryDeleteAllTitle': 'Tüm notlar silinsin mi?',
+  'aiMemoryDeleteAllBody':
+      'Asistan için kaydettiğin tüm notlar silinecek. Bu işlem geri alınamaz.',
+  'aiMemorySaved': 'Hafızaya kaydedildi.',
+  'aiMemoryDeleted': 'Not silindi.',
+  'aiMemoryAllDeleted': 'Tüm notlar silindi.',
+  'aiMemoryDisabledError':
+      'Önce Profil → Asistan hafızası bölümünde “Notlarımı asistanda kullan” seçeneğini aç.',
+  'aiMemoryLimitError':
+      '100 notun var. Yenilerini kaydetmek için bazılarını sil.',
+  'aiMemoryUnavailable': 'Asistan hafızası henüz kullanılamıyor.',
+  'aiMemorySaveFailed': 'Not kaydedilemedi. Tekrar dene.',
+  'aiMemoryLoadFailed': 'Notların yüklenemedi.',
+  'aiMemoryDeleteFailed': 'Silinemedi. Tekrar dene.',
+  'aiSaveToMemoryTooltip': 'Hafızaya kaydet',
   'appTitle': 'LifeStyle',
   'signIn': 'Giriş yap',
   'createAccount': 'Hesap oluştur',

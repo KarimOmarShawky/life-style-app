@@ -70,6 +70,19 @@ the account's settings row, so saves sent at the same moment cannot pass the lim
 Before the owner SQL: `GET` answers an empty list with `available: false`; every change answers
 503 `AI_MEMORY_UNAVAILABLE`.
 
+## The app (AI-3b)
+
+- Profile → Assistant memory: one switch, "Use my notes in the assistant", sets both server
+  switches together (the 18+ question comes first, D9). The list shows each note with its kind;
+  add, edit, delete and delete all ask first where something is removed. Notes stay visible and
+  deletable with memory off. Before the owner SQL the screen says memory is not available yet.
+- In the assistant, a "Save to memory" button next to the user's own messages (only while memory
+  is on) opens the note editor with the message text.
+- Code: `mobile-app/mobile/lib/features/ai/data/ai_memory_client.dart`,
+  `lib/features/ai/presentation/{ai_memory_screen,ai_memory_editor}.dart`; tests
+  `test/ai_memory_test.dart`; root contract test `scripts/ai-assistant-app-contract.test.mjs`
+  keeps the limits and kinds equal to the server's.
+
 ## Applying the owner SQL on production
 
 Production (owner-managed Neon) has no migration ledger: never run `npm run migrate:*` against

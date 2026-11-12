@@ -61,6 +61,11 @@ class _FakeSettings implements AiSettingsClient {
   Future<AiSettingsSnapshot> withdrawConsent() async {
     return current = _snapshot();
   }
+
+  @override
+  Future<AiSettingsSnapshot> setMemoryEnabled(bool enabled) async {
+    throw UnimplementedError();
+  }
 }
 
 /// Answers each assistant request with the next scripted list of events.

@@ -11,7 +11,7 @@ is a short text plus a kind). Owner: "كمل" after the AI-2c report. AI-3 ships
 | Part | Content | State |
 | --- | --- | --- |
 | 3a | Table `ai_memory_items`, `/api/v1/ai/memories`, memories in the assistant turn | this report |
-| 3b | Flutter: Profile → Assistant memory, "Save to memory" on your own messages | next |
+| 3b | Flutter: Profile → Assistant memory, "Save to memory" on your own messages | done (section "Part 3b") |
 
 ## Part 3a — backend
 
@@ -62,3 +62,57 @@ NOT RUN: the owner SQL on Neon, a real Gemini request with memories, the app (pa
   store texts must be pasted into the Google Doc before the AI-3 build ships (AI2-F1 pattern).
 - **AI3-F3 (info):** `PATCH` changes kind and text only; approving or dismissing learned items
   waits for AI-5.
+
+### CI on the 3a commit and the fix
+
+`44c62ba`: isolated 43308735321 ✅ (incl. `ai-memories-flow`: switches, two accounts, three saves
+at once at 98 stored notes → 201, 201, 409), secrets 43308735787 ✅, CI Pipeline 43308735347 ❌
+(Flutter ✅; backend gate: the restricted-role sequence expected `available: false` for a save
+before the owner SQL and got `disabled`). Cause: with memory off the switch check answered before
+the missing table was ever touched, against the documented 503. Fix `c6ce63e`: the disabled
+branch checks `to_regclass('ai_memory_items')` first; new unit case (745 unit tests pass).
+
+## Part 3b — the app (Flutter)
+
+- **Profile → Assistant memory** (`lib/features/ai/presentation/ai_memory_screen.dart`): one
+  switch, "Use my notes in the assistant", sets `memoryEnabled` and `explicitMemoryEnabled`
+  together (turning it on asks the 18+ question first, D9). The notes are listed with their kind;
+  add, edit, delete (confirmation) and delete all (confirmation). Notes stay visible and
+  deletable with memory off. Before the owner SQL the screen says memory is not available yet;
+  a failed load offers "Try again".
+- **Note editor** (`ai_memory_editor.dart`): kind (Preference or Fact), the text (at most 500
+  characters, counter), the hint not to save passwords or sensitive information; the dialog
+  scrolls as a whole at large text. Refusals are explained (memory off, 100 notes, not available).
+- **Save to memory:** in the assistant, a labeled button next to the user's own messages while
+  memory is on opens the editor with the message text. The model never saves notes.
+- **Sync:** the assistant re-reads the settings when the switch changes in Profile (a Riverpod
+  counter, like the AI-2c consent withdrawal).
+- **Strings:** 28 keys in ar/en/de/es/fr/tr.
+
+### Evidence (part 3b), local
+
+| Check | Result |
+| --- | --- |
+| Flutter analyze / format / tests | NOT RUN locally (no Flutter SDK); CI on the 3b commit |
+| `dart format` style of every changed Dart file (WASM `@wasm-fmt/dart_fmt` 0.4.0, language 3.5) | PASS |
+| `node scripts/check-dart-syntax.mjs …` (all tracked and new Dart files) | PASS (200 files) |
+| Root: `node --test scripts/*.test.mjs` | PASS (202; the contract test pins the app's limits and kinds to the server) |
+| Root: l10n (literal ratchet unchanged at 85), docs consistency, forbidden deps, secrets | PASS |
+
+New Flutter test: `test/ai_memory_test.dart` (clients; Memory screen: unavailable, retry, switch
+with 18+, add with kind, edit, delete, delete all with cancel, limit message, Arabic at 200%;
+Save to memory on and off; the Profile entry).
+
+NOT RUN: device checks AI3-1…5 (`docs/mobile/manual-test-checklist.md`), the owner SQL on
+Neon, a real Gemini request with saved notes.
+
+### Findings (part 3b)
+
+- **AI3-F4 (info):** one switch in the app sets both server switches; they stay separate on the
+  server for AI-5.
+- **AI3-F5 (info):** a note saved from a long message is cut to 500 characters in the editor,
+  where the user sees and can shorten it before saving.
+
+## Next
+
+AI-4 (bounded tools and confirmed proposals) after launch, per the owner's order; then AI-5.

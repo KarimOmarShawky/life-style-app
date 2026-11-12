@@ -1,10 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_reports_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_transport.dart'
+    show aiMaxTurnChars;
 import 'package:lifestyle_mobile/features/ai/data/chat_history_store.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_markdown.dart';
+import 'package:lifestyle_mobile/features/ai/presentation/ai_report_sheet.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
@@ -87,6 +93,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     final text = (presetText ?? _textController.text).trim();
     if (text.isEmpty || _isGenerating) return;
     final l10n = AppLocalizations.of(context);
+
+    // Gemini API terms: AI features are for people aged 18 or older (D9).
+    if (!await ensureAiAgeConfirmed(context, ref)) return;
+    if (!mounted) return;
 
     if (!_consentedToEgress) {
       final approved = await showDialog<bool>(
@@ -274,6 +284,56 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                 itemBuilder: (context, index) {
                   final message = _messages[index];
                   final isUser = message.role == 'user';
+                  // Replies from the AI (not the built-in greeting) can be
+                  // reported once they finished streaming.
+                  final reportable = !isUser &&
+                      message.timestamp != null &&
+                      message.text.trim().isNotEmpty &&
+                      !(_isGenerating && index == _messages.length - 1);
+                  final bubble = Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.82,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUser
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(16),
+                        topRight: const Radius.circular(16),
+                        bottomLeft: Radius.circular(isUser ? 16 : 4),
+                        bottomRight: Radius.circular(isUser ? 4 : 16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: isUser
+                              ? SelectableText(
+                                  message.text,
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    height: 1.45,
+                                    color: theme.colorScheme.onPrimary,
+                                  ),
+                                )
+                              : AiMarkdownText(
+                                  message.text,
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    height: 1.45,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  );
                   return Align(
                     alignment: isUser
                         ? (l10n.isRTL
@@ -282,50 +342,19 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                         : (l10n.isRTL
                             ? Alignment.centerRight
                             : Alignment.centerLeft),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.82,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isUser
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(16),
-                          topRight: const Radius.circular(16),
-                          bottomLeft: Radius.circular(isUser ? 16 : 4),
-                          bottomRight: Radius.circular(isUser ? 4 : 16),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: isUser
-                                ? SelectableText(
-                                    message.text,
-                                    style: TextStyle(
-                                      fontSize: 14.5,
-                                      height: 1.45,
-                                      color: theme.colorScheme.onPrimary,
-                                    ),
-                                  )
-                                : AiMarkdownText(
-                                    message.text,
-                                    style: TextStyle(
-                                      fontSize: 14.5,
-                                      height: 1.45,
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    child: reportable
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Flexible(child: bubble),
+                              AiReportButton(
+                                surface: AiReportSurface.assistant,
+                                replyText: message.text,
+                              ),
+                            ],
+                          )
+                        : bubble,
                   );
                 },
               ),
@@ -362,6 +391,9 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                       controller: _textController,
                       minLines: 1,
                       maxLines: 4,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(aiMaxTurnChars),
+                      ],
                       decoration: InputDecoration(
                         hintText: l10n.aiInputHint,
                         hintStyle: const TextStyle(fontSize: 13),

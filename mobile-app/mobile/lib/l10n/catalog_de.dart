@@ -2,7 +2,7 @@
 const Map<String, String> deCatalog = {
   'aiEgressTitle': 'Unterhaltung an Google Gemini senden?',
   'aiEgressDescription':
-      'Deine Nachricht und der Gesprächsverlauf werden mit deinem API-Schlüssel an Google gesendet. Finanzdaten werden nicht automatisch aufgenommen. Gib keine Geheimnisse oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
+      'Deine Nachricht und der letzte Gesprächsverlauf werden über den LifeStyle-Server an Google Gemini gesendet. Gib keine Passwörter oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
   'aiEgressAgree': 'Zustimmen und senden',
   'appTitle': 'LifeStyle',
   'signIn': 'Anmelden',
@@ -840,4 +840,26 @@ const Map<String, String> deCatalog = {
   'signedInDevicesPlatformAndroid': 'Android-Gerät',
   'signedInDevicesPlatformIos': 'iPhone oder iPad',
   'signedInDevicesPlatformUnknown': 'Unbekanntes Gerät',
+  'aiReportReplyTooltip': 'Antwort melden',
+  'aiReportTitle': 'Diese Antwort melden',
+  'aiReportBody':
+      'Sag uns, was an dieser Antwort nicht stimmt. Meldungen helfen uns, die KI sicher und zuverlässig zu halten.',
+  'aiReportCategoryOffensive': 'Beleidigend oder hasserfüllt',
+  'aiReportCategoryHarmful': 'Schädlich oder gefährlich',
+  'aiReportCategoryInaccurate': 'Falsch oder irreführend',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Etwas anderes',
+  'aiReportIncludeReply': 'Antwort mitsenden, damit wir sie prüfen können',
+  'aiReportNoteLabel': 'Notiz (optional)',
+  'aiReportSend': 'Meldung senden',
+  'aiReportSent': 'Danke, wir haben deine Meldung erhalten.',
+  'aiReportFailed':
+      'Die Meldung konnte nicht gesendet werden. Versuche es später erneut.',
+  'aiAgeTitle': 'Bist du 18 oder älter?',
+  'aiAgeBody':
+      'Die KI-Funktionen nutzen Google Gemini und sind nur für Personen ab 18 Jahren gedacht.',
+  'aiAgeConfirm': 'Ich bin 18 oder älter',
+  'aiAgeDecline': 'Ich bin unter 18',
+  'aiAgeDeclined':
+      'KI-Funktionen sind ab 18 Jahren verfügbar. Der Rest der App funktioniert wie gewohnt.',
 };

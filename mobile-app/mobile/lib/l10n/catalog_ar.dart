@@ -3,7 +3,7 @@
 const Map<String, String> arCatalog = {
   'aiEgressTitle': 'إرسال المحادثة إلى Google Gemini؟',
   'aiEgressDescription':
-      'تُرسل رسالتك وسجل المحادثة إلى Google باستخدام مفتاح API الخاص بك. لا تُرسل السجلات المالية تلقائياً. لا تكتب أسراراً أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
+      'تُرسل رسالتك والمحادثة الأخيرة إلى Google Gemini عبر خادم LifeStyle. لا تكتب كلمات مرور أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
   'aiEgressAgree': 'أوافق وأرسل',
   'appTitle': 'لايف ستايل',
   'signIn': 'تسجيل الدخول',
@@ -791,4 +791,25 @@ const Map<String, String> arCatalog = {
   'signedInDevicesPlatformAndroid': 'جهاز Android',
   'signedInDevicesPlatformIos': 'iPhone أو iPad',
   'signedInDevicesPlatformUnknown': 'جهاز غير معروف',
+  'aiReportReplyTooltip': 'الإبلاغ عن الرد',
+  'aiReportTitle': 'الإبلاغ عن هذا الرد',
+  'aiReportBody':
+      'أخبرنا بالمشكلة في هذا الرد. تساعدنا البلاغات على إبقاء الذكاء الاصطناعي آمنًا ودقيقًا.',
+  'aiReportCategoryOffensive': 'مسيء أو يحض على الكراهية',
+  'aiReportCategoryHarmful': 'ضار أو خطير',
+  'aiReportCategoryInaccurate': 'خاطئ أو مضلل',
+  'aiReportCategorySpam': 'محتوى مزعج (سبام)',
+  'aiReportCategoryOther': 'شيء آخر',
+  'aiReportIncludeReply': 'إرفاق نص الرد لنتمكن من مراجعته',
+  'aiReportNoteLabel': 'ملاحظة (اختياري)',
+  'aiReportSend': 'إرسال البلاغ',
+  'aiReportSent': 'شكرًا، وصلنا بلاغك.',
+  'aiReportFailed': 'تعذّر إرسال البلاغ. حاول مرة أخرى لاحقًا.',
+  'aiAgeTitle': 'هل عمرك 18 سنة أو أكثر؟',
+  'aiAgeBody':
+      'تعمل ميزات الذكاء الاصطناعي بواسطة Google Gemini، وهي متاحة فقط لمن تبلغ أعمارهم 18 سنة أو أكثر.',
+  'aiAgeConfirm': 'عمري 18 سنة أو أكثر',
+  'aiAgeDecline': 'عمري أقل من 18 سنة',
+  'aiAgeDeclined':
+      'ميزات الذكاء الاصطناعي متاحة من عمر 18 سنة. باقي التطبيق يعمل كالمعتاد.',
 };

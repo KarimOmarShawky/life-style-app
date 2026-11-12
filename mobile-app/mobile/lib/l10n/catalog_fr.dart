@@ -2,7 +2,7 @@
 const Map<String, String> frCatalog = {
   'aiEgressTitle': 'Envoyer la conversation à Google Gemini ?',
   'aiEgressDescription':
-      'Votre message et l’historique de la conversation sont envoyés à Google avec votre clé API. Les données financières ne sont pas incluses automatiquement. Ne saisissez pas de secrets ni de données sensibles. Google applique ses propres règles de confidentialité.',
+      'Votre message et la conversation récente sont envoyés à Google Gemini via le serveur LifeStyle. Ne saisissez pas de mots de passe ni de données sensibles. Google applique ses propres règles de confidentialité.',
   'aiEgressAgree': 'Accepter et envoyer',
   'appTitle': 'LifeStyle',
   'signIn': 'Se connecter',
@@ -848,4 +848,26 @@ const Map<String, String> frCatalog = {
   'signedInDevicesPlatformAndroid': 'Appareil Android',
   'signedInDevicesPlatformIos': 'iPhone ou iPad',
   'signedInDevicesPlatformUnknown': 'Appareil inconnu',
+  'aiReportReplyTooltip': 'Signaler la réponse',
+  'aiReportTitle': 'Signaler cette réponse',
+  'aiReportBody':
+      'Dites-nous ce qui ne va pas dans cette réponse. Les signalements nous aident à garder l’IA sûre et fiable.',
+  'aiReportCategoryOffensive': 'Offensante ou haineuse',
+  'aiReportCategoryHarmful': 'Nuisible ou dangereuse',
+  'aiReportCategoryInaccurate': 'Fausse ou trompeuse',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Autre chose',
+  'aiReportIncludeReply':
+      'Inclure la réponse pour que nous puissions l’examiner',
+  'aiReportNoteLabel': 'Note (facultatif)',
+  'aiReportSend': 'Envoyer le signalement',
+  'aiReportSent': 'Merci, nous avons bien reçu votre signalement.',
+  'aiReportFailed': 'Impossible d’envoyer le signalement. Réessayez plus tard.',
+  'aiAgeTitle': 'Avez-vous 18 ans ou plus ?',
+  'aiAgeBody':
+      'Les fonctions d’IA utilisent Google Gemini, réservé aux personnes de 18 ans ou plus.',
+  'aiAgeConfirm': 'J’ai 18 ans ou plus',
+  'aiAgeDecline': 'J’ai moins de 18 ans',
+  'aiAgeDeclined':
+      'Les fonctions d’IA sont disponibles à partir de 18 ans. Le reste de l’application fonctionne normalement.',
 };

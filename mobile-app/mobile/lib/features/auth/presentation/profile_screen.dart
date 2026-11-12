@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
@@ -139,6 +140,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _setAiTaskParsing(bool enabled) async {
     final l10n = AppLocalizations.of(context);
     if (enabled) {
+      // Gemini API terms: AI features are for people aged 18 or older (D9).
+      if (!await ensureAiAgeConfirmed(context, ref)) return;
+      if (!mounted) return;
       final agreed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(

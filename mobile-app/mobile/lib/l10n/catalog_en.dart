@@ -3,7 +3,7 @@
 const Map<String, String> enCatalog = {
   'aiEgressTitle': 'Send conversation to Google Gemini?',
   'aiEgressDescription':
-      'Your message and conversation history are sent to Google using your API key. Financial records are not included automatically. Do not type secrets or sensitive information. Google applies its own data policies.',
+      "Your message and the recent conversation are sent to Google Gemini through LifeStyle's server. Don't type passwords or sensitive information. Google applies its own data policies.",
   'aiEgressAgree': 'Agree and send',
   'appTitle': 'LifeStyle',
   'signIn': 'Sign in',
@@ -810,4 +810,25 @@ const Map<String, String> enCatalog = {
   'signedInDevicesPlatformAndroid': 'Android device',
   'signedInDevicesPlatformIos': 'iPhone or iPad',
   'signedInDevicesPlatformUnknown': 'Unknown device',
+  'aiReportReplyTooltip': 'Report reply',
+  'aiReportTitle': 'Report this reply',
+  'aiReportBody':
+      "Tell us what's wrong with this reply. Reports help us keep the AI safe and accurate.",
+  'aiReportCategoryOffensive': 'Offensive or hateful',
+  'aiReportCategoryHarmful': 'Harmful or dangerous',
+  'aiReportCategoryInaccurate': 'Wrong or misleading',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Something else',
+  'aiReportIncludeReply': 'Include the reply so we can review it',
+  'aiReportNoteLabel': 'Note (optional)',
+  'aiReportSend': 'Send report',
+  'aiReportSent': 'Thanks, we received your report.',
+  'aiReportFailed': "Couldn't send the report. Try again later.",
+  'aiAgeTitle': 'Are you 18 or older?',
+  'aiAgeBody':
+      'The AI features use Google Gemini, which is only for people aged 18 or older.',
+  'aiAgeConfirm': "I'm 18 or older",
+  'aiAgeDecline': "I'm under 18",
+  'aiAgeDeclined':
+      'AI features are available from age 18. The rest of the app works as usual.',
 };

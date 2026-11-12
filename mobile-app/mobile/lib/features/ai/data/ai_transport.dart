@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/features/ai/data/text_limits.dart';
 
 class ChatMessage {
   const ChatMessage({
@@ -30,6 +31,56 @@ class ChatMessage {
 
 /// Server-owned generation profiles (see backend AI_GENERATION).
 enum AiReplyMode { chat, brief }
+
+/// Backend request limits (backend `AI_LIMITS`): at most 21 turns including
+/// the new message, 4,000 characters per turn and 24,000 in total.
+const int aiMaxRequestTurns = 21;
+const int aiMaxTurnChars = 4000;
+const int aiMaxRequestChars = 24000;
+
+/// The part of [history] that fits the backend limits together with
+/// [newMessage] (Hybrid AI audit AI0-F1). The full conversation stays on the
+/// device; only the most recent answered turns are sent:
+///  - empty bubbles (for example an interrupted reply) are skipped and very
+///    long turns are cut to [aiMaxTurnChars];
+///  - of two turns in a row from the same side, the later one is kept, and a
+///    trailing question without an answer is dropped;
+///  - the window starts with a user turn and ends with a model turn.
+List<ChatMessage> boundedAiHistory(
+  List<ChatMessage> history,
+  String newMessage,
+) {
+  final cleaned = <ChatMessage>[];
+  for (final message in history) {
+    final text = clampUtf16(message.text.trim(), aiMaxTurnChars);
+    if (text.isEmpty) continue;
+    final role = message.role == 'user' ? 'user' : 'model';
+    final turn = ChatMessage(role: role, text: text);
+    if (cleaned.isNotEmpty && cleaned.last.role == role) {
+      cleaned[cleaned.length - 1] = turn;
+    } else {
+      cleaned.add(turn);
+    }
+  }
+  while (cleaned.isNotEmpty && cleaned.last.role == 'user') {
+    cleaned.removeLast();
+  }
+  final budget = aiMaxRequestChars - newMessage.length;
+  final window = <ChatMessage>[];
+  var used = 0;
+  for (var i = cleaned.length - 1; i >= 0; i--) {
+    final turn = cleaned[i];
+    if (window.length >= aiMaxRequestTurns - 1) break;
+    if (used + turn.text.length > budget) break;
+    window.add(turn);
+    used += turn.text.length;
+  }
+  final ordered = window.reversed.toList();
+  while (ordered.isNotEmpty && ordered.first.role != 'user') {
+    ordered.removeAt(0);
+  }
+  return ordered;
+}
 
 /// Transport-level AI failure. Codes are deliberately provider-free so the
 /// UI can localize them without ever seeing provider payloads or keys.
@@ -172,9 +223,9 @@ class BackendAiTransport implements AiTransport {
   }) {
     return {
       'messages': [
-        for (final turn in history)
+        for (final turn in boundedAiHistory(history, message))
           {
-            'role': turn.role == 'user' ? 'user' : 'model',
+            'role': turn.role,
             'text': turn.text,
           },
         {'role': 'user', 'text': message},

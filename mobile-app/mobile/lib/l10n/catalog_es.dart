@@ -2,7 +2,7 @@
 const Map<String, String> esCatalog = {
   'aiEgressTitle': '¿Enviar la conversación a Google Gemini?',
   'aiEgressDescription':
-      'Tu mensaje y el historial de la conversación se envían a Google usando tu clave API. Los datos financieros no se incluyen automáticamente. No escribas secretos ni información sensible. Google aplica sus propias políticas de datos.',
+      'Tu mensaje y la conversación reciente se envían a Google Gemini a través del servidor de LifeStyle. No escribas contraseñas ni información sensible. Google aplica sus propias políticas de datos.',
   'aiEgressAgree': 'Aceptar y enviar',
   'appTitle': 'LifeStyle',
   'signIn': 'Iniciar sesión',
@@ -839,4 +839,25 @@ const Map<String, String> esCatalog = {
   'signedInDevicesPlatformAndroid': 'Dispositivo Android',
   'signedInDevicesPlatformIos': 'iPhone o iPad',
   'signedInDevicesPlatformUnknown': 'Dispositivo desconocido',
+  'aiReportReplyTooltip': 'Reportar respuesta',
+  'aiReportTitle': 'Reportar esta respuesta',
+  'aiReportBody':
+      'Cuéntanos qué está mal en esta respuesta. Los reportes nos ayudan a mantener la IA segura y precisa.',
+  'aiReportCategoryOffensive': 'Ofensiva o de odio',
+  'aiReportCategoryHarmful': 'Dañina o peligrosa',
+  'aiReportCategoryInaccurate': 'Incorrecta o engañosa',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Otro motivo',
+  'aiReportIncludeReply': 'Incluir la respuesta para que podamos revisarla',
+  'aiReportNoteLabel': 'Nota (opcional)',
+  'aiReportSend': 'Enviar reporte',
+  'aiReportSent': 'Gracias, recibimos tu reporte.',
+  'aiReportFailed': 'No se pudo enviar el reporte. Inténtalo más tarde.',
+  'aiAgeTitle': '¿Tienes 18 años o más?',
+  'aiAgeBody':
+      'Las funciones de IA usan Google Gemini, que es solo para personas de 18 años o más.',
+  'aiAgeConfirm': 'Tengo 18 años o más',
+  'aiAgeDecline': 'Tengo menos de 18',
+  'aiAgeDeclined':
+      'Las funciones de IA están disponibles a partir de los 18 años. El resto de la app funciona como siempre.',
 };

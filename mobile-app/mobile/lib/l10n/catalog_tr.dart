@@ -2,7 +2,7 @@
 const Map<String, String> trCatalog = {
   'aiEgressTitle': 'Konuşma Google Gemini’ye gönderilsin mi?',
   'aiEgressDescription':
-      'Mesajınız ve konuşma geçmişiniz API anahtarınız kullanılarak Google’a gönderilir. Finansal kayıtlar otomatik olarak eklenmez. Gizli veya hassas bilgiler yazmayın. Google kendi veri politikalarını uygular.',
+      'Mesajın ve son konuşma, LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Şifre veya hassas bilgi yazma. Google kendi veri politikalarını uygular.',
   'aiEgressAgree': 'Kabul et ve gönder',
   'appTitle': 'LifeStyle',
   'signIn': 'Giriş yap',
@@ -810,4 +810,25 @@ const Map<String, String> trCatalog = {
   'signedInDevicesPlatformAndroid': 'Android cihaz',
   'signedInDevicesPlatformIos': 'iPhone veya iPad',
   'signedInDevicesPlatformUnknown': 'Bilinmeyen cihaz',
+  'aiReportReplyTooltip': 'Yanıtı bildir',
+  'aiReportTitle': 'Bu yanıtı bildir',
+  'aiReportBody':
+      'Bu yanıtta neyin yanlış olduğunu bize anlat. Bildirimler, yapay zekâyı güvenli ve doğru tutmamıza yardımcı olur.',
+  'aiReportCategoryOffensive': 'Saldırgan veya nefret içeren',
+  'aiReportCategoryHarmful': 'Zararlı veya tehlikeli',
+  'aiReportCategoryInaccurate': 'Yanlış veya yanıltıcı',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Başka bir şey',
+  'aiReportIncludeReply': 'İnceleyebilmemiz için yanıtı ekle',
+  'aiReportNoteLabel': 'Not (isteğe bağlı)',
+  'aiReportSend': 'Bildirimi gönder',
+  'aiReportSent': 'Teşekkürler, bildirimini aldık.',
+  'aiReportFailed': 'Bildirim gönderilemedi. Daha sonra tekrar dene.',
+  'aiAgeTitle': '18 yaşında veya daha büyük müsün?',
+  'aiAgeBody':
+      'Yapay zekâ özellikleri Google Gemini kullanır ve yalnızca 18 yaş ve üzeri kişiler içindir.',
+  'aiAgeConfirm': '18 yaşında veya daha büyüğüm',
+  'aiAgeDecline': '18 yaşından küçüğüm',
+  'aiAgeDeclined':
+      'Yapay zekâ özellikleri 18 yaşından itibaren kullanılabilir. Uygulamanın geri kalanı her zamanki gibi çalışır.',
 };

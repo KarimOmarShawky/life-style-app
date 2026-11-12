@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_reports_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/presentation/ai_report_sheet.dart';
 import 'package:lifestyle_mobile/features/analytics/data/analytics_models.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
@@ -31,6 +34,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   bool _aiLoading = false;
   String? _error;
   String? _analysisResult;
+  // True only when _analysisResult came from the AI (it can be reported then).
+  bool _analysisFromAi = false;
   int _selectedRangeIndex = 0;
 
   @override
@@ -136,6 +141,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     if (ai.isPaused) {
       if (!mounted) return;
       setState(() {
+        _analysisFromAi = false;
         _analysisResult = l10n.isArabic
             ? 'رؤى الذكاء الاصطناعي متوقفة مؤقتاً بعد محاولات فاشلة متكررة. أرقامك الحقيقية ظاهرة بالأعلى، وحاول مرة أخرى بعد قليل.'
             : 'AI insights are temporarily paused after repeated failures. Your real numbers above still work; please try again shortly.';
@@ -145,11 +151,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final streaks = await _streaks();
     if (!mounted) return;
     final aggregates = summary.aiAggregates(streaks: streaks);
+    // Gemini API terms: AI features are for people aged 18 or older (D9).
+    if (!await ensureAiAgeConfirmed(context, ref)) return;
+    if (!mounted) return;
     if (!await _confirmSend(aggregates)) return;
     if (!mounted) return;
     setState(() {
       _aiLoading = true;
       _analysisResult = null;
+      _analysisFromAi = false;
     });
     try {
       final result = dashboard
@@ -171,6 +181,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             );
       if (!mounted) return;
       setState(() {
+        _analysisFromAi = result != null;
         _analysisResult = result ??
             (l10n.isArabic
                 ? 'تعذر الحصول على التحليل الآن. أرقامك الحقيقية بالأعلى محدثة.'
@@ -180,6 +191,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        _analysisFromAi = false;
         _analysisResult = l10n.isArabic
             ? 'حدث خطأ أثناء التحليل. أرقامك الحقيقية بالأعلى محدثة.'
             : 'Analysis failed. Your real numbers above are up to date.';
@@ -241,6 +253,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                   setState(() {
                                     _selectedRangeIndex = index;
                                     _analysisResult = null;
+                                    _analysisFromAi = false;
                                   });
                                   _load();
                                 },
@@ -321,9 +334,21 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: SelectableText(
-                      _analysisResult!,
-                      style: const TextStyle(fontSize: 14, height: 1.5),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: SelectableText(
+                            _analysisResult!,
+                            style: const TextStyle(fontSize: 14, height: 1.5),
+                          ),
+                        ),
+                        if (_analysisFromAi)
+                          AiReportButton(
+                            surface: AiReportSurface.analyticsInsight,
+                            replyText: _analysisResult!,
+                          ),
+                      ],
                     ),
                   ),
               ],

@@ -2,7 +2,7 @@
 const Map<String, String> esCatalog = {
   'aiEgressTitle': '¿Enviar la conversación a Google Gemini?',
   'aiEgressDescription':
-      'Tu mensaje y la conversación reciente se envían a Google Gemini a través del servidor de LifeStyle. No escribas contraseñas ni información sensible. Google aplica sus propias políticas de datos.',
+      'Tu mensaje y la conversación reciente se envían a Google Gemini a través del servidor de LifeStyle. No escribas contraseñas, datos personales ni información sensible. Google aplica sus propias políticas de datos.',
   'aiEgressAgree': 'Aceptar y enviar',
   'appTitle': 'LifeStyle',
   'signIn': 'Iniciar sesión',

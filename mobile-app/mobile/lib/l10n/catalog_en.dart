@@ -3,7 +3,7 @@
 const Map<String, String> enCatalog = {
   'aiEgressTitle': 'Send conversation to Google Gemini?',
   'aiEgressDescription':
-      "Your message and the recent conversation are sent to Google Gemini through LifeStyle's server. Don't type passwords or sensitive information. Google applies its own data policies.",
+      "Your message and the recent conversation are sent to Google Gemini through LifeStyle's server. Don't type passwords, personal details or sensitive information. Google applies its own data policies.",
   'aiEgressAgree': 'Agree and send',
   'appTitle': 'LifeStyle',
   'signIn': 'Sign in',

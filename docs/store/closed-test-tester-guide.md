@@ -21,6 +21,10 @@
   أي حاجة خاصة.**
 - [احذف السطر ده لو الفوترة مفعّلة] أثناء الاختبار بنستخدم نسخة Gemini المجانية: Google ممكن
   تستخدم اللي بيتبعت لتحسين منتجاتها وممكن يقرأه مراجعين.
+- [احذف السطر ده لو الفوترة مفعّلة] النسخة المجانية ليها عدد رسايل محدود في اليوم لكل المختبرين مع
+  بعض. لو المساعد قال إنه مش قادر يرد دلوقتي، جرّب بعد شوية أو بكرة (العداد بيتصفّر حوالي الساعة
+  ١٠ الصبح بتوقيت مصر). لو قال إن الطلبات متوقفة مؤقتاً، اقفل التطبيق خالص وافتحه تاني بعد
+  شوية. ده مش عطل، بس قولّنا لو حصل كتير.
 - سجل المحادثة بيفضل على موبايلك بس. سياسة الخصوصية: [رابط سياسة الخصوصية].
 
 ### المطلوب منك (كل يوم شوية)
@@ -75,6 +79,10 @@
   or anything private.**
 - [Delete if billing is on] During the test the unpaid Gemini API is used: Google may use what is
   sent to improve its products and human reviewers may read it.
+- [Delete if billing is on] The unpaid API allows a limited number of messages per day for all
+  testers together. If the assistant says it can't answer right now, try again later or tomorrow
+  (the count resets around 10:00 Cairo time). If it says AI requests are paused, close the app
+  completely and open it again later. That is not a bug, but tell us if it happens often.
 - Chat history stays on your phone. Privacy policy: [privacy policy URL].
 
 ### Daily basics

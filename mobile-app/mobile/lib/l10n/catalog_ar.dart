@@ -3,7 +3,7 @@
 const Map<String, String> arCatalog = {
   'aiEgressTitle': 'إرسال المحادثة إلى Google Gemini؟',
   'aiEgressDescription':
-      'تُرسل رسالتك والمحادثة الأخيرة إلى Google Gemini عبر خادم LifeStyle. لا تكتب كلمات مرور أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
+      'تُرسل رسالتك والمحادثة الأخيرة إلى Google Gemini عبر خادم LifeStyle. لا تكتب كلمات مرور أو بيانات شخصية أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
   'aiEgressAgree': 'أوافق وأرسل',
   'appTitle': 'لايف ستايل',
   'signIn': 'تسجيل الدخول',

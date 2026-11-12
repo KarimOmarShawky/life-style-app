@@ -2,7 +2,7 @@
 const Map<String, String> deCatalog = {
   'aiEgressTitle': 'Unterhaltung an Google Gemini senden?',
   'aiEgressDescription':
-      'Deine Nachricht und der letzte Gesprächsverlauf werden über den LifeStyle-Server an Google Gemini gesendet. Gib keine Passwörter oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
+      'Deine Nachricht und der letzte Gesprächsverlauf werden über den LifeStyle-Server an Google Gemini gesendet. Gib keine Passwörter, persönlichen Daten oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
   'aiEgressAgree': 'Zustimmen und senden',
   'appTitle': 'LifeStyle',
   'signIn': 'Anmelden',

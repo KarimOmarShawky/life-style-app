@@ -1,5 +1,14 @@
 # Change log
 
+## Unreleased — Hybrid AI slice AI-1 (provider-neutral core), 2026-11-12
+- Backend: the AI proxy now builds one provider-neutral request (`backend/src/features/ai/providers/ai-provider.ts`) and a Gemini adapter translates it. `AI_PROVIDER` (default `gemini`) accepts only `gemini`; any other value stops startup and there is no fallback to another provider. No API change: `/ai/chat` and `/ai/chat/stream` keep their shapes, quotas and `AI_ENABLED`.
+- AI0-F3: the server prompt and the reply-language rule go through Gemini's system-instruction field; user turns carry only the user's text.
+- AI0-F5: explicit safety settings on harassment, hate speech, sexually explicit and dangerous content at `BLOCK_MEDIUM_AND_ABOVE` (Gemini 2.5 and later apply none by default). A refused prompt or a reply stopped by the filters fails as `blocked`: never shown as text, also not in part when streaming; clients get the same generic error, and only the kind is logged.
+- AI0-F9: the fallback reply language is clearly Arabic script in the latest message, else the app's hint, else the account locale, else English (was always Arabic). The model still answers in the language of the message.
+- D6, app: deleted the 16 `AiService` prompt methods no screen called, including workout and meal plans (AI-0 counted 17). No UI change.
+- AI notice: "Don't type passwords, personal details or sensitive information", in six languages.
+- Unpaid Gemini tier for the closed test (owner decision): `docs/ai/gemini-free-tier.md` (Railway limits, Play countries, policy and Data safety, switching to paid). Tester guide: daily limit and the restart workaround. Report: `docs/reports/hybrid-ai-ai1-report-2026-11-12.md`.
+
 ## Unreleased — Hybrid AI slice AI-P and release preparation, 2026-11-12
 - Play policy, in-app privacy policy (AI-P-F5): Profile → Privacy policy opens the published policy in the browser through a plain Android view intent on the existing platform channel (`openHttpsUrl`; https only, checked in Dart and Kotlin; no new library). The link comes from the `android-release` variable `ANDROID_PRIVACY_POLICY_URL`, which the signed job validates before signing and passes to the APK and App Bundle builds; the repository holds no URL and builds without it hide the entry. Three strings in six languages. Tests: Dart (link rules, channel, Profile entry in English and Arabic at 200% text), Kotlin `HttpsLinkTest`, CI YAML test. Device check PP-1.
 - Play policy, account deletion outside the app: owner procedure `docs/auth/account-deletion-requests.md` and owner SQL `docs/auth/sql/schedule-account-deletion-on-request.sql` for requests sent by email. The SQL repeats the in-app scheduling (14 days, everything revoked, same audit event as a system action); a unit test fails if the two drift apart. Device check DEL-1. Google Docs copies of the privacy policy and the deletion page are in the owner's Drive for publishing.

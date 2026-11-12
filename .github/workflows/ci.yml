@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       build_signed_release:
-        description: Build a signed APK using the android-release environment (never deploys)
+        description: Build a signed APK and App Bundle using the android-release environment (never deploys)
         type: boolean
         required: false
         default: false
@@ -487,11 +487,18 @@ jobs:
         run: |
           flutter pub get
           flutter build apk --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-symbols" --dart-define="API_BASE_URL=$API_BASE_URL"
+          # Google Play accepts only App Bundles for new apps; same signing config and API URL as the APK.
+          flutter build appbundle --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-bundle-symbols" --dart-define="API_BASE_URL=$API_BASE_URL"
 
       - name: Verify signature against expected release certificate, rejecting debug identity
         env:
           ANDROID_RELEASE_CERT_SHA256: ${{ vars.ANDROID_RELEASE_CERT_SHA256 }}
         run: node scripts/verify-android-apk.mjs release mobile-app/mobile/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Verify App Bundle signature against the same expected release certificate
+        env:
+          ANDROID_RELEASE_CERT_SHA256: ${{ vars.ANDROID_RELEASE_CERT_SHA256 }}
+        run: node scripts/verify-android-aab.mjs mobile-app/mobile/build/app/outputs/bundle/release/app-release.aab
 
       - name: Preserve matching obfuscation symbols separately (never packaged into APK)
         uses: actions/upload-artifact@v4
@@ -506,6 +513,22 @@ jobs:
         with:
           name: lifestyle-android-signed-release
           path: mobile-app/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Preserve the App Bundle's obfuscation symbols separately (for Play crash reports)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifestyle-android-bundle-symbols
+          path: ${{ runner.temp }}/lifestyle-bundle-symbols
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload signature-verified App Bundle for a manual Play Console upload (not deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifestyle-android-signed-bundle
+          path: mobile-app/mobile/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 7
 

@@ -2,7 +2,7 @@
 const Map<String, String> frCatalog = {
   'aiEgressTitle': 'Envoyer la conversation à Google Gemini ?',
   'aiEgressDescription':
-      'Votre message et la conversation récente sont envoyés à Google Gemini via le serveur LifeStyle. Ne saisissez pas de mots de passe, de données personnelles ni de données sensibles. Google applique ses propres règles de confidentialité.',
+      'Votre message et la conversation récente sont envoyés à Google Gemini via le serveur LifeStyle. Ne saisissez pas de mots de passe ni de données sensibles. Google applique ses propres règles de confidentialité.',
   'aiEgressAgree': 'Accepter et envoyer',
   'appTitle': 'LifeStyle',
   'signIn': 'Se connecter',

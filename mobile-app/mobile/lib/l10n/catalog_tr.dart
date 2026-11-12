@@ -2,7 +2,7 @@
 const Map<String, String> trCatalog = {
   'aiEgressTitle': 'Konuşma Google Gemini’ye gönderilsin mi?',
   'aiEgressDescription':
-      'Mesajın ve son konuşma, LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Şifre, kişisel bilgi veya hassas bilgi yazma. Google kendi veri politikalarını uygular.',
+      'Mesajın ve son konuşma, LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Şifre veya hassas bilgi yazma. Google kendi veri politikalarını uygular.',
   'aiEgressAgree': 'Kabul et ve gönder',
   'appTitle': 'LifeStyle',
   'signIn': 'Giriş yap',

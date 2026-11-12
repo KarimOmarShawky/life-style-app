@@ -1,5 +1,8 @@
 # Running the closed test on the unpaid Gemini API
 
+> **Fallback only (update, 2026-11-12).** The owner has a card, so the plan is the paid tier:
+> see `docs/ai/gemini-paid-tier.md`. Use this page only if billing becomes unavailable.
+
 Owner decision, 2026-11-12: start the closed test on the unpaid ("free") Gemini API and add
 billing later. The app and the backend need no code change for either tier; this page lists the
 settings and the limits. Checked against the Gemini API Additional Terms (effective 2026-03-23) and
@@ -12,8 +15,9 @@ the rate-limit page on 2026-11-12.
 - **Google may use the content.** Prompts and replies may be used to improve Google's products,
   and human reviewers may read them. The terms say: do not submit sensitive, confidential or
   personal information. So the privacy policy uses its unpaid paragraph, Data safety says
-  "shared with Google", testers are told, and the in-app AI notice asks people not to type
-  passwords, personal details or sensitive information.
+  "shared with Google" and testers are told. The in-app AI notice says "Don't type passwords or
+  sensitive information"; on this tier it should also name personal details, which needs an app
+  update in six languages (`aiEgressDescription`).
 - Unchanged on both tiers: users must be 18 or older (the app asks once), no medical advice.
 
 ## Limits

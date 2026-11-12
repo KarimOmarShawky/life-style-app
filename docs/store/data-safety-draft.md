@@ -39,8 +39,9 @@ and fitness, web browsing, calendar of other apps, device or advertising IDs, cr
 diagnostics (no crash or analytics SDK).
 
 **AI requests, "Shared" or not:**
-- **Paid Gemini API (Tier 1):** Google processes the requests on our behalf as a service
-  provider, so they are **not shared**. Mark collected, ephemeral.
+- **Paid Gemini API (Tier 1), the plan from the first closed-test build (owner, 2026-11-12):**
+  Google processes the requests on our behalf as a service provider, so they are **not shared**.
+  Mark collected, ephemeral. Setup: `docs/ai/gemini-paid-tier.md`.
 - **Unpaid Gemini API (closed test fallback):** Google may use what is sent to improve its
   products. That goes beyond processing on our behalf, so declare this type as **shared**
   (with Google, for App functionality). Correct it when billing is switched on, and switch

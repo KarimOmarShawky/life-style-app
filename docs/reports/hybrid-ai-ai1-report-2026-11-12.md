@@ -86,6 +86,14 @@ the filters act.
   policy paragraph, Data safety).
 - Then the smoke test above.
 
+## Update (2026-11-12, later)
+
+The owner has a card, so AI runs on the paid tier from the first closed-test build
+(`docs/ai/gemini-paid-tier.md`: billing setup, prepaid balance, cost, Railway values). The unpaid
+guide stays as the fallback. The AI notice is back to "Don't type passwords or sensitive
+information"; the "personal details" wording was only for the unpaid terms. The owner actions
+above are replaced by the paid-tier guide. Commit and CI: PR #32 description.
+
 ## Next
 
 AI-2 (settings table, durable versioned consent, server-side context; forward-only migration plus

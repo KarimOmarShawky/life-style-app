@@ -82,6 +82,9 @@ Minimum content (host it next to the privacy policy):
 > Deleted: account, tasks, habits, notes, goals, events, plans, subscription reminders, usage
 > events and reports of AI replies. Security logs are kept up to 12 months, then deleted.
 
+The owner handles these emails with `docs/auth/account-deletion-requests.md` (owner SQL
+`docs/auth/sql/schedule-account-deletion-on-request.sql`, the same steps as the in-app request).
+
 ## 6. Owner checks before submitting
 
 - [ ] Choose the Gemini paragraph (paid or unpaid) in the privacy policy and match section 2.

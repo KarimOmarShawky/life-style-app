@@ -88,7 +88,8 @@ class AiTransportException implements Exception {
   const AiTransportException(this.code);
 
   /// One of: quota_exceeded, unavailable, unauthenticated, network,
-  /// empty_response, stream_failed.
+  /// empty_response, stream_failed; for assistant turns also the denial
+  /// reasons consent_required, scope_unavailable and unsupported (AI-2b).
   final String code;
 
   @override
@@ -127,10 +128,19 @@ class ApiClientAiGateway implements AiBackendGateway {
       _client.postEventStream(path, body: body, timeout: timeout);
 }
 
-/// Talks to the LifeStyle backend AI proxy (`/ai/chat`, `/ai/chat/stream`).
-/// The app no longer holds a Gemini key: the central key, model, system
-/// prompt and quotas all live on the server (BYOK retired).
-class BackendAiTransport implements AiTransport {
+/// Denial reasons of an assistant turn (backend AI-2b), passed on as
+/// [AiTransportException] codes.
+const Set<String> aiAssistantDenialCodes = {
+  'consent_required',
+  'scope_unavailable',
+  'unsupported',
+};
+
+/// Talks to the LifeStyle backend AI proxy (`/ai/chat`, `/ai/chat/stream`,
+/// `/ai/assistant/turn/stream`). The app no longer holds a Gemini key: the
+/// central key, model, system prompt and quotas all live on the server
+/// (BYOK retired).
+class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
   BackendAiTransport(this._gateway);
 
   final AiBackendGateway _gateway;
@@ -215,6 +225,86 @@ class BackendAiTransport implements AiTransport {
     }
   }
 
+  /// One assistant turn through `/ai/assistant/turn/stream` (AI-2b). With
+  /// [contextScopes] the server adds a capped summary of the user's day,
+  /// after checking the durable AI consent. A denial arrives as one event
+  /// and is thrown with its reason as the code (see
+  /// [aiAssistantDenialCodes]). A server without this endpoint (for example
+  /// after a rollback) answers 404; a turn without app data then goes
+  /// through `/ai/chat/stream` instead.
+  @override
+  Stream<String> assistantTurnStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String clientLocale,
+    required String languageName,
+    List<String> contextScopes = const [],
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    final conversation = [
+      for (final turn in boundedAiHistory(history, message))
+        {'role': turn.role, 'text': turn.text},
+    ];
+    var sawText = false;
+    var useChatProxy = false;
+    try {
+      await for (final payload in _gateway.postEventStream(
+        'ai/assistant/turn/stream',
+        body: <String, Object?>{
+          'message': message,
+          if (conversation.isNotEmpty) 'conversation': conversation,
+          if (contextScopes.isNotEmpty) 'contextScopes': contextScopes,
+          'clientLocale': clientLocale,
+        },
+        timeout: timeout,
+      )) {
+        if (payload == '[DONE]') break;
+        final Object? decoded;
+        try {
+          decoded = jsonDecode(payload);
+        } on FormatException {
+          throw const AiTransportException('stream_failed');
+        }
+        if (decoded is! Map<String, dynamic>) {
+          throw const AiTransportException('stream_failed');
+        }
+        if (decoded['type'] == 'unsupported_or_denied') {
+          final reason = decoded['reason'];
+          throw AiTransportException(
+            aiAssistantDenialCodes.contains(reason)
+                ? reason as String
+                : 'stream_failed',
+          );
+        }
+        if (decoded.containsKey('error')) {
+          throw const AiTransportException('stream_failed');
+        }
+        final text = decoded['text'];
+        if (text is String && text.isNotEmpty) {
+          sawText = true;
+          yield text;
+        }
+      }
+    } on ApiException catch (error) {
+      if (error.statusCode != 404 || contextScopes.isNotEmpty || sawText) {
+        throw AiTransportException(_codeFor(error));
+      }
+      useChatProxy = true;
+    }
+    if (useChatProxy) {
+      yield* chatStream(
+        history: history,
+        message: message,
+        languageName: languageName,
+        timeout: timeout,
+      );
+      return;
+    }
+    if (!sawText) {
+      throw const AiTransportException('empty_response');
+    }
+  }
+
   Map<String, Object?> _requestBody({
     required List<ChatMessage> history,
     required String message,
@@ -259,6 +349,20 @@ abstract interface class AiTransport {
     required List<ChatMessage> history,
     required String message,
     required String languageName,
+    required Duration timeout,
+  });
+}
+
+/// Assistant turns with optional app context (Hybrid AI AI-2b/AI-2c).
+/// Kept apart from [AiTransport] so transports without it (test fakes) keep
+/// working through [AiTransport.chatStream].
+abstract interface class AiAssistantTurnTransport {
+  Stream<String> assistantTurnStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String clientLocale,
+    required String languageName,
+    required List<String> contextScopes,
     required Duration timeout,
   });
 }

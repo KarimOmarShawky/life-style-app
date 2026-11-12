@@ -220,6 +220,64 @@ class AiService {
     _consecutiveFailures = 0;
   }
 
+  /// Codes that are answers rather than failures, so they never count toward
+  /// the pause: an expired session and the assistant-turn denials (AI-2b).
+  static const Set<String> _notFailures = {
+    'unauthenticated',
+    ...aiAssistantDenialCodes,
+  };
+
+  /// One assistant turn (Hybrid AI AI-2c) through
+  /// `/ai/assistant/turn/stream`, with the app-data summary when
+  /// [contextScopes] is not empty. Same pause and error rules as
+  /// [streamMessage]. A denial is thrown as [AiStreamingException] with its
+  /// reason (consent_required, scope_unavailable, unsupported) and does not
+  /// count as a failure.
+  Stream<String> streamAssistantTurn({
+    required List<ChatMessage> conversationHistory,
+    required String newMessage,
+    required String clientLocale,
+    String languageName = 'Arabic',
+    List<String> contextScopes = const [],
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    if (isPaused) throw const AiStreamingException('paused');
+    final source = switch (_transport) {
+      final AiAssistantTurnTransport turns => turns.assistantTurnStream(
+          history: conversationHistory,
+          message: newMessage,
+          clientLocale: clientLocale,
+          languageName: languageName,
+          contextScopes: contextScopes,
+          timeout: timeout,
+        ),
+      final AiTransport other => other.chatStream(
+          history: conversationHistory,
+          message: newMessage,
+          languageName: languageName,
+          timeout: timeout,
+        ),
+    };
+    var sawText = false;
+    try {
+      await for (final chunk in source) {
+        sawText = true;
+        yield chunk;
+      }
+    } on AiTransportException catch (error) {
+      if (!_notFailures.contains(error.code)) _recordFailure();
+      throw AiStreamingException(error.code);
+    } on Object {
+      _recordFailure();
+      throw const AiStreamingException('stream_failed');
+    }
+    if (!sawText) {
+      _recordFailure();
+      throw const AiStreamingException('empty_response');
+    }
+    _consecutiveFailures = 0;
+  }
+
   /// Generates a cumulative lifestyle analysis across all features
   /// (tasks, habits, goals, money, productivity) for a given time range.
   Future<String?> getCumulativeAnalysis({

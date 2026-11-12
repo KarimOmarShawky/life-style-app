@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifestyle_mobile/core/links/external_link_opener.dart';
 import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
+import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_settings_client.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
 import 'package:lifestyle_mobile/features/auth/presentation/current_password_dialog.dart';
@@ -166,6 +168,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (agreed != true) return;
     }
     await ref.read(aiTaskParsingProvider.notifier).setEnabled(enabled);
+  }
+
+  /// Withdraws the AI consent stored on the server (Hybrid AI AI-2c). The
+  /// assistant then asks again before it sends anything.
+  Future<void> _withdrawAiConsent(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        // Scrolls as a whole, so nothing is cut off at large text (G7).
+        scrollable: true,
+        title: Text(l10n.aiConsentWithdrawTitle),
+        content: Text(l10n.aiConsentWithdrawBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.aiConsentWithdrawAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busyAction = true);
+    bool withdrawn;
+    try {
+      await ref.read(aiSettingsClientProvider).withdrawConsent();
+      withdrawn = true;
+    } on ApiException catch (error) {
+      // Before the owner-run SQL nothing is stored on the server, so only
+      // the consent kept by an open assistant is left to forget.
+      withdrawn = error.code == 'AI_SETTINGS_UNAVAILABLE';
+    } on Object {
+      withdrawn = false;
+    }
+    if (!mounted) return;
+    setState(() => _busyAction = false);
+    if (withdrawn) ref.read(aiConsentRevisionProvider.notifier).bump();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          withdrawn ? l10n.aiConsentWithdrawn : l10n.settingSaveFailed,
+        ),
+      ),
+    );
   }
 
   void _openNotificationSettings(BuildContext context) {
@@ -526,6 +577,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             subtitle: Text(localization.aiTaskParsingSubtitle),
             value: aiTaskParsing,
             onChanged: _setAiTaskParsing,
+          ),
+          ListTile(
+            key: const ValueKey('ai-consent-tile'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.verified_user_outlined),
+            title: Text(localization.aiConsentTileTitle),
+            subtitle: Text(localization.aiConsentTileSubtitle),
+            onTap: _busyAction ? null : () => _withdrawAiConsent(context),
           ),
           _ProfileRow(label: localization.accountStatus, value: statusLabel),
           const Divider(height: 24),

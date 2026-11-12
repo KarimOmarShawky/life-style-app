@@ -4,6 +4,25 @@ const Map<String, String> trCatalog = {
   'aiEgressDescription':
       'Mesajın ve son konuşma, LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Şifre veya hassas bilgi yazma. Google kendi veri politikalarını uygular.',
   'aiEgressAgree': 'Kabul et ve gönder',
+  'aiContextChip': 'Uygulama verilerimi kullan',
+  'aiContextDialogTitle': 'Uygulama verilerin kullanılsın mı?',
+  'aiContextDialogBody':
+      'Gününle ilgili soruları yanıtlamak için LifeStyle sunucusu her mesajla birlikte Google Gemini’ye kısa bir özet gönderir: bugünkü görevlerin başlıkları, bugün yapılacak alışkanlıklar ve serileri, ilerlemeleriyle birlikte aktif hedeflerin ve saatleriyle birlikte bugünkü etkinlikler. Notlar, görev açıklamaları, etkinlik konumları ve abonelikler asla gönderilmez. Bunu istediğin zaman kapatabilirsin.',
+  'aiContextDialogConfirm': 'Aç',
+  'aiConsentRequiredMessage':
+      'Yapay zekâ onayın gerekiyor. İncelemek için mesajını yeniden gönder.',
+  'aiContextUnavailableMessage':
+      'Uygulama verilerin şu anda kullanılamıyor. “Uygulama verilerimi kullan” seçeneğini kapat veya daha sonra tekrar dene.',
+  'aiUnsupportedMessage': 'Asistan bu istekte yardımcı olamaz.',
+  'aiSendTooltip': 'Mesajı gönder',
+  'aiConsentTileTitle': 'Yapay zekâ onayı',
+  'aiConsentTileSubtitle': 'Google Gemini’ye mesaj gönderme onayını geri çek',
+  'aiConsentWithdrawTitle': 'Yapay zekâ onayı geri çekilsin mi?',
+  'aiConsentWithdrawBody':
+      'Asistan, Google Gemini’ye bir şey göndermeden önce yeniden soracak ve yeniden onay verene kadar uygulama verilerin kullanılmayacak. Sohbet geçmişin bu telefonda kalır.',
+  'aiConsentWithdrawAction': 'Geri çek',
+  'aiConsentWithdrawn':
+      'Yapay zekâ onayı geri çekildi. Asistan yeniden soracak.',
   'appTitle': 'LifeStyle',
   'signIn': 'Giriş yap',
   'createAccount': 'Hesap oluştur',

@@ -5,6 +5,25 @@ const Map<String, String> enCatalog = {
   'aiEgressDescription':
       "Your message and the recent conversation are sent to Google Gemini through LifeStyle's server. Don't type passwords or sensitive information. Google applies its own data policies.",
   'aiEgressAgree': 'Agree and send',
+  'aiContextChip': 'Use my app data',
+  'aiContextDialogTitle': 'Use your app data?',
+  'aiContextDialogBody':
+      "To answer about your day, LifeStyle's server sends Google Gemini a short summary with each message: the titles of today's tasks, habits due today with their streaks, your active goals with their progress and today's events with their times. Notes, task descriptions, event locations and subscriptions are never sent. You can turn this off at any time.",
+  'aiContextDialogConfirm': 'Turn on',
+  'aiConsentRequiredMessage':
+      'AI consent is needed. Send your message again to review it.',
+  'aiContextUnavailableMessage':
+      "Your app data can't be used right now. Turn off “Use my app data” or try again later.",
+  'aiUnsupportedMessage': "The assistant can't help with this request.",
+  'aiSendTooltip': 'Send message',
+  'aiConsentTileTitle': 'AI consent',
+  'aiConsentTileSubtitle':
+      'Withdraw your agreement to send messages to Google Gemini',
+  'aiConsentWithdrawTitle': 'Withdraw AI consent?',
+  'aiConsentWithdrawBody':
+      "The assistant will ask again before it sends anything to Google Gemini, and your app data won't be used until you agree again. Your chat history stays on this phone.",
+  'aiConsentWithdrawAction': 'Withdraw',
+  'aiConsentWithdrawn': 'AI consent withdrawn. The assistant will ask again.',
   'appTitle': 'LifeStyle',
   'signIn': 'Sign in',
   'createAccount': 'Create account',

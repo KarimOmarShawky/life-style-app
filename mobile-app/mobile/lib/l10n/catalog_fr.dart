@@ -4,6 +4,25 @@ const Map<String, String> frCatalog = {
   'aiEgressDescription':
       'Votre message et la conversation récente sont envoyés à Google Gemini via le serveur LifeStyle. Ne saisissez pas de mots de passe ni de données sensibles. Google applique ses propres règles de confidentialité.',
   'aiEgressAgree': 'Accepter et envoyer',
+  'aiContextChip': 'Utiliser mes données',
+  'aiContextDialogTitle': 'Utiliser vos données de l’app ?',
+  'aiContextDialogBody':
+      'Pour répondre au sujet de votre journée, le serveur LifeStyle envoie à Google Gemini un court résumé avec chaque message : les titres des tâches du jour, les habitudes prévues aujourd’hui avec leurs séries, vos objectifs actifs avec leur progression et les événements du jour avec leurs horaires. Les notes, les descriptions de tâches, les lieux des événements et les abonnements ne sont jamais envoyés. Vous pouvez désactiver cette option à tout moment.',
+  'aiContextDialogConfirm': 'Activer',
+  'aiConsentRequiredMessage':
+      'Votre consentement à l’IA est nécessaire. Renvoyez votre message pour le consulter.',
+  'aiContextUnavailableMessage':
+      'Vos données de l’app ne peuvent pas être utilisées pour le moment. Désactivez « Utiliser mes données » ou réessayez plus tard.',
+  'aiUnsupportedMessage': 'L’assistant ne peut pas aider avec cette demande.',
+  'aiSendTooltip': 'Envoyer le message',
+  'aiConsentTileTitle': 'Consentement IA',
+  'aiConsentTileSubtitle':
+      'Retirez votre accord pour l’envoi de messages à Google Gemini',
+  'aiConsentWithdrawTitle': 'Retirer le consentement IA ?',
+  'aiConsentWithdrawBody':
+      'L’assistant redemandera votre accord avant d’envoyer quoi que ce soit à Google Gemini, et vos données de l’app ne seront plus utilisées tant que vous n’aurez pas de nouveau accepté. Votre historique de discussion reste sur ce téléphone.',
+  'aiConsentWithdrawAction': 'Retirer',
+  'aiConsentWithdrawn': 'Consentement IA retiré. L’assistant redemandera.',
   'appTitle': 'LifeStyle',
   'signIn': 'Se connecter',
   'createAccount': 'Créer un compte',

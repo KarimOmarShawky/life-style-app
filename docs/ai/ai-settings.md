@@ -6,7 +6,8 @@ users), D4 and D5 (one durable, versioned consent). Plan: section "AI-2" of
 
 Today the app asks "Send conversation to Google Gemini?" and keeps the answer only in
 memory. This part stores the answer on the server, per account and per version of the
-consent text, so it survives reinstalls and devices. The app starts using it in AI-2c;
+consent text, so it survives reinstalls and devices. The app uses it since AI-2c (the assistant
+asks once and stores the answer; Profile → AI consent withdraws it);
 AI-2b uses it to decide whether personal context (today's tasks, habits, goals, events)
 may be sent: `POST /api/v1/ai/assistant/turn` denies context with `consent_required`
 unless the stored version equals the current one (`docs/ai/ai-assistant-context.md`).

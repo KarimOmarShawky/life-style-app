@@ -4,6 +4,26 @@ const Map<String, String> esCatalog = {
   'aiEgressDescription':
       'Tu mensaje y la conversación reciente se envían a Google Gemini a través del servidor de LifeStyle. No escribas contraseñas ni información sensible. Google aplica sus propias políticas de datos.',
   'aiEgressAgree': 'Aceptar y enviar',
+  'aiContextChip': 'Usar mis datos de la app',
+  'aiContextDialogTitle': '¿Usar tus datos de la app?',
+  'aiContextDialogBody':
+      'Para responder sobre tu día, el servidor de LifeStyle envía a Google Gemini un breve resumen con cada mensaje: los títulos de las tareas de hoy, los hábitos de hoy con sus rachas, tus metas activas con su progreso y los eventos de hoy con sus horarios. Nunca se envían notas, descripciones de tareas, lugares de eventos ni suscripciones. Puedes desactivarlo cuando quieras.',
+  'aiContextDialogConfirm': 'Activar',
+  'aiConsentRequiredMessage':
+      'Se necesita tu consentimiento para la IA. Vuelve a enviar tu mensaje para revisarlo.',
+  'aiContextUnavailableMessage':
+      'Ahora no se pueden usar tus datos de la app. Desactiva «Usar mis datos de la app» o inténtalo más tarde.',
+  'aiUnsupportedMessage': 'El asistente no puede ayudar con esta solicitud.',
+  'aiSendTooltip': 'Enviar mensaje',
+  'aiConsentTileTitle': 'Consentimiento de IA',
+  'aiConsentTileSubtitle':
+      'Retira tu permiso para enviar mensajes a Google Gemini',
+  'aiConsentWithdrawTitle': '¿Retirar el consentimiento de IA?',
+  'aiConsentWithdrawBody':
+      'El asistente volverá a preguntar antes de enviar nada a Google Gemini y tus datos de la app no se usarán hasta que vuelvas a aceptar. Tu historial de chat se queda en este teléfono.',
+  'aiConsentWithdrawAction': 'Retirar',
+  'aiConsentWithdrawn':
+      'Consentimiento de IA retirado. El asistente volverá a preguntar.',
   'appTitle': 'LifeStyle',
   'signIn': 'Iniciar sesión',
   'createAccount': 'Crear cuenta',

@@ -324,6 +324,18 @@ Profile → AI help for Smart Quick Add.
 - [ ] **AIP-7** More than 10 reports within an hour: "Couldn't send the report. Try again later." and the sheet stays open.
 - [ ] **AIP-8** Arabic at the largest font on a small phone: the report sheet and the age question have no clipped text and run right to left; TalkBack reads the flag as "الإبلاغ عن الرد", each reason, the checkbox and the note field.
 - [ ] **AIP-9** Profile → Export account metadata (JSON): the export contains `aiContentReports` with your reports (the domain archive leaves them out by design). After the account is deleted, the owner query for that account returns 0 rows.
+
+### AI-2c: stored AI consent and "Use my app data" (2026-11-12). Needs a phone with AI turned on
+
+Needs the backend from PR #32 deployed, Railway `AI_ENABLED=true`, and the owner SQL
+`docs/ai/sql/ai-user-settings.sql`. Without the SQL the consent is asked once per app start
+and the "Use my app data" switch does not appear; the rest works.
+
+- [ ] **AI2C-1** First message after the update: "Send conversation to Google Gemini?" appears once. After agreeing, close the app completely, reopen it and send again: no question. Reinstall the app (or sign in on a second phone) with the same account: still no question.
+- [ ] **AI2C-2** "Use my app data" under the chat is off. Turning it on shows what is sent (today's task titles, habits due today, active goals, today's events; never notes, descriptions, locations or subscriptions); Cancel leaves it off. After "Turn on", ask "What is left today?": the answer mentions your real tasks for today. With the switch off, the same question gets no task names.
+- [ ] **AI2C-3** Profile → AI consent → Withdraw → "AI consent withdrawn…". Back on the AI tab, the next message asks "Send conversation to Google Gemini?" again. Cancel sends nothing.
+- [ ] **AI2C-4** Withdraw the consent on phone A, then on phone B (assistant already open, app data on) send a message: B shows "AI consent is needed…", removes the empty reply, and the next message asks again.
+- [ ] **AI2C-5** Arabic at the largest font on a small phone: the switch, its explanation and the Profile entry are readable, run right to left, and TalkBack reads the switch name, its on/off state and the send button ("إرسال الرسالة").
 - [ ] **PP-1** Signed build (with `ANDROID_PRIVACY_POLICY_URL`): Profile → Privacy policy opens the published page in the browser, in Arabic and English, also at 200% text. With every browser disabled, the app shows "Couldn't open the privacy policy…" and stays open. A debug build shows no Privacy policy entry.
 - [ ] **DEL-1** Deletion request by email (rehearse on a Neon branch with a test account): run `docs/auth/sql/schedule-account-deletion-on-request.sql` as in `docs/auth/account-deletion-requests.md`. The test phone is signed out; signing in shows the deletion banner and cancelling restores the account.
 

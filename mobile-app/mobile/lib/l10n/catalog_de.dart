@@ -4,6 +4,26 @@ const Map<String, String> deCatalog = {
   'aiEgressDescription':
       'Deine Nachricht und der letzte Gesprächsverlauf werden über den LifeStyle-Server an Google Gemini gesendet. Gib keine Passwörter oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
   'aiEgressAgree': 'Zustimmen und senden',
+  'aiContextChip': 'Meine App-Daten nutzen',
+  'aiContextDialogTitle': 'App-Daten nutzen?',
+  'aiContextDialogBody':
+      'Damit der Assistent Fragen zu deinem Tag beantworten kann, sendet der LifeStyle-Server mit jeder Nachricht eine kurze Zusammenfassung an Google Gemini: die Titel der heutigen Aufgaben, heute fällige Gewohnheiten mit ihren Serien, deine aktiven Ziele mit ihrem Fortschritt und die heutigen Termine mit ihren Uhrzeiten. Notizen, Aufgabenbeschreibungen, Terminorte und Abos werden nie gesendet. Du kannst das jederzeit ausschalten.',
+  'aiContextDialogConfirm': 'Einschalten',
+  'aiConsentRequiredMessage':
+      'Die KI-Einwilligung wird benötigt. Sende deine Nachricht erneut, um sie zu prüfen.',
+  'aiContextUnavailableMessage':
+      'Deine App-Daten können gerade nicht genutzt werden. Schalte „Meine App-Daten nutzen“ aus oder versuche es später erneut.',
+  'aiUnsupportedMessage': 'Bei dieser Anfrage kann der Assistent nicht helfen.',
+  'aiSendTooltip': 'Nachricht senden',
+  'aiConsentTileTitle': 'KI-Einwilligung',
+  'aiConsentTileSubtitle':
+      'Ziehe deine Zustimmung zum Senden von Nachrichten an Google Gemini zurück',
+  'aiConsentWithdrawTitle': 'KI-Einwilligung widerrufen?',
+  'aiConsentWithdrawBody':
+      'Der Assistent fragt erneut, bevor er etwas an Google Gemini sendet, und deine App-Daten werden erst nach erneuter Zustimmung genutzt. Dein Chatverlauf bleibt auf diesem Telefon.',
+  'aiConsentWithdrawAction': 'Widerrufen',
+  'aiConsentWithdrawn':
+      'KI-Einwilligung widerrufen. Der Assistent fragt erneut.',
   'appTitle': 'LifeStyle',
   'signIn': 'Anmelden',
   'createAccount': 'Konto erstellen',

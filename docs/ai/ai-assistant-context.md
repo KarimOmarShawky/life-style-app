@@ -94,6 +94,23 @@ locale).
 - Store texts: the privacy-policy and Data safety drafts list the snapshot as part of AI
   requests from the build that has the context switch (AI-2c).
 
+## The app (AI-2c)
+
+- Every assistant message goes to `/ai/assistant/turn/stream`. `contextScopes` (all five) is
+  sent only while the user's "Use my app data" switch is on; the switch is off by default, kept
+  per account on the phone, and explained before it turns on.
+- The switch is shown only when the consent can be stored (`available: true` and the app's
+  consent version equals `currentConsentVersion`, or the current consent is already stored).
+- Denials: `consent_required` → the app forgets the consent, re-reads the settings and asks on
+  the next message; `scope_unavailable` and `unsupported` → a short message, no reply bubble.
+  `{"error":"stream_failed"}` after text → the partial reply is removed.
+- Against a server without this endpoint (404), turns without context use `/ai/chat/stream`;
+  turns with context never do.
+- Code: `mobile-app/mobile/lib/features/ai/data/{ai_transport,ai_settings_client,ai_context_preference}.dart`,
+  `lib/features/ai/presentation/ai_assistant_screen.dart`; root contract test
+  `scripts/ai-assistant-app-contract.test.mjs` keeps the scope list and consent version equal on
+  both sides.
+
 ## Tests
 
 - `backend/tests/unit/ai-assistant.test.ts`: strict body (11 rejections), scopes and caps,

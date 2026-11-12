@@ -5,6 +5,25 @@ const Map<String, String> arCatalog = {
   'aiEgressDescription':
       'تُرسل رسالتك والمحادثة الأخيرة إلى Google Gemini عبر خادم LifeStyle. لا تكتب كلمات مرور أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
   'aiEgressAgree': 'أوافق وأرسل',
+  'aiContextChip': 'استخدم بيانات التطبيق',
+  'aiContextDialogTitle': 'استخدام بيانات التطبيق؟',
+  'aiContextDialogBody':
+      'للإجابة عن يومك، يرسل خادم LifeStyle مع كل رسالة ملخصًا قصيرًا إلى Google Gemini: عناوين مهام اليوم، والعادات المستحقة اليوم مع سلاسلها، وأهدافك النشطة مع نسبة تقدمها، وأحداث اليوم مع مواعيدها. لا تُرسل الملاحظات ولا أوصاف المهام ولا أماكن الأحداث ولا الاشتراكات أبدًا. يمكنك إيقاف ذلك في أي وقت.',
+  'aiContextDialogConfirm': 'تشغيل',
+  'aiConsentRequiredMessage':
+      'يلزم موافقتك على الذكاء الاصطناعي. أرسل رسالتك مرة أخرى لمراجعتها.',
+  'aiContextUnavailableMessage':
+      'تعذر استخدام بيانات التطبيق الآن. أوقف «استخدم بيانات التطبيق» أو حاول لاحقًا.',
+  'aiUnsupportedMessage': 'لا يستطيع المساعد المساعدة في هذا الطلب.',
+  'aiSendTooltip': 'إرسال الرسالة',
+  'aiConsentTileTitle': 'موافقة الذكاء الاصطناعي',
+  'aiConsentTileSubtitle': 'اسحب موافقتك على إرسال الرسائل إلى Google Gemini',
+  'aiConsentWithdrawTitle': 'سحب موافقة الذكاء الاصطناعي؟',
+  'aiConsentWithdrawBody':
+      'سيطلب المساعد موافقتك مرة أخرى قبل أن يرسل أي شيء إلى Google Gemini، ولن تُستخدم بيانات التطبيق حتى توافق من جديد. يبقى سجل المحادثة على هذا الهاتف.',
+  'aiConsentWithdrawAction': 'سحب الموافقة',
+  'aiConsentWithdrawn':
+      'تم سحب موافقة الذكاء الاصطناعي. سيطلبها المساعد مرة أخرى.',
   'appTitle': 'لايف ستايل',
   'signIn': 'تسجيل الدخول',
   'createAccount': 'إنشاء حساب جديد',

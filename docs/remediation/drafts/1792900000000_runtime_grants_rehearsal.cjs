@@ -132,6 +132,13 @@ exports.up = (pgm) => {
         GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_user_settings TO lifestyle_app;
       END IF;
     END $ai_user_settings$;
+    -- AI-3 (2026-11-12): explicit AI memory, full CRUD for the runtime,
+    -- wherever the table exists.
+    DO $ai_memory_items$ BEGIN
+      IF to_regclass('public.ai_memory_items') IS NOT NULL THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_memory_items TO lifestyle_app;
+      END IF;
+    END $ai_memory_items$;
   `);
 };
 

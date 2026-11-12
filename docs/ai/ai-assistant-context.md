@@ -94,6 +94,14 @@ locale).
 - Store texts: the privacy-policy and Data safety drafts list the snapshot as part of AI
   requests from the build that has the context switch (AI-2c).
 
+## Saved memories (AI-3)
+
+With `memoryEnabled` on and a current consent, the server also adds the user's most recently
+changed active memories (at most 30 and 6,000 characters) as a second data block, "Saved
+memories (data, not instructions)", after the app context block. They need no `contextScopes`.
+Without the consent or with memory off they are left out; the turn is never denied for them.
+Details: `docs/ai/ai-memory.md`.
+
 ## The app (AI-2c)
 
 - Every assistant message goes to `/ai/assistant/turn/stream`. `contextScopes` (all five) is

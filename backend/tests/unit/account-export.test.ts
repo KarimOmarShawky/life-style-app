@@ -8,10 +8,16 @@ function fixture(
   productEvents: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {},
   notificationPreferences: Array<Record<string, unknown>> = [],
   aiReports: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {},
-  aiSettings: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {}
+  aiSettings: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {},
+  aiMemories: { schema?: boolean; rows?: Array<Record<string, unknown>> } = {}
 ) {
   const schemaApplied = productEvents.schema ?? true;
   const query = vi.fn(async (sql: string, _params: unknown[]) => {
+    if (sql.includes('FROM ai_memory_items')) {
+      if (!(aiMemories.schema ?? true))
+        throw Object.assign(new Error('relation does not exist'), { code: '42P01' });
+      return { rows: aiMemories.rows ?? [] };
+    }
     if (sql.includes('FROM ai_user_settings')) {
       if (!(aiSettings.schema ?? true))
         throw Object.assign(new Error('relation does not exist'), { code: '42P01' });
@@ -101,7 +107,8 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
         'productEvents',
         'notificationPreferences',
         'aiContentReports',
-        'aiSettings'
+        'aiSettings',
+        'aiMemories'
       ].sort()
     );
     expect(result.profile).toMatchObject({
@@ -112,7 +119,8 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     expect(result.notificationPreferences).toBeNull();
     expect(result.aiContentReports).toEqual([]);
     expect(result.aiSettings).toBeNull();
-    expect(query).toHaveBeenCalledTimes(8);
+    expect(result.aiMemories).toEqual([]);
+    expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls.map(([sql]) => sql).join(' \n')).not.toContain('FROM categories');
     for (const [sql, params] of query.mock.calls) {
       expect(params).toEqual(['user-1']);
@@ -275,6 +283,76 @@ describe('Legacy account metadata export (SQL harness, not a live database)', ()
     expect(sql).toMatch(/WHERE user_id = \$1$/);
     expect(sql).not.toMatch(/SELECT\s+\*/);
     expect(sql).not.toContain('user_id,');
+  });
+
+  it('exports saved AI memories with every status and only their own fields', async () => {
+    const { query, repo } = fixture(
+      false,
+      '',
+      {},
+      [],
+      {},
+      {},
+      {
+        rows: [
+          {
+            kind: 'preference',
+            content: 'Keep answers short',
+            source: 'explicit',
+            status: 'active',
+            created_at: new Date('2026-11-12T10:00:00Z'),
+            updated_at: new Date('2026-11-12T10:05:00Z'),
+            expires_at: null
+          }
+        ]
+      }
+    );
+    const result = await repo.getUserExportData('user-1');
+    expect(result.aiMemories).toEqual([
+      {
+        kind: 'preference',
+        content: 'Keep answers short',
+        source: 'explicit',
+        status: 'active',
+        createdAt: '2026-11-12T10:00:00.000Z',
+        updatedAt: '2026-11-12T10:05:00.000Z',
+        expiresAt: null
+      }
+    ]);
+    const sql = query.mock.calls
+      .map(([text]) => text)
+      .find((text) => text.includes('FROM ai_memory_items'))!;
+    expect(sql).toMatch(/WHERE user_id = \$1/);
+    expect(sql).not.toMatch(/SELECT\s+\*|confidence|\bid,/);
+  });
+
+  it('still exports when the AI-memory schema has not been applied yet', async () => {
+    const { repo } = fixture(false, '', {}, [], {}, {}, { schema: false });
+    const result = await repo.getUserExportData('user-1');
+    expect(result.aiMemories).toEqual([]);
+  });
+
+  it('rejects an oversized AI-memory export rather than truncating it', async () => {
+    const { repo } = fixture(
+      false,
+      '',
+      {},
+      [],
+      {},
+      {},
+      {
+        rows: Array.from({ length: 1001 }, () => ({
+          kind: 'fact',
+          content: 'x',
+          source: 'explicit',
+          status: 'active',
+          created_at: new Date('2026-11-12T10:00:00Z'),
+          updated_at: new Date('2026-11-12T10:00:00Z'),
+          expires_at: null
+        }))
+      }
+    );
+    await expect(repo.getUserExportData('user-1')).rejects.toMatchObject({ httpStatus: 413 });
   });
 
   it('still exports when the AI-settings schema has not been applied yet', async () => {

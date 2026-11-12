@@ -957,3 +957,24 @@ CREATE TABLE ai_user_settings (
         GRANT SELECT, INSERT, UPDATE, DELETE ON ai_user_settings TO lifestyle_app;
       END IF;
     END $grant$;
+
+-- Explicit AI memory (Hybrid AI AI-3); short notes the user saved for the assistant.
+CREATE TABLE ai_memory_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('preference', 'fact')),
+      content TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 500),
+      source TEXT NOT NULL CHECK (source IN ('explicit', 'learned')),
+      status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'dismissed')),
+      confidence NUMERIC(3,2) CHECK (confidence IS NULL OR confidence BETWEEN 0 AND 1),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      expires_at TIMESTAMPTZ,
+      CONSTRAINT ai_memory_items_pending_is_learned CHECK (source = 'learned' OR status <> 'pending')
+    );
+    CREATE INDEX ai_memory_items_user_status_idx ON ai_memory_items (user_id, status);
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ai_memory_items TO lifestyle_app;
+      END IF;
+    END $grant$;

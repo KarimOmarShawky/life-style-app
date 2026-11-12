@@ -39,6 +39,7 @@ import { createAnalyticsRouter } from './features/analytics/analytics.routes.js'
 import { createAiRouter } from './features/ai/ai.routes.js';
 import { createAiReportsRouter } from './features/ai-reports/ai-reports.routes.js';
 import { createAiSettingsRouter } from './features/ai-settings/ai-settings.routes.js';
+import { createAiMemoriesRouter } from './features/ai-memories/ai-memories.routes.js';
 import { createSearchRouter } from './features/search/search.routes.js';
 import { createProductEventsRouter } from './features/product-events/product-events.routes.js';
 import { createNotificationPreferencesRouter } from './features/notifications/notification-preferences.routes.js';
@@ -304,6 +305,17 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
     '/ai/settings',
     createAiSettingsRouter({
       service: container.aiSettingsService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  // Explicit AI memory (Hybrid AI AI-3): auth + strict Zod + 30 / 60 s per
+  // user. Mounted before the AI router so memories can be reviewed and
+  // deleted while the AI kill switch is off; never uses the chat quotas.
+  v1Router.use(
+    '/ai/memories',
+    createAiMemoriesRouter({
+      service: container.aiMemoriesService,
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter
     })

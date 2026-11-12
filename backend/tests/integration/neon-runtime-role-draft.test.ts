@@ -62,6 +62,8 @@ describe.skipIf(!enabled)('Neon runtime role + marker draft (rollback rehearsal)
       await db.query('REVOKE ALL ON ai_content_reports FROM lifestyle_app');
       // Same for ai_user_settings (AI-2).
       await db.query('REVOKE ALL ON ai_user_settings FROM lifestyle_app');
+      // Same for ai_memory_items (AI-3).
+      await db.query('REVOKE ALL ON ai_memory_items FROM lifestyle_app');
 
       await db.query(script);
 
@@ -163,6 +165,13 @@ describe.skipIf(!enabled)('Neon runtime role + marker draft (rollback rehearsal)
         expect(
           await priv(
             `SELECT has_table_privilege('lifestyle_app', 'public.ai_user_settings', '${privilege}') AS ok`
+          )
+        ).toBe(true);
+      }
+      for (const privilege of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {
+        expect(
+          await priv(
+            `SELECT has_table_privilege('lifestyle_app', 'public.ai_memory_items', '${privilege}') AS ok`
           )
         ).toBe(true);
       }

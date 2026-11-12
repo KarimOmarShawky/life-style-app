@@ -1719,7 +1719,9 @@ paths:
         Changes only the fields sent (at least one; unknown fields are
         rejected). egressConsentVersion records the consent: it must equal the
         current version (else 409 AI_CONSENT_VERSION_MISMATCH, and the app shows
-        the current text again); null withdraws it. The switches for memory,
+        the current text again); null withdraws it. memoryEnabled lets the
+        assistant use saved memories (AI-3, with a current consent); saving a
+        memory needs memoryEnabled and explicitMemoryEnabled. The switches for
         learning and quick actions are stored for later slices and have no
         effect yet. Rate limit: 30 requests per 60 seconds per user.
       requestBody:
@@ -1747,6 +1749,162 @@ paths:
           description: Per-user rate limit exceeded
         '503':
           description: AI_SETTINGS_UNAVAILABLE before the owner-run SQL is applied
+
+  /ai/memories:
+    get:
+      summary: List Saved AI Memories
+      security:
+        - BearerAuth: []
+      description: >-
+        The account's saved memories (Hybrid AI slice AI-3, decision D4),
+        newest first, at most 100; truncated is true when more exist.
+        status=active (default) or pending (learned items waiting for review,
+        AI-5; none are created yet). Works with memory switched off and while
+        the AI kill switch is off, and does not use the AI chat quotas. Before
+        the owner-run SQL the list is empty with available false. Rate limit:
+        30 requests per 60 seconds per user.
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [active, pending]
+            default: active
+      responses:
+        '200':
+          description: Saved memories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiMemoryList'
+        '400':
+          description: Unknown status or query parameter
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+    post:
+      summary: Save an AI Memory
+      security:
+        - BearerAuth: []
+      description: >-
+        Saves a short note the user wants the assistant to remember (source
+        explicit, status active); the model never writes memories. Needs both
+        memoryEnabled and explicitMemoryEnabled in the AI settings (else 403
+        AI_MEMORY_DISABLED) and fewer than 100 active memories (else 409
+        AI_MEMORY_LIMIT, also for saves sent at the same moment). The assistant
+        reads the most recently changed active memories (at most 30 and 6,000
+        characters) only when memoryEnabled is on and the AI consent is
+        current. Rate limit: 30 requests per 60 seconds per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAiMemoryRequest'
+      responses:
+        '201':
+          description: Saved memory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiMemoryItem'
+        '400':
+          description: Validation failed (unknown field, kind, empty or too long text)
+        '401':
+          description: Missing or invalid access token
+        '403':
+          description: AI_MEMORY_DISABLED (memory or saving memories is off)
+        '409':
+          description: AI_MEMORY_LIMIT (100 active memories)
+        '429':
+          description: Per-user rate limit exceeded
+        '503':
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
+    delete:
+      summary: Delete All AI Memories
+      security:
+        - BearerAuth: []
+      description: >-
+        Deletes every saved memory of the account, whatever its status; the app
+        asks for confirmation first. Rate limit: 30 requests per 60 seconds per
+        user.
+      responses:
+        '200':
+          description: Number of deleted memories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiMemoryDeleteAllResult'
+        '401':
+          description: Missing or invalid access token
+        '429':
+          description: Per-user rate limit exceeded
+        '503':
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
+
+  /ai/memories/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Edit an AI Memory
+      security:
+        - BearerAuth: []
+      description: >-
+        Changes the kind, the text or both of one memory of the account. Works
+        with memory switched off. A missing or dismissed memory, or one of
+        another account, answers 404. Rate limit: 30 requests per 60 seconds per
+        user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAiMemoryRequest'
+      responses:
+        '200':
+          description: Edited memory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiMemoryItem'
+        '400':
+          description: Validation failed (id is not a UUID, empty body, unknown field)
+        '401':
+          description: Missing or invalid access token
+        '404':
+          description: No such memory for this account
+        '429':
+          description: Per-user rate limit exceeded
+        '503':
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
+    delete:
+      summary: Delete an AI Memory
+      security:
+        - BearerAuth: []
+      description: >-
+        Deletes one memory of the account for good. Works with memory switched
+        off. A missing memory, or one of another account, answers 404. Rate
+        limit: 30 requests per 60 seconds per user.
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: The id is not a UUID
+        '401':
+          description: Missing or invalid access token
+        '404':
+          description: No such memory for this account
+        '429':
+          description: Per-user rate limit exceeded
+        '503':
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
 
   /product-events:
     post:
@@ -3620,6 +3778,97 @@ components:
         languageMode:
           type: string
           enum: [auto, app_locale]
+
+    AiMemoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [preference, fact]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+        source:
+          type: string
+          enum: [explicit, learned]
+        status:
+          type: string
+          enum: [pending, active, dismissed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - content
+        - source
+        - status
+        - createdAt
+        - updatedAt
+
+    AiMemoryList:
+      type: object
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/AiMemoryItem'
+        truncated:
+          type: boolean
+          description: True when more memories exist than were returned.
+        available:
+          type: boolean
+          description: False until the owner-run SQL is applied; the list is then empty.
+      required:
+        - items
+        - truncated
+        - available
+
+    CreateAiMemoryRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [preference, fact]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Trimmed; control characters other than tab and line breaks are rejected.
+      required:
+        - kind
+        - content
+
+    UpdateAiMemoryRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        kind:
+          type: string
+          enum: [preference, fact]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    AiMemoryDeleteAllResult:
+      type: object
+      properties:
+        deleted:
+          type: integer
+          minimum: 0
+      required:
+        - deleted
 
     RecordProductEventRequest:
       type: object

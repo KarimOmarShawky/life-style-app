@@ -9,6 +9,9 @@
  *    `consent_required` before anything is read or sent. Without the
  *    settings table the answer is `scope_unavailable`.
  *  - A turn without scopes works like the plain chat proxy.
+ *  - Saved memories (AI-3) are added only when the account has memory on
+ *    and the durable consent is current; otherwise the turn simply goes
+ *    without them. Reading them never fails the turn.
  *  - Language mode `app_locale` fixes the reply language to the app language.
  *  - A reply the provider's safety filters stop becomes
  *    `unsupported_or_denied` / `unsupported`, never text.
@@ -17,6 +20,7 @@
  */
 import type { AuthenticatedUserContext } from '../../../core/security/session-validator.js';
 import { logger } from '../../../core/logger/logger.js';
+import type { AiMemoriesService } from '../../ai-memories/ai-memories.service.js';
 import type { AiSettingsService } from '../../ai-settings/ai-settings.service.js';
 import type { AiSettingsView } from '../../ai-settings/ai-settings.types.js';
 import { mapAiProviderError, type AiService } from '../ai.service.js';
@@ -24,6 +28,7 @@ import type { AiCallOptions, AiChatInput, AiChatTurn } from '../ai.types.js';
 import { AiProviderError } from '../providers/ai-provider.js';
 import {
   renderContextForModel,
+  renderMemoriesForModel,
   type AiContextBuilder,
   type AiContextScope
 } from './ai-context-builder.js';
@@ -78,7 +83,8 @@ export class AiAssistantService {
   constructor(
     private readonly ai: Pick<AiService, 'chat' | 'chatStream'>,
     private readonly settings: Pick<AiSettingsService, 'get'>,
-    private readonly context: Pick<AiContextBuilder, 'build'>
+    private readonly context: Pick<AiContextBuilder, 'build'>,
+    private readonly memories?: Pick<AiMemoriesService, 'forContext'>
   ) {}
 
   /** Checks the consent and builds the provider request, or returns the denial. */
@@ -98,8 +104,17 @@ export class AiAssistantService {
       }
     }
 
-    const contextData =
-      scopes.length > 0 ? renderContextForModel(await this.context.build(user, scopes)) : undefined;
+    const parts: string[] = [];
+    if (scopes.length > 0) {
+      parts.push(renderContextForModel(await this.context.build(user, scopes)));
+    }
+    const consented =
+      view?.available === true && view.settings.egressConsentVersion === view.currentConsentVersion;
+    if (consented && view.settings.memoryEnabled && this.memories) {
+      const saved = await this.memories.forContext(user.id);
+      if (saved.length > 0) parts.push(renderMemoriesForModel(saved));
+    }
+    const contextData = parts.length > 0 ? parts.join('\n\n') : undefined;
     const appLocale = body.clientLocale ?? user.locale;
     const fixed = view?.settings.languageMode === 'app_locale';
     const input: AiChatInput = {

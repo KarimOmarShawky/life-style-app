@@ -10,6 +10,7 @@ import { assertFinancialRetirement } from '../../src/infrastructure/database/pos
 import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
 import { PgAiReportsRepository } from '../../src/features/ai-reports/ai-reports.repository.pg.js';
 import { PgAiSettingsRepository } from '../../src/features/ai-settings/ai-settings.repository.pg.js';
+import { PgAiMemoriesRepository } from '../../src/features/ai-memories/ai-memories.repository.pg.js';
 import {
   PgSessionsRepository,
   resetSessionRevokeReasonCache
@@ -117,7 +118,7 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         const schema = await readFile(new URL('../../../schema.sql', import.meta.url), 'utf8');
         await owner.query(schema);
         await owner.query(
-          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events, notification_preferences, ai_content_reports, ai_user_settings'
+          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events, notification_preferences, ai_content_reports, ai_user_settings, ai_memory_items'
         );
         // Production has not received the owner-run product-events/onboarding
         // DDL (feature guide G5/G1) yet; it is applied at the end below.
@@ -728,6 +729,68 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
           expect(await users.purgeAccount(settingsUser)).toBe(true);
           expect(
             (await owner.query('SELECT count(*)::int AS n FROM ai_user_settings')).rows[0]!.n
+          ).toBe(0);
+
+          // AI-3: explicit memory with the restricted runtime role, before and
+          // after the owner-run ai-memory-items SQL.
+          const memoryUser = (
+            await owner.query<{ id: string }>(
+              `INSERT INTO users (email, password_hash, display_name, timezone, default_currency)
+               VALUES ('memory-role@example.com', 'x', 'Memory', 'UTC', 'USD') RETURNING id`
+            )
+          ).rows[0]!.id;
+          const aiMemories = new PgAiMemoriesRepository(runtime);
+          expect(await aiMemories.list(memoryUser, 'active', 100)).toEqual({ available: false });
+          expect(
+            await aiMemories.createExplicit(memoryUser, { kind: 'fact', content: 'x' }, 100)
+          ).toEqual({ available: false });
+          const memorySql = await readFile(
+            new URL('../../../docs/ai/sql/ai-memory-items.sql', import.meta.url),
+            'utf8'
+          );
+          await owner.query(memorySql);
+          const canMemory = async (privilege: string) =>
+            (
+              await owner.query<{ ok: boolean }>(
+                `SELECT has_table_privilege('lifestyle_app', 'public.ai_memory_items', $1) AS ok`,
+                [privilege]
+              )
+            ).rows[0]!.ok;
+          for (const [privilege, expected] of [
+            ['SELECT', true],
+            ['INSERT', true],
+            ['UPDATE', true],
+            ['DELETE', true],
+            ['TRUNCATE', false]
+          ] as const) {
+            expect(await canMemory(privilege)).toBe(expected);
+          }
+          await expect(owner.query(memorySql)).rejects.toMatchObject({ code: '42P07' });
+          await owner.query('ROLLBACK');
+          // Saving needs both memory switches (AI-2 settings).
+          expect(
+            await aiMemories.createExplicit(memoryUser, { kind: 'fact', content: 'x' }, 100)
+          ).toEqual({ available: true, outcome: 'disabled' });
+          await aiSettings.update(memoryUser, { memoryEnabled: true, explicitMemoryEnabled: true });
+          expect(
+            await aiMemories.createExplicit(
+              memoryUser,
+              { kind: 'preference', content: 'Short answers' },
+              100
+            )
+          ).toMatchObject({
+            available: true,
+            outcome: 'created',
+            item: { kind: 'preference', content: 'Short answers', source: 'explicit' }
+          });
+          expect(await aiMemories.listForContext(memoryUser, 30)).toEqual({
+            available: true,
+            items: [{ kind: 'preference', content: 'Short answers' }]
+          });
+          await users.scheduleDeletion(memoryUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(memoryUser)).toBe(true);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM ai_memory_items')).rows[0]!.n
           ).toBe(0);
         } finally {
           await runtime.end();

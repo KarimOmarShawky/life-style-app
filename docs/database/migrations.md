@@ -62,6 +62,7 @@ the migration body. The code must degrade safely until the owner applies the fil
 | `1792770000000_auth_sessions_user_revoked` (G6) | `docs/auth/sql/auth-sessions-user-revoked.sql` | Signing a device out still works; the session is stored with reason `logout` instead of `user_revoked` |
 | `1792780000000_ai_content_reports` (AI-P) | `docs/ai/sql/ai-content-reports.sql` | Reports of AI output answer 503 `AI_REPORTS_UNAVAILABLE`; purge/export skip the absent table |
 | `1792790000000_ai_user_settings` (AI-2) | `docs/ai/sql/ai-user-settings.sql` | AI settings read as the defaults with `available: false` (no durable consent); saving answers 503 `AI_SETTINGS_UNAVAILABLE`; purge/export skip the absent table |
+| `1792800000000_ai_memory_items` (AI-3) | `docs/ai/sql/ai-memory-items.sql` (after the AI-2 file) | The memory list is empty with `available: false`; saving, editing and deleting answer 503 `AI_MEMORY_UNAVAILABLE`; the assistant uses no memories; export and purge skip the absent table |
 
 Production status (owner-reported, 2026-11-11): the G5, G2 and G6 files are applied,
 G5 first and then G2 and G6, each after a rehearsal on a Neon branch. The AI-P and

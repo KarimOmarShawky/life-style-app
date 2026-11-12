@@ -20,7 +20,7 @@ Table `ai_user_settings`, at most one row per account. No row means the defaults
 | --- | --- | --- |
 | `egress_consent_version` | NULL | Version of the consent text the account agreed to; NULL = never or withdrawn |
 | `egress_consent_at` | NULL | When; set together with the version (database check) |
-| `memory_enabled`, `explicit_memory_enabled` | false | For AI-3 (explicit memory); nothing reads them yet |
+| `memory_enabled`, `explicit_memory_enabled` | false | AI-3 explicit memory (`docs/ai/ai-memory.md`): the assistant uses saved memories only with `memory_enabled`; saving needs both |
 | `learning_enabled` | false | For AI-5 (inferred preferences); nothing reads it yet |
 | `quick_actions_enabled` | false | For AI-4 (confirmed proposals); nothing reads it yet |
 | `language_mode` | `auto` | `auto`: reply in the language of the message; `app_locale`: in the app language (`clientLocale` from the app, else the account locale; used by the AI-2b assistant turn) |

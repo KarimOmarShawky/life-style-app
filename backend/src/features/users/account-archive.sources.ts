@@ -130,7 +130,8 @@ export const ACCOUNT_ARCHIVE_OWNED_EXCLUSIONS = [
   'product_events',
   'notification_preferences',
   'ai_content_reports',
-  'ai_user_settings'
+  'ai_user_settings',
+  'ai_memory_items'
 ] as const;
 
 export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
@@ -149,5 +150,6 @@ export const ACCOUNT_ARCHIVE_EXCLUSIONS = [
   'notification preferences (quiet hours and daily limit; included in the account metadata export instead)',
   'ai content reports (reports of AI output for 90 days; included in the account metadata export instead)',
   'ai user settings (AI switches, language mode and the AI consent version; included in the account metadata export instead)',
+  'ai memory items (notes saved for the AI assistant; included in the account metadata export instead)',
   'device-only data, external-provider data and already purged records'
 ] as const;

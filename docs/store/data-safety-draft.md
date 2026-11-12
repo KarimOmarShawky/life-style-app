@@ -31,6 +31,7 @@ is not declared (AI chat history, Focus Shield, the message shield, reminders).
 | App activity → Other user-generated content (tasks, notes, habits, goals, events, plans) | Yes | No | No | Optional | App functionality |
 | App activity → Other user-generated content (AI requests: assistant messages, the assistant's day summary when the user allows app data (from AI-2c), weekly or analytics numbers, Smart Quick Add text) | Yes | **See below** | **Yes**: our server does not store them | Optional | App functionality |
 | App activity → Other user-generated content (reports of AI replies, kept 90 days) | Yes | No | No | Optional | App functionality; Fraud prevention, security and compliance |
+| App activity → Other user-generated content (notes saved for the assistant, from the AI-3 build: kept until the user deletes them or the account) | Yes | **See below** (sent to Gemini with assistant messages while memory is on) | No | Optional | App functionality |
 
 Not collected: location (IP addresses are kept in security logs but no location is derived from
 them; review this choice in the form's guidance), contacts, photos and videos, audio, files,

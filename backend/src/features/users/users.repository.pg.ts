@@ -24,6 +24,7 @@ import {
   aiSettingsFromRow,
   type AiSettingsRow
 } from '../ai-settings/ai-settings.repository.pg.js';
+import { AI_MEMORY_LIMITS } from '../ai-memories/ai-memories.types.js';
 import {
   isMissingSchemaObject,
   tableExists
@@ -51,6 +52,13 @@ export const PRODUCT_EVENTS_EXPORT_LIMIT = 5000;
 export const AI_CONTENT_REPORTS_EXPORT_LIMIT = 3000;
 
 /**
+ * AI memories are bounded by 100 active items per user; the bound leaves room
+ * for the pending and dismissed items of AI-5. Overflow returns 413 instead of
+ * silent truncation.
+ */
+export const AI_MEMORY_ITEMS_EXPORT_LIMIT = AI_MEMORY_LIMITS.exportMax;
+
+/**
  * Owned tables created by additive DDL that the owner-managed production
  * database receives out of band. Purge skips such a table only while it does
  * not exist (it then cannot hold rows); every other owned table is mandatory
@@ -60,7 +68,8 @@ export const OPTIONAL_USER_OWNED_TABLES: ReadonlySet<string> = new Set([
   'product_events',
   'notification_preferences',
   'ai_content_reports',
-  'ai_user_settings'
+  'ai_user_settings',
+  'ai_memory_items'
 ]);
 
 export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
@@ -75,6 +84,8 @@ export const USER_OWNED_TABLES_IN_DELETE_ORDER = [
   'ai_content_reports',
   // AI settings and the AI consent (AI-2). Leaf table; also ON DELETE CASCADE.
   'ai_user_settings',
+  // Explicit AI memory (AI-3). Leaf table; also ON DELETE CASCADE.
+  'ai_memory_items',
   'ingest_tokens',
   'push_devices',
   'reminders',
@@ -582,6 +593,39 @@ export class PgUsersRepository implements UsersRepository {
       if (!isMissingSchemaObject(err)) throw err;
     }
 
+    // AI-3 memories; absent until the owner applies the DDL.
+    let aiMemories: UserExportData['aiMemories'] = [];
+    try {
+      const memoriesRes = await this.pool.query<{
+        kind: string;
+        content: string;
+        source: string;
+        status: string;
+        created_at: Date;
+        updated_at: Date;
+        expires_at: Date | null;
+      }>(
+        `SELECT kind, content, source, status, created_at, updated_at, expires_at
+         FROM ai_memory_items WHERE user_id = $1
+         ORDER BY created_at, id LIMIT ${AI_MEMORY_ITEMS_EXPORT_LIMIT + 1}`,
+        [userId]
+      );
+      if (memoriesRes.rows.length > AI_MEMORY_ITEMS_EXPORT_LIMIT) {
+        throw AppError.payloadTooLarge('AI memory export exceeds its limit');
+      }
+      aiMemories = memoriesRes.rows.map((r) => ({
+        kind: r.kind,
+        content: r.content,
+        source: r.source,
+        status: r.status,
+        createdAt: new Date(r.created_at).toISOString(),
+        updatedAt: new Date(r.updated_at).toISOString(),
+        expiresAt: r.expires_at ? new Date(r.expires_at).toISOString() : null
+      }));
+    } catch (err) {
+      if (!isMissingSchemaObject(err)) throw err;
+    }
+
     return {
       exportedAt: new Date().toISOString(),
       profile: {
@@ -621,7 +665,8 @@ export class PgUsersRepository implements UsersRepository {
       productEvents,
       notificationPreferences,
       aiContentReports,
-      aiSettings
+      aiSettings,
+      aiMemories
     };
   }
 }

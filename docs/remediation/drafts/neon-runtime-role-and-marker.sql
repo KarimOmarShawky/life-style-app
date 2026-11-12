@@ -30,6 +30,8 @@
 --      SELECT, INSERT, DELETE only.
 --      Where ai_user_settings exists (AI-2, added 2026-11-12):
 --      full CRUD.
+--      Where ai_memory_items exists (AI-3, added 2026-11-12):
+--      full CRUD.
 --   5. Fails closed (whole transaction rolls back) if the financial
 --      erasure has not actually happened or if, at the end, the
 --      startup-guard conditions for `lifestyle_app` do not hold.
@@ -217,6 +219,15 @@ DO $$
 BEGIN
   IF to_regclass('public.ai_user_settings') IS NOT NULL THEN
     GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_user_settings TO lifestyle_app;
+  END IF;
+END
+$$;
+-- 4g. Explicit AI memory (AI-3, added 2026-11-12; on production
+-- docs/ai/sql/ai-memory-items.sql grants the runtime directly).
+DO $$
+BEGIN
+  IF to_regclass('public.ai_memory_items') IS NOT NULL THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_memory_items TO lifestyle_app;
   END IF;
 END
 $$;

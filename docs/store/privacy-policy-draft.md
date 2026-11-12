@@ -74,10 +74,17 @@ to create the reply:
   details are never sent;
 - weekly coaching and analytics insights: the summary numbers that the app shows you before
   you agree to send them;
-- Smart Quick Add, if you turn AI help on in Profile: the text you typed for the task.
+- Smart Quick Add, if you turn AI help on in Profile: the text you typed for the task;
+- *[From the app version that has assistant memory (AI-3); delete this item if you publish
+  before that version]* the assistant, only if you turn on assistant memory: the notes you
+  saved for it to remember (the 30 most recently saved or changed ones, at most 6,000
+  characters).
 
 Our server does not store your AI messages or replies and does not write them to logs. It keeps
-counts of AI requests per account for daily limits. Do not type passwords or sensitive
+counts of AI requests per account for daily limits. *[AI-3 version only:]* If you turn on
+assistant memory, the notes you save yourself (in Profile → Assistant memory or from one of your
+own chat messages; at most 100, each up to 500 characters) are stored with your account until
+you delete them or your account. The AI never saves notes on its own. Do not type passwords or sensitive
 information into AI features. AI replies can be wrong; they are not medical, legal or financial
 advice.
 
@@ -114,12 +121,15 @@ our server is encrypted with HTTPS.
 - Deleting your account (Profile → Delete account): you have 14 days to change your mind. After
   that, your account and its data are deleted.
 - Usage statistics: 400 days. Reports of AI replies: 90 days. Security logs: 12 months.
+  *[AI-3 version only:]* Notes saved for the assistant: until you delete them (one by one or
+  all at once in Profile → Assistant memory) or delete your account.
   Expired sign-in sessions are removed automatically.
 - Copies you exported yourself are under your control.
 
 ### 8. Your choices and rights
 - Export your data in Profile: "Export account metadata (JSON)" (profile, settings, signed-in
-  devices, usage events, reports of AI replies) and "Export domain archive (Android)" (tasks,
+  devices, usage events, reports of AI replies, notes saved for the assistant) and "Export
+  domain archive (Android)" (tasks,
   notes, habits and the other items you added).
 - Delete your account in the app (Profile → Delete account) or by writing to [contact email]
   from the account's email address. Web page for deletion requests: [deletion page URL].
@@ -191,6 +201,12 @@ LifeStyle تطبيق للإنتاجية الشخصية: مهام، عادات، 
 مواعيدها (١٠ كحد أقصى). لا تُرسَل الملاحظات ولا أوصاف المهام ولا أماكن الأحداث ولا بيانات
 الاشتراكات أبدًا.
 
+*[من إصدار التطبيق الذي فيه ذاكرة المساعد (AI-3)؛ احذف هذه الفقرة إن نشرت قبله]* وإذا فعّلت
+ذاكرة المساعد، تُحفظ الملاحظات التي تحفظها بنفسك (من الملف الشخصي ← ذاكرة المساعد أو من إحدى
+رسائلك في المحادثة؛ ١٠٠ ملاحظة كحد أقصى، وكل منها حتى ٥٠٠ حرف) مع حسابك حتى تحذفها أو تحذف
+حسابك، ويُرسَل مع رسائلك إلى المساعد أحدث ٣٠ ملاحظة منها (٦٠٠٠ حرف كحد أقصى). لا يحفظ الذكاء
+الاصطناعي أي ملاحظة من تلقاء نفسه.
+
 خادمنا لا يحفظ رسائلك أو الردود ولا يكتبها في السجلات، ويحتفظ فقط بعدد الطلبات لكل حساب من
 أجل الحد اليومي. لا تكتب كلمات مرور أو معلومات حساسة. قد تخطئ ردود الذكاء الاصطناعي، وهي ليست
 نصيحة طبية أو قانونية أو مالية.
@@ -215,11 +231,13 @@ LifeStyle تطبيق للإنتاجية الشخصية: مهام، عادات، 
 ### ٧. مدة الاحتفاظ
 بيانات الحساب وما تضيفه: طوال وجود الحساب، وما تحذفه يمكن استعادته ٣٠ يومًا ثم يُزال. عند حذف
 الحساب لديك ١٤ يومًا للتراجع ثم يُحذف الحساب وبياناته. إحصاءات الاستخدام ٤٠٠ يوم، وبلاغات
-الردود ٩٠ يومًا، وسجلات الأمان ١٢ شهرًا، والجلسات المنتهية تُزال تلقائيًا.
+الردود ٩٠ يومًا، وسجلات الأمان ١٢ شهرًا، والجلسات المنتهية تُزال تلقائيًا. *[إصدار AI-3 فقط:]*
+ملاحظات ذاكرة المساعد تبقى حتى تحذفها (واحدة واحدة أو كلها من الملف الشخصي ← ذاكرة المساعد) أو
+تحذف حسابك.
 
 ### ٨. اختياراتك وحقوقك
 تصدير بياناتك من الملف الشخصي: "تصدير البيانات الوصفية للحساب (JSON)" (الملف الشخصي والإعدادات والأجهزة وأحداث الاستخدام
-وبلاغات الردود) و"تصدير أرشيف النطاق (أندرويد)" (المهام والملاحظات والعادات وباقي ما أضفته)، وحذف الحساب من التطبيق أو بمراسلة [البريد] من بريد
+وبلاغات الردود وملاحظات ذاكرة المساعد) و"تصدير أرشيف النطاق (أندرويد)" (المهام والملاحظات والعادات وباقي ما أضفته)، وحذف الحساب من التطبيق أو بمراسلة [البريد] من بريد
 الحساب، وصفحة طلب الحذف: [رابط صفحة الحذف]. وتعديل الاسم واللغة والمنطقة الزمنية، وإيقاف
 الإحصاءات أو مساعدة الذكاء الاصطناعي، وتسجيل خروج الأجهزة الأخرى.
 

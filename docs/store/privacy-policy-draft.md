@@ -107,7 +107,9 @@ our server is encrypted with HTTPS.
 - Copies you exported yourself are under your control.
 
 ### 8. Your choices and rights
-- Export your data as a JSON file: Profile → Export.
+- Export your data in Profile: "Export account metadata (JSON)" (profile, settings, signed-in
+  devices, usage events, reports of AI replies) and "Export domain archive (Android)" (tasks,
+  notes, habits and the other items you added).
 - Delete your account in the app (Profile → Delete account) or by writing to [contact email]
   from the account's email address. Web page for deletion requests: [deletion page URL].
 - Correct your name, language and time zone in Profile.
@@ -198,7 +200,8 @@ LifeStyle تطبيق للإنتاجية الشخصية: مهام، عادات، 
 الردود ٩٠ يومًا، وسجلات الأمان ١٢ شهرًا، والجلسات المنتهية تُزال تلقائيًا.
 
 ### ٨. اختياراتك وحقوقك
-تصدير بياناتك (الملف الشخصي ← تصدير)، وحذف الحساب من التطبيق أو بمراسلة [البريد] من بريد
+تصدير بياناتك من الملف الشخصي: "تصدير البيانات الوصفية للحساب (JSON)" (الملف الشخصي والإعدادات والأجهزة وأحداث الاستخدام
+وبلاغات الردود) و"تصدير أرشيف النطاق (أندرويد)" (المهام والملاحظات والعادات وباقي ما أضفته)، وحذف الحساب من التطبيق أو بمراسلة [البريد] من بريد
 الحساب، وصفحة طلب الحذف: [رابط صفحة الحذف]. وتعديل الاسم واللغة والمنطقة الزمنية، وإيقاف
 الإحصاءات أو مساعدة الذكاء الاصطناعي، وتسجيل خروج الأجهزة الأخرى.
 

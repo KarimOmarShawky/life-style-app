@@ -323,7 +323,7 @@ Profile → AI help for Smart Quick Add.
 - [ ] **AIP-6** Weekly coaching and analytics: the flag appears only on text written by the AI, not on the offline summary or the "paused / error" text. Reports from there arrive with surface `weekly_coaching` or `analytics_insight`.
 - [ ] **AIP-7** More than 10 reports within an hour: "Couldn't send the report. Try again later." and the sheet stays open.
 - [ ] **AIP-8** Arabic at the largest font on a small phone: the report sheet and the age question have no clipped text and run right to left; TalkBack reads the flag as "الإبلاغ عن الرد", each reason, the checkbox and the note field.
-- [ ] **AIP-9** Profile → export: the JSON file contains `aiContentReports` with your reports. After the account is deleted, the owner query for that account returns 0 rows.
+- [ ] **AIP-9** Profile → Export account metadata (JSON): the export contains `aiContentReports` with your reports (the domain archive leaves them out by design). After the account is deleted, the owner query for that account returns 0 rows.
 
 ### Quick regression
 

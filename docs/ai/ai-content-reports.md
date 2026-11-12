@@ -7,6 +7,26 @@ insight. Each reply there has a report button. This page covers what a report ho
 the API, the owner SQL and how the owner reads reports. Background: Hybrid AI audit
 `docs/reports/hybrid-ai-ai0-audit-2026-11-11.md`, findings AI0-F2 and decision D1.
 
+## In the app (added 2026-11-12)
+
+- A flag button with the tooltip "Report reply" (48 dp) sits next to AI text only: assistant
+  replies once they have finished (not the welcome message), the weekly coaching card when the
+  AI wrote it (not the offline summary), and the analytics insight when the AI wrote it (not
+  the paused or error text).
+- The sheet offers five reasons (offensive, harmful, inaccurate, spam, other), "Include the
+  reply" (on by default), an optional note (at most 500 characters), Cancel and Send report.
+  Send stays disabled until a reason is chosen. Success closes the sheet with "Thanks, we
+  received your report". Any refusal (503 before the SQL, 429 after 10 reports in an hour,
+  network) keeps the sheet open with "Couldn't send the report. Try again later.".
+- Client: `lib/features/ai/data/ai_reports_client.dart` (`AiReportsClient`, POST
+  `ai/reports`; the reply is trimmed and cut to 4,000 UTF-16 units and empty fields are left
+  out). UI: `lib/features/ai/presentation/ai_report_sheet.dart`. Tests:
+  `test/ai_reports_client_test.dart`, `test/ai_report_sheet_test.dart` (Arabic, 200 %,
+  320 dp, G7 guidelines).
+- Every AI feature first asks "Are you 18 or older?" once per account on the phone
+  (`lib/features/ai/data/ai_age_confirmation.dart`, AI0-F11 / D9). Reporting needs no
+  confirmation: it sends nothing to the AI.
+
 ## What a report holds
 
 | Field | Meaning |

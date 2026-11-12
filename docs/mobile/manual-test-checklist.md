@@ -306,6 +306,25 @@ out still works; the server stores the reason `logout` instead.
 - [ ] **P1-15** Profile → rank card shows level and XP that change after completing a focus session or task on this phone, with the "counted on this device" note; a fresh install shows level 1, 0 XP and locked badges.
 - [ ] **A3-1** Profile in German or Turkish: the AI assistant tile and the account-deletion texts are in that language.
 
+### AI-P: reporting AI replies, long chats, 18+ (2026-11-12). Needs a phone with AI turned on
+
+Needs Railway `AI_ENABLED=true` with a working `GEMINI_API_KEY`, and the owner SQL
+`docs/ai/sql/ai-content-reports.sql` (owner-run, see `docs/ai/ai-content-reports.md`).
+Without the SQL, sending a report shows "Couldn't send the report"; the rest works.
+Paths: AI tab; More → Weekly Brain Report → Generate AI Weekly Coaching Plan;
+More → Analytics & Insights → Cumulative analysis / Performance dashboard;
+Profile → AI help for Smart Quick Add.
+
+- [ ] **AIP-1** New account, first AI use from the AI tab: the "Are you 18 or older?" question comes before anything is sent. "I'm under 18" shows a short message and sends nothing; the next try asks again. "I'm 18 or older" continues to "Send conversation to Google Gemini?".
+- [ ] **AIP-2** After confirming once, weekly coaching, analytics insights and the Profile AI switch do not ask the age again for that account, also after closing and reopening the app. A second account on the same phone is asked again.
+- [ ] **AIP-3** Long chat: one conversation with 15 or more messages (include a few long ones). Every reply still arrives; before this fix every send from about the 12th message failed as "AI unavailable". The message field stops at 4,000 characters.
+- [ ] **AIP-4** Every AI reply has a flag button: not the welcome message, and not while a reply is still being written. Flag → choose a reason, keep "Include the reply", add a note → Send report → "Thanks, we received your report." The owner's read query in `docs/ai/ai-content-reports.md` shows the row with surface `assistant`, the reason, the reply text and the note.
+- [ ] **AIP-5** Send report is disabled until a reason is chosen. A report with "Include the reply" unticked has no reply text in the row. Cancel sends nothing.
+- [ ] **AIP-6** Weekly coaching and analytics: the flag appears only on text written by the AI, not on the offline summary or the "paused / error" text. Reports from there arrive with surface `weekly_coaching` or `analytics_insight`.
+- [ ] **AIP-7** More than 10 reports within an hour: "Couldn't send the report. Try again later." and the sheet stays open.
+- [ ] **AIP-8** Arabic at the largest font on a small phone: the report sheet and the age question have no clipped text and run right to left; TalkBack reads the flag as "الإبلاغ عن الرد", each reason, the checkbox and the note field.
+- [ ] **AIP-9** Profile → export: the JSON file contains `aiContentReports` with your reports. After the account is deleted, the owner query for that account returns 0 rows.
+
 ### Quick regression
 
 - [ ] **X-1** Log out and log in.

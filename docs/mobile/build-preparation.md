@@ -30,6 +30,28 @@ Release build uses `--obfuscate --split-debug-info` outside source, with matchin
 
 Before upload, `verify-android-apk.mjs` invokes the actual Android SDK `lib/apksigner.jar` through Java without a shell (also avoiding Windows `.bat` quoting problems). The command must succeed, report exactly one signer and provide its SHA-256 digest; release rejects the debug identity and any missing/unexpected public certificate. Debug verification requires the explicit Android debug identity. Certificate-parser regressions do not substitute for executing this against a built APK.
 
+### App Bundle for Google Play (added 2026-11-12, slice AI-P release prep; hosted execution NOT RUN)
+
+Google Play accepts only Android App Bundles for new apps. The same signed job now also runs
+`flutter build appbundle --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-bundle-symbols"`
+with the same signing configuration and API URL. `scripts/verify-android-aab.mjs` checks the
+bundle before upload. It runs the JDK's `jarsigner -verify` (App Bundles carry a JAR signature,
+so apksigner does not apply), then `keytool -printcert -rfc -jarfile`. It requires exactly one
+signer certificate, equal to `ANDROID_RELEASE_CERT_SHA256` and not the debug identity. Only
+fixed stage names are printed. Artifacts:
+
+- `lifestyle-android-signed-bundle`: `app-release.aab`, uploaded by hand in Play Console →
+  Testing → Closed testing → Create release;
+- `lifestyle-android-bundle-symbols`: the bundle's own obfuscation symbols (the APK's stay in
+  `lifestyle-android-release-symbols`; the two builds are obfuscated separately);
+- `lifestyle-android-signed-release`: the APK, unchanged, for side-loading on test phones.
+
+With Play App Signing, the key in `android-release` is the **upload key**: Google re-signs for
+users. `ANDROID_RELEASE_CERT_SHA256` is therefore the upload certificate. The package name is
+checked on the APK from the same job (`com.lifestyle.app`); Play rejects a bundle whose package
+or version code does not fit the app. Raise the version code in `pubspec.yaml` (`1.0.1+1` → `+2`
+…) for every upload.
+
 ## Honest reset-request copy
 
 All six locale catalog messages now say conditionally that the app will **try** to send a code if the address is eligible; none asserts that HTTP 202 proves email delivery. The existing UI key is retained for compatibility. C37 checks these source entries, and C12 parses modified Dart; Flutter rendering/behavior still requires actual Flutter/device execution.

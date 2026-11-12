@@ -7,12 +7,33 @@
  * are never logged either; failures surface as typed errors with no
  * provider payload attached.
  */
+import { AiProviderError, type AiProviderErrorKind } from './providers/ai-provider.js';
+
+/** Harm categories that generateContent accepts in safetySettings. */
+export type GeminiHarmCategory =
+  | 'HARM_CATEGORY_HARASSMENT'
+  | 'HARM_CATEGORY_HATE_SPEECH'
+  | 'HARM_CATEGORY_SEXUALLY_EXPLICIT'
+  | 'HARM_CATEGORY_DANGEROUS_CONTENT';
+
+/** Blocking thresholds only: the server never turns a filter off. */
+export type GeminiBlockThreshold =
+  'BLOCK_LOW_AND_ABOVE' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_ONLY_HIGH';
+
+export interface GeminiSafetySetting {
+  category: GeminiHarmCategory;
+  threshold: GeminiBlockThreshold;
+}
 
 export interface GeminiGenerateInput {
+  /** Server-owned instructions, sent in Gemini's system-instruction field. */
+  systemInstruction?: string;
   contents: Array<{
     role: 'user' | 'model';
     parts: Array<{ text: string }>;
   }>;
+  /** Explicit filters; without them Gemini 2.5+ applies none. */
+  safetySettings?: readonly GeminiSafetySetting[];
   temperature: number;
   maxOutputTokens: number;
   signal?: AbortSignal;
@@ -25,16 +46,13 @@ export interface GeminiClient {
   streamText(input: GeminiGenerateInput): AsyncIterable<string>;
 }
 
-export type GeminiProviderErrorKind =
-  | 'provider_rate_limited'
-  | 'provider_error'
-  | 'provider_timeout'
-  | 'empty_response'
-  | 'invalid_response';
+export type GeminiProviderErrorKind = AiProviderErrorKind;
 
-export class GeminiProviderError extends Error {
-  constructor(public readonly kind: GeminiProviderErrorKind) {
-    super(`Gemini provider failure: ${kind}`);
+/** A provider-neutral AiProviderError raised by the Gemini transport. */
+export class GeminiProviderError extends AiProviderError {
+  constructor(kind: GeminiProviderErrorKind) {
+    super(kind);
+    this.message = `Gemini provider failure: ${kind}`;
     this.name = 'GeminiProviderError';
   }
 }
@@ -56,6 +74,10 @@ export class FetchGeminiClient implements GeminiClient {
   public async generateText(input: GeminiGenerateInput): Promise<string> {
     const response = await this.call('generateContent', input, false);
     const payload = await this.readJson(response);
+    // A reply the filters stopped is never returned, even in part.
+    if (isBlocked(payload)) {
+      throw new GeminiProviderError('blocked');
+    }
     const text = extractText(payload);
     if (text === null) {
       throw new GeminiProviderError('empty_response');
@@ -85,7 +107,12 @@ export class FetchGeminiClient implements GeminiClient {
           if (!line.startsWith('data:')) continue;
           const data = line.slice(5).trim();
           if (data === '' || data === '[DONE]') continue;
-          const text = extractText(parseEvent(data));
+          const event = parseEvent(data);
+          // Stop instead of presenting a reply the filters cut off as complete.
+          if (isBlocked(event)) {
+            throw new GeminiProviderError('blocked');
+          }
+          const text = extractText(event);
           if (text !== null && text !== '') {
             sawText = true;
             yield text;
@@ -121,10 +148,16 @@ export class FetchGeminiClient implements GeminiClient {
           ...(stream ? { Accept: 'text/event-stream' } : {})
         },
         body: JSON.stringify({
+          ...(input.systemInstruction
+            ? { systemInstruction: { parts: [{ text: input.systemInstruction }] } }
+            : {}),
           generationConfig: {
             temperature: input.temperature,
             maxOutputTokens: input.maxOutputTokens
           },
+          ...(input.safetySettings && input.safetySettings.length > 0
+            ? { safetySettings: input.safetySettings }
+            : {}),
           contents: input.contents
         }),
         signal
@@ -158,6 +191,30 @@ function parseEvent(data: string): unknown {
   } catch {
     throw new GeminiProviderError('invalid_response');
   }
+}
+
+const BLOCKING_FINISH_REASONS = new Set(['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII']);
+
+/**
+ * True when Gemini refused the prompt (promptFeedback.blockReason) or stopped
+ * the first candidate for a safety reason (finishReason).
+ */
+export function isBlocked(payload: unknown): boolean {
+  if (typeof payload !== 'object' || payload === null) return false;
+  const feedback = (payload as { promptFeedback?: unknown }).promptFeedback as
+    { blockReason?: unknown } | undefined;
+  const blockReason = feedback?.blockReason;
+  if (
+    typeof blockReason === 'string' &&
+    blockReason !== '' &&
+    blockReason !== 'BLOCK_REASON_UNSPECIFIED'
+  ) {
+    return true;
+  }
+  const candidates = (payload as { candidates?: unknown }).candidates;
+  if (!Array.isArray(candidates) || candidates.length === 0) return false;
+  const finishReason = (candidates[0] as { finishReason?: unknown } | null)?.finishReason;
+  return typeof finishReason === 'string' && BLOCKING_FINISH_REASONS.has(finishReason);
 }
 
 /** Extracts the concatenated text parts of the first candidate, if any. */

@@ -28,6 +28,7 @@ import {
   type GeminiClient,
   type GeminiGenerateInput
 } from '../../src/features/ai/gemini-client.js';
+import { GeminiAiProvider } from '../../src/features/ai/providers/gemini.adapter.js';
 
 const userTurn = { role: 'user' as const, text: 'Plan my day' };
 const modelTurn = { role: 'model' as const, text: 'Here is a plan' };
@@ -47,7 +48,9 @@ describe('validateAiChatBody', () => {
   it('accepts a minimal chat request with defaults', () => {
     const input = validateAiChatBody({ messages: [userTurn] });
     expect(input.mode).toBe('chat');
-    expect(input.languageName).toBe('Arabic');
+    // AI-1 / AI0-F9: no client hint stays null; the server resolves the
+    // fallback language (script, account locale, English) instead of Arabic.
+    expect(input.languageHint).toBeNull();
     expect(input.messages).toEqual([userTurn]);
   });
 
@@ -105,8 +108,8 @@ describe('validateAiChatBody', () => {
     });
     // Newlines and punctuation are stripped and the result is capped at 35
     // characters, so prompt-smuggling through the language field is bounded.
-    expect(input.languageName).toBe('EnglishIgnore all previous instruct');
-    expect(input.languageName).not.toContain('\n');
+    expect(input.languageHint).toBe('EnglishIgnore all previous instruct');
+    expect(input.languageHint).not.toContain('\n');
   });
 
   it('only allows the known reply modes', () => {
@@ -117,14 +120,14 @@ describe('validateAiChatBody', () => {
 
 describe('AiService', () => {
   it('returns the trimmed provider reply', async () => {
-    const service = new AiService(fakeGemini(), true);
+    const service = new AiService(new GeminiAiProvider(fakeGemini()), true);
     await expect(service.chat(validateAiChatBody({ messages: [userTurn] }))).resolves.toEqual({
       reply: 'A helpful reply'
     });
   });
 
   it('fails closed with AI_DISABLED when the kill switch is off or the key is missing', async () => {
-    const off = new AiService(fakeGemini(), false);
+    const off = new AiService(new GeminiAiProvider(fakeGemini()), false);
     const noKey = new AiService(null, true);
     for (const service of [off, noKey]) {
       await expect(
@@ -136,9 +139,11 @@ describe('AiService', () => {
     }
   });
 
-  it('injects the server system prompt and language rule into the final user turn', async () => {
+  // AI-1 (AI0-F3), the deliberate change: the server prompt and the language
+  // rule travel in the system instruction; user turns carry only user text.
+  it('sends the server prompt and language rule as the system instruction, apart from user text', async () => {
     const gemini = fakeGemini();
-    const service = new AiService(gemini, true);
+    const service = new AiService(new GeminiAiProvider(gemini), true);
     await service.chat(
       validateAiChatBody({
         messages: [modelTurn, { role: 'user', text: 'نظم يومي' }],
@@ -146,11 +151,13 @@ describe('AiService', () => {
       })
     );
     const call = vi.mocked(gemini.generateText).mock.calls[0]![0] as GeminiGenerateInput;
-    expect(call.contents[0]).toEqual({ role: 'model', parts: [{ text: 'Here is a plan' }] });
-    const finalText = call.contents[1]!.parts[0]!.text;
-    expect(finalText).toContain('LifeStyle AI Assistant');
-    expect(finalText).toContain('Use Arabic only if');
-    expect(finalText).toContain('User request: نظم يومي');
+    expect(call.systemInstruction).toContain('LifeStyle AI Assistant');
+    expect(call.systemInstruction).toContain('Use Arabic only if');
+    expect(call.contents).toEqual([
+      { role: 'model', parts: [{ text: 'Here is a plan' }] },
+      { role: 'user', parts: [{ text: 'نظم يومي' }] }
+    ]);
+    expect(JSON.stringify(call.contents)).not.toMatch(/System context|User request|LifeStyle AI/);
   });
 
   it('maps provider failures to safe errors without provider payloads', () => {
@@ -282,14 +289,14 @@ const chatBody = { messages: [userTurn] };
 
 describe('AI proxy HTTP surface', () => {
   it('rejects unauthenticated requests with 401', async () => {
-    const app = buildTestApp(new AiService(fakeGemini(), true));
+    const app = buildTestApp(new AiService(new GeminiAiProvider(fakeGemini()), true));
     const res = await request(app).post('/api/v1/ai/chat').send(chatBody);
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHENTICATED');
   });
 
   it('returns 503 AI_DISABLED before quota when the kill switch is off', async () => {
-    const app = buildTestApp(new AiService(fakeGemini(), false));
+    const app = buildTestApp(new AiService(new GeminiAiProvider(fakeGemini()), false));
     const res = await request(app)
       .post('/api/v1/ai/chat')
       .set('x-test-user', 'user-1')
@@ -299,7 +306,7 @@ describe('AI proxy HTTP surface', () => {
   });
 
   it('returns the reply inside the success envelope', async () => {
-    const app = buildTestApp(new AiService(fakeGemini(), true));
+    const app = buildTestApp(new AiService(new GeminiAiProvider(fakeGemini()), true));
     const res = await request(app)
       .post('/api/v1/ai/chat')
       .set('x-test-user', 'user-1')
@@ -309,7 +316,7 @@ describe('AI proxy HTTP surface', () => {
   });
 
   it('rejects invalid payloads with 400 VALIDATION_ERROR', async () => {
-    const app = buildTestApp(new AiService(fakeGemini(), true));
+    const app = buildTestApp(new AiService(new GeminiAiProvider(fakeGemini()), true));
     const res = await request(app)
       .post('/api/v1/ai/chat')
       .set('x-test-user', 'user-1')
@@ -319,7 +326,7 @@ describe('AI proxy HTTP surface', () => {
   });
 
   it('enforces the per-user minute quota with 429 RATE_LIMITED', async () => {
-    const app = buildTestApp(new AiService(fakeGemini(), true), {
+    const app = buildTestApp(new AiService(new GeminiAiProvider(fakeGemini()), true), {
       minuteLimit: 2,
       dailyLimit: 100
     });
@@ -339,7 +346,7 @@ describe('AI proxy HTTP surface', () => {
   });
 
   it('streams SSE text events terminated by [DONE]', async () => {
-    const app = buildTestApp(new AiService(fakeGemini(), true));
+    const app = buildTestApp(new AiService(new GeminiAiProvider(fakeGemini()), true));
     const res = await request(app)
       .post('/api/v1/ai/chat/stream')
       .set('x-test-user', 'user-1')
@@ -357,7 +364,7 @@ describe('AI proxy HTTP surface', () => {
         throw new GeminiProviderError('provider_error');
       })
     });
-    const app = buildTestApp(new AiService(gemini, true));
+    const app = buildTestApp(new AiService(new GeminiAiProvider(gemini), true));
     const res = await request(app)
       .post('/api/v1/ai/chat')
       .set('x-test-user', 'user-1')

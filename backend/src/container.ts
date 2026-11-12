@@ -137,7 +137,7 @@ import { PgPasswordResetRequestStore } from './features/auth/password-reset-requ
 import type { ResetRequestStore } from './core/security/reset-request-store.js';
 // AI assistant proxy (server-side Gemini, central key)
 import { AiService } from './features/ai/ai.service.js';
-import { FetchGeminiClient } from './features/ai/gemini-client.js';
+import { createAiProvider } from './features/ai/providers/provider-registry.js';
 import { getEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 
@@ -362,13 +362,12 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const aiService =
     overrides?.aiService ??
     new AiService(
-      env.GEMINI_API_KEY.trim() !== ''
-        ? new FetchGeminiClient({
-            apiKey: env.GEMINI_API_KEY,
-            model: env.GEMINI_MODEL,
-            timeoutMs: env.AI_UPSTREAM_TIMEOUT_MS
-          })
-        : null,
+      createAiProvider({
+        provider: env.AI_PROVIDER,
+        geminiApiKey: env.GEMINI_API_KEY,
+        geminiModel: env.GEMINI_MODEL,
+        timeoutMs: env.AI_UPSTREAM_TIMEOUT_MS
+      }),
       env.AI_ENABLED
     );
   if (env.AI_ENABLED && env.GEMINI_API_KEY.trim() === '') {

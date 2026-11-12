@@ -1,7 +1,7 @@
 /**
  * src/features/ai/ai.service.ts
  *
- * Validates AI chat requests and relays them to Gemini with the central
+ * Validates AI chat requests and relays them to the configured AI provider (Gemini) with the central
  * server key. Privacy rules for this surface:
  *  - prompts and replies are never logged (only counts and error kinds);
  *  - the provider key never leaves the server;
@@ -11,12 +11,9 @@
 
 import { AppError } from '../../core/errors/app-error.js';
 import { logger } from '../../core/logger/logger.js';
-import { AI_GENERATION, AI_LIMITS, type AiChatInput } from './ai.types.js';
-import {
-  GeminiProviderError,
-  type GeminiClient,
-  type GeminiGenerateInput
-} from './gemini-client.js';
+import { resolveReplyLanguage } from './application/ai-language-resolver.js';
+import { AI_GENERATION, AI_LIMITS, type AiCallOptions, type AiChatInput } from './ai.types.js';
+import { AiProviderError, type AiProvider, type AiProviderInput } from './providers/ai-provider.js';
 
 const SYSTEM_PROMPT = `
 You are "LifeStyle AI Assistant", an intelligent, empathetic, and highly practical personal productivity coach and life organizer.
@@ -29,61 +26,61 @@ Language: Always reply in the same language as the user's latest request (Arabic
 Tone: Friendly, motivating, professional, concise, and focused on execution. Avoid fluff.
 `.trim();
 
+/**
+ * The server prompt plus the reply-language rule. Sent through the provider's
+ * system-instruction channel, never inside a user turn (AI0-F3).
+ */
+export function buildSystemInstruction(fallbackLanguage: string): string {
+  return (
+    `${SYSTEM_PROMPT}\n` +
+    `Reply language: write the reply in the same language as the user's latest message. ` +
+    `Use ${fallbackLanguage} only if that message has no detectable language.`
+  );
+}
+
 export class AiService {
   constructor(
-    private readonly gemini: GeminiClient | null,
+    private readonly provider: AiProvider | null,
     private readonly enabled: boolean
   ) {}
 
-  /** True only when the kill switch is on AND a central key is configured. */
+  /** True only when the kill switch is on AND a provider key is configured. */
   public isEnabled(): boolean {
-    return this.enabled && this.gemini !== null;
+    return this.enabled && this.provider !== null;
   }
 
-  public async chat(input: AiChatInput, signal?: AbortSignal): Promise<{ reply: string }> {
-    const reply = await this.requireClient().generateText(this.buildGenerateInput(input, signal));
-    return { reply: reply.trim() };
+  public async chat(input: AiChatInput, options: AiCallOptions = {}): Promise<{ reply: string }> {
+    const { text } = await this.requireProvider().generate(this.buildProviderInput(input, options));
+    return { reply: text.trim() };
   }
 
-  public async *chatStream(input: AiChatInput, signal?: AbortSignal): AsyncIterable<string> {
-    yield* this.requireClient().streamText(this.buildGenerateInput(input, signal));
+  public async *chatStream(input: AiChatInput, options: AiCallOptions = {}): AsyncIterable<string> {
+    yield* this.requireProvider().stream(this.buildProviderInput(input, options));
   }
 
-  private requireClient(): GeminiClient {
-    if (!this.isEnabled() || !this.gemini) {
+  private requireProvider(): AiProvider {
+    if (!this.isEnabled() || !this.provider) {
       throw new AppError({
         httpStatus: 503,
         code: 'AI_DISABLED',
         safeMessage: 'The AI assistant is not available right now.'
       });
     }
-    return this.gemini;
+    return this.provider;
   }
 
-  private buildGenerateInput(input: AiChatInput, signal?: AbortSignal): GeminiGenerateInput {
-    const generation = AI_GENERATION[input.mode];
-    const contents: GeminiGenerateInput['contents'] = input.messages.slice(0, -1).map((turn) => ({
-      role: turn.role,
-      parts: [{ text: turn.text }]
-    }));
-    const last = input.messages[input.messages.length - 1]!;
-    contents.push({
-      role: 'user',
-      parts: [
-        {
-          text:
-            `System context: ${SYSTEM_PROMPT}\n` +
-            `Reply language: write the reply in the same language as the user request below. ` +
-            `Use ${input.languageName} only if the request has no detectable language.\n\n` +
-            `User request: ${last.text}`
-        }
-      ]
+  private buildProviderInput(input: AiChatInput, options: AiCallOptions): AiProviderInput {
+    const latest = input.messages[input.messages.length - 1]!;
+    const fallbackLanguage = resolveReplyLanguage({
+      latestMessage: latest.text,
+      clientLanguage: input.languageHint,
+      userLocale: options.userLocale ?? null
     });
     return {
-      contents,
-      temperature: generation.temperature,
-      maxOutputTokens: generation.maxOutputTokens,
-      ...(signal ? { signal } : {})
+      systemInstruction: buildSystemInstruction(fallbackLanguage),
+      turns: input.messages.map((turn) => ({ role: turn.role, text: turn.text })),
+      generation: AI_GENERATION[input.mode],
+      ...(options.signal ? { signal: options.signal } : {})
     };
   }
 }
@@ -94,7 +91,7 @@ export class AiService {
  */
 export function mapAiProviderError(error: unknown): AppError {
   if (error instanceof AppError) return error;
-  if (error instanceof GeminiProviderError) {
+  if (error instanceof AiProviderError) {
     logger.warn('AI provider request failed', { kind: error.kind });
     if (error.kind === 'provider_rate_limited') {
       return new AppError({
@@ -183,7 +180,7 @@ export function validateAiChatBody(body: unknown): AiChatInput {
     }
   }
 
-  let languageName = 'Arabic';
+  let languageHint: string | null = null;
   if (record.language !== undefined) {
     if (typeof record.language !== 'string') {
       fail('language', 'language must be a string');
@@ -194,12 +191,12 @@ export function validateAiChatBody(body: unknown): AiChatInput {
         .replace(/[^\p{L} ]/gu, '')
         .trim()
         .slice(0, AI_LIMITS.maxLanguageChars);
-      if (cleaned !== '') languageName = cleaned;
+      if (cleaned !== '') languageHint = cleaned;
     }
   }
 
   if (details.length > 0) {
     throw AppError.validation(details);
   }
-  return { messages, languageName, mode };
+  return { messages, languageHint, mode };
 }

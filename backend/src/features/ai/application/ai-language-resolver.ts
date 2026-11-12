@@ -42,10 +42,19 @@ export function isClearlyArabicScript(text: string): boolean {
   return arabic >= 2 && arabic * 5 >= letters * 4;
 }
 
+/** Two-letter base of a BCP-47 locale ("en-GB" -> "en"), lower case. */
+export function localeBase(locale: string): string {
+  return locale.trim().slice(0, 2).toLowerCase();
+}
+
+/** Display name of an app locale for the prompt; English for anything else. */
+export function languageForLocale(locale: string | null | undefined): string {
+  return LOCALE_LANGUAGES[localeBase(locale ?? '')] ?? 'English';
+}
+
 export function resolveReplyLanguage(hints: ReplyLanguageHints): string {
   if (isClearlyArabicScript(hints.latestMessage)) return 'Arabic';
   const client = hints.clientLanguage?.trim();
   if (client) return client;
-  const base = hints.userLocale?.trim().slice(0, 2).toLowerCase() ?? '';
-  return LOCALE_LANGUAGES[base] ?? 'English';
+  return languageForLocale(hints.userLocale);
 }

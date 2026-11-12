@@ -65,6 +65,13 @@ Add, the app sends your request to our server, which sends it to **Google Gemini
 to create the reply:
 - the assistant: your message and recent messages from the same chat (at most 20 earlier
   messages);
+- *[From the app version that has the "app data" switch in the assistant (AI-2c); delete this
+  item if you publish before that version]* the assistant, only if you allow it to use your app
+  data (the app asks first, and you can turn it off at any time): a short summary of your day,
+  that is the titles of today's tasks (at most 20), habits due today with their status and
+  streak (at most 10), your active goals with their progress (at most 10) and today's events
+  with their times (at most 10). Notes, task descriptions, event locations and subscription
+  details are never sent;
 - weekly coaching and analytics insights: the summary numbers that the app shows you before
   you agree to send them;
 - Smart Quick Add, if you turn AI help on in Profile: the text you typed for the task.
@@ -176,6 +183,13 @@ LifeStyle تطبيق للإنتاجية الشخصية: مهام، عادات، 
 رسالتك وآخر رسائل المحادثة نفسها (٢٠ رسالة سابقة كحد أقصى)، أو الأرقام الملخّصة التي يعرضها
 التطبيق عليك قبل موافقتك على الإرسال، أو نص المهمة إن فعّلت مساعدة الذكاء الاصطناعي من الملف
 الشخصي.
+
+*[من إصدار التطبيق الذي فيه مفتاح «بيانات التطبيق» في المساعد (AI-2c)؛ احذف هذه الفقرة إن نشرت
+قبله]* وإذا سمحت للمساعد باستخدام بيانات التطبيق (يسألك التطبيق أولًا، ويمكنك إيقاف ذلك في أي
+وقت)، يُرسَل معه ملخص قصير ليومك: عناوين مهام اليوم (٢٠ كحد أقصى)، والعادات المستحقة اليوم مع
+حالتها وسلسلتها (١٠ كحد أقصى)، وأهدافك النشطة مع نسبة التقدم (١٠ كحد أقصى)، وأحداث اليوم مع
+مواعيدها (١٠ كحد أقصى). لا تُرسَل الملاحظات ولا أوصاف المهام ولا أماكن الأحداث ولا بيانات
+الاشتراكات أبدًا.
 
 خادمنا لا يحفظ رسائلك أو الردود ولا يكتبها في السجلات، ويحتفظ فقط بعدد الطلبات لكل حساب من
 أجل الحد اليومي. لا تكتب كلمات مرور أو معلومات حساسة. قد تخطئ ردود الذكاء الاصطناعي، وهي ليست

@@ -8,7 +8,8 @@ Today the app asks "Send conversation to Google Gemini?" and keeps the answer on
 memory. This part stores the answer on the server, per account and per version of the
 consent text, so it survives reinstalls and devices. The app starts using it in AI-2c;
 AI-2b uses it to decide whether personal context (today's tasks, habits, goals, events)
-may be sent.
+may be sent: `POST /api/v1/ai/assistant/turn` denies context with `consent_required`
+unless the stored version equals the current one (`docs/ai/ai-assistant-context.md`).
 
 ## What is stored
 
@@ -21,7 +22,7 @@ Table `ai_user_settings`, at most one row per account. No row means the defaults
 | `memory_enabled`, `explicit_memory_enabled` | false | For AI-3 (explicit memory); nothing reads them yet |
 | `learning_enabled` | false | For AI-5 (inferred preferences); nothing reads it yet |
 | `quick_actions_enabled` | false | For AI-4 (confirmed proposals); nothing reads it yet |
-| `language_mode` | `auto` | `auto`: reply in the language of the message; `app_locale`: in the account language (used from AI-2b) |
+| `language_mode` | `auto` | `auto`: reply in the language of the message; `app_locale`: in the app language (`clientLocale` from the app, else the account locale; used by the AI-2b assistant turn) |
 
 No prompt, reply, memory text or provider choice is stored. The row is erased with the
 account (also `ON DELETE CASCADE`), included in the JSON export (`aiSettings`) and left

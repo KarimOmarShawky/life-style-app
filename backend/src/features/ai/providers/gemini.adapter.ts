@@ -35,9 +35,19 @@ export class GeminiAiProvider implements AiProvider {
 }
 
 function toGeminiInput(input: AiProviderInput): GeminiGenerateInput {
+  const contents: GeminiGenerateInput['contents'] = input.turns.map((turn) => ({
+    role: turn.role,
+    parts: [{ text: turn.text }]
+  }));
+  const last = contents[contents.length - 1];
+  if (input.contextData && last?.role === 'user') {
+    // The context is a separate part before the user's own text, at the
+    // user's level of trust; the system instruction only says how to treat it.
+    last.parts = [{ text: input.contextData }, ...last.parts];
+  }
   return {
     systemInstruction: input.systemInstruction,
-    contents: input.turns.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
+    contents,
     temperature: input.generation.temperature,
     maxOutputTokens: input.generation.maxOutputTokens,
     safetySettings: GEMINI_SAFETY_SETTINGS,

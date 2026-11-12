@@ -315,7 +315,8 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter,
       minuteLimit: env.AI_USER_MINUTE_LIMIT,
-      dailyLimit: env.AI_USER_DAILY_LIMIT
+      dailyLimit: env.AI_USER_DAILY_LIMIT,
+      assistant: container.aiAssistantService
     })
   );
   v1Router.use(

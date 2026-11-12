@@ -66,6 +66,8 @@ export interface ListGoalsFilter {
   status?: GoalStatus | undefined;
   progressType?: GoalProgressType | undefined;
   includeDeleted?: boolean | undefined;
+  /** Internal callers only (AI context, AI-2b); the HTTP list has no limit. */
+  limit?: number | undefined;
 }
 
 export interface CreateMilestoneInput {

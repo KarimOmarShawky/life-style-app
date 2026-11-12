@@ -29,6 +29,12 @@ export interface AiProviderInput {
   /** Conversation turns, oldest first; the last turn is from the user. */
   turns: AiProviderTurn[];
   generation: AiGenerationSettings;
+  /**
+   * App data for the latest user message (AI-2b): the user's own tasks,
+   * habits, goals or events, already framed as data. Untrusted: adapters send
+   * it next to that message as data, never inside the system instruction.
+   */
+  contextData?: string;
   signal?: AbortSignal;
 }
 

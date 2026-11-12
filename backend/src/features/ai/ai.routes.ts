@@ -19,6 +19,8 @@ import {
   createRateLimitMiddleware,
   type RateLimiter
 } from '../../core/middleware/rate-limiter.js';
+import type { AiAssistantService } from './application/ai-assistant.service.js';
+import { AiAssistantController } from './ai-assistant.controller.js';
 import { AiController } from './ai.controller.js';
 import type { AiService } from './ai.service.js';
 
@@ -30,6 +32,8 @@ export function createAiRouter(options: {
   dailyLimit: number;
   /** Process-local fallback for the daily quota (bounded-fallback policy). */
   fallbackLimiter?: RateLimiter;
+  /** Assistant turns with server-side context (AI-2b); same guard and quotas as /chat. */
+  assistant?: AiAssistantService;
 }): Router {
   const router = Router();
   const controller = new AiController(options.service);
@@ -69,6 +73,11 @@ export function createAiRouter(options: {
   router.use(options.authenticate, aiEnabledGuard, minuteQuota, dailyQuota);
   router.post('/chat', controller.chat);
   router.post('/chat/stream', controller.chatStream);
+  if (options.assistant) {
+    const assistant = new AiAssistantController(options.assistant);
+    router.post('/assistant/turn', assistant.turn);
+    router.post('/assistant/turn/stream', assistant.turnStream);
+  }
 
   return router;
 }

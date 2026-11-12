@@ -40,6 +40,10 @@ export interface AiCallOptions {
   signal?: AbortSignal;
   /** Account locale, the third choice for the fallback reply language. */
   userLocale?: string;
+  /** AI-2 language mode app_locale: always reply in this language (e.g. "German"). */
+  fixedReplyLanguage?: string;
+  /** AI-2b app context for the latest message, framed as data (see AiProviderInput). */
+  contextData?: string;
 }
 
 export const AI_LIMITS = {

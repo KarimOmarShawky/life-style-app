@@ -1565,6 +1565,83 @@ paths:
         '503':
           description: AI disabled
 
+  /ai/assistant/turn:
+    post:
+      summary: AI Assistant Turn with App Context
+      security:
+        - BearerAuth: []
+      description: >-
+        One assistant turn (Hybrid AI AI-2b). Without contextScopes it works
+        like /ai/chat. With contextScopes the server reads a capped snapshot of
+        the signed-in user's own data for those scopes (today's tasks at most
+        20, habits due or done today at most 10 with streaks, active goals at
+        most 10 with progress, today's events at most 10; titles cut to 120
+        characters; never notes, task descriptions, event locations or Money)
+        and sends it to the model as data next to the message, never as
+        instructions. Context needs the durable AI consent to the current
+        version (GET/PATCH /ai/settings); otherwise the result is
+        unsupported_or_denied with reason consent_required, and nothing is read
+        or sent. Language mode app_locale fixes the reply language to the app
+        language. Shares the AI kill switch and the per-user minute and daily
+        quotas with /ai/chat. Messages, context and replies are never logged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiAssistantTurnRequest'
+      responses:
+        '200':
+          description: An answer, or a typed denial (consent_required, scope_unavailable, unsupported)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiAssistantTurnResult'
+        '400':
+          description: Validation failed (unknown field, unknown or duplicate scope, size budget)
+        '401':
+          description: Unauthenticated
+        '429':
+          description: Per-user AI quota exceeded (shared with /ai/chat)
+        '502':
+          description: AI provider failure
+        '503':
+          description: AI disabled or provider busy
+
+  /ai/assistant/turn/stream:
+    post:
+      summary: AI Assistant Turn with App Context (Streaming)
+      security:
+        - BearerAuth: []
+      description: >-
+        Same contract, consent rules and quotas as /ai/assistant/turn, answered
+        as text/event-stream. Each event payload is a JSON object with a text
+        field and the stream ends with a [DONE] payload. A denial is sent as
+        one event shaped like AiAssistantDenial, followed by [DONE]. Errors
+        before the first byte use the standard error envelope; a failure after
+        text was sent ends the stream with an error event (stream_failed).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiAssistantTurnRequest'
+      responses:
+        '200':
+          description: Server-sent event stream of reply chunks or one denial event
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400':
+          description: Validation failed
+        '401':
+          description: Unauthenticated
+        '429':
+          description: Per-user AI quota exceeded (shared with /ai/chat)
+        '503':
+          description: AI disabled
+
   /ai/reports:
     post:
       summary: Report an AI Reply
@@ -4569,6 +4646,85 @@ components:
           type: string
       required:
         - reply
+    AiAssistantTurnRequest:
+      type: object
+      additionalProperties: false
+      description: At most 20 earlier turns plus the message; 4000 characters per text and 24000 in total.
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        conversation:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              role:
+                type: string
+                enum: [user, model]
+              text:
+                type: string
+                minLength: 1
+                maxLength: 4000
+            required:
+              - role
+              - text
+        contextScopes:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          description: App data the user switched on for this turn. Needs the current AI consent.
+          items:
+            type: string
+            enum: [today, tasks, habits, goals, calendar]
+        clientLocale:
+          type: string
+          maxLength: 16
+          description: App language as a BCP-47 tag (e.g. ar-EG); used by language mode app_locale
+      required:
+        - message
+    AiAssistantAnswer:
+      type: object
+      properties:
+        type:
+          type: string
+          const: answer
+        text:
+          type: string
+        language:
+          type: string
+          nullable: true
+          description: Base language code of the reply when known (fixed by app_locale, or Arabic script), else null
+      required:
+        - type
+        - text
+        - language
+    AiAssistantDenial:
+      type: object
+      properties:
+        type:
+          type: string
+          const: unsupported_or_denied
+        reason:
+          type: string
+          enum: [consent_required, scope_unavailable, unsupported]
+          description: >-
+            consent_required - context was asked for without the current AI
+            consent; scope_unavailable - the AI settings are not available
+            yet (owner SQL not applied); unsupported - the provider's safety
+            filters stopped the reply
+      required:
+        - type
+        - reason
+    AiAssistantTurnResult:
+      oneOf:
+        - $ref: '#/components/schemas/AiAssistantAnswer'
+        - $ref: '#/components/schemas/AiAssistantDenial'
+      discriminator:
+        propertyName: type
     AnalyticsSummary:
       type: object
       description: Range-based real analytics (no demo data). Nullable rates are unavailable, not zero.

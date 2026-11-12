@@ -130,6 +130,8 @@ import { NotificationPreferencesService } from './features/notifications/notific
 import { AiReportsService } from './features/ai-reports/ai-reports.service.js';
 import { PgAiReportsRepository } from './features/ai-reports/ai-reports.repository.pg.js';
 import { AiSettingsService } from './features/ai-settings/ai-settings.service.js';
+import { AiAssistantService } from './features/ai/application/ai-assistant.service.js';
+import { AiContextBuilder } from './features/ai/application/ai-context-builder.js';
 import { PgAiSettingsRepository } from './features/ai-settings/ai-settings.repository.pg.js';
 import { PgNotificationPreferencesRepository } from './features/notifications/notification-preferences.repository.pg.js';
 // Signed-in devices (feature guide G6, ADR-047)
@@ -200,6 +202,7 @@ export interface AppContainer {
   notificationPreferencesService: NotificationPreferencesService;
   aiReportsService: AiReportsService;
   aiSettingsService: AiSettingsService;
+  aiAssistantService: AiAssistantService;
   sessionsService: SessionsService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
@@ -392,6 +395,24 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   // AI settings and the durable AI consent (AI-2); independent of the kill switch.
   const aiSettingsService =
     overrides?.aiSettingsService ?? new AiSettingsService(new PgAiSettingsRepository(pgPool));
+  // Assistant turns with server-side context (AI-2b): domain readers only,
+  // never notes or Money; context only after the durable consent.
+  const aiAssistantService =
+    overrides?.aiAssistantService ??
+    new AiAssistantService(
+      aiService,
+      aiSettingsService,
+      new AiContextBuilder(
+        {
+          tasks: taskReader,
+          habitsToday: habitReader,
+          habits: habitsService,
+          goals: goalsService,
+          calendar: calendarReader
+        },
+        clock
+      )
+    );
   const sessionsService =
     overrides?.sessionsService ??
     new SessionsService(
@@ -468,6 +489,7 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     notificationPreferencesService,
     aiReportsService,
     aiSettingsService,
+    aiAssistantService,
     sessionsService,
     resetRequestStore
   };

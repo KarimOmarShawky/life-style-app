@@ -100,8 +100,10 @@ Future<_FakeOpener> _pumpProfile(
 }
 
 Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
-  await tester.scrollUntilVisible(finder, 120,
-      scrollable: find.byType(Scrollable).first);
+  // The entry sits near the end of Profile: at 200% text the list is longer
+  // than 50 steps of 120 px, so take larger steps (still under one screen).
+  await tester.scrollUntilVisible(finder, 300,
+      scrollable: find.byType(Scrollable).first, maxScrolls: 100);
   // ensureVisible jumps without a frame; lay out before checking.
   await tester.pumpAndSettle();
   expect(tester.takeException(), isNull);
@@ -243,8 +245,7 @@ void main() {
     expect(find.text(en.privacyPolicyTitle), findsNothing);
   });
 
-  testWidgets('Privacy policy entry: Arabic at 200% text (G7)',
-      (tester) async {
+  testWidgets('Privacy policy entry: Arabic at 200% text (G7)', (tester) async {
     final semantics = tester.ensureSemantics();
     const ar = AppLocalizations(Locale('ar'));
     final opener = await _pumpProfile(

@@ -4,7 +4,11 @@
 > `arena/04c63949-life-style-app` (PR #32). It is not legal advice and not yet in force.
 > Before publishing: fill every `[…]` placeholder, choose one of the two Gemini paragraphs
 > in section 4, have it reviewed, and host it at a public, non-PDF URL. The same URL goes into
-> Play Console (App content → Privacy policy) and should be linked from the app later.
+> Play Console (App content → Privacy policy) and into the `android-release` variable
+> `ANDROID_PRIVACY_POLICY_URL`; the signed build then shows it in Profile → Privacy policy
+> (`docs/mobile/build-preparation.md`). A Google Docs copy of this draft and of the
+> account-deletion page (`docs/store/data-safety-draft.md`, section 5) is in the owner's Drive
+> (2026-11-12); publish those with File → Share → Publish to web.
 > Keep personal details out of this public repository; fill them in only in the published copy.
 
 Effective date: [date] · Developer: [developer name] · Contact: [contact email]

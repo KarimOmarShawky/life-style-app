@@ -1,7 +1,9 @@
 package com.example.lifestyle_mobile
 
 import android.app.NotificationManager
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
@@ -40,8 +42,8 @@ class MainActivity : FlutterActivity() {
         focusShieldBridge = FocusShieldBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         accountArchiveBridge = AccountArchiveBridge(this, flutterEngine.dartExecutor.binaryMessenger)
 
-        // Shared native bridge: retired-wallet cleanup and subscription
-        // reminders. The channel keeps its legacy name (pinned by the
+        // Shared native bridge: retired-wallet cleanup, subscription reminders
+        // and opening https pages in the browser. The channel keeps its legacy name (pinned by the
         // reminder/wallet contract tests); the voice feature that lent it
         // the name was removed — nothing here records or transcribes audio.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -82,6 +84,26 @@ class MainActivity : FlutterActivity() {
                             result.success(null)
                         } catch (_: Exception) {
                             result.error("REMINDER_UNAVAILABLE", "Subscription reminders are unavailable", null)
+                        }
+                    }
+                    // The Play-required privacy policy opens in the user's browser
+                    // through a plain view intent: no in-app browser, no new library.
+                    "openHttpsUrl" -> {
+                        val url = call.argument<String>("url")
+                        if (url == null || !HttpsLink.isOpenable(url)) {
+                            result.error("LINK_INVALID", "Only https links can be opened", null)
+                        } else {
+                            try {
+                                startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(url).normalizeScheme())
+                                        .addCategory(Intent.CATEGORY_BROWSABLE)
+                                )
+                                result.success(null)
+                            } catch (_: ActivityNotFoundException) {
+                                result.error("LINK_UNAVAILABLE", "No app can open this link", null)
+                            } catch (_: SecurityException) {
+                                result.error("LINK_UNAVAILABLE", "No app can open this link", null)
+                            }
                         }
                     }
                     else -> result.notImplemented()

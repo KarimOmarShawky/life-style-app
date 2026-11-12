@@ -302,6 +302,10 @@ const Map<String, String> deCatalog = {
   'archiveDownload': 'Herunterladen und prüfen',
   'archiveSave': 'Ziel wählen und speichern',
   'accountExportTitle': 'Kontometadaten exportieren (JSON)',
+  'privacyPolicyTitle': 'Datenschutzerklärung',
+  'privacyPolicySubtitle': 'Wird im Browser geöffnet',
+  'privacyPolicyOpenFailed':
+      'Die Datenschutzerklärung konnte nicht geöffnet werden. Prüfe, ob ein Browser installiert ist.',
   'accountExportReady': 'Export der Kontometadaten bereit',
   'accountExportPrivacy':
       'Dies ist ein reiner Metadaten-Export, kein vollständiges Archiv von Aufgaben, Notizen, Finanzen oder anderen Anwendungsdaten. Das Kopieren ist optional und kann deine persönlichen Kontometadaten anderen Apps, Tastaturen, dem Zwischenablageverlauf oder synchronisierten Geräten aussetzen. Kopien in der Zwischenablage werden von LifeStyle nicht automatisch gelöscht und können nach dem Schließen dieses Bildschirms bestehen bleiben.',

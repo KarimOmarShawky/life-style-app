@@ -117,6 +117,9 @@ class AppLocalizations {
   String get archiveDownload => _s('archiveDownload');
   String get archiveSave => _s('archiveSave');
   String get accountExportTitle => _s('accountExportTitle');
+  String get privacyPolicyTitle => _s('privacyPolicyTitle');
+  String get privacyPolicySubtitle => _s('privacyPolicySubtitle');
+  String get privacyPolicyOpenFailed => _s('privacyPolicyOpenFailed');
   String get accountExportReady => _s('accountExportReady');
   String get accountExportPrivacy => _s('accountExportPrivacy');
   String get accountExportAcknowledge => _s('accountExportAcknowledge');

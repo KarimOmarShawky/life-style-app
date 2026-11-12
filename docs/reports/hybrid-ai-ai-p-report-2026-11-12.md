@@ -106,6 +106,8 @@ certificates from Node); it has never run against a real bundle.
   policy in Play Console **and inside the app**. The app has no link today, and opening a URL
   needs either a new dependency (`url_launcher`, ADR-039) or a small Android intent in the
   existing platform channel. Owner decision needed (see section 8).
+  *Update 2026-11-12:* decided (Android intent) and implemented on this branch: Profile →
+  Privacy policy, link from the `android-release` variable `ANDROID_PRIVACY_POLICY_URL`.
 - **AI-P-F6 (owner).** The Data safety answer "shared with Google" depends on the Gemini
   billing tier: unpaid = shared (Google may use the content), paid = processed on our behalf.
 - **AI-P-F7 (owner).** The 12-month security-log deletion runs only when

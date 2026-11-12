@@ -11,6 +11,33 @@ abstract final class AppConfig {
   // traffic to the production host.
   static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
 
+  // Google Play requires a privacy-policy link inside the app. Signed builds
+  // get the published page from CI (android-release variable
+  // ANDROID_PRIVACY_POLICY_URL); the repository holds no URL. Without it the
+  // Profile hides the link.
+  static const privacyPolicyUrl = String.fromEnvironment('PRIVACY_POLICY_URL');
+
+  static Uri? get privacyPolicyUri => httpsLinkOrNull(privacyPolicyUrl);
+
+  /// The link as a plain absolute https URL, or null (other schemes, user
+  /// info, spaces or more than 2048 characters).
+  static Uri? httpsLinkOrNull(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty ||
+        value.length > 2048 ||
+        value.contains(RegExp(r'[\s\x00-\x1f\x7f]'))) {
+      return null;
+    }
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      return null;
+    }
+    return uri;
+  }
+
   static Uri get apiBaseUri {
     final configured = apiBaseUrl.trim();
     if (configured.isEmpty) {

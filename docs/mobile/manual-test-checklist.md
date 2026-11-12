@@ -324,6 +324,8 @@ Profile → AI help for Smart Quick Add.
 - [ ] **AIP-7** More than 10 reports within an hour: "Couldn't send the report. Try again later." and the sheet stays open.
 - [ ] **AIP-8** Arabic at the largest font on a small phone: the report sheet and the age question have no clipped text and run right to left; TalkBack reads the flag as "الإبلاغ عن الرد", each reason, the checkbox and the note field.
 - [ ] **AIP-9** Profile → Export account metadata (JSON): the export contains `aiContentReports` with your reports (the domain archive leaves them out by design). After the account is deleted, the owner query for that account returns 0 rows.
+- [ ] **PP-1** Signed build (with `ANDROID_PRIVACY_POLICY_URL`): Profile → Privacy policy opens the published page in the browser, in Arabic and English, also at 200% text. With every browser disabled, the app shows "Couldn't open the privacy policy…" and stays open. A debug build shows no Privacy policy entry.
+- [ ] **DEL-1** Deletion request by email (rehearse on a Neon branch with a test account): run `docs/auth/sql/schedule-account-deletion-on-request.sql` as in `docs/auth/account-deletion-requests.md`. The test phone is signed out; signing in shows the deletion banner and cancelling restores the account.
 
 ### Quick regression
 

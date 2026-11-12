@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/core/links/external_link_opener.dart';
 import 'package:lifestyle_mobile/data/ai_task_parsing_pref.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
 import 'package:lifestyle_mobile/data/settings_provider.dart';
@@ -308,6 +309,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _openPrivacyPolicy(BuildContext context, Uri link) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final failure = AppLocalizations.of(context).privacyPolicyOpenFailed;
+    final opened = await ref.read(externalLinkOpenerProvider).open(link);
+    if (!opened && mounted) {
+      messenger.showSnackBar(SnackBar(content: Text(failure)));
+    }
+  }
+
   Future<void> _handleScheduleDeletion(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -386,6 +396,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final usageStats = activeUser.productEventsEnabled;
     final aiTaskParsing =
         ref.watch(aiTaskParsingProvider).asData?.value ?? false;
+    final privacyPolicy = ref.watch(privacyPolicyUriProvider);
 
     String themeLabel = localization.themeSystem;
     if (settings.themeMode == ThemeMode.light) {
@@ -551,6 +562,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _busyAction ? null : () => _handleExportData(context),
           ),
+          // Google Play requires the policy to be reachable inside the app.
+          if (privacyPolicy != null)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: Text(localization.privacyPolicyTitle),
+              subtitle: Text(localization.privacyPolicySubtitle),
+              onTap: () => _openPrivacyPolicy(context, privacyPolicy),
+            ),
           if (!activeUser.isPendingDeletion)
             ListTile(
               contentPadding: EdgeInsets.zero,

@@ -458,6 +458,7 @@ jobs:
         env:
           API_BASE_URL: ${{ vars.ANDROID_RELEASE_API_BASE_URL }}
           ANDROID_RELEASE_CERT_SHA256: ${{ vars.ANDROID_RELEASE_CERT_SHA256 }}
+          PRIVACY_POLICY_URL: ${{ vars.ANDROID_PRIVACY_POLICY_URL }}
         run: |
           node --input-type=module <<'JS'
           try {
@@ -468,6 +469,18 @@ jobs:
             if (!/^[a-fA-F0-9]{64}$/.test((process.env.ANDROID_RELEASE_CERT_SHA256 || '').replaceAll(':', ''))) throw new Error();
           } catch {
             console.error('FAIL: configure HTTPS ANDROID_RELEASE_API_BASE_URL and public ANDROID_RELEASE_CERT_SHA256 privately in android-release settings');
+            process.exit(1);
+          }
+          // Google Play requires the privacy policy inside the app (Profile); the
+          // published page is a public android-release variable, never in the repo.
+          try {
+            const raw = process.env.PRIVACY_POLICY_URL || '';
+            const policy = new URL(raw);
+            if (raw !== raw.trim() || /\s/.test(raw) || raw.length > 2048 || policy.protocol !== 'https:' ||
+                !policy.hostname || policy.username || policy.password ||
+                policy.hostname.endsWith('.invalid')) throw new Error();
+          } catch {
+            console.error('FAIL: configure the published HTTPS privacy policy as ANDROID_PRIVACY_POLICY_URL in android-release settings');
             process.exit(1);
           }
           JS
@@ -484,11 +497,12 @@ jobs:
         working-directory: mobile-app/mobile
         env:
           API_BASE_URL: ${{ vars.ANDROID_RELEASE_API_BASE_URL }}
+          PRIVACY_POLICY_URL: ${{ vars.ANDROID_PRIVACY_POLICY_URL }}
         run: |
           flutter pub get
-          flutter build apk --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-symbols" --dart-define="API_BASE_URL=$API_BASE_URL"
-          # Google Play accepts only App Bundles for new apps; same signing config and API URL as the APK.
-          flutter build appbundle --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-bundle-symbols" --dart-define="API_BASE_URL=$API_BASE_URL"
+          flutter build apk --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-symbols" --dart-define="API_BASE_URL=$API_BASE_URL" --dart-define="PRIVACY_POLICY_URL=$PRIVACY_POLICY_URL"
+          # Google Play accepts only App Bundles for new apps; same signing config, API URL and privacy-policy link as the APK.
+          flutter build appbundle --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-bundle-symbols" --dart-define="API_BASE_URL=$API_BASE_URL" --dart-define="PRIVACY_POLICY_URL=$PRIVACY_POLICY_URL"
 
       - name: Verify signature against expected release certificate, rejecting debug identity
         env:

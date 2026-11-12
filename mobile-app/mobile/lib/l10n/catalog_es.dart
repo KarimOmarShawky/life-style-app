@@ -300,6 +300,10 @@ const Map<String, String> esCatalog = {
   'archiveDownload': 'Descargar y verificar',
   'archiveSave': 'Elegir destino y guardar',
   'accountExportTitle': 'Exportar metadatos de la cuenta (JSON)',
+  'privacyPolicyTitle': 'Política de privacidad',
+  'privacyPolicySubtitle': 'Se abre en tu navegador',
+  'privacyPolicyOpenFailed':
+      'No se pudo abrir la política de privacidad. Comprueba que tienes un navegador instalado.',
   'accountExportReady': 'Exportación de metadatos de la cuenta lista',
   'accountExportPrivacy':
       'Esta es una exportación solo de metadatos, no un archivo completo de tareas, notas, finanzas u otros datos de la aplicación. Copiar es opcional y puede exponer los metadatos de tu cuenta personal a otras apps, teclados, historial del portapapeles o dispositivos sincronizados. LifeStyle no borra automáticamente las copias del portapapeles y pueden persistir después de cerrar esta pantalla.',

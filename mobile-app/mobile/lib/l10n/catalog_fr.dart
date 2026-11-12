@@ -303,6 +303,10 @@ const Map<String, String> frCatalog = {
   'archiveDownload': 'Télécharger et vérifier',
   'archiveSave': 'Choisir la destination et enregistrer',
   'accountExportTitle': 'Exporter les métadonnées du compte (JSON)',
+  'privacyPolicyTitle': 'Politique de confidentialité',
+  'privacyPolicySubtitle': "S'ouvre dans votre navigateur",
+  'privacyPolicyOpenFailed':
+      "Impossible d'ouvrir la politique de confidentialité. Vérifiez qu'un navigateur est installé.",
   'accountExportReady': 'Exportation des métadonnées du compte prête',
   'accountExportPrivacy':
       'Il s’agit d’une exportation de métadonnées uniquement, et non d’une archive complète des tâches, notes, finances ou autres données. La copie est facultative et peut exposer vos métadonnées personnelles à d’autres applications, claviers, à l’historique du presse-papiers ou à des appareils synchronisés. Les copies dans le presse-papiers ne sont pas effacées automatiquement par LifeStyle et peuvent persister après la fermeture de cet écran.',

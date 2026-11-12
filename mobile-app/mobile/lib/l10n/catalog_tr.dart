@@ -297,6 +297,10 @@ const Map<String, String> trCatalog = {
   'archiveDownload': 'İndir ve doğrula',
   'archiveSave': 'Hedef seç ve kaydet',
   'accountExportTitle': 'Hesap meta verilerini dışa aktar (JSON)',
+  'privacyPolicyTitle': 'Gizlilik politikası',
+  'privacyPolicySubtitle': 'Tarayıcınızda açılır',
+  'privacyPolicyOpenFailed':
+      'Gizlilik politikası açılamadı. Bir tarayıcının yüklü olduğundan emin olun.',
   'accountExportReady': 'Hesap meta veri aktarımı hazır',
   'accountExportPrivacy':
       'Bu, görevlerin, notların, finansın veya diğer uygulama verilerinin tam arşivi değil, yalnızca meta veri aktarımıdır. Kopyalama isteğe bağlıdır ve kişisel hesap meta verilerinizi diğer uygulamalara, klavyelere, pano geçmişine veya senkronize edilmiş cihazlara açabilir. Pano kopyaları LifeStyle tarafından otomatik olarak temizlenmez ve bu ekranı kapattıktan sonra da kalabilir.',

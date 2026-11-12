@@ -59,3 +59,22 @@ test('signed release job builds, verifies and uploads the App Bundle next to the
   const verifyIndex = job.steps.findIndex((step) => String(step.run || '').includes('verify-android-aab.mjs'));
   assert.ok(verifyIndex > -1 && verifyIndex < job.steps.indexOf(bundle), names.join(' | '));
 });
+
+test('signed builds embed the published privacy-policy link, validated before signing (YAML source, not hosted run)', () => {
+  const require = createRequire(new URL('../backend/package.json', import.meta.url));
+  const yaml = require('js-yaml');
+  const job = yaml.load(readFileSync('.github/workflows/ci.yml', 'utf8')).jobs['android-signed-release'];
+  const variable = '${{ vars.ANDROID_PRIVACY_POLICY_URL }}';
+  const validate = job.steps.findIndex((step) => step.env?.PRIVACY_POLICY_URL === variable && /policy\.protocol !== 'https:'/.test(step.run || ''));
+  const signing = job.steps.findIndex((step) => String(step.run || '').includes('prepare-android-signing.mjs'));
+  const build = job.steps.findIndex((step) => /flutter build appbundle/.test(step.run || ''));
+  assert.ok(validate > -1 && validate < signing && signing < build, 'validated before signing and building');
+  assert.equal(job.steps[build].env.PRIVACY_POLICY_URL, variable);
+  const builds = job.steps[build].run.split('\n').filter((line) => /^\s*flutter build (apk|appbundle) /.test(line));
+  assert.equal(builds.length, 2);
+  for (const line of builds) assert.match(line, /--dart-define="PRIVACY_POLICY_URL=\$PRIVACY_POLICY_URL"/);
+  // The link is never written into the repository.
+  const config = readFileSync('mobile-app/mobile/lib/config/app_config.dart', 'utf8');
+  assert.match(config, /String\.fromEnvironment\('PRIVACY_POLICY_URL'\)/);
+  assert.doesNotMatch(config, /PRIVACY_POLICY_URL',\s*defaultValue/);
+});

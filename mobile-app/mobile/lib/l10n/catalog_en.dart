@@ -31,6 +31,10 @@ const Map<String, String> enCatalog = {
   'archiveDownload': 'Download and verify',
   'archiveSave': 'Choose destination and save',
   'accountExportTitle': 'Export account metadata (JSON)',
+  'privacyPolicyTitle': 'Privacy policy',
+  'privacyPolicySubtitle': 'Opens in your browser',
+  'privacyPolicyOpenFailed':
+      "Couldn't open the privacy policy. Check that a browser is installed.",
   'accountExportReady': 'Account metadata export ready',
   'accountExportPrivacy':
       'This is a metadata-only export, not a complete archive of tasks, notes, finances or other application data. Copying is optional and may expose your personal account metadata to other apps, keyboards, clipboard history or synced devices. Clipboard copies are not automatically cleared by LifeStyle and may persist after you close this screen.',

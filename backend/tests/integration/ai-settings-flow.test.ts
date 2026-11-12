@@ -138,27 +138,40 @@ describe('AI settings and consent (AI-2) on PostgreSQL', () => {
     ).toBe(0);
   });
 
-  it('before the owner SQL: reading shows the defaults, saving answers 503', async () => {
-    const { tokens } = await register('before-settings-sql@example.com');
+  /**
+   * Runs one request against an app whose AI-settings repository cannot see
+   * the table, as on a database without the owner SQL. Each call gets its own
+   * transaction: after the expected 42P01 the transaction is aborted, so two
+   * requests must never share one.
+   */
+  async function withoutTable<T>(run: (target: ReturnType<typeof createApp>) => Promise<T>) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      // Hide the table as on a database without the SQL: with only pg_catalog
-      // on the search path, PostgreSQL itself answers 42P01.
+      // With only pg_catalog on the search path, PostgreSQL itself answers
+      // 42P01 (relation does not exist).
       await client.query('SET LOCAL search_path = pg_catalog');
-      const withoutTable = createApp({
-        aiSettingsService: new AiSettingsService(new PgAiSettingsRepository(client))
-      });
-      const shown = await read(tokens.accessToken, withoutTable);
-      expect(shown.status).toBe(200);
-      expect(shown.body.data.available).toBe(false);
-      expect(shown.body.data.settings.egressConsentVersion).toBeNull();
-      const saved = await patch(tokens.accessToken, { memoryEnabled: true }, withoutTable);
-      expect(saved.status).toBe(503);
-      expect(saved.body.error?.code ?? saved.body.code).toBe('AI_SETTINGS_UNAVAILABLE');
+      return await run(
+        createApp({
+          aiSettingsService: new AiSettingsService(new PgAiSettingsRepository(client))
+        })
+      );
     } finally {
       await client.query('ROLLBACK');
       client.release();
     }
+  }
+
+  it('before the owner SQL: reading shows the defaults, saving answers 503', async () => {
+    const { tokens } = await register('before-settings-sql@example.com');
+    const shown = await withoutTable((target) => read(tokens.accessToken, target));
+    expect(shown.status).toBe(200);
+    expect(shown.body.data.available).toBe(false);
+    expect(shown.body.data.settings.egressConsentVersion).toBeNull();
+    const saved = await withoutTable((target) =>
+      patch(tokens.accessToken, { memoryEnabled: true }, target)
+    );
+    expect(saved.status).toBe(503);
+    expect(saved.body.error?.code ?? saved.body.code).toBe('AI_SETTINGS_UNAVAILABLE');
   });
 });

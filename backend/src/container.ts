@@ -127,6 +127,14 @@ import { SearchService } from './features/search/search.service.js';
 import { ProductEventsService } from './features/product-events/product-events.service.js';
 import { PgProductEventsRepository } from './features/product-events/product-events.repository.pg.js';
 import { NotificationPreferencesService } from './features/notifications/notification-preferences.service.js';
+import { AiReportsService } from './features/ai-reports/ai-reports.service.js';
+import { PgAiReportsRepository } from './features/ai-reports/ai-reports.repository.pg.js';
+import { AiSettingsService } from './features/ai-settings/ai-settings.service.js';
+import { AiAssistantService } from './features/ai/application/ai-assistant.service.js';
+import { AiContextBuilder } from './features/ai/application/ai-context-builder.js';
+import { PgAiSettingsRepository } from './features/ai-settings/ai-settings.repository.pg.js';
+import { AiMemoriesService } from './features/ai-memories/ai-memories.service.js';
+import { PgAiMemoriesRepository } from './features/ai-memories/ai-memories.repository.pg.js';
 import { PgNotificationPreferencesRepository } from './features/notifications/notification-preferences.repository.pg.js';
 // Signed-in devices (feature guide G6, ADR-047)
 import { SessionsService } from './features/sessions/sessions.service.js';
@@ -135,7 +143,7 @@ import { PgPasswordResetRequestStore } from './features/auth/password-reset-requ
 import type { ResetRequestStore } from './core/security/reset-request-store.js';
 // AI assistant proxy (server-side Gemini, central key)
 import { AiService } from './features/ai/ai.service.js';
-import { FetchGeminiClient } from './features/ai/gemini-client.js';
+import { createAiProvider } from './features/ai/providers/provider-registry.js';
 import { getEnv } from './config/env.js';
 import { logger } from './core/logger/logger.js';
 
@@ -194,6 +202,10 @@ export interface AppContainer {
   searchService: SearchService;
   productEventsService: ProductEventsService;
   notificationPreferencesService: NotificationPreferencesService;
+  aiReportsService: AiReportsService;
+  aiSettingsService: AiSettingsService;
+  aiMemoriesService: AiMemoriesService;
+  aiAssistantService: AiAssistantService;
   sessionsService: SessionsService;
   remindersRepository: RemindersRepository;
   remindersService: RemindersService;
@@ -359,13 +371,12 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const aiService =
     overrides?.aiService ??
     new AiService(
-      env.GEMINI_API_KEY.trim() !== ''
-        ? new FetchGeminiClient({
-            apiKey: env.GEMINI_API_KEY,
-            model: env.GEMINI_MODEL,
-            timeoutMs: env.AI_UPSTREAM_TIMEOUT_MS
-          })
-        : null,
+      createAiProvider({
+        provider: env.AI_PROVIDER,
+        geminiApiKey: env.GEMINI_API_KEY,
+        geminiModel: env.GEMINI_MODEL,
+        timeoutMs: env.AI_UPSTREAM_TIMEOUT_MS
+      }),
       env.AI_ENABLED
     );
   if (env.AI_ENABLED && env.GEMINI_API_KEY.trim() === '') {
@@ -381,6 +392,34 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
   const notificationPreferencesService =
     overrides?.notificationPreferencesService ??
     new NotificationPreferencesService(new PgNotificationPreferencesRepository(pgPool));
+  // In-app reports of AI output (AI-P); independent of the AI kill switch.
+  const aiReportsService =
+    overrides?.aiReportsService ?? new AiReportsService(new PgAiReportsRepository(pgPool), clock);
+  // AI settings and the durable AI consent (AI-2); independent of the kill switch.
+  const aiSettingsService =
+    overrides?.aiSettingsService ?? new AiSettingsService(new PgAiSettingsRepository(pgPool));
+  // Explicit AI memory (AI-3); reviewing and deleting work with the kill switch off.
+  const aiMemoriesService =
+    overrides?.aiMemoriesService ?? new AiMemoriesService(new PgAiMemoriesRepository(pgPool));
+  // Assistant turns with server-side context (AI-2b): domain readers only,
+  // never notes or Money; context only after the durable consent.
+  const aiAssistantService =
+    overrides?.aiAssistantService ??
+    new AiAssistantService(
+      aiService,
+      aiSettingsService,
+      new AiContextBuilder(
+        {
+          tasks: taskReader,
+          habitsToday: habitReader,
+          habits: habitsService,
+          goals: goalsService,
+          calendar: calendarReader
+        },
+        clock
+      ),
+      aiMemoriesService
+    );
   const sessionsService =
     overrides?.sessionsService ??
     new SessionsService(
@@ -455,6 +494,10 @@ export function buildContainer(overrides?: Partial<AppContainer>): AppContainer 
     searchService,
     productEventsService,
     notificationPreferencesService,
+    aiReportsService,
+    aiSettingsService,
+    aiMemoriesService,
+    aiAssistantService,
     sessionsService,
     resetRequestStore
   };

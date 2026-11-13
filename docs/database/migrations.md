@@ -60,9 +60,16 @@ the migration body. The code must degrade safely until the owner applies the fil
 | `1792750000000_product_events_and_onboarding` (G5/G1) | `docs/analytics/sql/product-events-and-onboarding.sql` | No onboarding prompt; events answer `recorded: false`; purge/export skip the absent table |
 | `1792760000000_notification_preferences` (G2) | `docs/notifications/sql/notification-preferences.sql` | Settings read as the defaults with `available: false`; saving answers 503 `NOTIFICATION_PREFERENCES_UNAVAILABLE`; the worker uses the defaults; purge/export skip the absent table |
 | `1792770000000_auth_sessions_user_revoked` (G6) | `docs/auth/sql/auth-sessions-user-revoked.sql` | Signing a device out still works; the session is stored with reason `logout` instead of `user_revoked` |
+| `1792780000000_ai_content_reports` (AI-P) | `docs/ai/sql/ai-content-reports.sql` | Reports of AI output answer 503 `AI_REPORTS_UNAVAILABLE`; purge/export skip the absent table |
+| `1792790000000_ai_user_settings` (AI-2) | `docs/ai/sql/ai-user-settings.sql` | AI settings read as the defaults with `available: false` (no durable consent); saving answers 503 `AI_SETTINGS_UNAVAILABLE`; purge/export skip the absent table |
+| `1792800000000_ai_memory_items` (AI-3) | `docs/ai/sql/ai-memory-items.sql` (after the AI-2 file) | The memory list is empty with `available: false`; saving, editing and deleting answer 503 `AI_MEMORY_UNAVAILABLE`; the assistant uses no memories; export and purge skip the absent table |
 
-Production status (owner-reported, 2026-11-11): all three files are applied, G5
-first and then G2 and G6, each after a rehearsal on a Neon branch.
+Production status (owner-reported, 2026-11-11): the G5, G2 and G6 files are applied,
+G5 first and then G2 and G6, each after a rehearsal on a Neon branch.
+
+Production status (owner-reported, 2026-11-13): the AI-P, AI-2 and AI-3 files are
+applied too, in that order, after a rehearsal on the Neon branch `ai-rehearsal`. Nothing
+writes to these tables until a backend from PR #32 is deployed.
 
 Rehearse every owner SQL file on a Neon branch of production first, then run it once
 on production. The restricted-role rehearsal in CI applies it after the runtime role

@@ -30,8 +30,20 @@ export interface AiChatRequestBody {
 /** Validated request handed to the service layer. */
 export interface AiChatInput {
   messages: AiChatTurn[];
-  languageName: string;
+  /** The client's sanitized language name, or null when it sent none. */
+  languageHint: string | null;
   mode: AiReplyMode;
+}
+
+/** Server-side context for one AI call (never taken from the request body). */
+export interface AiCallOptions {
+  signal?: AbortSignal;
+  /** Account locale, the third choice for the fallback reply language. */
+  userLocale?: string;
+  /** AI-2 language mode app_locale: always reply in this language (e.g. "German"). */
+  fixedReplyLanguage?: string;
+  /** AI-2b app context for the latest message, framed as data (see AiProviderInput). */
+  contextData?: string;
 }
 
 export const AI_LIMITS = {

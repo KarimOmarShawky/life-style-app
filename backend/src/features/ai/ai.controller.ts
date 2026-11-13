@@ -9,6 +9,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../../core/errors/app-error.js';
+import type { AuthenticatedUserContext } from '../../core/security/session-validator.js';
 import { AiService, mapAiProviderError, validateAiChatBody } from './ai.service.js';
 
 export class AiController {
@@ -16,9 +17,9 @@ export class AiController {
 
   public chat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      this.requireUser(req);
+      const user = this.requireUser(req);
       const input = validateAiChatBody(req.body);
-      const result = await this.aiService.chat(input);
+      const result = await this.aiService.chat(input, { userLocale: user.locale });
       res.status(200).json(result);
     } catch (err) {
       next(err instanceof AppError ? err : mapAiProviderError(err));
@@ -28,10 +29,10 @@ export class AiController {
   public chatStream = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const abort = new AbortController();
     try {
-      this.requireUser(req);
+      const user = this.requireUser(req);
       const input = validateAiChatBody(req.body);
 
-      // Abort the upstream Gemini call as soon as the client goes away.
+      // Abort the upstream provider call as soon as the client goes away.
       req.on('close', () => abort.abort());
 
       res.status(200);
@@ -40,7 +41,10 @@ export class AiController {
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
 
-      for await (const chunk of this.aiService.chatStream(input, abort.signal)) {
+      for await (const chunk of this.aiService.chatStream(input, {
+        signal: abort.signal,
+        userLocale: user.locale
+      })) {
         if (abort.signal.aborted) break;
         res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
       }
@@ -58,6 +62,7 @@ export class AiController {
         // The stream already started, so the JSON error envelope can no
         // longer be used. Terminate with an error event the client maps to
         // its generic failure state; no provider details are included.
+        mapAiProviderError(err); // logs the failure kind only, never content
         res.write(`data: ${JSON.stringify({ error: 'stream_failed' })}\n\n`);
         res.end();
         return;
@@ -66,9 +71,10 @@ export class AiController {
     }
   };
 
-  private requireUser(req: Request): void {
+  private requireUser(req: Request): AuthenticatedUserContext {
     if (!req.user) {
       throw AppError.unauthenticated('Authentication required', 'UNAUTHENTICATED');
     }
+    return req.user;
   }
 }

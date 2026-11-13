@@ -37,6 +37,9 @@ import { createDaysRouter } from './features/days/days.routes.js';
 import { createDashboardRouter } from './features/dashboard/dashboard.routes.js';
 import { createAnalyticsRouter } from './features/analytics/analytics.routes.js';
 import { createAiRouter } from './features/ai/ai.routes.js';
+import { createAiReportsRouter } from './features/ai-reports/ai-reports.routes.js';
+import { createAiSettingsRouter } from './features/ai-settings/ai-settings.routes.js';
+import { createAiMemoriesRouter } from './features/ai-memories/ai-memories.routes.js';
 import { createSearchRouter } from './features/search/search.routes.js';
 import { createProductEventsRouter } from './features/product-events/product-events.routes.js';
 import { createNotificationPreferencesRouter } from './features/notifications/notification-preferences.routes.js';
@@ -284,6 +287,39 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
       rateLimiter: container.rateLimiter
     })
   );
+  // In-app reports of AI output (AI-P, Google Play AI-Generated Content
+  // policy): auth + strict Zod + 10 / hour and 30 / day per user. Mounted
+  // before the AI router so reporting works while the AI kill switch is off.
+  v1Router.use(
+    '/ai/reports',
+    createAiReportsRouter({
+      service: container.aiReportsService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  // AI settings and the durable AI consent (Hybrid AI AI-2): auth + strict
+  // Zod + 30 / 60 s per user. Mounted before the AI router so the settings
+  // work while the AI kill switch is off and never use the chat quotas.
+  v1Router.use(
+    '/ai/settings',
+    createAiSettingsRouter({
+      service: container.aiSettingsService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
+  // Explicit AI memory (Hybrid AI AI-3): auth + strict Zod + 30 / 60 s per
+  // user. Mounted before the AI router so memories can be reviewed and
+  // deleted while the AI kill switch is off; never uses the chat quotas.
+  v1Router.use(
+    '/ai/memories',
+    createAiMemoriesRouter({
+      service: container.aiMemoriesService,
+      authenticate: container.authenticate,
+      rateLimiter: container.rateLimiter
+    })
+  );
   v1Router.use(
     '/ai',
     createAiRouter({
@@ -291,7 +327,8 @@ export function createApp(containerOverrides?: Partial<AppContainer>): Express {
       authenticate: container.authenticate,
       rateLimiter: container.rateLimiter,
       minuteLimit: env.AI_USER_MINUTE_LIMIT,
-      dailyLimit: env.AI_USER_DAILY_LIMIT
+      dailyLimit: env.AI_USER_DAILY_LIMIT,
+      assistant: container.aiAssistantService
     })
   );
   v1Router.use(

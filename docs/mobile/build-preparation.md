@@ -22,13 +22,35 @@ The user has Windows and an ordinary Android phone. They do not need to install 
 Configure through repository/environment settings, not conversation:
 
 - Secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, from an existing approved release key. The helper never generates a release identity.
-- Variables: `ANDROID_RELEASE_API_BASE_URL` (explicit HTTPS API ending in `/api/v1`, not the offline `.invalid` endpoint) and `ANDROID_RELEASE_CERT_SHA256` (expected public signing-certificate SHA-256, 64 hex characters; colon separators accepted).
+- Variables: `ANDROID_RELEASE_API_BASE_URL` (explicit HTTPS API ending in `/api/v1`, not the offline `.invalid` endpoint) and `ANDROID_RELEASE_CERT_SHA256` (expected public signing-certificate SHA-256, 64 hex characters; colon separators accepted), and `ANDROID_PRIVACY_POLICY_URL` (the published privacy policy, absolute HTTPS; Google Play requires it inside the app). The job fails before signing when one is missing. The policy link is passed to both builds as `--dart-define=PRIVACY_POLICY_URL` and opens from Profile → Privacy policy; builds without it (debug, local) hide that entry.
 
 The helper validates presence/base64/bounds, refuses existing `android/key.properties`, uses exclusive private files (directory 0700; properties/keystore 0600 on the Linux runner), escapes Java Properties including Unicode/newlines/backslashes, and puts the keystore in a unique runner temporary directory. It prints no signing values. Gradle cache export is disabled in this signing job. Only the APK and separate obfuscation symbols are uploaded, never the keystore, properties or entire workspace. Cleanup targets only the files created by that job, even on failure; it does not delete a user's existing signing configuration. Ignored `*.jks`, `*.keystore`, `key.properties` and `*.hprof` must not enter source packaging; the patch packager also rejects forced private-file inventory entries.
 
 Release build uses `--obfuscate --split-debug-info` outside source, with matching symbols preserved separately. Obfuscation is not encryption, credential protection, or proof that a binary contains no sensitive material. Keep symbols paired with the matching APK for debugging and subject to repository access control. These temporary CI artifacts use a seven-day lifetime, not an application-user-data deletion policy.
 
 Before upload, `verify-android-apk.mjs` invokes the actual Android SDK `lib/apksigner.jar` through Java without a shell (also avoiding Windows `.bat` quoting problems). The command must succeed, report exactly one signer and provide its SHA-256 digest; release rejects the debug identity and any missing/unexpected public certificate. Debug verification requires the explicit Android debug identity. Certificate-parser regressions do not substitute for executing this against a built APK.
+
+### App Bundle for Google Play (added 2026-11-12, slice AI-P release prep; hosted execution NOT RUN)
+
+Google Play accepts only Android App Bundles for new apps. The same signed job now also runs
+`flutter build appbundle --release --obfuscate --split-debug-info="$RUNNER_TEMP/lifestyle-bundle-symbols"`
+with the same signing configuration and API URL. `scripts/verify-android-aab.mjs` checks the
+bundle before upload. It runs the JDK's `jarsigner -verify` (App Bundles carry a JAR signature,
+so apksigner does not apply), then `keytool -printcert -rfc -jarfile`. It requires exactly one
+signer certificate, equal to `ANDROID_RELEASE_CERT_SHA256` and not the debug identity. Only
+fixed stage names are printed. Artifacts:
+
+- `lifestyle-android-signed-bundle`: `app-release.aab`, uploaded by hand in Play Console →
+  Testing → Closed testing → Create release;
+- `lifestyle-android-bundle-symbols`: the bundle's own obfuscation symbols (the APK's stay in
+  `lifestyle-android-release-symbols`; the two builds are obfuscated separately);
+- `lifestyle-android-signed-release`: the APK, unchanged, for side-loading on test phones.
+
+With Play App Signing, the key in `android-release` is the **upload key**: Google re-signs for
+users. `ANDROID_RELEASE_CERT_SHA256` is therefore the upload certificate. The package name is
+checked on the APK from the same job (`com.lifestyle.app`); Play rejects a bundle whose package
+or version code does not fit the app. Raise the version code in `pubspec.yaml` (`1.0.1+1` → `+2`
+…) for every upload.
 
 ## Honest reset-request copy
 

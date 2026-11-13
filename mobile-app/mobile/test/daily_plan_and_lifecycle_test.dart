@@ -55,6 +55,37 @@ class _RecordingTransport implements AiTransport {
   }
 }
 
+/// Fails while [failing] is true, otherwise answers 'Pong' (AI1-F2 tests).
+class _SwitchableTransport implements AiTransport {
+  bool failing = true;
+  int calls = 0;
+
+  @override
+  Future<String> chat({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    required AiReplyMode mode,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    calls++;
+    if (failing) throw const AiTransportException('unavailable');
+    return 'Pong';
+  }
+
+  @override
+  Stream<String> chatStream({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    calls++;
+    if (failing) throw const AiTransportException('unavailable');
+    yield 'Pong';
+  }
+}
+
 class _MemoryTokenStore implements TokenStore {
   _MemoryTokenStore(this.tokens);
 
@@ -125,6 +156,71 @@ void main() {
 
       service.resetFailureCount();
       expect(service.isPaused, isFalse);
+    });
+
+    test('AI1-F2: the pause lifts after 10 minutes and one request may retry',
+        () async {
+      var now = DateTime.utc(2026, 11, 12, 9);
+      final transport = _RecordingTransport(
+        error: const AiTransportException('unavailable'),
+      );
+      final service = AiService.forTesting(
+        transport: transport,
+        clock: () => now,
+      );
+      Future<String> ping() => service.sendMessage(
+            conversationHistory: const <ChatMessage>[],
+            newMessage: 'Ping',
+            languageName: 'English',
+          );
+
+      for (var i = 0; i < AiService.maxConsecutiveFailures; i++) {
+        await ping();
+      }
+      expect(service.isPaused, isTrue);
+      now = now.add(const Duration(minutes: 9, seconds: 59));
+      expect(service.isPaused, isTrue);
+      await ping();
+      expect(transport.calls, 3);
+
+      now = now.add(const Duration(seconds: 1));
+      expect(service.isPaused, isFalse);
+      // The retry fails: paused again for another 10 minutes.
+      await ping();
+      expect(transport.calls, 4);
+      expect(service.isPaused, isTrue);
+
+      // A clock set backwards does not stretch the pause.
+      now = now.subtract(const Duration(hours: 1));
+      expect(service.isPaused, isFalse);
+    });
+
+    test('AI1-F2: a success after the pause clears the failure count',
+        () async {
+      var now = DateTime.utc(2026, 11, 12, 9);
+      final transport = _SwitchableTransport();
+      final service = AiService.forTesting(
+        transport: transport,
+        clock: () => now,
+      );
+      Future<String> ping() => service.sendMessage(
+            conversationHistory: const <ChatMessage>[],
+            newMessage: 'Ping',
+            languageName: 'English',
+          );
+      for (var i = 0; i < AiService.maxConsecutiveFailures; i++) {
+        await ping();
+      }
+      expect(service.isPaused, isTrue);
+
+      now = now.add(AiService.pauseDuration);
+      transport.failing = false;
+      expect(await ping(), 'Pong');
+      // The count started again at zero: one new failure does not pause.
+      transport.failing = true;
+      await ping();
+      expect(service.isPaused, isFalse);
+      expect(transport.calls, 5);
     });
   });
 

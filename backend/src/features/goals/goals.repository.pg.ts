@@ -167,7 +167,11 @@ export class PgGoalsRepository implements GoalsRepository {
       query = query.where('progress_type', '=', filter.progressType);
     }
 
-    const rows = (await query.orderBy('created_at', 'desc').execute()) as unknown as GoalDbRow[];
+    let ordered = query.orderBy('created_at', 'desc');
+    if (filter.limit !== undefined) {
+      ordered = ordered.limit(filter.limit);
+    }
+    const rows = (await ordered.execute()) as unknown as GoalDbRow[];
 
     return rows.map(toGoalEntity);
   }

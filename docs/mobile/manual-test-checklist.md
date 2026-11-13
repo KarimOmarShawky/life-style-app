@@ -306,6 +306,51 @@ out still works; the server stores the reason `logout` instead.
 - [ ] **P1-15** Profile → rank card shows level and XP that change after completing a focus session or task on this phone, with the "counted on this device" note; a fresh install shows level 1, 0 XP and locked badges.
 - [ ] **A3-1** Profile in German or Turkish: the AI assistant tile and the account-deletion texts are in that language.
 
+### AI-P: reporting AI replies, long chats, 18+ (2026-11-12). Needs a phone with AI turned on
+
+Needs Railway `AI_ENABLED=true` with a working `GEMINI_API_KEY`, and the owner SQL
+`docs/ai/sql/ai-content-reports.sql` (owner-run, see `docs/ai/ai-content-reports.md`).
+Without the SQL, sending a report shows "Couldn't send the report"; the rest works.
+Paths: AI tab; More → Weekly Brain Report → Generate AI Weekly Coaching Plan;
+More → Analytics & Insights → Cumulative analysis / Performance dashboard;
+Profile → AI help for Smart Quick Add.
+
+- [ ] **AIP-1** New account, first AI use from the AI tab: the "Are you 18 or older?" question comes before anything is sent. "I'm under 18" shows a short message and sends nothing; the next try asks again. "I'm 18 or older" continues to "Send conversation to Google Gemini?".
+- [ ] **AIP-2** After confirming once, weekly coaching, analytics insights and the Profile AI switch do not ask the age again for that account, also after closing and reopening the app. A second account on the same phone is asked again.
+- [ ] **AIP-3** Long chat: one conversation with 15 or more messages (include a few long ones). Every reply still arrives; before this fix every send from about the 12th message failed as "AI unavailable". The message field stops at 4,000 characters.
+- [ ] **AIP-4** Every AI reply has a flag button: not the welcome message, and not while a reply is still being written. Flag → choose a reason, keep "Include the reply", add a note → Send report → "Thanks, we received your report." The owner's read query in `docs/ai/ai-content-reports.md` shows the row with surface `assistant`, the reason, the reply text and the note.
+- [ ] **AIP-5** Send report is disabled until a reason is chosen. A report with "Include the reply" unticked has no reply text in the row. Cancel sends nothing.
+- [ ] **AIP-6** Weekly coaching and analytics: the flag appears only on text written by the AI, not on the offline summary or the "paused / error" text. Reports from there arrive with surface `weekly_coaching` or `analytics_insight`.
+- [ ] **AIP-7** More than 10 reports within an hour: "Couldn't send the report. Try again later." and the sheet stays open.
+- [ ] **AIP-8** Arabic at the largest font on a small phone: the report sheet and the age question have no clipped text and run right to left; TalkBack reads the flag as "الإبلاغ عن الرد", each reason, the checkbox and the note field.
+- [ ] **AIP-9** Profile → Export account metadata (JSON): the export contains `aiContentReports` with your reports (the domain archive leaves them out by design). After the account is deleted, the owner query for that account returns 0 rows.
+
+### AI-2c: stored AI consent and "Use my app data" (2026-11-12). Needs a phone with AI turned on
+
+Needs the backend from PR #32 deployed, Railway `AI_ENABLED=true`, and the owner SQL
+`docs/ai/sql/ai-user-settings.sql`. Without the SQL the consent is asked once per app start
+and the "Use my app data" switch does not appear; the rest works.
+
+- [ ] **AI2C-1** First message after the update: "Send conversation to Google Gemini?" appears once. After agreeing, close the app completely, reopen it and send again: no question. Reinstall the app (or sign in on a second phone) with the same account: still no question.
+- [ ] **AI2C-2** "Use my app data" under the chat is off. Turning it on shows what is sent (today's task titles, habits due today, active goals, today's events; never notes, descriptions, locations or subscriptions); Cancel leaves it off. After "Turn on", ask "What is left today?": the answer mentions your real tasks for today. With the switch off, the same question gets no task names.
+- [ ] **AI2C-3** Profile → AI consent → Withdraw → "AI consent withdrawn…". Back on the AI tab, the next message asks "Send conversation to Google Gemini?" again. Cancel sends nothing.
+- [ ] **AI2C-4** Withdraw the consent on phone A, then on phone B (assistant already open, app data on) send a message: B shows "AI consent is needed…", removes the empty reply, and the next message asks again.
+- [ ] **AI2C-5** Arabic at the largest font on a small phone: the switch, its explanation and the Profile entry are readable, run right to left, and TalkBack reads the switch name, its on/off state and the send button ("إرسال الرسالة").
+
+### AI-3: assistant memory (2026-11-12). Needs a phone with AI turned on
+
+Needs the backend from PR #32, the owner SQL `docs/ai/sql/ai-user-settings.sql` and then
+`docs/ai/sql/ai-memory-items.sql`. Without the second file, Profile → Assistant memory says
+memory is not available yet.
+
+- [ ] **AI3-1** Profile → Assistant memory: the switch is off. Turning it on asks the 18+ question if this account never answered it. Add a note (Preference: "Keep answers short") → it appears in the list.
+- [ ] **AI3-2** In the AI tab, ask "Plan my evening": the reply is short. Turn the switch off and ask again: the note is not used (the reply length is normal), and the note is still listed.
+- [ ] **AI3-3** In the AI tab with memory on, tap the bookmark next to one of your own messages → the editor opens with that text → Save → "Saved to memory." and the note is in Profile → Assistant memory. With memory off the bookmark is not shown.
+- [ ] **AI3-4** Edit a note, delete one (asks first), then Delete all notes (asks first; Cancel keeps them). Profile → Export account metadata (JSON) lists the notes under `aiMemories` before deleting them.
+- [ ] **AI3-5** Arabic at the largest font on a small phone: the Memory screen, the editor and the confirmations are readable and scroll, run right to left, and TalkBack reads the switch, "تعديل الملاحظة", "حذف الملاحظة" and "حفظ في الذاكرة".
+- [ ] **PP-1** Signed build (with `ANDROID_PRIVACY_POLICY_URL`): Profile → Privacy policy opens the published page in the browser, in Arabic and English, also at 200% text. With every browser disabled, the app shows "Couldn't open the privacy policy…" and stays open. A debug build shows no Privacy policy entry.
+- [ ] **DEL-1** Deletion request by email (rehearse on a Neon branch with a test account): run `docs/auth/sql/schedule-account-deletion-on-request.sql` as in `docs/auth/account-deletion-requests.md`. The test phone is signed out; signing in shows the deletion banner and cancelling restores the account.
+
 ### Quick regression
 
 - [ ] **X-1** Log out and log in.

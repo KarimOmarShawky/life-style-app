@@ -8,6 +8,9 @@ import { Client, Pool } from 'pg';
 import { describe, expect, it } from 'vitest';
 import { assertFinancialRetirement } from '../../src/infrastructure/database/postgres/financial-retirement-guard.js';
 import { PgUsersRepository } from '../../src/features/users/users.repository.pg.js';
+import { PgAiReportsRepository } from '../../src/features/ai-reports/ai-reports.repository.pg.js';
+import { PgAiSettingsRepository } from '../../src/features/ai-settings/ai-settings.repository.pg.js';
+import { PgAiMemoriesRepository } from '../../src/features/ai-memories/ai-memories.repository.pg.js';
 import {
   PgSessionsRepository,
   resetSessionRevokeReasonCache
@@ -115,7 +118,7 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
         const schema = await readFile(new URL('../../../schema.sql', import.meta.url), 'utf8');
         await owner.query(schema);
         await owner.query(
-          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events, notification_preferences'
+          'DROP TABLE wallet_owned_records, wallet_account_sessions, wallet_accounts, password_reset_requests, product_events, notification_preferences, ai_content_reports, ai_user_settings, ai_memory_items'
         );
         // Production has not received the owner-run product-events/onboarding
         // DDL (feature guide G5/G1) yet; it is applied at the end below.
@@ -621,6 +624,174 @@ describe.skipIf(!enabled)('isolated restricted-role sequencing experiment', () =
           expect(JSON.stringify(listed)).not.toContain('203.0.113.9');
           await users.scheduleDeletion(sessionUser, new Date(Date.now() - 1000));
           expect(await users.purgeAccount(sessionUser)).toBe(true);
+
+          // AI-P: reporting AI output with the restricted runtime role, before
+          // and after the owner-run ai-content-reports SQL. Append-only.
+          const reportUser = (
+            await owner.query<{ id: string }>(
+              `INSERT INTO users (email, password_hash, display_name, timezone, default_currency)
+               VALUES ('reports-role@example.com', 'x', 'Reports', 'UTC', 'USD') RETURNING id`
+            )
+          ).rows[0]!.id;
+          const reports = new PgAiReportsRepository(runtime);
+          const sample = {
+            userId: reportUser,
+            surface: 'assistant' as const,
+            category: 'harmful' as const,
+            replyText: 'reply text',
+            note: null,
+            locale: 'en'
+          };
+          expect(await reports.create(sample)).toEqual({ available: false, created: false });
+          const reportsSql = await readFile(
+            new URL('../../../docs/ai/sql/ai-content-reports.sql', import.meta.url),
+            'utf8'
+          );
+          await owner.query(reportsSql);
+          const canReports = async (privilege: string) =>
+            (
+              await owner.query<{ ok: boolean }>(
+                `SELECT has_table_privilege('lifestyle_app', 'public.ai_content_reports', $1) AS ok`,
+                [privilege]
+              )
+            ).rows[0]!.ok;
+          for (const [privilege, expected] of [
+            ['SELECT', true],
+            ['INSERT', true],
+            ['DELETE', true],
+            ['UPDATE', false],
+            ['TRUNCATE', false]
+          ] as const) {
+            expect(await canReports(privilege)).toBe(expected);
+          }
+          await expect(owner.query(reportsSql)).rejects.toMatchObject({ code: '42P07' });
+          await owner.query('ROLLBACK');
+          expect(await reports.create(sample)).toEqual({ available: true, created: true });
+          await expect(
+            runtime.query(`UPDATE ai_content_reports SET category = 'spam'`)
+          ).rejects.toMatchObject({ code: '42501' });
+          expect(await reports.purgeOlderThan(new Date(Date.now() + 60_000))).toBe(1);
+          expect(await reports.create(sample)).toEqual({ available: true, created: true });
+          await users.scheduleDeletion(reportUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(reportUser)).toBe(true);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM ai_content_reports')).rows[0]!.n
+          ).toBe(0);
+
+          // AI-2: AI settings and the AI consent with the restricted runtime
+          // role, before and after the owner-run ai-user-settings SQL.
+          const settingsUser = (
+            await owner.query<{ id: string }>(
+              `INSERT INTO users (email, password_hash, display_name, timezone, default_currency)
+               VALUES ('settings-role@example.com', 'x', 'Settings', 'UTC', 'USD') RETURNING id`
+            )
+          ).rows[0]!.id;
+          const aiSettings = new PgAiSettingsRepository(runtime);
+          expect(await aiSettings.find(settingsUser)).toEqual({ available: false });
+          expect(await aiSettings.update(settingsUser, { egressConsentVersion: 1 })).toEqual({
+            available: false
+          });
+          const settingsSql = await readFile(
+            new URL('../../../docs/ai/sql/ai-user-settings.sql', import.meta.url),
+            'utf8'
+          );
+          await owner.query(settingsSql);
+          const canSettings = async (privilege: string) =>
+            (
+              await owner.query<{ ok: boolean }>(
+                `SELECT has_table_privilege('lifestyle_app', 'public.ai_user_settings', $1) AS ok`,
+                [privilege]
+              )
+            ).rows[0]!.ok;
+          for (const [privilege, expected] of [
+            ['SELECT', true],
+            ['INSERT', true],
+            ['UPDATE', true],
+            ['DELETE', true],
+            ['TRUNCATE', false]
+          ] as const) {
+            expect(await canSettings(privilege)).toBe(expected);
+          }
+          await expect(owner.query(settingsSql)).rejects.toMatchObject({ code: '42P07' });
+          await owner.query('ROLLBACK');
+          const granted = await aiSettings.update(settingsUser, { egressConsentVersion: 1 });
+          expect(granted).toMatchObject({
+            available: true,
+            settings: { egressConsentVersion: 1, languageMode: 'auto' }
+          });
+          expect(
+            await aiSettings.update(settingsUser, { languageMode: 'app_locale' })
+          ).toMatchObject({
+            available: true,
+            settings: { egressConsentVersion: 1, languageMode: 'app_locale' }
+          });
+          await users.scheduleDeletion(settingsUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(settingsUser)).toBe(true);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM ai_user_settings')).rows[0]!.n
+          ).toBe(0);
+
+          // AI-3: explicit memory with the restricted runtime role, before and
+          // after the owner-run ai-memory-items SQL.
+          const memoryUser = (
+            await owner.query<{ id: string }>(
+              `INSERT INTO users (email, password_hash, display_name, timezone, default_currency)
+               VALUES ('memory-role@example.com', 'x', 'Memory', 'UTC', 'USD') RETURNING id`
+            )
+          ).rows[0]!.id;
+          const aiMemories = new PgAiMemoriesRepository(runtime);
+          expect(await aiMemories.list(memoryUser, 'active', 100)).toEqual({ available: false });
+          expect(
+            await aiMemories.createExplicit(memoryUser, { kind: 'fact', content: 'x' }, 100)
+          ).toEqual({ available: false });
+          const memorySql = await readFile(
+            new URL('../../../docs/ai/sql/ai-memory-items.sql', import.meta.url),
+            'utf8'
+          );
+          await owner.query(memorySql);
+          const canMemory = async (privilege: string) =>
+            (
+              await owner.query<{ ok: boolean }>(
+                `SELECT has_table_privilege('lifestyle_app', 'public.ai_memory_items', $1) AS ok`,
+                [privilege]
+              )
+            ).rows[0]!.ok;
+          for (const [privilege, expected] of [
+            ['SELECT', true],
+            ['INSERT', true],
+            ['UPDATE', true],
+            ['DELETE', true],
+            ['TRUNCATE', false]
+          ] as const) {
+            expect(await canMemory(privilege)).toBe(expected);
+          }
+          await expect(owner.query(memorySql)).rejects.toMatchObject({ code: '42P07' });
+          await owner.query('ROLLBACK');
+          // Saving needs both memory switches (AI-2 settings).
+          expect(
+            await aiMemories.createExplicit(memoryUser, { kind: 'fact', content: 'x' }, 100)
+          ).toEqual({ available: true, outcome: 'disabled' });
+          await aiSettings.update(memoryUser, { memoryEnabled: true, explicitMemoryEnabled: true });
+          expect(
+            await aiMemories.createExplicit(
+              memoryUser,
+              { kind: 'preference', content: 'Short answers' },
+              100
+            )
+          ).toMatchObject({
+            available: true,
+            outcome: 'created',
+            item: { kind: 'preference', content: 'Short answers', source: 'explicit' }
+          });
+          expect(await aiMemories.listForContext(memoryUser, 30)).toEqual({
+            available: true,
+            items: [{ kind: 'preference', content: 'Short answers' }]
+          });
+          await users.scheduleDeletion(memoryUser, new Date(Date.now() - 1000));
+          expect(await users.purgeAccount(memoryUser)).toBe(true);
+          expect(
+            (await owner.query('SELECT count(*)::int AS n FROM ai_memory_items')).rows[0]!.n
+          ).toBe(0);
         } finally {
           await runtime.end();
         }

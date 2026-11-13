@@ -2,8 +2,64 @@
 const Map<String, String> deCatalog = {
   'aiEgressTitle': 'Unterhaltung an Google Gemini senden?',
   'aiEgressDescription':
-      'Deine Nachricht und der Gesprächsverlauf werden mit deinem API-Schlüssel an Google gesendet. Finanzdaten werden nicht automatisch aufgenommen. Gib keine Geheimnisse oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
+      'Deine Nachricht und der letzte Gesprächsverlauf werden über den LifeStyle-Server an Google Gemini gesendet. Gib keine Passwörter oder sensiblen Informationen ein. Es gelten die Datenrichtlinien von Google.',
   'aiEgressAgree': 'Zustimmen und senden',
+  'aiContextChip': 'Meine App-Daten nutzen',
+  'aiContextDialogTitle': 'App-Daten nutzen?',
+  'aiContextDialogBody':
+      'Damit der Assistent Fragen zu deinem Tag beantworten kann, sendet der LifeStyle-Server mit jeder Nachricht eine kurze Zusammenfassung an Google Gemini: die Titel der heutigen Aufgaben, heute fällige Gewohnheiten mit ihren Serien, deine aktiven Ziele mit ihrem Fortschritt und die heutigen Termine mit ihren Uhrzeiten. Notizen, Aufgabenbeschreibungen, Terminorte und Abos werden nie gesendet. Du kannst das jederzeit ausschalten.',
+  'aiContextDialogConfirm': 'Einschalten',
+  'aiConsentRequiredMessage':
+      'Die KI-Einwilligung wird benötigt. Sende deine Nachricht erneut, um sie zu prüfen.',
+  'aiContextUnavailableMessage':
+      'Deine App-Daten können gerade nicht genutzt werden. Schalte „Meine App-Daten nutzen“ aus oder versuche es später erneut.',
+  'aiUnsupportedMessage': 'Bei dieser Anfrage kann der Assistent nicht helfen.',
+  'aiSendTooltip': 'Nachricht senden',
+  'aiConsentTileTitle': 'KI-Einwilligung',
+  'aiConsentTileSubtitle':
+      'Ziehe deine Zustimmung zum Senden von Nachrichten an Google Gemini zurück',
+  'aiConsentWithdrawTitle': 'KI-Einwilligung widerrufen?',
+  'aiConsentWithdrawBody':
+      'Der Assistent fragt erneut, bevor er etwas an Google Gemini sendet, und deine App-Daten werden erst nach erneuter Zustimmung genutzt. Dein Chatverlauf bleibt auf diesem Telefon.',
+  'aiConsentWithdrawAction': 'Widerrufen',
+  'aiConsentWithdrawn':
+      'KI-Einwilligung widerrufen. Der Assistent fragt erneut.',
+  'aiMemoryTitle': 'Assistent-Gedächtnis',
+  'aiMemoryTileSubtitle': 'Notizen, die sich der Assistent für dich merkt',
+  'aiMemorySwitchTitle': 'Meine Notizen im Assistenten nutzen',
+  'aiMemorySwitchSubtitle':
+      'Der Assistent liest bis zu 30 deiner zuletzt gespeicherten oder geänderten Notizen, und nur, nachdem du dem Senden von KI-Anfragen an Google Gemini zugestimmt hast. Notizen bleiben gespeichert, bis du sie löschst.',
+  'aiMemoryAdd': 'Notiz hinzufügen',
+  'aiMemoryEmpty':
+      'Noch keine Notizen. Füge hier eine hinzu oder nutze „Im Gedächtnis speichern“ bei einer deiner Nachrichten im Assistenten.',
+  'aiMemoryKindPreference': 'Vorliebe',
+  'aiMemoryKindFact': 'Fakt',
+  'aiMemoryEditTitle': 'Notiz bearbeiten',
+  'aiMemoryFieldLabel': 'Notiz',
+  'aiMemoryEditorHint': 'Zum Beispiel: Antworte kurz',
+  'aiMemoryEditorHelper':
+      'Speichere keine Passwörter oder sensiblen Informationen.',
+  'aiMemoryDeleteTooltip': 'Notiz löschen',
+  'aiMemoryDeleteTitle': 'Diese Notiz löschen?',
+  'aiMemoryDeleteBody':
+      'Der Assistent nutzt sie dann nicht mehr. Das kann nicht rückgängig gemacht werden.',
+  'aiMemoryDeleteAll': 'Alle Notizen löschen',
+  'aiMemoryDeleteAllTitle': 'Alle Notizen löschen?',
+  'aiMemoryDeleteAllBody':
+      'Alle Notizen, die du für den Assistenten gespeichert hast, werden gelöscht. Das kann nicht rückgängig gemacht werden.',
+  'aiMemorySaved': 'Im Gedächtnis gespeichert.',
+  'aiMemoryDeleted': 'Notiz gelöscht.',
+  'aiMemoryAllDeleted': 'Alle Notizen gelöscht.',
+  'aiMemoryDisabledError':
+      'Schalte zuerst „Meine Notizen im Assistenten nutzen“ unter Profil → Assistent-Gedächtnis ein.',
+  'aiMemoryLimitError':
+      'Du hast 100 Notizen. Lösche einige, um neue zu speichern.',
+  'aiMemoryUnavailable': 'Das Assistent-Gedächtnis ist noch nicht verfügbar.',
+  'aiMemorySaveFailed':
+      'Die Notiz konnte nicht gespeichert werden. Versuche es erneut.',
+  'aiMemoryLoadFailed': 'Deine Notizen konnten nicht geladen werden.',
+  'aiMemoryDeleteFailed': 'Löschen fehlgeschlagen. Versuche es erneut.',
+  'aiSaveToMemoryTooltip': 'Im Gedächtnis speichern',
   'appTitle': 'LifeStyle',
   'signIn': 'Anmelden',
   'createAccount': 'Konto erstellen',
@@ -302,6 +358,10 @@ const Map<String, String> deCatalog = {
   'archiveDownload': 'Herunterladen und prüfen',
   'archiveSave': 'Ziel wählen und speichern',
   'accountExportTitle': 'Kontometadaten exportieren (JSON)',
+  'privacyPolicyTitle': 'Datenschutzerklärung',
+  'privacyPolicySubtitle': 'Wird im Browser geöffnet',
+  'privacyPolicyOpenFailed':
+      'Die Datenschutzerklärung konnte nicht geöffnet werden. Prüfe, ob ein Browser installiert ist.',
   'accountExportReady': 'Export der Kontometadaten bereit',
   'accountExportPrivacy':
       'Dies ist ein reiner Metadaten-Export, kein vollständiges Archiv von Aufgaben, Notizen, Finanzen oder anderen Anwendungsdaten. Das Kopieren ist optional und kann deine persönlichen Kontometadaten anderen Apps, Tastaturen, dem Zwischenablageverlauf oder synchronisierten Geräten aussetzen. Kopien in der Zwischenablage werden von LifeStyle nicht automatisch gelöscht und können nach dem Schließen dieses Bildschirms bestehen bleiben.',
@@ -840,4 +900,26 @@ const Map<String, String> deCatalog = {
   'signedInDevicesPlatformAndroid': 'Android-Gerät',
   'signedInDevicesPlatformIos': 'iPhone oder iPad',
   'signedInDevicesPlatformUnknown': 'Unbekanntes Gerät',
+  'aiReportReplyTooltip': 'Antwort melden',
+  'aiReportTitle': 'Diese Antwort melden',
+  'aiReportBody':
+      'Sag uns, was an dieser Antwort nicht stimmt. Meldungen helfen uns, die KI sicher und zuverlässig zu halten.',
+  'aiReportCategoryOffensive': 'Beleidigend oder hasserfüllt',
+  'aiReportCategoryHarmful': 'Schädlich oder gefährlich',
+  'aiReportCategoryInaccurate': 'Falsch oder irreführend',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Etwas anderes',
+  'aiReportIncludeReply': 'Antwort mitsenden, damit wir sie prüfen können',
+  'aiReportNoteLabel': 'Notiz (optional)',
+  'aiReportSend': 'Meldung senden',
+  'aiReportSent': 'Danke, wir haben deine Meldung erhalten.',
+  'aiReportFailed':
+      'Die Meldung konnte nicht gesendet werden. Versuche es später erneut.',
+  'aiAgeTitle': 'Bist du 18 oder älter?',
+  'aiAgeBody':
+      'Die KI-Funktionen nutzen Google Gemini und sind nur für Personen ab 18 Jahren gedacht.',
+  'aiAgeConfirm': 'Ich bin 18 oder älter',
+  'aiAgeDecline': 'Ich bin unter 18',
+  'aiAgeDeclined':
+      'KI-Funktionen sind ab 18 Jahren verfügbar. Der Rest der App funktioniert wie gewohnt.',
 };

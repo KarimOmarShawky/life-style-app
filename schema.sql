@@ -917,3 +917,64 @@ CREATE TABLE notification_preferences (
         GRANT SELECT, INSERT, UPDATE, DELETE ON notification_preferences TO lifestyle_app;
       END IF;
     END $grant$;
+
+
+-- In-app reports of AI output (AI-P); reply text only when the user included it.
+CREATE TABLE ai_content_reports (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      surface TEXT NOT NULL CHECK (surface IN ('assistant', 'weekly_coaching', 'analytics_insight')),
+      category TEXT NOT NULL CHECK (category IN ('offensive', 'harmful', 'inaccurate', 'spam', 'other')),
+      reply_text TEXT CHECK (reply_text IS NULL OR char_length(reply_text) BETWEEN 1 AND 4000),
+      note TEXT CHECK (note IS NULL OR char_length(note) BETWEEN 1 AND 500),
+      locale VARCHAR(16) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX idx_ai_content_reports_created ON ai_content_reports (created_at);
+    CREATE INDEX idx_ai_content_reports_user_created ON ai_content_reports (user_id, created_at);
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT, DELETE ON ai_content_reports TO lifestyle_app;
+      END IF;
+    END $grant$;
+
+-- AI settings and the durable AI consent (Hybrid AI AI-2); at most one row per account.
+CREATE TABLE ai_user_settings (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      egress_consent_version INTEGER CHECK (egress_consent_version IS NULL OR egress_consent_version > 0),
+      egress_consent_at TIMESTAMPTZ,
+      memory_enabled BOOLEAN NOT NULL DEFAULT false,
+      explicit_memory_enabled BOOLEAN NOT NULL DEFAULT false,
+      learning_enabled BOOLEAN NOT NULL DEFAULT false,
+      quick_actions_enabled BOOLEAN NOT NULL DEFAULT false,
+      language_mode TEXT NOT NULL DEFAULT 'auto' CHECK (language_mode IN ('auto', 'app_locale')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT ai_user_settings_consent_pair CHECK ((egress_consent_version IS NULL) = (egress_consent_at IS NULL))
+    );
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ai_user_settings TO lifestyle_app;
+      END IF;
+    END $grant$;
+
+-- Explicit AI memory (Hybrid AI AI-3); short notes the user saved for the assistant.
+CREATE TABLE ai_memory_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('preference', 'fact')),
+      content TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 500),
+      source TEXT NOT NULL CHECK (source IN ('explicit', 'learned')),
+      status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'dismissed')),
+      confidence NUMERIC(3,2) CHECK (confidence IS NULL OR confidence BETWEEN 0 AND 1),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      expires_at TIMESTAMPTZ,
+      CONSTRAINT ai_memory_items_pending_is_learned CHECK (source = 'learned' OR status <> 'pending')
+    );
+    CREATE INDEX ai_memory_items_user_status_idx ON ai_memory_items (user_id, status);
+    DO $grant$ BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'lifestyle_app') THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ai_memory_items TO lifestyle_app;
+      END IF;
+    END $grant$;

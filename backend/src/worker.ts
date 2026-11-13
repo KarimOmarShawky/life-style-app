@@ -29,6 +29,8 @@ import { RedisOtpStore } from './core/security/otp-service.js';
 import { PgAuditLogger } from './infrastructure/database/postgres/audit-logger.js';
 import { ProductEventsService } from './features/product-events/product-events.service.js';
 import { PgProductEventsRepository } from './features/product-events/product-events.repository.pg.js';
+import { AiReportsService } from './features/ai-reports/ai-reports.service.js';
+import { PgAiReportsRepository } from './features/ai-reports/ai-reports.repository.pg.js';
 import {
   processReminderDispatch,
   processRecurringGeneration,
@@ -74,6 +76,10 @@ const productEvents = new ProductEventsService(
   clock,
   env.PRODUCT_EVENTS_ENABLED
 );
+
+// AI content reports (AI-P) expire after AI_REPORT_RETENTION_DAYS; the runtime
+// role holds DELETE on the table.
+const aiReports = new AiReportsService(new PgAiReportsRepository(getPgPool()), clock);
 
 // Audit-log retention runs under the maintenance role: DELETE on audit_logs
 // is granted to lifestyle_maintenance only (least privilege). When the
@@ -205,6 +211,11 @@ const maintenanceWorker = new Worker(
         logger.info('Product event retention tick', { purged });
         break;
       }
+      case 'purge-ai-reports': {
+        const purged = await aiReports.purgeExpired();
+        logger.info('AI report retention tick', { purged });
+        break;
+      }
       case 'reset-request-recovery': {
         const recovered = await resetDispatcher.recoverStale();
         // Await the cycle's own delivery work instead of returning as soon as it
@@ -280,6 +291,11 @@ async function registerSchedules(): Promise<void> {
     'purge-product-events',
     { pattern: '50 3 * * *' },
     { name: 'purge-product-events', data: {} }
+  );
+  await maintenanceQueue.upsertJobScheduler(
+    'purge-ai-reports',
+    { pattern: '55 3 * * *' },
+    { name: 'purge-ai-reports', data: {} }
   );
   if (auditRetentionStore) {
     await maintenanceQueue.upsertJobScheduler(

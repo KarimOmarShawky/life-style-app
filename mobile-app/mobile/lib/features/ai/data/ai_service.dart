@@ -27,11 +27,15 @@ class AiStreamingException implements Exception {
 /// after repeated failures so a struggling backend is not hammered; any
 /// successful call (or an explicit reset) clears it.
 class AiService {
-  AiService._([this._injectedTransport]);
+  AiService._([this._injectedTransport, DateTime Function()? clock])
+      : _now = clock ?? DateTime.now;
 
   @visibleForTesting
-  factory AiService.forTesting({AiTransport? transport}) =>
-      AiService._(transport ?? const _UnavailableTransport());
+  factory AiService.forTesting({
+    AiTransport? transport,
+    DateTime Function()? clock,
+  }) =>
+      AiService._(transport ?? const _UnavailableTransport(), clock);
 
   static final AiService instance = AiService._();
 
@@ -48,10 +52,18 @@ class AiService {
   static AiBackendGateway? _boundGateway;
 
   final AiTransport? _injectedTransport;
+  final DateTime Function() _now;
   AiTransport? _defaultTransport;
   int _consecutiveFailures = 0;
+  DateTime? _lastFailureAt;
 
   static const int maxConsecutiveFailures = 3;
+
+  /// AI1-F2: after [maxConsecutiveFailures] failures in a row, AI requests
+  /// pause for this long. Then one request may try again: another failure
+  /// pauses again, a success clears the count. Before, the pause lasted
+  /// until the app was restarted.
+  static const Duration pauseDuration = Duration(minutes: 10);
 
   AiTransport get _transport {
     final injected = _injectedTransport;
@@ -68,10 +80,24 @@ class AiService {
     return _defaultTransport = BackendAiTransport(gateway);
   }
 
-  bool get isPaused => _consecutiveFailures >= maxConsecutiveFailures;
+  bool get isPaused {
+    final last = _lastFailureAt;
+    if (_consecutiveFailures < maxConsecutiveFailures || last == null) {
+      return false;
+    }
+    final elapsed = _now().difference(last);
+    // A clock set backwards must not stretch the pause.
+    return !elapsed.isNegative && elapsed < pauseDuration;
+  }
 
   void resetFailureCount() {
     _consecutiveFailures = 0;
+    _lastFailureAt = null;
+  }
+
+  void _recordFailure() {
+    _consecutiveFailures++;
+    _lastFailureAt = _now();
   }
 
   /// The weekly coach accepts numbers only, with a fixed allowlist of names.
@@ -134,10 +160,10 @@ class AiService {
       onOutcome?.call(true);
       return reply;
     } on AiTransportException catch (error) {
-      if (error.code != 'unauthenticated') _consecutiveFailures++;
+      if (error.code != 'unauthenticated') _recordFailure();
       return _failureText(isArabic, error.code);
     } on Object {
-      _consecutiveFailures++;
+      _recordFailure();
       return _failureText(isArabic, 'unavailable');
     }
   }
@@ -157,285 +183,6 @@ class AiService {
             ? 'عذراً، لم أتمكن من معالجة الطلب حالياً. يرجى المحاولة بعد لحظات.'
             : 'Sorry, I could not process your request right now. Please try again shortly.';
     }
-  }
-
-  Future<String> generateDailyBriefing({
-    required String userName,
-    required int pendingTasksCount,
-    required int completedHabitsCount,
-    required int totalHabitsCount,
-    String languageName = 'Arabic',
-  }) async {
-    final bool isArabic = languageName == 'Arabic';
-    final hour = DateTime.now().hour;
-    final isMorning = hour < 14;
-
-    String localFallback() {
-      if (isArabic) {
-        return isMorning
-            ? 'صباح الخير $userName! لديك اليوم $pendingTasksCount مهام بانتظار الإنجاز. يومك موفق!'
-            : 'مساء الخير $userName! أتممت $completedHabitsCount من $totalHabitsCount عادات حتى الآن. استمر!';
-      }
-      return isMorning
-          ? 'Good morning $userName! You have $pendingTasksCount tasks waiting today. Have a productive day!'
-          : 'Good evening $userName! You completed $completedHabitsCount of $totalHabitsCount habits today. Keep it up!';
-    }
-
-    if (isPaused) return localFallback();
-
-    try {
-      final prompt = '''
-Write a short, inspiring, 2-sentence ${isMorning ? "morning briefing" : "evening reflection"} for user named "$userName".
-Details:
-- Pending tasks for today: $pendingTasksCount
-- Completed habits today: $completedHabitsCount out of $totalHabitsCount
-Language: $languageName. Friendly, clear, and inspiring.
-Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
-''';
-      final reply = await _transport.chat(
-        history: const [],
-        message: prompt,
-        languageName: languageName,
-        mode: AiReplyMode.brief,
-        timeout: const Duration(seconds: 8),
-      );
-      _consecutiveFailures = 0;
-      return reply;
-    } on Object {
-      return localFallback();
-    }
-  }
-
-  /// Context-aware chat that injects the user's current life state into the
-  /// conversation. The model receives structured context (pending tasks,
-  /// habits and goals) so replies are personalised, not generic.
-  Future<String> sendMessageWithContext({
-    required List<ChatMessage> conversationHistory,
-    required String newMessage,
-    required Map<String, dynamic> context,
-    String languageName = 'Arabic',
-    Duration timeout = const Duration(seconds: 30),
-    void Function(bool succeeded)? onOutcome,
-  }) async {
-    final contextJson = jsonEncode(context);
-    final augmentedMessage =
-        "Here is the user's current life context (JSON):\n$contextJson\n\nUse this context to give personalised, specific advice. Do not invent data that is not in the context.\n\nUser request: $newMessage";
-    return sendMessage(
-      conversationHistory: conversationHistory,
-      newMessage: augmentedMessage,
-      languageName: languageName,
-      timeout: timeout,
-      onOutcome: onOutcome,
-    );
-  }
-
-  /// Analyses a set of tasks and returns a prioritised, grouped plan with
-  /// time estimates and suggested focus order.
-  Future<String?> analyzeTasks({
-    required List<Map<String, dynamic>> tasks,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Analyse these tasks and produce a prioritised plan. For each task, rate urgency (high/medium/low), suggest a time slot, and explain the reasoning. Group them into "Do first", "Do later", and "Delegate or drop".\n\nTasks (JSON): ${jsonEncode(tasks)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Analyses habit patterns and returns insights with concrete suggestions
-  /// for improvement.
-  Future<String?> getHabitInsights({
-    required List<Map<String, dynamic>> habits,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Analyse these habits and produce a weekly insight report. Identify the strongest habit, the weakest, and give one concrete, actionable suggestion for each. Keep it concise.\n\nHabits (JSON): ${jsonEncode(habits)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Breaks a goal down into concrete, time-bound action steps.
-  Future<String?> planGoal({
-    required String goalTitle,
-    required String goalDescription,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Break down this goal into a concrete 30-day action plan. List weekly milestones, daily actions, and the key metric to track progress.\n\nGoal: $goalTitle\nDescription: $goalDescription',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Summarises a note and extracts action items, deadlines, and key points.
-  Future<String?> summarizeNote({
-    required String noteContent,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Summarise this note in 3 bullet points. Then list any action items (with suggested deadlines) and any key decisions made.\n\nNote content:\n$noteContent',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Answers a question using the user's own data (tasks, notes, habits,
-  /// goals). Falls back to generic advice when no data is provided.
-  Future<String> answerWithData({
-    required String question,
-    Map<String, dynamic> data = const {},
-    String languageName = 'Arabic',
-  }) async {
-    if (data.isEmpty) {
-      return sendMessage(
-        conversationHistory: const [],
-        newMessage: question,
-        languageName: languageName,
-      );
-    }
-    return sendMessageWithContext(
-      conversationHistory: const [],
-      newMessage: question,
-      context: data,
-      languageName: languageName,
-    );
-  }
-
-  /// Generates a personalised habit coaching plan based on the user's
-  /// habit history and current streaks.
-  Future<String?> getHabitCoaching({
-    required List<Map<String, dynamic>> habits,
-    required Map<String, dynamic> aggregates,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Create a personalised habit coaching plan. Identify the most promising habit to build next, suggest a realistic weekly target, and explain the reasoning.\n\nHabits (JSON): ${jsonEncode(habits)}\nAggregates (JSON): ${jsonEncode(aggregates)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Suggests a smart schedule for the day based on pending tasks,
-  /// habits, and the user's focus preferences.
-  Future<String?> suggestSchedule({
-    required List<Map<String, dynamic>> tasks,
-    required List<Map<String, dynamic>> habits,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Create a time-blocked schedule for today. Assign time slots to each task and habit, group similar tasks together, and include breaks.\n\nTasks (JSON): ${jsonEncode(tasks)}\nHabits (JSON): ${jsonEncode(habits)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Generates a weekly workout plan based on the user's goals,
-  /// current fitness level, and available equipment.
-  Future<String?> generateWorkoutPlan({
-    required String fitnessLevel,
-    required List<String> equipment,
-    required String goal,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Create a 7-day workout plan. Include warm-ups, main exercises, sets/reps, and rest days.\n\nFitness level: $fitnessLevel\nEquipment: ${jsonEncode(equipment)}\nGoal: $goal',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Generates a meal plan based on dietary preferences, budget,
-  /// and nutritional goals.
-  Future<String?> generateMealPlan({
-    required String dietaryPreference,
-    required int dailyBudget,
-    required List<String> allergies,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Create a 3-day meal plan. Include breakfast, lunch, dinner, and snacks. Keep within the daily budget and avoid allergens.\n\nDietary preference: $dietaryPreference\nDaily budget: $dailyBudget\nAllergies: ${jsonEncode(allergies)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Analyses productivity patterns and returns personalised
-  /// improvement suggestions.
-  Future<String?> getProductivityAnalysis({
-    required Map<String, dynamic> aggregates,
-    required List<Map<String, dynamic>> recentActivity,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Analyse my productivity patterns and give 3 personalised suggestions for improvement. Focus on time management, focus habits, and energy management.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nRecent activity (JSON): ${jsonEncode(recentActivity)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Generates a weekly review summary from the user's completed
-  /// tasks, habits, and achievements.
-  Future<String?> generateWeeklyReview({
-    required Map<String, dynamic> aggregates,
-    required List<Map<String, dynamic>> highlights,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Create a motivational weekly review. Highlight achievements, suggest one area to improve, and set one goal for next week.\n\nAggregates (JSON): ${jsonEncode(aggregates)}\nHighlights (JSON): ${jsonEncode(highlights)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
   }
 
   /// Streams model text as backend SSE events arrive. Failures use the
@@ -460,14 +207,72 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
         yield chunk;
       }
     } on AiTransportException catch (error) {
-      if (error.code != 'unauthenticated') _consecutiveFailures++;
+      if (error.code != 'unauthenticated') _recordFailure();
       throw AiStreamingException(error.code);
     } on Object {
-      _consecutiveFailures++;
+      _recordFailure();
       throw const AiStreamingException('stream_failed');
     }
     if (!sawText) {
-      _consecutiveFailures++;
+      _recordFailure();
+      throw const AiStreamingException('empty_response');
+    }
+    _consecutiveFailures = 0;
+  }
+
+  /// Codes that are answers rather than failures, so they never count toward
+  /// the pause: an expired session and the assistant-turn denials (AI-2b).
+  static const Set<String> _notFailures = {
+    'unauthenticated',
+    ...aiAssistantDenialCodes,
+  };
+
+  /// One assistant turn (Hybrid AI AI-2c) through
+  /// `/ai/assistant/turn/stream`, with the app-data summary when
+  /// [contextScopes] is not empty. Same pause and error rules as
+  /// [streamMessage]. A denial is thrown as [AiStreamingException] with its
+  /// reason (consent_required, scope_unavailable, unsupported) and does not
+  /// count as a failure.
+  Stream<String> streamAssistantTurn({
+    required List<ChatMessage> conversationHistory,
+    required String newMessage,
+    required String clientLocale,
+    String languageName = 'Arabic',
+    List<String> contextScopes = const [],
+    Duration timeout = const Duration(seconds: 60),
+  }) async* {
+    if (isPaused) throw const AiStreamingException('paused');
+    final source = switch (_transport) {
+      final AiAssistantTurnTransport turns => turns.assistantTurnStream(
+          history: conversationHistory,
+          message: newMessage,
+          clientLocale: clientLocale,
+          languageName: languageName,
+          contextScopes: contextScopes,
+          timeout: timeout,
+        ),
+      final AiTransport other => other.chatStream(
+          history: conversationHistory,
+          message: newMessage,
+          languageName: languageName,
+          timeout: timeout,
+        ),
+    };
+    var sawText = false;
+    try {
+      await for (final chunk in source) {
+        sawText = true;
+        yield chunk;
+      }
+    } on AiTransportException catch (error) {
+      if (!_notFailures.contains(error.code)) _recordFailure();
+      throw AiStreamingException(error.code);
+    } on Object {
+      _recordFailure();
+      throw const AiStreamingException('stream_failed');
+    }
+    if (!sawText) {
+      _recordFailure();
       throw const AiStreamingException('empty_response');
     }
     _consecutiveFailures = 0;
@@ -509,63 +314,6 @@ Constraint: Exactly 2 sentences. No emojis. Very motivating and energetic.
       conversationHistory: const [],
       newMessage:
           'Create a performance dashboard summary. Highlight the most important metrics, streaks to celebrate, and one key focus area for next week. Keep it concise and motivational. Metrics that are absent are unavailable; do not invent numbers.\n\nMetrics (JSON): ${jsonEncode(metrics)}\nStreaks (JSON): ${jsonEncode(streaks)}\nHighlights (JSON): ${jsonEncode(highlights)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Analyses productivity patterns over time and identifies
-  /// peak performance windows.
-  Future<String?> analyzeProductivityTrends({
-    required List<Map<String, dynamic>> dailyStats,
-    required Map<String, dynamic> preferences,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Analyse these daily productivity stats and identify patterns. Determine the user peak performance windows, flag declining trends, and suggest adjustments.\n\nDaily stats (JSON): ${jsonEncode(dailyStats)}\nPreferences (JSON): ${jsonEncode(preferences)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Generates a personalised weekly comparison report showing
-  /// improvements or declines across all lifestyle categories.
-  Future<String?> generateWeeklyComparison({
-    required Map<String, dynamic> thisWeek,
-    required Map<String, dynamic> lastWeek,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Compare this week performance with last week across tasks, habits and goals. Highlight improvements, declines, and one key takeaway.\n\nThis week (JSON): ${jsonEncode(thisWeek)}\nLast week (JSON): ${jsonEncode(lastWeek)}',
-      languageName: languageName,
-      onOutcome: (value) => succeeded = value,
-    );
-    return succeeded && result.isNotEmpty ? result : null;
-  }
-
-  /// Creates a personalised life balance score based on all
-  /// lifestyle categories and suggests improvements.
-  Future<String?> getLifeBalanceScore({
-    required Map<String, dynamic> categoryScores,
-    required Map<String, dynamic> weights,
-    String languageName = 'Arabic',
-  }) async {
-    if (isPaused) return null;
-    var succeeded = false;
-    final result = await sendMessage(
-      conversationHistory: const [],
-      newMessage:
-          'Calculate a personalised life balance score from these category scores. Provide a 1-10 rating, explain the score, and suggest 2 concrete improvements for the weakest categories.\n\nCategory scores (JSON): ${jsonEncode(categoryScores)}\nWeights (JSON): ${jsonEncode(weights)}',
       languageName: languageName,
       onOutcome: (value) => succeeded = value,
     );

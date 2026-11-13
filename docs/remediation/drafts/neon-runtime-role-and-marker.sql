@@ -26,6 +26,12 @@
 --      2026-11-10): SELECT, INSERT, DELETE only.
 --      Where notification_preferences exists (feature guide G2,
 --      added 2026-11-11): full CRUD.
+--      Where ai_content_reports exists (AI-P, added 2026-11-11):
+--      SELECT, INSERT, DELETE only.
+--      Where ai_user_settings exists (AI-2, added 2026-11-12):
+--      full CRUD.
+--      Where ai_memory_items exists (AI-3, added 2026-11-12):
+--      full CRUD.
 --   5. Fails closed (whole transaction rolls back) if the financial
 --      erasure has not actually happened or if, at the end, the
 --      startup-guard conditions for `lifestyle_app` do not hold.
@@ -194,6 +200,34 @@ DO $$
 BEGIN
   IF to_regclass('public.notification_preferences') IS NOT NULL THEN
     GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_preferences TO lifestyle_app;
+  END IF;
+END
+$$;
+-- 4e. Reports of AI output (AI-P, added 2026-11-11; on production
+-- docs/ai/sql/ai-content-reports.sql grants the runtime directly).
+-- Append-only for the runtime: no UPDATE.
+DO $$
+BEGIN
+  IF to_regclass('public.ai_content_reports') IS NOT NULL THEN
+    GRANT SELECT, INSERT, DELETE ON public.ai_content_reports TO lifestyle_app;
+  END IF;
+END
+$$;
+-- 4f. AI settings and the AI consent (AI-2, added 2026-11-12; on production
+-- docs/ai/sql/ai-user-settings.sql grants the runtime directly).
+DO $$
+BEGIN
+  IF to_regclass('public.ai_user_settings') IS NOT NULL THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_user_settings TO lifestyle_app;
+  END IF;
+END
+$$;
+-- 4g. Explicit AI memory (AI-3, added 2026-11-12; on production
+-- docs/ai/sql/ai-memory-items.sql grants the runtime directly).
+DO $$
+BEGIN
+  IF to_regclass('public.ai_memory_items') IS NOT NULL THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_memory_items TO lifestyle_app;
   END IF;
 END
 $$;

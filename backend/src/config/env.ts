@@ -85,6 +85,9 @@ const baseEnvSchema = z.object({
   // the deployment environment (e.g. Railway), never in the mobile app.
   // AI stays off unless AI_ENABLED is explicitly 'true' AND a key is set;
   // the /ai endpoints then fail closed with 503 instead of calling out.
+  // Exactly one AI provider; only 'gemini' exists (Hybrid AI AI-1). Any other
+  // value fails startup. There is no fallback to another provider.
+  AI_PROVIDER: z.enum(['gemini']).default('gemini'),
   GEMINI_API_KEY: z.string().optional().default(''),
   GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
   AI_ENABLED: z

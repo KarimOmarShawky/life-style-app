@@ -2003,6 +2003,420 @@ paths:
           description: Per-user AI quota exceeded
         "503":
           description: AI disabled
+  /ai/assistant/turn:
+    post:
+      summary: AI Assistant Turn with App Context
+      security:
+        - BearerAuth: []
+      description: One assistant turn (Hybrid AI AI-2b). Without contextScopes it
+        works like /ai/chat. With contextScopes the server reads a capped
+        snapshot of the signed-in user's own data for those scopes (today's
+        tasks at most 20, habits due or done today at most 10 with streaks,
+        active goals at most 10 with progress, today's events at most 10; titles
+        cut to 120 characters; never notes, task descriptions, event locations
+        or Money) and sends it to the model as data next to the message, never
+        as instructions. Context needs the durable AI consent to the current
+        version (GET/PATCH /ai/settings); otherwise the result is
+        unsupported_or_denied with reason consent_required, and nothing is read
+        or sent. Language mode app_locale fixes the reply language to the app
+        language. Shares the AI kill switch and the per-user minute and daily
+        quotas with /ai/chat. Messages, context and replies are never logged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAssistantTurnRequest"
+      responses:
+        "200":
+          description: An answer, or a typed denial (consent_required, scope_unavailable,
+            unsupported)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    $ref: "#/components/schemas/AiAssistantTurnResult"
+                required:
+                  - success
+                  - data
+        "400":
+          description: Validation failed (unknown field, unknown or duplicate scope, size
+            budget)
+        "401":
+          description: Unauthenticated
+        "429":
+          description: Per-user AI quota exceeded (shared with /ai/chat)
+        "502":
+          description: AI provider failure
+        "503":
+          description: AI disabled or provider busy
+  /ai/assistant/turn/stream:
+    post:
+      summary: AI Assistant Turn with App Context (Streaming)
+      security:
+        - BearerAuth: []
+      description: Same contract, consent rules and quotas as /ai/assistant/turn,
+        answered as text/event-stream. Each event payload is a JSON object with
+        a text field and the stream ends with a [DONE] payload. A denial is sent
+        as one event shaped like AiAssistantDenial, followed by [DONE]. Errors
+        before the first byte use the standard error envelope; a failure after
+        text was sent ends the stream with an error event (stream_failed).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAssistantTurnRequest"
+      responses:
+        "200":
+          description: Server-sent event stream of reply chunks or one denial event
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data: {}
+                required:
+                  - success
+                  - data
+        "400":
+          description: Validation failed
+        "401":
+          description: Unauthenticated
+        "429":
+          description: Per-user AI quota exceeded (shared with /ai/chat)
+        "503":
+          description: AI disabled
+  /ai/reports:
+    post:
+      summary: Report an AI Reply
+      security:
+        - BearerAuth: []
+      description: "In-app report of AI output (AI-P, Google Play AI-Generated Content
+        policy). The body names the screen that showed the reply and a category.
+        The reply text and a short note are sent only when the user chose to
+        include them; unknown fields are rejected and the body is never logged.
+        Works while the AI kill switch is off. Reports are kept for 90 days,
+        erased with the account and included in the JSON export. Rate limits: 10
+        per hour and 30 per day per user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiReportRequest"
+      responses:
+        "201":
+          description: Report stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    type: object
+                    properties:
+                      reported:
+                        type: boolean
+                        const: true
+                    required:
+                      - reported
+                required:
+                  - success
+                  - data
+        "400":
+          description: Validation failed (unknown field, blank or over-long text, bad
+            locale)
+        "401":
+          description: Missing or invalid access token
+        "404":
+          description: Account not found or not active
+        "429":
+          description: Per-user report limit exceeded
+        "503":
+          description: AI_REPORTS_UNAVAILABLE before the owner-run SQL is applied
+  /ai/settings:
+    get:
+      summary: Read AI Settings and Consent
+      security:
+        - BearerAuth: []
+      description: "The account's AI settings and its durable consent to send AI
+        requests to the provider (Hybrid AI slice AI-2, decision D5).
+        currentConsentVersion is the version of the consent text the app must
+        show; the account has a valid consent only when
+        settings.egressConsentVersion equals it. Accounts that never saved
+        settings get the defaults (no consent; memory, learning and quick
+        actions off; languageMode auto). available is false until the owner-run
+        SQL is applied; the defaults are returned then. Works while the AI kill
+        switch is off and does not use the AI chat quotas. Rate limit: 30
+        requests per 60 seconds per user."
+      responses:
+        "200":
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    $ref: "#/components/schemas/AiSettingsView"
+                required:
+                  - success
+                  - data
+        "401":
+          description: Missing or invalid access token
+        "429":
+          description: Per-user rate limit exceeded
+    patch:
+      summary: Change AI Settings or Consent
+      security:
+        - BearerAuth: []
+      description: "Changes only the fields sent (at least one; unknown fields are
+        rejected). egressConsentVersion records the consent: it must equal the
+        current version (else 409 AI_CONSENT_VERSION_MISMATCH, and the app shows
+        the current text again); null withdraws it. memoryEnabled lets the
+        assistant use saved memories (AI-3, with a current consent); saving a
+        memory needs memoryEnabled and explicitMemoryEnabled. The switches for
+        learning and quick actions are stored for later slices and have no
+        effect yet. Rate limit: 30 requests per 60 seconds per user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSettingsPatchRequest"
+      responses:
+        "200":
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    $ref: "#/components/schemas/AiSettingsView"
+                required:
+                  - success
+                  - data
+        "400":
+          description: Validation failed (empty body, unknown field or wrong type)
+        "401":
+          description: Missing or invalid access token
+        "404":
+          description: Account not found or not active
+        "409":
+          description: AI_CONSENT_VERSION_MISMATCH (the consent text changed)
+        "429":
+          description: Per-user rate limit exceeded
+        "503":
+          description: AI_SETTINGS_UNAVAILABLE before the owner-run SQL is applied
+  /ai/memories:
+    get:
+      summary: List Saved AI Memories
+      security:
+        - BearerAuth: []
+      description: "The account's saved memories (Hybrid AI slice AI-3, decision D4),
+        newest first, at most 100; truncated is true when more exist.
+        status=active (default) or pending (learned items waiting for review,
+        AI-5; none are created yet). Works with memory switched off and while
+        the AI kill switch is off, and does not use the AI chat quotas. Before
+        the owner-run SQL the list is empty with available false. Rate limit: 30
+        requests per 60 seconds per user."
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - pending
+            default: active
+      responses:
+        "200":
+          description: Saved memories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    $ref: "#/components/schemas/AiMemoryList"
+                required:
+                  - success
+                  - data
+        "400":
+          description: Unknown status or query parameter
+        "401":
+          description: Missing or invalid access token
+        "429":
+          description: Per-user rate limit exceeded
+    post:
+      summary: Save an AI Memory
+      security:
+        - BearerAuth: []
+      description: "Saves a short note the user wants the assistant to remember
+        (source explicit, status active); the model never writes memories. Needs
+        both memoryEnabled and explicitMemoryEnabled in the AI settings (else
+        403 AI_MEMORY_DISABLED) and fewer than 100 active memories (else 409
+        AI_MEMORY_LIMIT, also for saves sent at the same moment). The assistant
+        reads the most recently changed active memories (at most 30 and 6,000
+        characters) only when memoryEnabled is on and the AI consent is current.
+        Rate limit: 30 requests per 60 seconds per user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAiMemoryRequest"
+      responses:
+        "201":
+          description: Saved memory
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    $ref: "#/components/schemas/AiMemoryItem"
+                required:
+                  - success
+                  - data
+        "400":
+          description: Validation failed (unknown field, kind, empty or too long text)
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: AI_MEMORY_DISABLED (memory or saving memories is off)
+        "409":
+          description: AI_MEMORY_LIMIT (100 active memories)
+        "429":
+          description: Per-user rate limit exceeded
+        "503":
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
+    delete:
+      summary: Delete All AI Memories
+      security:
+        - BearerAuth: []
+      description: "Deletes every saved memory of the account, whatever its status;
+        the app asks for confirmation first. Rate limit: 30 requests per 60
+        seconds per user."
+      responses:
+        "200":
+          description: Number of deleted memories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    $ref: "#/components/schemas/AiMemoryDeleteAllResult"
+                required:
+                  - success
+                  - data
+        "401":
+          description: Missing or invalid access token
+        "429":
+          description: Per-user rate limit exceeded
+        "503":
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
+  /ai/memories/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Edit an AI Memory
+      security:
+        - BearerAuth: []
+      description: "Changes the kind, the text or both of one memory of the account.
+        Works with memory switched off. A missing or dismissed memory, or one of
+        another account, answers 404. Rate limit: 30 requests per 60 seconds per
+        user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAiMemoryRequest"
+      responses:
+        "200":
+          description: Edited memory
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    $ref: "#/components/schemas/AiMemoryItem"
+                required:
+                  - success
+                  - data
+        "400":
+          description: Validation failed (id is not a UUID, empty body, unknown field)
+        "401":
+          description: Missing or invalid access token
+        "404":
+          description: No such memory for this account
+        "429":
+          description: Per-user rate limit exceeded
+        "503":
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
+    delete:
+      summary: Delete an AI Memory
+      security:
+        - BearerAuth: []
+      description: "Deletes one memory of the account for good. Works with memory
+        switched off. A missing memory, or one of another account, answers 404.
+        Rate limit: 30 requests per 60 seconds per user."
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          description: The id is not a UUID
+        "401":
+          description: Missing or invalid access token
+        "404":
+          description: No such memory for this account
+        "429":
+          description: Per-user rate limit exceeded
+        "503":
+          description: AI_MEMORY_UNAVAILABLE before the owner-run SQL is applied
   /product-events:
     post:
       summary: Record a Content-Free Product Event
@@ -4144,6 +4558,215 @@ components:
           description: Marks first-run onboarding as completed or skipped. Idempotent; the
             first time is kept.
       additionalProperties: false
+    AiReportRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        surface:
+          type: string
+          enum:
+            - assistant
+            - weekly_coaching
+            - analytics_insight
+        category:
+          type: string
+          enum:
+            - offensive
+            - harmful
+            - inaccurate
+            - spam
+            - other
+        replyText:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: Only when the user chose to include the reply. Trimmed.
+        note:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Optional note from the user. Trimmed.
+        locale:
+          type: string
+          maxLength: 16
+          pattern: ^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})?$
+      required:
+        - surface
+        - category
+        - locale
+    AiSettings:
+      type: object
+      properties:
+        egressConsentVersion:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Consent version the account agreed to; null when never given or
+            withdrawn.
+        egressConsentAt:
+          type: string
+          format: date-time
+          nullable: true
+        memoryEnabled:
+          type: boolean
+        explicitMemoryEnabled:
+          type: boolean
+        learningEnabled:
+          type: boolean
+        quickActionsEnabled:
+          type: boolean
+        languageMode:
+          type: string
+          enum:
+            - auto
+            - app_locale
+          description: auto answers in the language of the message; app_locale in the
+            account language.
+      required:
+        - egressConsentVersion
+        - egressConsentAt
+        - memoryEnabled
+        - explicitMemoryEnabled
+        - learningEnabled
+        - quickActionsEnabled
+        - languageMode
+    AiSettingsView:
+      type: object
+      properties:
+        settings:
+          $ref: "#/components/schemas/AiSettings"
+        currentConsentVersion:
+          type: integer
+          minimum: 1
+        available:
+          type: boolean
+          description: False until the owner-run SQL is applied.
+      required:
+        - settings
+        - currentConsentVersion
+        - available
+    AiSettingsPatchRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        egressConsentVersion:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 1000
+          description: The current consent version to agree, or null to withdraw.
+        memoryEnabled:
+          type: boolean
+        explicitMemoryEnabled:
+          type: boolean
+        learningEnabled:
+          type: boolean
+        quickActionsEnabled:
+          type: boolean
+        languageMode:
+          type: string
+          enum:
+            - auto
+            - app_locale
+    AiMemoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - preference
+            - fact
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+        source:
+          type: string
+          enum:
+            - explicit
+            - learned
+        status:
+          type: string
+          enum:
+            - pending
+            - active
+            - dismissed
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - content
+        - source
+        - status
+        - createdAt
+        - updatedAt
+    AiMemoryList:
+      type: object
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/AiMemoryItem"
+        truncated:
+          type: boolean
+          description: True when more memories exist than were returned.
+        available:
+          type: boolean
+          description: False until the owner-run SQL is applied; the list is then empty.
+      required:
+        - items
+        - truncated
+        - available
+    CreateAiMemoryRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+            - preference
+            - fact
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Trimmed; control characters other than tab and line breaks are
+            rejected.
+      required:
+        - kind
+        - content
+    UpdateAiMemoryRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        kind:
+          type: string
+          enum:
+            - preference
+            - fact
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+    AiMemoryDeleteAllResult:
+      type: object
+      properties:
+        deleted:
+          type: integer
+          minimum: 0
+      required:
+        - deleted
     RecordProductEventRequest:
       type: object
       additionalProperties: false
@@ -5324,6 +5947,98 @@ components:
           type: string
       required:
         - reply
+    AiAssistantTurnRequest:
+      type: object
+      additionalProperties: false
+      description: At most 20 earlier turns plus the message; 4000 characters per text
+        and 24000 in total.
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        conversation:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              role:
+                type: string
+                enum:
+                  - user
+                  - model
+              text:
+                type: string
+                minLength: 1
+                maxLength: 4000
+            required:
+              - role
+              - text
+        contextScopes:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          description: App data the user switched on for this turn. Needs the current AI
+            consent.
+          items:
+            type: string
+            enum:
+              - today
+              - tasks
+              - habits
+              - goals
+              - calendar
+        clientLocale:
+          type: string
+          maxLength: 16
+          description: App language as a BCP-47 tag (e.g. ar-EG); used by language mode
+            app_locale
+      required:
+        - message
+    AiAssistantAnswer:
+      type: object
+      properties:
+        type:
+          type: string
+          const: answer
+        text:
+          type: string
+        language:
+          type: string
+          nullable: true
+          description: Base language code of the reply when known (fixed by app_locale, or
+            Arabic script), else null
+      required:
+        - type
+        - text
+        - language
+    AiAssistantDenial:
+      type: object
+      properties:
+        type:
+          type: string
+          const: unsupported_or_denied
+        reason:
+          type: string
+          enum:
+            - consent_required
+            - scope_unavailable
+            - unsupported
+          description: consent_required - context was asked for without the current AI
+            consent; scope_unavailable - the AI settings are not available yet
+            (owner SQL not applied); unsupported - the provider's safety filters
+            stopped the reply
+      required:
+        - type
+        - reason
+    AiAssistantTurnResult:
+      oneOf:
+        - $ref: "#/components/schemas/AiAssistantAnswer"
+        - $ref: "#/components/schemas/AiAssistantDenial"
+      discriminator:
+        propertyName: type
     AnalyticsSummary:
       type: object
       description: Range-based real analytics (no demo data). Nullable rates are

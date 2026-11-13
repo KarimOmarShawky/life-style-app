@@ -2,8 +2,63 @@
 const Map<String, String> frCatalog = {
   'aiEgressTitle': 'Envoyer la conversation à Google Gemini ?',
   'aiEgressDescription':
-      'Votre message et l’historique de la conversation sont envoyés à Google avec votre clé API. Les données financières ne sont pas incluses automatiquement. Ne saisissez pas de secrets ni de données sensibles. Google applique ses propres règles de confidentialité.',
+      'Votre message et la conversation récente sont envoyés à Google Gemini via le serveur LifeStyle. Ne saisissez pas de mots de passe ni de données sensibles. Google applique ses propres règles de confidentialité.',
   'aiEgressAgree': 'Accepter et envoyer',
+  'aiContextChip': 'Utiliser mes données',
+  'aiContextDialogTitle': 'Utiliser vos données de l’app ?',
+  'aiContextDialogBody':
+      'Pour répondre au sujet de votre journée, le serveur LifeStyle envoie à Google Gemini un court résumé avec chaque message : les titres des tâches du jour, les habitudes prévues aujourd’hui avec leurs séries, vos objectifs actifs avec leur progression et les événements du jour avec leurs horaires. Les notes, les descriptions de tâches, les lieux des événements et les abonnements ne sont jamais envoyés. Vous pouvez désactiver cette option à tout moment.',
+  'aiContextDialogConfirm': 'Activer',
+  'aiConsentRequiredMessage':
+      'Votre consentement à l’IA est nécessaire. Renvoyez votre message pour le consulter.',
+  'aiContextUnavailableMessage':
+      'Vos données de l’app ne peuvent pas être utilisées pour le moment. Désactivez « Utiliser mes données » ou réessayez plus tard.',
+  'aiUnsupportedMessage': 'L’assistant ne peut pas aider avec cette demande.',
+  'aiSendTooltip': 'Envoyer le message',
+  'aiConsentTileTitle': 'Consentement IA',
+  'aiConsentTileSubtitle':
+      'Retirez votre accord pour l’envoi de messages à Google Gemini',
+  'aiConsentWithdrawTitle': 'Retirer le consentement IA ?',
+  'aiConsentWithdrawBody':
+      'L’assistant redemandera votre accord avant d’envoyer quoi que ce soit à Google Gemini, et vos données de l’app ne seront plus utilisées tant que vous n’aurez pas de nouveau accepté. Votre historique de discussion reste sur ce téléphone.',
+  'aiConsentWithdrawAction': 'Retirer',
+  'aiConsentWithdrawn': 'Consentement IA retiré. L’assistant redemandera.',
+  'aiMemoryTitle': 'Mémoire de l’assistant',
+  'aiMemoryTileSubtitle': 'Des notes que l’assistant retient pour vous',
+  'aiMemorySwitchTitle': 'Utiliser mes notes dans l’assistant',
+  'aiMemorySwitchSubtitle':
+      'L’assistant lit jusqu’à 30 de vos notes les plus récemment enregistrées ou modifiées, et seulement après votre accord pour l’envoi des requêtes d’IA à Google Gemini. Les notes restent enregistrées jusqu’à ce que vous les supprimiez.',
+  'aiMemoryAdd': 'Ajouter une note',
+  'aiMemoryEmpty':
+      'Aucune note pour l’instant. Ajoutez-en une ici ou utilisez « Enregistrer en mémoire » sur l’un de vos messages dans l’assistant.',
+  'aiMemoryKindPreference': 'Préférence',
+  'aiMemoryKindFact': 'Fait',
+  'aiMemoryEditTitle': 'Modifier la note',
+  'aiMemoryFieldLabel': 'Note',
+  'aiMemoryEditorHint': 'Par exemple : Réponses courtes',
+  'aiMemoryEditorHelper':
+      'N’enregistrez pas de mots de passe ni d’informations sensibles.',
+  'aiMemoryDeleteTooltip': 'Supprimer la note',
+  'aiMemoryDeleteTitle': 'Supprimer cette note ?',
+  'aiMemoryDeleteBody':
+      'L’assistant ne l’utilisera plus. Cette action est irréversible.',
+  'aiMemoryDeleteAll': 'Supprimer toutes les notes',
+  'aiMemoryDeleteAllTitle': 'Supprimer toutes les notes ?',
+  'aiMemoryDeleteAllBody':
+      'Toutes les notes enregistrées pour l’assistant seront supprimées. Cette action est irréversible.',
+  'aiMemorySaved': 'Enregistré en mémoire.',
+  'aiMemoryDeleted': 'Note supprimée.',
+  'aiMemoryAllDeleted': 'Toutes les notes ont été supprimées.',
+  'aiMemoryDisabledError':
+      'Activez d’abord « Utiliser mes notes dans l’assistant » dans Profil → Mémoire de l’assistant.',
+  'aiMemoryLimitError':
+      'Vous avez 100 notes. Supprimez-en pour en enregistrer de nouvelles.',
+  'aiMemoryUnavailable':
+      'La mémoire de l’assistant n’est pas encore disponible.',
+  'aiMemorySaveFailed': 'Impossible d’enregistrer la note. Réessayez.',
+  'aiMemoryLoadFailed': 'Impossible de charger vos notes.',
+  'aiMemoryDeleteFailed': 'Impossible de supprimer. Réessayez.',
+  'aiSaveToMemoryTooltip': 'Enregistrer en mémoire',
   'appTitle': 'LifeStyle',
   'signIn': 'Se connecter',
   'createAccount': 'Créer un compte',
@@ -303,6 +358,10 @@ const Map<String, String> frCatalog = {
   'archiveDownload': 'Télécharger et vérifier',
   'archiveSave': 'Choisir la destination et enregistrer',
   'accountExportTitle': 'Exporter les métadonnées du compte (JSON)',
+  'privacyPolicyTitle': 'Politique de confidentialité',
+  'privacyPolicySubtitle': "S'ouvre dans votre navigateur",
+  'privacyPolicyOpenFailed':
+      "Impossible d'ouvrir la politique de confidentialité. Vérifiez qu'un navigateur est installé.",
   'accountExportReady': 'Exportation des métadonnées du compte prête',
   'accountExportPrivacy':
       'Il s’agit d’une exportation de métadonnées uniquement, et non d’une archive complète des tâches, notes, finances ou autres données. La copie est facultative et peut exposer vos métadonnées personnelles à d’autres applications, claviers, à l’historique du presse-papiers ou à des appareils synchronisés. Les copies dans le presse-papiers ne sont pas effacées automatiquement par LifeStyle et peuvent persister après la fermeture de cet écran.',
@@ -848,4 +907,26 @@ const Map<String, String> frCatalog = {
   'signedInDevicesPlatformAndroid': 'Appareil Android',
   'signedInDevicesPlatformIos': 'iPhone ou iPad',
   'signedInDevicesPlatformUnknown': 'Appareil inconnu',
+  'aiReportReplyTooltip': 'Signaler la réponse',
+  'aiReportTitle': 'Signaler cette réponse',
+  'aiReportBody':
+      'Dites-nous ce qui ne va pas dans cette réponse. Les signalements nous aident à garder l’IA sûre et fiable.',
+  'aiReportCategoryOffensive': 'Offensante ou haineuse',
+  'aiReportCategoryHarmful': 'Nuisible ou dangereuse',
+  'aiReportCategoryInaccurate': 'Fausse ou trompeuse',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Autre chose',
+  'aiReportIncludeReply':
+      'Inclure la réponse pour que nous puissions l’examiner',
+  'aiReportNoteLabel': 'Note (facultatif)',
+  'aiReportSend': 'Envoyer le signalement',
+  'aiReportSent': 'Merci, nous avons bien reçu votre signalement.',
+  'aiReportFailed': 'Impossible d’envoyer le signalement. Réessayez plus tard.',
+  'aiAgeTitle': 'Avez-vous 18 ans ou plus ?',
+  'aiAgeBody':
+      'Les fonctions d’IA utilisent Google Gemini, réservé aux personnes de 18 ans ou plus.',
+  'aiAgeConfirm': 'J’ai 18 ans ou plus',
+  'aiAgeDecline': 'J’ai moins de 18 ans',
+  'aiAgeDeclined':
+      'Les fonctions d’IA sont disponibles à partir de 18 ans. Le reste de l’application fonctionne normalement.',
 };

@@ -33,6 +33,7 @@ The LifeStyle App backend requires strict validation of environment configuratio
 | `EMAIL_FROM` | Yes | `no-reply@lifestyle.app` | Default sender email address |
 | `FCM_CREDENTIALS` | P8+ | — | Firebase Cloud Messaging service account credentials |
 | `AI_ENABLED` | No | `false` | Kill switch for the server-side AI assistant proxy; must be `true` to enable it |
+| `AI_PROVIDER` | No | `gemini` | The one AI provider. Only `gemini` is accepted; any other value stops the server at startup. No fallback to another provider |
 | `GEMINI_API_KEY` | AI only | — | Central Gemini key held only by the backend; never ship it in the mobile app |
 | `GEMINI_MODEL` | No | `gemini-3.5-flash-lite` | Gemini model used by the AI proxy |
 | `AI_USER_MINUTE_LIMIT` | No | `10` | Per-user AI requests allowed per minute |

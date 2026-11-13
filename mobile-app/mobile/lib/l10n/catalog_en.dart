@@ -3,8 +3,60 @@
 const Map<String, String> enCatalog = {
   'aiEgressTitle': 'Send conversation to Google Gemini?',
   'aiEgressDescription':
-      'Your message and conversation history are sent to Google using your API key. Financial records are not included automatically. Do not type secrets or sensitive information. Google applies its own data policies.',
+      "Your message and the recent conversation are sent to Google Gemini through LifeStyle's server. Don't type passwords or sensitive information. Google applies its own data policies.",
   'aiEgressAgree': 'Agree and send',
+  'aiContextChip': 'Use my app data',
+  'aiContextDialogTitle': 'Use your app data?',
+  'aiContextDialogBody':
+      "To answer about your day, LifeStyle's server sends Google Gemini a short summary with each message: the titles of today's tasks, habits due today with their streaks, your active goals with their progress and today's events with their times. Notes, task descriptions, event locations and subscriptions are never sent. You can turn this off at any time.",
+  'aiContextDialogConfirm': 'Turn on',
+  'aiConsentRequiredMessage':
+      'AI consent is needed. Send your message again to review it.',
+  'aiContextUnavailableMessage':
+      "Your app data can't be used right now. Turn off “Use my app data” or try again later.",
+  'aiUnsupportedMessage': "The assistant can't help with this request.",
+  'aiSendTooltip': 'Send message',
+  'aiConsentTileTitle': 'AI consent',
+  'aiConsentTileSubtitle':
+      'Withdraw your agreement to send messages to Google Gemini',
+  'aiConsentWithdrawTitle': 'Withdraw AI consent?',
+  'aiConsentWithdrawBody':
+      "The assistant will ask again before it sends anything to Google Gemini, and your app data won't be used until you agree again. Your chat history stays on this phone.",
+  'aiConsentWithdrawAction': 'Withdraw',
+  'aiConsentWithdrawn': 'AI consent withdrawn. The assistant will ask again.',
+  'aiMemoryTitle': 'Assistant memory',
+  'aiMemoryTileSubtitle': 'Notes the assistant remembers for you',
+  'aiMemorySwitchTitle': 'Use my notes in the assistant',
+  'aiMemorySwitchSubtitle':
+      'The assistant reads up to 30 of your most recently saved or changed notes, and only after you agree to send AI requests to Google Gemini. Notes stay saved until you delete them.',
+  'aiMemoryAdd': 'Add a note',
+  'aiMemoryEmpty':
+      'No notes yet. Add one here, or use “Save to memory” on one of your messages in the assistant.',
+  'aiMemoryKindPreference': 'Preference',
+  'aiMemoryKindFact': 'Fact',
+  'aiMemoryEditTitle': 'Edit note',
+  'aiMemoryFieldLabel': 'Note',
+  'aiMemoryEditorHint': 'For example: Keep answers short',
+  'aiMemoryEditorHelper': "Don't save passwords or sensitive information.",
+  'aiMemoryDeleteTooltip': 'Delete note',
+  'aiMemoryDeleteTitle': 'Delete this note?',
+  'aiMemoryDeleteBody':
+      "The assistant will no longer use it. This can't be undone.",
+  'aiMemoryDeleteAll': 'Delete all notes',
+  'aiMemoryDeleteAllTitle': 'Delete all notes?',
+  'aiMemoryDeleteAllBody':
+      "Every note you saved for the assistant will be deleted. This can't be undone.",
+  'aiMemorySaved': 'Saved to memory.',
+  'aiMemoryDeleted': 'Note deleted.',
+  'aiMemoryAllDeleted': 'All notes deleted.',
+  'aiMemoryDisabledError':
+      'Turn on “Use my notes in the assistant” in Profile → Assistant memory first.',
+  'aiMemoryLimitError': 'You have 100 notes. Delete some to save new ones.',
+  'aiMemoryUnavailable': "Assistant memory isn't available yet.",
+  'aiMemorySaveFailed': "Couldn't save the note. Try again.",
+  'aiMemoryLoadFailed': "Couldn't load your notes.",
+  'aiMemoryDeleteFailed': "Couldn't delete. Try again.",
+  'aiSaveToMemoryTooltip': 'Save to memory',
   'appTitle': 'LifeStyle',
   'signIn': 'Sign in',
   'createAccount': 'Create account',
@@ -31,6 +83,10 @@ const Map<String, String> enCatalog = {
   'archiveDownload': 'Download and verify',
   'archiveSave': 'Choose destination and save',
   'accountExportTitle': 'Export account metadata (JSON)',
+  'privacyPolicyTitle': 'Privacy policy',
+  'privacyPolicySubtitle': 'Opens in your browser',
+  'privacyPolicyOpenFailed':
+      "Couldn't open the privacy policy. Check that a browser is installed.",
   'accountExportReady': 'Account metadata export ready',
   'accountExportPrivacy':
       'This is a metadata-only export, not a complete archive of tasks, notes, finances or other application data. Copying is optional and may expose your personal account metadata to other apps, keyboards, clipboard history or synced devices. Clipboard copies are not automatically cleared by LifeStyle and may persist after you close this screen.',
@@ -810,4 +866,25 @@ const Map<String, String> enCatalog = {
   'signedInDevicesPlatformAndroid': 'Android device',
   'signedInDevicesPlatformIos': 'iPhone or iPad',
   'signedInDevicesPlatformUnknown': 'Unknown device',
+  'aiReportReplyTooltip': 'Report reply',
+  'aiReportTitle': 'Report this reply',
+  'aiReportBody':
+      "Tell us what's wrong with this reply. Reports help us keep the AI safe and accurate.",
+  'aiReportCategoryOffensive': 'Offensive or hateful',
+  'aiReportCategoryHarmful': 'Harmful or dangerous',
+  'aiReportCategoryInaccurate': 'Wrong or misleading',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Something else',
+  'aiReportIncludeReply': 'Include the reply so we can review it',
+  'aiReportNoteLabel': 'Note (optional)',
+  'aiReportSend': 'Send report',
+  'aiReportSent': 'Thanks, we received your report.',
+  'aiReportFailed': "Couldn't send the report. Try again later.",
+  'aiAgeTitle': 'Are you 18 or older?',
+  'aiAgeBody':
+      'The AI features use Google Gemini, which is only for people aged 18 or older.',
+  'aiAgeConfirm': "I'm 18 or older",
+  'aiAgeDecline': "I'm under 18",
+  'aiAgeDeclined':
+      'AI features are available from age 18. The rest of the app works as usual.',
 };

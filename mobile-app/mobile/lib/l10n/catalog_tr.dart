@@ -2,8 +2,61 @@
 const Map<String, String> trCatalog = {
   'aiEgressTitle': 'Konuşma Google Gemini’ye gönderilsin mi?',
   'aiEgressDescription':
-      'Mesajınız ve konuşma geçmişiniz API anahtarınız kullanılarak Google’a gönderilir. Finansal kayıtlar otomatik olarak eklenmez. Gizli veya hassas bilgiler yazmayın. Google kendi veri politikalarını uygular.',
+      'Mesajın ve son konuşma, LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Şifre veya hassas bilgi yazma. Google kendi veri politikalarını uygular.',
   'aiEgressAgree': 'Kabul et ve gönder',
+  'aiContextChip': 'Uygulama verilerimi kullan',
+  'aiContextDialogTitle': 'Uygulama verilerin kullanılsın mı?',
+  'aiContextDialogBody':
+      'Gününle ilgili soruları yanıtlamak için LifeStyle sunucusu her mesajla birlikte Google Gemini’ye kısa bir özet gönderir: bugünkü görevlerin başlıkları, bugün yapılacak alışkanlıklar ve serileri, ilerlemeleriyle birlikte aktif hedeflerin ve saatleriyle birlikte bugünkü etkinlikler. Notlar, görev açıklamaları, etkinlik konumları ve abonelikler asla gönderilmez. Bunu istediğin zaman kapatabilirsin.',
+  'aiContextDialogConfirm': 'Aç',
+  'aiConsentRequiredMessage':
+      'Yapay zekâ onayın gerekiyor. İncelemek için mesajını yeniden gönder.',
+  'aiContextUnavailableMessage':
+      'Uygulama verilerin şu anda kullanılamıyor. “Uygulama verilerimi kullan” seçeneğini kapat veya daha sonra tekrar dene.',
+  'aiUnsupportedMessage': 'Asistan bu istekte yardımcı olamaz.',
+  'aiSendTooltip': 'Mesajı gönder',
+  'aiConsentTileTitle': 'Yapay zekâ onayı',
+  'aiConsentTileSubtitle': 'Google Gemini’ye mesaj gönderme onayını geri çek',
+  'aiConsentWithdrawTitle': 'Yapay zekâ onayı geri çekilsin mi?',
+  'aiConsentWithdrawBody':
+      'Asistan, Google Gemini’ye bir şey göndermeden önce yeniden soracak ve yeniden onay verene kadar uygulama verilerin kullanılmayacak. Sohbet geçmişin bu telefonda kalır.',
+  'aiConsentWithdrawAction': 'Geri çek',
+  'aiConsentWithdrawn':
+      'Yapay zekâ onayı geri çekildi. Asistan yeniden soracak.',
+  'aiMemoryTitle': 'Asistan hafızası',
+  'aiMemoryTileSubtitle': 'Asistanın senin için hatırladığı notlar',
+  'aiMemorySwitchTitle': 'Notlarımı asistanda kullan',
+  'aiMemorySwitchSubtitle':
+      'Asistan, en son kaydettiğin veya değiştirdiğin notlarından en fazla 30 tanesini okur ve bunu yalnızca yapay zekâ isteklerinin Google Gemini’ye gönderilmesini onayladıktan sonra yapar. Notlar sen silene kadar kayıtlı kalır.',
+  'aiMemoryAdd': 'Not ekle',
+  'aiMemoryEmpty':
+      'Henüz not yok. Buradan ekle ya da asistandaki mesajlarından birinde “Hafızaya kaydet” seçeneğini kullan.',
+  'aiMemoryKindPreference': 'Tercih',
+  'aiMemoryKindFact': 'Bilgi',
+  'aiMemoryEditTitle': 'Notu düzenle',
+  'aiMemoryFieldLabel': 'Not',
+  'aiMemoryEditorHint': 'Örneğin: Yanıtları kısa tut',
+  'aiMemoryEditorHelper': 'Şifre veya hassas bilgi kaydetme.',
+  'aiMemoryDeleteTooltip': 'Notu sil',
+  'aiMemoryDeleteTitle': 'Bu not silinsin mi?',
+  'aiMemoryDeleteBody':
+      'Asistan artık bunu kullanmayacak. Bu işlem geri alınamaz.',
+  'aiMemoryDeleteAll': 'Tüm notları sil',
+  'aiMemoryDeleteAllTitle': 'Tüm notlar silinsin mi?',
+  'aiMemoryDeleteAllBody':
+      'Asistan için kaydettiğin tüm notlar silinecek. Bu işlem geri alınamaz.',
+  'aiMemorySaved': 'Hafızaya kaydedildi.',
+  'aiMemoryDeleted': 'Not silindi.',
+  'aiMemoryAllDeleted': 'Tüm notlar silindi.',
+  'aiMemoryDisabledError':
+      'Önce Profil → Asistan hafızası bölümünde “Notlarımı asistanda kullan” seçeneğini aç.',
+  'aiMemoryLimitError':
+      '100 notun var. Yenilerini kaydetmek için bazılarını sil.',
+  'aiMemoryUnavailable': 'Asistan hafızası henüz kullanılamıyor.',
+  'aiMemorySaveFailed': 'Not kaydedilemedi. Tekrar dene.',
+  'aiMemoryLoadFailed': 'Notların yüklenemedi.',
+  'aiMemoryDeleteFailed': 'Silinemedi. Tekrar dene.',
+  'aiSaveToMemoryTooltip': 'Hafızaya kaydet',
   'appTitle': 'LifeStyle',
   'signIn': 'Giriş yap',
   'createAccount': 'Hesap oluştur',
@@ -297,6 +350,10 @@ const Map<String, String> trCatalog = {
   'archiveDownload': 'İndir ve doğrula',
   'archiveSave': 'Hedef seç ve kaydet',
   'accountExportTitle': 'Hesap meta verilerini dışa aktar (JSON)',
+  'privacyPolicyTitle': 'Gizlilik politikası',
+  'privacyPolicySubtitle': 'Tarayıcınızda açılır',
+  'privacyPolicyOpenFailed':
+      'Gizlilik politikası açılamadı. Bir tarayıcının yüklü olduğundan emin olun.',
   'accountExportReady': 'Hesap meta veri aktarımı hazır',
   'accountExportPrivacy':
       'Bu, görevlerin, notların, finansın veya diğer uygulama verilerinin tam arşivi değil, yalnızca meta veri aktarımıdır. Kopyalama isteğe bağlıdır ve kişisel hesap meta verilerinizi diğer uygulamalara, klavyelere, pano geçmişine veya senkronize edilmiş cihazlara açabilir. Pano kopyaları LifeStyle tarafından otomatik olarak temizlenmez ve bu ekranı kapattıktan sonra da kalabilir.',
@@ -810,4 +867,25 @@ const Map<String, String> trCatalog = {
   'signedInDevicesPlatformAndroid': 'Android cihaz',
   'signedInDevicesPlatformIos': 'iPhone veya iPad',
   'signedInDevicesPlatformUnknown': 'Bilinmeyen cihaz',
+  'aiReportReplyTooltip': 'Yanıtı bildir',
+  'aiReportTitle': 'Bu yanıtı bildir',
+  'aiReportBody':
+      'Bu yanıtta neyin yanlış olduğunu bize anlat. Bildirimler, yapay zekâyı güvenli ve doğru tutmamıza yardımcı olur.',
+  'aiReportCategoryOffensive': 'Saldırgan veya nefret içeren',
+  'aiReportCategoryHarmful': 'Zararlı veya tehlikeli',
+  'aiReportCategoryInaccurate': 'Yanlış veya yanıltıcı',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Başka bir şey',
+  'aiReportIncludeReply': 'İnceleyebilmemiz için yanıtı ekle',
+  'aiReportNoteLabel': 'Not (isteğe bağlı)',
+  'aiReportSend': 'Bildirimi gönder',
+  'aiReportSent': 'Teşekkürler, bildirimini aldık.',
+  'aiReportFailed': 'Bildirim gönderilemedi. Daha sonra tekrar dene.',
+  'aiAgeTitle': '18 yaşında veya daha büyük müsün?',
+  'aiAgeBody':
+      'Yapay zekâ özellikleri Google Gemini kullanır ve yalnızca 18 yaş ve üzeri kişiler içindir.',
+  'aiAgeConfirm': '18 yaşında veya daha büyüğüm',
+  'aiAgeDecline': '18 yaşından küçüğüm',
+  'aiAgeDeclined':
+      'Yapay zekâ özellikleri 18 yaşından itibaren kullanılabilir. Uygulamanın geri kalanı her zamanki gibi çalışır.',
 };

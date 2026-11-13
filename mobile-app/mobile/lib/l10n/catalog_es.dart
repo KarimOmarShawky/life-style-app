@@ -2,8 +2,61 @@
 const Map<String, String> esCatalog = {
   'aiEgressTitle': '¿Enviar la conversación a Google Gemini?',
   'aiEgressDescription':
-      'Tu mensaje y el historial de la conversación se envían a Google usando tu clave API. Los datos financieros no se incluyen automáticamente. No escribas secretos ni información sensible. Google aplica sus propias políticas de datos.',
+      'Tu mensaje y la conversación reciente se envían a Google Gemini a través del servidor de LifeStyle. No escribas contraseñas ni información sensible. Google aplica sus propias políticas de datos.',
   'aiEgressAgree': 'Aceptar y enviar',
+  'aiContextChip': 'Usar mis datos de la app',
+  'aiContextDialogTitle': '¿Usar tus datos de la app?',
+  'aiContextDialogBody':
+      'Para responder sobre tu día, el servidor de LifeStyle envía a Google Gemini un breve resumen con cada mensaje: los títulos de las tareas de hoy, los hábitos de hoy con sus rachas, tus metas activas con su progreso y los eventos de hoy con sus horarios. Nunca se envían notas, descripciones de tareas, lugares de eventos ni suscripciones. Puedes desactivarlo cuando quieras.',
+  'aiContextDialogConfirm': 'Activar',
+  'aiConsentRequiredMessage':
+      'Se necesita tu consentimiento para la IA. Vuelve a enviar tu mensaje para revisarlo.',
+  'aiContextUnavailableMessage':
+      'Ahora no se pueden usar tus datos de la app. Desactiva «Usar mis datos de la app» o inténtalo más tarde.',
+  'aiUnsupportedMessage': 'El asistente no puede ayudar con esta solicitud.',
+  'aiSendTooltip': 'Enviar mensaje',
+  'aiConsentTileTitle': 'Consentimiento de IA',
+  'aiConsentTileSubtitle':
+      'Retira tu permiso para enviar mensajes a Google Gemini',
+  'aiConsentWithdrawTitle': '¿Retirar el consentimiento de IA?',
+  'aiConsentWithdrawBody':
+      'El asistente volverá a preguntar antes de enviar nada a Google Gemini y tus datos de la app no se usarán hasta que vuelvas a aceptar. Tu historial de chat se queda en este teléfono.',
+  'aiConsentWithdrawAction': 'Retirar',
+  'aiConsentWithdrawn':
+      'Consentimiento de IA retirado. El asistente volverá a preguntar.',
+  'aiMemoryTitle': 'Memoria del asistente',
+  'aiMemoryTileSubtitle': 'Notas que el asistente recuerda por ti',
+  'aiMemorySwitchTitle': 'Usar mis notas en el asistente',
+  'aiMemorySwitchSubtitle':
+      'El asistente lee hasta 30 de tus notas guardadas o cambiadas más recientemente, y solo después de que aceptes enviar solicitudes de IA a Google Gemini. Las notas se guardan hasta que las borres.',
+  'aiMemoryAdd': 'Añadir una nota',
+  'aiMemoryEmpty':
+      'Aún no hay notas. Añade una aquí o usa «Guardar en la memoria» en uno de tus mensajes del asistente.',
+  'aiMemoryKindPreference': 'Preferencia',
+  'aiMemoryKindFact': 'Dato',
+  'aiMemoryEditTitle': 'Editar nota',
+  'aiMemoryFieldLabel': 'Nota',
+  'aiMemoryEditorHint': 'Por ejemplo: Respuestas breves',
+  'aiMemoryEditorHelper': 'No guardes contraseñas ni información sensible.',
+  'aiMemoryDeleteTooltip': 'Borrar nota',
+  'aiMemoryDeleteTitle': '¿Borrar esta nota?',
+  'aiMemoryDeleteBody': 'El asistente dejará de usarla. No se puede deshacer.',
+  'aiMemoryDeleteAll': 'Borrar todas las notas',
+  'aiMemoryDeleteAllTitle': '¿Borrar todas las notas?',
+  'aiMemoryDeleteAllBody':
+      'Se borrarán todas las notas que guardaste para el asistente. No se puede deshacer.',
+  'aiMemorySaved': 'Guardado en la memoria.',
+  'aiMemoryDeleted': 'Nota borrada.',
+  'aiMemoryAllDeleted': 'Todas las notas borradas.',
+  'aiMemoryDisabledError':
+      'Primero activa «Usar mis notas en el asistente» en Perfil → Memoria del asistente.',
+  'aiMemoryLimitError':
+      'Tienes 100 notas. Borra algunas para guardar otras nuevas.',
+  'aiMemoryUnavailable': 'La memoria del asistente aún no está disponible.',
+  'aiMemorySaveFailed': 'No se pudo guardar la nota. Inténtalo de nuevo.',
+  'aiMemoryLoadFailed': 'No se pudieron cargar tus notas.',
+  'aiMemoryDeleteFailed': 'No se pudo borrar. Inténtalo de nuevo.',
+  'aiSaveToMemoryTooltip': 'Guardar en la memoria',
   'appTitle': 'LifeStyle',
   'signIn': 'Iniciar sesión',
   'createAccount': 'Crear cuenta',
@@ -300,6 +353,10 @@ const Map<String, String> esCatalog = {
   'archiveDownload': 'Descargar y verificar',
   'archiveSave': 'Elegir destino y guardar',
   'accountExportTitle': 'Exportar metadatos de la cuenta (JSON)',
+  'privacyPolicyTitle': 'Política de privacidad',
+  'privacyPolicySubtitle': 'Se abre en tu navegador',
+  'privacyPolicyOpenFailed':
+      'No se pudo abrir la política de privacidad. Comprueba que tienes un navegador instalado.',
   'accountExportReady': 'Exportación de metadatos de la cuenta lista',
   'accountExportPrivacy':
       'Esta es una exportación solo de metadatos, no un archivo completo de tareas, notas, finanzas u otros datos de la aplicación. Copiar es opcional y puede exponer los metadatos de tu cuenta personal a otras apps, teclados, historial del portapapeles o dispositivos sincronizados. LifeStyle no borra automáticamente las copias del portapapeles y pueden persistir después de cerrar esta pantalla.',
@@ -839,4 +896,25 @@ const Map<String, String> esCatalog = {
   'signedInDevicesPlatformAndroid': 'Dispositivo Android',
   'signedInDevicesPlatformIos': 'iPhone o iPad',
   'signedInDevicesPlatformUnknown': 'Dispositivo desconocido',
+  'aiReportReplyTooltip': 'Reportar respuesta',
+  'aiReportTitle': 'Reportar esta respuesta',
+  'aiReportBody':
+      'Cuéntanos qué está mal en esta respuesta. Los reportes nos ayudan a mantener la IA segura y precisa.',
+  'aiReportCategoryOffensive': 'Ofensiva o de odio',
+  'aiReportCategoryHarmful': 'Dañina o peligrosa',
+  'aiReportCategoryInaccurate': 'Incorrecta o engañosa',
+  'aiReportCategorySpam': 'Spam',
+  'aiReportCategoryOther': 'Otro motivo',
+  'aiReportIncludeReply': 'Incluir la respuesta para que podamos revisarla',
+  'aiReportNoteLabel': 'Nota (opcional)',
+  'aiReportSend': 'Enviar reporte',
+  'aiReportSent': 'Gracias, recibimos tu reporte.',
+  'aiReportFailed': 'No se pudo enviar el reporte. Inténtalo más tarde.',
+  'aiAgeTitle': '¿Tienes 18 años o más?',
+  'aiAgeBody':
+      'Las funciones de IA usan Google Gemini, que es solo para personas de 18 años o más.',
+  'aiAgeConfirm': 'Tengo 18 años o más',
+  'aiAgeDecline': 'Tengo menos de 18',
+  'aiAgeDeclined':
+      'Las funciones de IA están disponibles a partir de los 18 años. El resto de la app funciona como siempre.',
 };

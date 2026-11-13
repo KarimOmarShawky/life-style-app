@@ -3,8 +3,59 @@
 const Map<String, String> arCatalog = {
   'aiEgressTitle': 'إرسال المحادثة إلى Google Gemini؟',
   'aiEgressDescription':
-      'تُرسل رسالتك وسجل المحادثة إلى Google باستخدام مفتاح API الخاص بك. لا تُرسل السجلات المالية تلقائياً. لا تكتب أسراراً أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
+      'تُرسل رسالتك والمحادثة الأخيرة إلى Google Gemini عبر خادم LifeStyle. لا تكتب كلمات مرور أو معلومات حساسة. تطبّق Google سياسات البيانات الخاصة بها.',
   'aiEgressAgree': 'أوافق وأرسل',
+  'aiContextChip': 'استخدم بيانات التطبيق',
+  'aiContextDialogTitle': 'استخدام بيانات التطبيق؟',
+  'aiContextDialogBody':
+      'للإجابة عن يومك، يرسل خادم LifeStyle مع كل رسالة ملخصًا قصيرًا إلى Google Gemini: عناوين مهام اليوم، والعادات المستحقة اليوم مع سلاسلها، وأهدافك النشطة مع نسبة تقدمها، وأحداث اليوم مع مواعيدها. لا تُرسل الملاحظات ولا أوصاف المهام ولا أماكن الأحداث ولا الاشتراكات أبدًا. يمكنك إيقاف ذلك في أي وقت.',
+  'aiContextDialogConfirm': 'تشغيل',
+  'aiConsentRequiredMessage':
+      'يلزم موافقتك على الذكاء الاصطناعي. أرسل رسالتك مرة أخرى لمراجعتها.',
+  'aiContextUnavailableMessage':
+      'تعذر استخدام بيانات التطبيق الآن. أوقف «استخدم بيانات التطبيق» أو حاول لاحقًا.',
+  'aiUnsupportedMessage': 'لا يستطيع المساعد المساعدة في هذا الطلب.',
+  'aiSendTooltip': 'إرسال الرسالة',
+  'aiConsentTileTitle': 'موافقة الذكاء الاصطناعي',
+  'aiConsentTileSubtitle': 'اسحب موافقتك على إرسال الرسائل إلى Google Gemini',
+  'aiConsentWithdrawTitle': 'سحب موافقة الذكاء الاصطناعي؟',
+  'aiConsentWithdrawBody':
+      'سيطلب المساعد موافقتك مرة أخرى قبل أن يرسل أي شيء إلى Google Gemini، ولن تُستخدم بيانات التطبيق حتى توافق من جديد. يبقى سجل المحادثة على هذا الهاتف.',
+  'aiConsentWithdrawAction': 'سحب الموافقة',
+  'aiConsentWithdrawn':
+      'تم سحب موافقة الذكاء الاصطناعي. سيطلبها المساعد مرة أخرى.',
+  'aiMemoryTitle': 'ذاكرة المساعد',
+  'aiMemoryTileSubtitle': 'ملاحظات يتذكرها المساعد من أجلك',
+  'aiMemorySwitchTitle': 'استخدم ملاحظاتي في المساعد',
+  'aiMemorySwitchSubtitle':
+      'يقرأ المساعد حتى 30 ملاحظة من أحدث ما حفظته أو عدّلته، وذلك فقط بعد موافقتك على إرسال طلبات الذكاء الاصطناعي إلى Google Gemini. تبقى الملاحظات محفوظة حتى تحذفها.',
+  'aiMemoryAdd': 'إضافة ملاحظة',
+  'aiMemoryEmpty':
+      'لا توجد ملاحظات بعد. أضف واحدة هنا، أو استخدم «حفظ في الذاكرة» على إحدى رسائلك في المساعد.',
+  'aiMemoryKindPreference': 'تفضيل',
+  'aiMemoryKindFact': 'معلومة',
+  'aiMemoryEditTitle': 'تعديل الملاحظة',
+  'aiMemoryFieldLabel': 'الملاحظة',
+  'aiMemoryEditorHint': 'مثلًا: اجعل الإجابات قصيرة',
+  'aiMemoryEditorHelper': 'لا تحفظ كلمات مرور أو معلومات حساسة.',
+  'aiMemoryDeleteTooltip': 'حذف الملاحظة',
+  'aiMemoryDeleteTitle': 'حذف هذه الملاحظة؟',
+  'aiMemoryDeleteBody': 'لن يستخدمها المساعد بعد الآن. لا يمكن التراجع عن ذلك.',
+  'aiMemoryDeleteAll': 'حذف كل الملاحظات',
+  'aiMemoryDeleteAllTitle': 'حذف كل الملاحظات؟',
+  'aiMemoryDeleteAllBody':
+      'ستُحذف كل الملاحظات التي حفظتها للمساعد. لا يمكن التراجع عن ذلك.',
+  'aiMemorySaved': 'تم الحفظ في الذاكرة.',
+  'aiMemoryDeleted': 'تم حذف الملاحظة.',
+  'aiMemoryAllDeleted': 'تم حذف كل الملاحظات.',
+  'aiMemoryDisabledError':
+      'فعّل «استخدم ملاحظاتي في المساعد» من الملف الشخصي ← ذاكرة المساعد أولًا.',
+  'aiMemoryLimitError': 'لديك 100 ملاحظة. احذف بعضها لتحفظ ملاحظات جديدة.',
+  'aiMemoryUnavailable': 'ذاكرة المساعد غير متاحة بعد.',
+  'aiMemorySaveFailed': 'تعذّر حفظ الملاحظة. حاول مرة أخرى.',
+  'aiMemoryLoadFailed': 'تعذّر تحميل ملاحظاتك.',
+  'aiMemoryDeleteFailed': 'تعذّر الحذف. حاول مرة أخرى.',
+  'aiSaveToMemoryTooltip': 'حفظ في الذاكرة',
   'appTitle': 'لايف ستايل',
   'signIn': 'تسجيل الدخول',
   'createAccount': 'إنشاء حساب جديد',
@@ -434,6 +485,10 @@ const Map<String, String> arCatalog = {
   'archiveDownload': 'التنزيل والتحقق',
   'archiveSave': 'اختيار الوجهة والحفظ',
   'accountExportTitle': 'تصدير البيانات الوصفية للحساب (JSON)',
+  'privacyPolicyTitle': 'سياسة الخصوصية',
+  'privacyPolicySubtitle': 'تُفتح في المتصفح',
+  'privacyPolicyOpenFailed':
+      'تعذّر فتح سياسة الخصوصية. تأكد من وجود متصفح على الهاتف.',
   'accountExportReady': 'تصدير البيانات الوصفية للحساب جاهز',
   'accountExportPrivacy':
       'هذا تصدير للبيانات الوصفية فقط، وليس أرشيفًا كاملًا للمهام أو الملاحظات أو الشؤون المالية أو بيانات التطبيق الأخرى. النسخ اختياري وقد يعرّض البيانات الوصفية لحسابك الشخصي لتطبيقات أخرى أو لوحات مفاتيح أو سجل الحافظة أو أجهزة متزامنة. لا يقوم LifeStyle بمسح نسخ الحافظة تلقائيًا وقد تبقى بعد إغلاق هذه الشاشة.',
@@ -791,4 +846,25 @@ const Map<String, String> arCatalog = {
   'signedInDevicesPlatformAndroid': 'جهاز Android',
   'signedInDevicesPlatformIos': 'iPhone أو iPad',
   'signedInDevicesPlatformUnknown': 'جهاز غير معروف',
+  'aiReportReplyTooltip': 'الإبلاغ عن الرد',
+  'aiReportTitle': 'الإبلاغ عن هذا الرد',
+  'aiReportBody':
+      'أخبرنا بالمشكلة في هذا الرد. تساعدنا البلاغات على إبقاء الذكاء الاصطناعي آمنًا ودقيقًا.',
+  'aiReportCategoryOffensive': 'مسيء أو يحض على الكراهية',
+  'aiReportCategoryHarmful': 'ضار أو خطير',
+  'aiReportCategoryInaccurate': 'خاطئ أو مضلل',
+  'aiReportCategorySpam': 'محتوى مزعج (سبام)',
+  'aiReportCategoryOther': 'شيء آخر',
+  'aiReportIncludeReply': 'إرفاق نص الرد لنتمكن من مراجعته',
+  'aiReportNoteLabel': 'ملاحظة (اختياري)',
+  'aiReportSend': 'إرسال البلاغ',
+  'aiReportSent': 'شكرًا، وصلنا بلاغك.',
+  'aiReportFailed': 'تعذّر إرسال البلاغ. حاول مرة أخرى لاحقًا.',
+  'aiAgeTitle': 'هل عمرك 18 سنة أو أكثر؟',
+  'aiAgeBody':
+      'تعمل ميزات الذكاء الاصطناعي بواسطة Google Gemini، وهي متاحة فقط لمن تبلغ أعمارهم 18 سنة أو أكثر.',
+  'aiAgeConfirm': 'عمري 18 سنة أو أكثر',
+  'aiAgeDecline': 'عمري أقل من 18 سنة',
+  'aiAgeDeclined':
+      'ميزات الذكاء الاصطناعي متاحة من عمر 18 سنة. باقي التطبيق يعمل كالمعتاد.',
 };

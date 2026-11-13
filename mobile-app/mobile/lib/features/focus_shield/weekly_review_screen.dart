@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_age_confirmation.dart';
+import 'package:lifestyle_mobile/features/ai/data/ai_reports_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/ai/presentation/ai_report_sheet.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
 import 'package:lifestyle_mobile/features/timer/state/timer_sessions_provider.dart';
 import 'package:lifestyle_mobile/features/habits/state/habits_provider.dart';
@@ -21,6 +24,8 @@ class WeeklyReviewScreen extends ConsumerStatefulWidget {
 class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
   WeeklyMetrics? _metrics;
   String? _coaching;
+  // True only when _coaching came from the AI (it can be reported then).
+  bool _coachingFromAi = false;
   bool _loading = true;
   bool _generating = false;
   Future<T?> _optional<T>(Future<T> request) async {
@@ -81,6 +86,7 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
     setState(() {
       _metrics = metrics;
       _coaching = metrics.offlineSummary();
+      _coachingFromAi = false;
       _loading = false;
     });
   }
@@ -93,10 +99,16 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
       final ai = AiService.instance;
       if (ai.isPaused) {
         if (mounted) {
-          setState(() => _coaching = metrics.offlineSummary());
+          setState(() {
+            _coaching = metrics.offlineSummary();
+            _coachingFromAi = false;
+          });
         }
         return;
       }
+      if (!mounted) return;
+      // Gemini API terms: AI features are for people aged 18 or older (D9).
+      if (!await ensureAiAgeConfirmed(context, ref)) return;
       if (!mounted) return;
       final consent = await showDialog<bool>(
           context: context,
@@ -123,11 +135,17 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
       final coaching =
           await ai.generateWeeklyCoaching(aggregates: metrics.aggregates());
       if (mounted) {
-        setState(() => _coaching = coaching ?? metrics.offlineSummary());
+        setState(() {
+          _coaching = coaching ?? metrics.offlineSummary();
+          _coachingFromAi = coaching != null;
+        });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _coaching = metrics.offlineSummary());
+        setState(() {
+          _coaching = metrics.offlineSummary();
+          _coachingFromAi = false;
+        });
       }
     } finally {
       if (mounted) {
@@ -184,9 +202,22 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            AppLocalizations.of(context).tr('weeklyCoaching'),
-                            style: Theme.of(context).textTheme.titleMedium,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  AppLocalizations.of(context)
+                                      .tr('weeklyCoaching'),
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
+                                ),
+                              ),
+                              if (_coachingFromAi)
+                                AiReportButton(
+                                  surface: AiReportSurface.weeklyCoaching,
+                                  replyText: _coaching!,
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           SelectableText(_coaching!),

@@ -82,7 +82,8 @@ Minimum content (host it next to the privacy policy):
 > data are deleted. Without the app: email [contact email] from your account's email address
 > with the subject "Delete my account". We confirm by email and delete within 14 days.
 > Deleted: account, tasks, habits, notes, goals, events, plans, subscription reminders, usage
-> events and reports of AI replies. Security logs are kept up to 12 months, then deleted.
+> events, reports of AI replies, AI choices and notes saved for the assistant. Security logs
+> are kept up to 12 months, then deleted.
 
 The owner handles these emails with `docs/auth/account-deletion-requests.md` (owner SQL
 `docs/auth/sql/schedule-account-deletion-on-request.sql`, the same steps as the in-app request).

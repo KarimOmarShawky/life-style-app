@@ -8,7 +8,9 @@
 > `ANDROID_PRIVACY_POLICY_URL`; the signed build then shows it in Profile → Privacy policy
 > (`docs/mobile/build-preparation.md`). A Google Docs copy of this draft and of the
 > account-deletion page (`docs/store/data-safety-draft.md`, section 5) is in the owner's Drive
-> (2026-11-12); publish those with File → Share → Publish to web.
+> (2026-11-12); publish those with File → Share → Publish to web. On 2026-11-13 both Drive
+> copies were refreshed from this draft (AI-2c and AI-3 items, the developer name and contact
+> email, which appear only in the Drive copies).
 > Keep personal details out of this public repository; fill them in only in the published copy.
 
 Effective date: [date] · Developer: [developer name] · Contact: [contact email]
@@ -81,7 +83,9 @@ to create the reply:
   characters).
 
 Our server does not store your AI messages or replies and does not write them to logs. It keeps
-counts of AI requests per account for daily limits. *[AI-3 version only:]* If you turn on
+counts of AI requests per account for daily limits. Your AI choices (your agreement to send
+messages to Google Gemini, with its date and version, and the assistant-memory switches) are
+stored with your account so they apply on all your phones. *[AI-3 version only:]* If you turn on
 assistant memory, the notes you save yourself (in Profile → Assistant memory or from one of your
 own chat messages; at most 100, each up to 500 characters) are stored with your account until
 you delete them or your account. The AI never saves notes on its own. Do not type passwords or sensitive
@@ -207,8 +211,9 @@ LifeStyle تطبيق للإنتاجية الشخصية: مهام، عادات، 
 حسابك، ويُرسَل مع رسائلك إلى المساعد أحدث ٣٠ ملاحظة منها (٦٠٠٠ حرف كحد أقصى). لا يحفظ الذكاء
 الاصطناعي أي ملاحظة من تلقاء نفسه.
 
-خادمنا لا يحفظ رسائلك أو الردود ولا يكتبها في السجلات، ويحتفظ فقط بعدد الطلبات لكل حساب من
-أجل الحد اليومي. لا تكتب كلمات مرور أو معلومات حساسة. قد تخطئ ردود الذكاء الاصطناعي، وهي ليست
+خادمنا لا يحفظ رسائلك أو الردود ولا يكتبها في السجلات، ويحتفظ بعدد الطلبات لكل حساب من
+أجل الحد اليومي. وتُحفظ اختياراتك للذكاء الاصطناعي (موافقتك على الإرسال إلى Google Gemini مع
+تاريخها وإصدارها، ومفاتيح ذاكرة المساعد) مع حسابك لتسري على كل أجهزتك. لا تكتب كلمات مرور أو معلومات حساسة. قد تخطئ ردود الذكاء الاصطناعي، وهي ليست
 نصيحة طبية أو قانونية أو مالية.
 
 *[اختر فقرة واحدة واحذف الأخرى قبل النشر.]*

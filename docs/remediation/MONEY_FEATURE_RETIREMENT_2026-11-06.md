@@ -2,6 +2,8 @@
 
 > **Historical preservation-only baseline, superseded:** the user later authorized deletion of app-stored retired financial data for all accounts while preserving subscriptions, reminders and original SMS. The deletion work is incomplete and has not been deployed. See [the erasure work-in-progress status](drafts/ERASURE_STATUS.md); the draft migration is deliberately outside the migrations directory. Do not treat the preservation statements below as the current product decision.
 
+> **Update — 2026-11-13 (owner decision): money stays out of v1.** The owner deferred a manual money tracker without SMS (no SMS permission, no reading of bank or wallet messages) to v2. Nothing changes in v1 or the closed test: the retirement guards keep answering 410, the erased financial rows are not restored, and subscriptions keep their renewal reminders. The v2 scope (expenses and income only, or also budgets) and its design are still open. The agent's proposal, not yet approved, is a new feature with new tables instead of re-enabling the retired routers and tables: a forward-only migration plus owner SQL, export and account-deletion coverage, ar/en/de/es/fr/tr strings, G7, privacy-policy and Data safety updates, and no money data sent to the AI unless the owner decides otherwise.
+
 ## Product decision
 
 On 2026-11-06 the user canceled the complete money feature, including budgets, transactions, wallet, bank-message capture and the proposed independent phone/OTP wallet account. Subscriptions remain accessible from More, with their existing automatic renewal reminders two days before renewal at 09:00 device-local time. No mobile payment UI is added. No provider account, credentials, charge or actual OTP SMS was created.

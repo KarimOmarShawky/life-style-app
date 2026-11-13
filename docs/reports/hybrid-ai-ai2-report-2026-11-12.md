@@ -104,7 +104,7 @@ Owner: "كمل" after the AI-2b report.
   assistant stays alive in the home shell, so a small Riverpod counter tells it to forget the
   consent; its next message asks again. Before the owner SQL (503 `AI_SETTINGS_UNAVAILABLE`)
   only that in-memory consent is forgotten.
-- **G7 and strings:** 15 new keys in ar/en/de/es/fr/tr. The send button gained a tooltip (it had
+- **G7 and strings:** 14 new keys in ar/en/de/es/fr/tr (corrected on 2026-11-13; this line first said 15). The send button gained a tooltip (it had
   no label for TalkBack), the assistant title ellipsizes instead of overflowing at 200% text, and
   the consent, app-data and withdrawal dialogs scroll as a whole, so no text is cut off.
 - **Unchanged:** chat history stays on the phone (D8); 18+ check (D9) first; no new dependency.

@@ -4,6 +4,9 @@
 > 2026-11-12. Evidence below is tied to the cited commits. This is not a release approval:
 > the owner SQL on Neon, a real Gemini call with app context, device behaviour and the Play
 > submission are NOT RUN here.
+>
+> **Update (2026-11-13, owner-reported):** the AI-P, AI-2 and AI-3 owner SQL files are applied on
+> production, after a rehearsal on the Neon branch `ai-rehearsal`.
 
 Plan: section "AI-2" of `docs/reports/hybrid-ai-ai0-audit-2026-11-11.md` (D5: one durable,
 versioned consent), continued by the owner on 2026-11-12 ("كمل"). AI-2 ships in three parts:

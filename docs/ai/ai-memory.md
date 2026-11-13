@@ -95,6 +95,10 @@ it (see `docs/database/migrations.md`). Apply `docs/ai/sql/ai-user-settings.sql`
 4. Switch to `production`, run the file once, then the verification queries.
 5. Delete the rehearsal branch.
 
+**Status (2026-11-13, owner-reported):** applied to production after a rehearsal on the Neon branch
+`ai-rehearsal` (the AI-P, AI-2 and AI-3 files in that order); the owner reported that the checks
+passed on both. Notes are stored once a backend with `/api/v1/ai/memories` (PR #32) is deployed.
+
 ### Verification queries
 
 ```sql

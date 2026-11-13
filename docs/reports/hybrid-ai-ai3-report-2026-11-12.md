@@ -4,6 +4,9 @@
 > 2026-11-12. Evidence below is tied to the cited commits. This is not a release approval:
 > the owner SQL on Neon, a real Gemini call with saved memories, device behaviour and the Play
 > submission are NOT RUN here.
+>
+> **Update (2026-11-13, owner-reported):** the AI-P, AI-2 and AI-3 owner SQL files are applied on
+> production, after a rehearsal on the Neon branch `ai-rehearsal`.
 
 Plan: section "AI-3" of `docs/reports/hybrid-ai-ai0-audit-2026-11-11.md` (decision D4: a memory
 is a short text plus a kind). Owner: "كمل" after the AI-2c report. AI-3 ships in two parts:

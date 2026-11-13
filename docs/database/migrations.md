@@ -65,8 +65,11 @@ the migration body. The code must degrade safely until the owner applies the fil
 | `1792800000000_ai_memory_items` (AI-3) | `docs/ai/sql/ai-memory-items.sql` (after the AI-2 file) | The memory list is empty with `available: false`; saving, editing and deleting answer 503 `AI_MEMORY_UNAVAILABLE`; the assistant uses no memories; export and purge skip the absent table |
 
 Production status (owner-reported, 2026-11-11): the G5, G2 and G6 files are applied,
-G5 first and then G2 and G6, each after a rehearsal on a Neon branch. The AI-P and
-AI-2 files are new and not applied yet.
+G5 first and then G2 and G6, each after a rehearsal on a Neon branch.
+
+Production status (owner-reported, 2026-11-13): the AI-P, AI-2 and AI-3 files are
+applied too, in that order, after a rehearsal on the Neon branch `ai-rehearsal`. Nothing
+writes to these tables until a backend from PR #32 is deployed.
 
 Rehearse every owner SQL file on a Neon branch of production first, then run it once
 on production. The restricted-role rehearsal in CI applies it after the runtime role

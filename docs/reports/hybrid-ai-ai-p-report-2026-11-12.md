@@ -5,6 +5,9 @@
 > commits. This is not a release approval: device behaviour, the production SQL, the signed
 > build and the Play Console submission are NOT RUN here. The AI-P owner SQL is **not
 > applied** at the time of writing.
+>
+> **Update (2026-11-13, owner-reported):** the AI-P, AI-2 and AI-3 owner SQL files are applied on
+> production, after a rehearsal on the Neon branch `ai-rehearsal`.
 
 Source: `LifeStyle_Complete_Master_and_Hybrid_AI_Reference.pdf`, Part I (AI-0…AI-6), and the
 AI-0 audit `docs/reports/hybrid-ai-ai0-audit-2026-11-11.md`. Owner context: AI is the top

@@ -1,3 +1,10 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:lifestyle_mobile/data/api_client.dart';
+import 'package:lifestyle_mobile/data/session_tokens.dart';
+import 'package:lifestyle_mobile/data/token_store.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,10 +102,59 @@ class _Gateway implements AiBackendGateway {
   }
 }
 
+// Test-only transport: exercises the real session-bound API gateway while
+// keeping all HTTP and credentials synthetic.
+class _ConsentTokens implements SessionBoundTokenStore {
+  final SessionTokens value = SessionTokens(
+    accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+    accessTokenExpiresAt: DateTime.utc(2030),
+    refreshTokenExpiresAt: DateTime.utc(2030),
+  );
+  @override
+  Future<SessionTokens?> readForSession(bool Function() current) async {
+    if (!current()) throw const StaleCredentialOperation();
+    return value;
+  }
+  @override
+  Future<SessionTokens?> read() async => value;
+  @override
+  Future<void> write(SessionTokens tokens) async => throw UnsupportedError('not used');
+  @override
+  Future<void> clear() async => throw UnsupportedError('not used');
+  @override
+  Future<void> writeForSession(SessionTokens tokens, bool Function() current) async => throw UnsupportedError('not used');
+  @override
+  Future<void> clearForSession(bool Function() current) async => throw UnsupportedError('not used');
+  @override
+  Future<bool> clearIfMatches(SessionTokens expected, bool Function() current) async => throw UnsupportedError('not used');
+  @override
+  Future<bool> replaceIfMatches(SessionTokens expected, SessionTokens replacement, bool Function() current) async => throw UnsupportedError('not used');
+}
+
+class _ConsentSseClient extends http.BaseClient {
+  _ConsentSseClient(this.gateway);
+  final _Gateway gateway;
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest raw) async {
+    if (raw is! http.Request || raw.method != 'POST' ||
+        raw.url.path != '/api/v1/ai/assistant/turn/stream' ||
+        raw.headers['authorization'] != 'Bearer synthetic-access') {
+      throw StateError('Unexpected request');
+    }
+    gateway.paths.add('ai/assistant/turn/stream');
+    gateway.bodies.add(jsonDecode(raw.body) as Map<String, Object?>);
+    final events = gateway.script.removeAt(0);
+    final payload = events.map((event) => 'data: $event\n\n').join();
+    return http.StreamedResponse(Stream.value(utf8.encode(payload)), 200,
+        headers: {'content-type': 'text/event-stream'});
+  }
+}
+
 Future<void> _pump(
   WidgetTester tester, {
   required _FakeSettings settings,
   required _Gateway gateway,
+  bool guardedGateway = false,
   bool useAppData = false,
   String locale = 'en',
   double textScale = 1,
@@ -112,7 +168,17 @@ Future<void> _pump(
   tester.view.devicePixelRatio = 2;
   tester.view.physicalSize = const Size(720, 1440);
   addTearDown(tester.view.reset);
-  AiService.bindGateway(gateway);
+  if (guardedGateway) {
+    final api = ApiClient(
+      baseUri: Uri.parse('https://api.example.test/api/v1/'),
+      tokenStore: _ConsentTokens(),
+      eventStreamClientFactory: () => _ConsentSseClient(gateway),
+    );
+    addTearDown(api.close);
+    AiService.bindGateway(ApiClientAiGateway(api));
+  } else {
+    AiService.bindGateway(gateway);
+  }
   AiService.instance.resetFailureCount();
   final user = AppUser.fromJson({
     'id': 'user-1',
@@ -180,7 +246,7 @@ void main() {
       ['{"text":"Three tasks left."}', '[DONE]'],
     ]);
     final settings = _FakeSettings(_snapshot(version: 1));
-    await _pump(tester, settings: settings, gateway: gateway);
+    await _pump(tester, settings: settings, gateway: gateway, guardedGateway: true);
 
     await _send(tester, 'What is left today?');
 

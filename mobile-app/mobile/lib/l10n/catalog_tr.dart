@@ -2,12 +2,12 @@
 const Map<String, String> trCatalog = {
   'aiEgressTitle': 'Konuşma Google Gemini’ye gönderilsin mi?',
   'aiEgressDescription':
-      'Mesajın ve son konuşma, LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Şifre veya hassas bilgi yazma. Google kendi veri politikalarını uygular.',
+      'Mesajın ve son konuşma, Livora sunucusu üzerinden Google Gemini’ye gönderilir. Şifre veya hassas bilgi yazma. Google kendi veri politikalarını uygular.',
   'aiEgressAgree': 'Kabul et ve gönder',
   'aiContextChip': 'Uygulama verilerimi kullan',
   'aiContextDialogTitle': 'Uygulama verilerin kullanılsın mı?',
   'aiContextDialogBody':
-      'Gününle ilgili soruları yanıtlamak için LifeStyle sunucusu her mesajla birlikte Google Gemini’ye kısa bir özet gönderir: bugünkü görevlerin başlıkları, bugün yapılacak alışkanlıklar ve serileri, ilerlemeleriyle birlikte aktif hedeflerin ve saatleriyle birlikte bugünkü etkinlikler. Notlar, görev açıklamaları, etkinlik konumları ve abonelikler asla gönderilmez. Bunu istediğin zaman kapatabilirsin.',
+      'Gününle ilgili soruları yanıtlamak için Livora sunucusu her mesajla birlikte Google Gemini’ye kısa bir özet gönderir: bugünkü görevlerin başlıkları, bugün yapılacak alışkanlıklar ve serileri, ilerlemeleriyle birlikte aktif hedeflerin ve saatleriyle birlikte bugünkü etkinlikler. Notlar, görev açıklamaları, etkinlik konumları ve abonelikler asla gönderilmez. Bunu istediğin zaman kapatabilirsin.',
   'aiContextDialogConfirm': 'Aç',
   'aiConsentRequiredMessage':
       'Yapay zekâ onayın gerekiyor. İncelemek için mesajını yeniden gönder.',
@@ -57,7 +57,7 @@ const Map<String, String> trCatalog = {
   'aiMemoryLoadFailed': 'Notların yüklenemedi.',
   'aiMemoryDeleteFailed': 'Silinemedi. Tekrar dene.',
   'aiSaveToMemoryTooltip': 'Hafızaya kaydet',
-  'appTitle': 'LifeStyle',
+  'appTitle': 'Livora',
   'signIn': 'Giriş yap',
   'createAccount': 'Hesap oluştur',
   'email': 'E-posta',
@@ -214,7 +214,7 @@ const Map<String, String> trCatalog = {
   'enterValidEmailPrompt': 'Geçerli bir e-posta adresi gir.',
   'enterPasswordPrompt': 'Şifreni gir.',
   'alreadyHaveAccount': 'Zaten hesabın var mı?',
-  'newToApp': 'LifeStyle\'da yeni misin?',
+  'newToApp': 'Livora\'da yeni misin?',
   'passwordMinLengthError': 'Şifre en az 8 karakter olmalıdır.',
   'currencyUpdated': 'Para birimi şu şekilde güncellendi:',
   'currencyUpdateFailed': 'Para birimi güncellenemedi',
@@ -229,7 +229,7 @@ const Map<String, String> trCatalog = {
   'badgeDiscipline': 'Disiplin',
   'badgeStreak7': '7 günlük seri',
   'globalSearchTooltip': 'Genel Arama',
-  'testAlarmTitleText': 'LifeStyle: Önemli Hatırlatma!',
+  'testAlarmTitleText': 'Livora: Önemli Hatırlatma!',
   'testAlarmBodyText':
       'Alarmı durdurmak için kapat\'a, ertelemek için ertele\'ye bas',
   'briefingMorning': 'Günaydın',
@@ -254,7 +254,7 @@ const Map<String, String> trCatalog = {
   'generalBudget': 'Genel Bütçe',
   'reportCopied':
       'Finansal rapor panoya kopyalandı! Artık yapıştırabilir veya paylaşabilirsin.',
-  'reportHeader': 'LifeStyle Aylık Finansal Raporu',
+  'reportHeader': 'Livora Aylık Finansal Raporu',
   'reportDateLabel': 'Rapor tarihi:',
   'reportTotalBudgetLabel': '- Toplam bütçe:',
   'reportTotalSpentLabel': '- Toplam harcama:',
@@ -263,9 +263,9 @@ const Map<String, String> trCatalog = {
   'reportActiveSubsLabel': '- Aktif abonelikler:',
   'reportTotalSubsLabel': '- Toplam abonelikler:',
   'reportMonthlySuffix': 'aylık',
-  'reportFooter': 'Rapor LifeStyle uygulaması tarafından oluşturuldu',
+  'reportFooter': 'Rapor Livora uygulaması tarafından oluşturuldu',
   'aiWelcomeMessage':
-      'Hoş geldin! Ben senin LifeStyle yapay zekâ asistanın. Bugün sana nasıl yardımcı olabilirim? Programını düzenlememi, sağlıklı alışkanlıklar önermemi veya üretkenlik ipuçları vermemi isteyebilirsin.',
+      'Hoş geldin! Ben senin Livora yapay zekâ asistanın. Bugün sana nasıl yardımcı olabilirim? Programını düzenlememi, sağlıklı alışkanlıklar önermemi veya üretkenlik ipuçları vermemi isteyebilirsin.',
   'aiSuggestion1': 'Bugünümü planla',
   'aiSuggestion2': 'İş ve ders dengemi nasıl kurarım?',
   'aiSuggestion3': 'Sağlıklı sabah alışkanlıkları öner',
@@ -345,7 +345,7 @@ const Map<String, String> trCatalog = {
   'archiveFailed':
       'Dışa aktarma veya kaydetme tamamlanmadı. Hiçbir kaydetme onaylanmadı. Seçilen hedefteki kısmi belgeleri kontrol et/kaldır. Geçici şifreli temizlik kontrol gerektirebilir; tekrar denemek için yeniden indir.',
   'archiveSaved':
-      'Seçilen belge yazıldı ve geri okuması doğrulandı. Sağlayıcı dayanıklılığı, yedeklemeler ve senkronizasyon LifeStyle kontrolü dışında kalır.',
+      'Seçilen belge yazıldı ve geri okuması doğrulandı. Sağlayıcı dayanıklılığı, yedeklemeler ve senkronizasyon Livora kontrolü dışında kalır.',
   'archiveClose': 'Kapat / dışa aktarmayı durdur',
   'archiveDownload': 'İndir ve doğrula',
   'archiveSave': 'Hedef seç ve kaydet',
@@ -356,7 +356,7 @@ const Map<String, String> trCatalog = {
       'Gizlilik politikası açılamadı. Bir tarayıcının yüklü olduğundan emin olun.',
   'accountExportReady': 'Hesap meta veri aktarımı hazır',
   'accountExportPrivacy':
-      'Bu, görevlerin, notların, finansın veya diğer uygulama verilerinin tam arşivi değil, yalnızca meta veri aktarımıdır. Kopyalama isteğe bağlıdır ve kişisel hesap meta verilerinizi diğer uygulamalara, klavyelere, pano geçmişine veya senkronize edilmiş cihazlara açabilir. Pano kopyaları LifeStyle tarafından otomatik olarak temizlenmez ve bu ekranı kapattıktan sonra da kalabilir.',
+      'Bu, görevlerin, notların, finansın veya diğer uygulama verilerinin tam arşivi değil, yalnızca meta veri aktarımıdır. Kopyalama isteğe bağlıdır ve kişisel hesap meta verilerinizi diğer uygulamalara, klavyelere, pano geçmişine veya senkronize edilmiş cihazlara açabilir. Pano kopyaları Livora tarafından otomatik olarak temizlenmez ve bu ekranı kapattıktan sonra da kalabilir.',
   'accountExportAcknowledge': 'Pano gizlilik riskini anlıyorum.',
   'accountExportCopied': 'Panoya kopyalandı. Bitirdiğinizde bu ekranı kapatın.',
   'accountExportCopyFailed':
@@ -552,13 +552,13 @@ const Map<String, String> trCatalog = {
   'shieldInboxTitle': 'Odak Gelen Kutusu',
   'shieldInboxEmpty':
       'Mesaj yok. Bildirimler yalnızca aktif kalkan oturumu sırasında tutulur.',
-  'shieldReplyHint': 'LifeStyle içinde yanıtla',
+  'shieldReplyHint': 'Livora içinde yanıtla',
   'shieldSendReply': 'Yanıtı gönder',
   'shieldStaleNote': 'Yanıt kullanılamıyor veya eski. Taslağın temizlenmedi.',
   'shieldCopyOpen': 'Kopyala ve uygulamayı 60 sn aç',
   'shieldEnableTitle': 'Odak Kalkanı etkinleştirilsin mi?',
   'shieldEnableBody':
-      'Odak sırasında LifeStyle, seçtiğin uygulamalardan seni geri getirebilir ve desteklenen mesajlaşma bildirimlerini (asla SMS değil) geçici bir gelen kutusunda tutar — asla yapay zekaya gönderilmez, oturum sonunda temizlenir. İzinler isteğe bağlıdır ve her zaman iptal edilebilir.',
+      'Odak sırasında Livora, seçtiğin uygulamalardan seni geri getirebilir ve desteklenen mesajlaşma bildirimlerini (asla SMS değil) geçici bir gelen kutusunda tutar — asla yapay zekaya gönderilmez, oturum sonunda temizlenir. İzinler isteğe bağlıdır ve her zaman iptal edilebilir.',
   'shieldEnable': 'Etkinleştir',
   'shieldSelectedAppsTitle': 'Seçilen uygulamalar',
   'shieldSelectedAppsEmpty':
@@ -566,12 +566,12 @@ const Map<String, String> trCatalog = {
   'shieldSelectedAppsCount':
       '{n} uygulama seçildi. Liste Odak sekmesinde yönetilir ve Dijital Detoks ile paylaşılır.',
   'shieldSettingsError':
-      'LifeStyle erişilebilirliğini devre dışı bırakmak için Android Ayarlarını aç.',
+      'Livora erişilebilirliğini devre dışı bırakmak için Android Ayarlarını aç.',
   'shieldStaleMessage': 'Bildirim kaldırıldı veya eski',
   'detoxTitle': 'Dijital Detoks',
   'detoxHeadline': 'Uygulamaları seç. Dağınıklık olmadan odaklan.',
   'detoxIntro':
-      'Dikkat dağıtan uygulamaları kendin seç. LifeStyle odak sırasında seni onlardan uzaklaştırabilir, ancak telefonu kilitlemez: acil aramalar, Ayarlar, başlatıcı, klavyeler ve LifeStyle kullanılabilir kalır.',
+      'Dikkat dağıtan uygulamaları kendin seç. Livora odak sırasında seni onlardan uzaklaştırabilir, ancak telefonu kilitlemez: acil aramalar, Ayarlar, başlatıcı, klavyeler ve Livora kullanılabilir kalır.',
   'detoxSignIn': 'Özel bir oturum oluşturmak için giriş yap.',
   'detoxAppsTitle': '1 · Uygulamalar',
   'detoxAppsSubtitle':
@@ -594,7 +594,7 @@ const Map<String, String> trCatalog = {
   'detoxMin': 'dk',
   'detoxPermissionTitle': '3 · İzin ve onay',
   'detoxPermissionSubtitle':
-      'Kısıtlama, isteğe bağlı LifeStyle Erişilebilirlik Hizmetini kullanır ve Android Ayarlarından iptal edilebilir.',
+      'Kısıtlama, isteğe bağlı Livora Erişilebilirlik Hizmetini kullanır ve Android Ayarlarından iptal edilebilir.',
   'detoxConsent':
       'Kapsamı anlıyorum ve mevcut erişilebilirlik yönlendirmesine onay veriyorum. İstediğim zaman devre dışı bırakılabilir.',
   'detoxOpenAccessibility': 'Android erişilebilirlik yetkilendirmesini aç',
@@ -660,7 +660,7 @@ const Map<String, String> trCatalog = {
   'analyticsDashboardSubtitle': 'Kümülatif analiz ve kişisel performans paneli',
   'weeklySendTitle': 'Toplanmış sayılar Gemini’ye gönderilsin mi?',
   'weeklySendBody':
-      'Bu istek yalnızca sayıları, oranları, odak dakikalarını ve ortalama berraklığı gönderir. Görev başlıkları, notlar, mesajlar, gönderen veya paket adları yok. Her istek için onay yeniden istenir. İstek LifeStyle sunucusu üzerinden çalışır; kişisel API anahtarı gerekmez.',
+      'Bu istek yalnızca sayıları, oranları, odak dakikalarını ve ortalama berraklığı gönderir. Görev başlıkları, notlar, mesajlar, gönderen veya paket adları yok. Her istek için onay yeniden istenir. İstek Livora sunucusu üzerinden çalışır; kişisel API anahtarı gerekmez.',
   'weeklyKeepOffline': 'Çevrimdışı kal',
   'weeklySendRequest': 'Bu isteği gönder',
   'weeklyRefresh': 'Raporu yenile',
@@ -693,12 +693,12 @@ const Map<String, String> trCatalog = {
   'weeklyWinsLine': '{n} görev tamamlandı · {m} dk odak — ivme büyüyor.',
   'weeklyWinsEmpty': 'Yeni bir hafta — küçük bir oturum bile bir başarı.',
   'detoxAccessibilityOff':
-      'Engelleme kapalı: LifeStyle erişilebilirliği Android ayarlarında etkin değil, bu yüzden seçilen uygulamalar normal şekilde açılmaya devam eder. Etkinleştirip buraya dön. Android 13+ sürümünde anahtar griyse, önce uygulama bilgilerinden LifeStyle için kısıtlı ayarlara izin ver.',
-  'detoxAccessibilityOn': 'Engelleme hazır — LifeStyle erişilebilirliği açık.',
+      'Engelleme kapalı: Livora erişilebilirliği Android ayarlarında etkin değil, bu yüzden seçilen uygulamalar normal şekilde açılmaya devam eder. Etkinleştirip buraya dön. Android 13+ sürümünde anahtar griyse, önce uygulama bilgilerinden Livora için kısıtlı ayarlara izin ver.',
+  'detoxAccessibilityOn': 'Engelleme hazır — Livora erişilebilirliği açık.',
   'detoxEnableBlocking': 'Engellemeyi aç',
   'detoxAccessWhyTitle': 'Tek bir anahtar engellemeyi çalıştırır',
   'detoxAccessWhyBody':
-      'Android, LifeStyle’ın seçtiğin bir uygulamanın açıldığını fark etmesine yalnızca LifeStyle erişilebilirlik ayarlarında açıkken izin verir. Tasarımı gereği LifeStyle ekranını, mesajlarını veya parolalarını okuyamaz — yalnızca hangi uygulamanın önde olduğunu bilir ve hiçbir şey kaydedilmez ya da bir yere gönderilmez. Aynı ayarlardan istediğin zaman kapatabilirsin.',
+      'Android, Livora’nın seçtiğin bir uygulamanın açıldığını fark etmesine yalnızca Livora erişilebilirlik ayarlarında açıkken izin verir. Tasarımı gereği Livora ekranını, mesajlarını veya parolalarını okuyamaz — yalnızca hangi uygulamanın önde olduğunu bilir ve hiçbir şey kaydedilmez ya da bir yere gönderilmez. Aynı ayarlardan istediğin zaman kapatabilirsin.',
   'detoxAccessibilityNotConnected':
       'Android, Focus Shield’ı açık gösteriyor ama hizmeti henüz çalışmıyor — seçilen uygulamalar yine normal açılır. «İndirilen uygulamalar» bölümünden Focus Shield’ı kapatıp tekrar aç (veya telefonu yeniden başlat), sonra buraya dön.',
   'detoxStateIdle': 'Başlamadı',
@@ -721,7 +721,7 @@ const Map<String, String> trCatalog = {
   'detoxErrorLost':
       'Oturum sırasında engelleme kaybedildi. Durdur, erişilebilirliğin hâlâ açık olduğunu kontrol et ve yeniden başlat.',
   'detoxErrorRelease':
-      'Kısıtlama temiz şekilde kaldırılamadı. Tekrar Durdur’a dokun veya Android ayarlarından LifeStyle erişilebilirliğini kapat.',
+      'Kısıtlama temiz şekilde kaldırılamadı. Tekrar Durdur’a dokun veya Android ayarlarından Livora erişilebilirliğini kapat.',
   'detoxErrorTimeChanged':
       'Cihaz saati değişti, bu yüzden oturum serbest bırakıldı. Durdur ve yenisini başlat.',
   'detoxErrorInterrupted':
@@ -734,7 +734,7 @@ const Map<String, String> trCatalog = {
       'Bu işlem onaylanamadı. Depolamayı ve Android izinlerini kontrol et; bir kısıtlama hâlâ aktif olabilirse Durdur’a dokun.',
   'detoxBatteryButton': 'Pil ayarları',
   'detoxBatteryHint':
-      'Xiaomi ve benzeri telefonlarda LifeStyle pilini «Kısıtlama yok» yapıp otomatik başlatmayı aç — yoksa Android engelleme hizmetini oturum ortasında duraklatabilir.',
+      'Xiaomi ve benzeri telefonlarda Livora pilini «Kısıtlama yok» yapıp otomatik başlatmayı aç — yoksa Android engelleme hizmetini oturum ortasında duraklatabilir.',
   'onboardingTitle': 'Haydi ilk başarını kazan',
   'onboardingSubtitle':
       'Bugün senin için en önemli olanı seç. Senin yerine üç küçük görev ekleyelim — yazmana gerek yok.',
@@ -764,7 +764,7 @@ const Map<String, String> trCatalog = {
   'onboardingCompleteFailed': 'Kaydedilemedi. Tekrar dene ya da şimdilik atla.',
   'usageStatsTitle': 'Kullanım istatistiklerini paylaş',
   'usageStatsSubtitle':
-      '“Bir görev tamamlandı” gibi içerik içermeyen sayımlar LifeStyle’ı geliştirmeye yardımcı olur. Görev başlıkları, notlar ve mesajlar asla gönderilmez. Kapatırsan kaydedilenler de silinir.',
+      '“Bir görev tamamlandı” gibi içerik içermeyen sayımlar Livora’yı geliştirmeye yardımcı olur. Görev başlıkları, notlar ve mesajlar asla gönderilmez. Kapatırsan kaydedilenler de silinir.',
   'settingSaveFailed': 'Bu ayar kaydedilemedi. Tekrar dene.',
   'aiTaskParsingTitle': 'Akıllı Hızlı Ekleme için yapay zekâ desteği',
   'aiTaskParsingSubtitle':
@@ -772,7 +772,7 @@ const Map<String, String> trCatalog = {
   'aiTaskParsingConsentTitle':
       'Akıllı Hızlı Ekleme metni yapay zekâya gönderilsin mi?',
   'aiTaskParsingConsentBody':
-      'Açık olduğunda, Akıllı Hızlı Ekleme’ye yazdığın metin tarih ve saatleri bulmak için LifeStyle sunucusu üzerinden Google Gemini’ye gönderilir. Yapay zekâ yavaşsa veya kullanılamıyorsa metni telefonun kendisi okur. Bunu istediğin zaman kapatabilirsin.',
+      'Açık olduğunda, Akıllı Hızlı Ekleme’ye yazdığın metin tarih ve saatleri bulmak için Livora sunucusu üzerinden Google Gemini’ye gönderilir. Yapay zekâ yavaşsa veya kullanılamıyorsa metni telefonun kendisi okur. Bunu istediğin zaman kapatabilirsin.',
   'aiTaskParsingAgree': 'Aç',
   'taskReminderTitle': 'Görev hatırlatıcısı',
   'snoozeReminderTitle': 'Ertelenen hatırlatma',
@@ -791,7 +791,7 @@ const Map<String, String> trCatalog = {
   'notificationSettingsSubtitle': 'Sessiz saatler ve günlük sınır',
   'notificationsMasterSwitch': 'Hatırlatıcılar ve alarmlar',
   'notificationsMasterSwitchHint':
-      'Kapalıyken LifeStyle hatırlatıcı veya alarm göstermez.',
+      'Kapalıyken Livora hatırlatıcı veya alarm göstermez.',
   'quietHoursTitle': 'Sessiz saatler',
   'quietHoursHint': 'Hatırlatıcılar sessiz saatler bitene kadar bekler.',
   'quietHoursStart': 'Başlangıç',
@@ -814,7 +814,7 @@ const Map<String, String> trCatalog = {
   'reminderScheduled': 'Hatırlatıcı kuruldu',
   'detectedTime': 'Saat',
   'notificationSummaryTitle': 'Hatırlatıcılar',
-  'notificationSummaryBody': 'LifeStyle’da bekleyen hatırlatıcılar: {n}',
+  'notificationSummaryBody': 'Livora’da bekleyen hatırlatıcılar: {n}',
   'deletionScheduleTitle': 'Hesap silmeyi planla',
   'deletionScheduleBody':
       'Hesabın 14 günlük bir bekleme süresine girecek ve kalıcı silmeden önce diğer etkin oturumların kapatılacak. Bu süre içinde silmeyi istediğin zaman iptal edebilirsin.',
@@ -826,7 +826,7 @@ const Map<String, String> trCatalog = {
       'Hesabın silinmek üzere planlandı. 14 günlük bekleme süresi bitmeden hesabını şimdi geri yükleyebilirsin.',
   'deletionRestoreAction': 'Silmeyi iptal et ve hesabı geri yükle',
   'aiAssistantSubtitle':
-      'Hesabına dahildir ve LifeStyle sunucusu üzerinden çalışır; anahtar gerekmez',
+      'Hesabına dahildir ve Livora sunucusu üzerinden çalışır; anahtar gerekmez',
   'deleteAccountAction': 'Hesabı sil (14 günlük bekleme süresi)',
   'xpDeviceNote': 'XP ve rozetler bu cihazda sayılır.',
   'badgeEarned': 'Kazanıldı',

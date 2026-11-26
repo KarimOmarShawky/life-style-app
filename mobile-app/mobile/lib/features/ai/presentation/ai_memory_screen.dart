@@ -7,6 +7,7 @@ import 'package:lifestyle_mobile/features/ai/data/ai_memory_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_settings_client.dart';
 import 'package:lifestyle_mobile/features/ai/presentation/ai_memory_editor.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 /// Profile → Assistant memory (Hybrid AI AI-3): the notes the user saved for
 /// the assistant, the switch that lets the assistant use them, and add, edit,
@@ -92,21 +93,28 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
   }
 
   Future<void> _add() async {
+    final auth = ref.read(authProvider.notifier);
+    final account = auth.activeAccount;
+    final generation = auth.sessionGeneration;
+    if (account == null) return;
+    bool valid() => mounted && auth.sessionIsCurrent(account, generation);
     final draft = await showAiMemoryEditor(context);
-    if (draft == null || !mounted) return;
+    if (draft == null || !valid()) return;
     setState(() => _busy = true);
     try {
-      final saved = await ref
-          .read(aiMemoryClientProvider)
-          .create(kind: draft.kind, content: draft.content);
-      if (!mounted) return;
+      final client = ref.read(aiMemoryClientProvider);
+      final saved = client is ApiAiMemoryClient
+          ? await client.createForSession(
+              kind: draft.kind, content: draft.content, sessionIsCurrent: valid)
+          : throw StateError('Session-bound memory client required');
+      if (!valid()) return;
       setState(() => _memories = [saved, ..._memories]);
       _showMessage(AppLocalizations.of(context).aiMemorySaved);
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!valid()) return;
       _showMessage(aiMemoryErrorMessage(AppLocalizations.of(context), error));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (valid()) setState(() => _busy = false);
     }
   }
 

@@ -2,12 +2,12 @@
 const Map<String, String> esCatalog = {
   'aiEgressTitle': '¿Enviar la conversación a Google Gemini?',
   'aiEgressDescription':
-      'Tu mensaje y la conversación reciente se envían a Google Gemini a través del servidor de LifeStyle. No escribas contraseñas ni información sensible. Google aplica sus propias políticas de datos.',
+      'Tu mensaje y la conversación reciente se envían a Google Gemini a través del servidor de Livora. No escribas contraseñas ni información sensible. Google aplica sus propias políticas de datos.',
   'aiEgressAgree': 'Aceptar y enviar',
   'aiContextChip': 'Usar mis datos de la app',
   'aiContextDialogTitle': '¿Usar tus datos de la app?',
   'aiContextDialogBody':
-      'Para responder sobre tu día, el servidor de LifeStyle envía a Google Gemini un breve resumen con cada mensaje: los títulos de las tareas de hoy, los hábitos de hoy con sus rachas, tus metas activas con su progreso y los eventos de hoy con sus horarios. Nunca se envían notas, descripciones de tareas, lugares de eventos ni suscripciones. Puedes desactivarlo cuando quieras.',
+      'Para responder sobre tu día, el servidor de Livora envía a Google Gemini un breve resumen con cada mensaje: los títulos de las tareas de hoy, los hábitos de hoy con sus rachas, tus metas activas con su progreso y los eventos de hoy con sus horarios. Nunca se envían notas, descripciones de tareas, lugares de eventos ni suscripciones. Puedes desactivarlo cuando quieras.',
   'aiContextDialogConfirm': 'Activar',
   'aiConsentRequiredMessage':
       'Se necesita tu consentimiento para la IA. Vuelve a enviar tu mensaje para revisarlo.',
@@ -57,7 +57,7 @@ const Map<String, String> esCatalog = {
   'aiMemoryLoadFailed': 'No se pudieron cargar tus notas.',
   'aiMemoryDeleteFailed': 'No se pudo borrar. Inténtalo de nuevo.',
   'aiSaveToMemoryTooltip': 'Guardar en la memoria',
-  'appTitle': 'LifeStyle',
+  'appTitle': 'Livora',
   'signIn': 'Iniciar sesión',
   'createAccount': 'Crear cuenta',
   'email': 'Correo electrónico',
@@ -215,7 +215,7 @@ const Map<String, String> esCatalog = {
   'enterValidEmailPrompt': 'Introduce un correo electrónico válido.',
   'enterPasswordPrompt': 'Introduce tu contraseña.',
   'alreadyHaveAccount': '¿Ya tienes cuenta?',
-  'newToApp': '¿Nuevo en LifeStyle?',
+  'newToApp': '¿Nuevo en Livora?',
   'passwordMinLengthError': 'La contraseña debe tener al menos 8 caracteres.',
   'currencyUpdated': 'Moneda actualizada a',
   'currencyUpdateFailed': 'Error al actualizar la moneda',
@@ -230,7 +230,7 @@ const Map<String, String> esCatalog = {
   'badgeDiscipline': 'Disciplina',
   'badgeStreak7': 'Racha de 7 días',
   'globalSearchTooltip': 'Búsqueda global',
-  'testAlarmTitleText': 'LifeStyle: ¡recordatorio importante!',
+  'testAlarmTitleText': 'Livora: ¡recordatorio importante!',
   'testAlarmBodyText':
       'Pulsa descartar para detener la alarma o posponer para retrasarla',
   'briefingMorning': 'Buenos días',
@@ -255,7 +255,7 @@ const Map<String, String> esCatalog = {
   'generalBudget': 'Presupuesto general',
   'reportCopied':
       '¡Informe financiero copiado al portapapeles! Ya puedes pegarlo o compartirlo.',
-  'reportHeader': 'Informe financiero mensual de LifeStyle',
+  'reportHeader': 'Informe financiero mensual de Livora',
   'reportDateLabel': 'Fecha del informe:',
   'reportTotalBudgetLabel': '- Presupuesto total:',
   'reportTotalSpentLabel': '- Total gastado:',
@@ -264,9 +264,9 @@ const Map<String, String> esCatalog = {
   'reportActiveSubsLabel': '- Suscripciones activas:',
   'reportTotalSubsLabel': '- Total de suscripciones:',
   'reportMonthlySuffix': 'al mes',
-  'reportFooter': 'Informe generado por la app LifeStyle',
+  'reportFooter': 'Informe generado por la app Livora',
   'aiWelcomeMessage':
-      '¡Bienvenido! Soy tu asistente IA de LifeStyle. ¿En qué puedo ayudarte hoy? Puedes pedirme que organice tu agenda, sugiera hábitos saludables o te dé consejos de productividad.',
+      '¡Bienvenido! Soy tu asistente IA de Livora. ¿En qué puedo ayudarte hoy? Puedes pedirme que organice tu agenda, sugiera hábitos saludables o te dé consejos de productividad.',
   'aiSuggestion1': 'Planifica mi día de hoy',
   'aiSuggestion2': '¿Cómo equilibro trabajo y estudio?',
   'aiSuggestion3': 'Sugiéreme hábitos matinales saludables',
@@ -348,7 +348,7 @@ const Map<String, String> esCatalog = {
   'archiveFailed':
       'La exportación o el guardado no se completó. No se confirma ningún guardado. Revisa o elimina cualquier documento parcial en el destino elegido. La limpieza cifrada temporal puede requerir revisión; descarga de nuevo para reintentarlo.',
   'archiveSaved':
-      'El documento elegido se escribió y se verificó su lectura. La durabilidad del proveedor, las copias de seguridad y la sincronización están fuera del control de LifeStyle.',
+      'El documento elegido se escribió y se verificó su lectura. La durabilidad del proveedor, las copias de seguridad y la sincronización están fuera del control de Livora.',
   'archiveClose': 'Cerrar / detener la exportación',
   'archiveDownload': 'Descargar y verificar',
   'archiveSave': 'Elegir destino y guardar',
@@ -359,7 +359,7 @@ const Map<String, String> esCatalog = {
       'No se pudo abrir la política de privacidad. Comprueba que tienes un navegador instalado.',
   'accountExportReady': 'Exportación de metadatos de la cuenta lista',
   'accountExportPrivacy':
-      'Esta es una exportación solo de metadatos, no un archivo completo de tareas, notas, finanzas u otros datos de la aplicación. Copiar es opcional y puede exponer los metadatos de tu cuenta personal a otras apps, teclados, historial del portapapeles o dispositivos sincronizados. LifeStyle no borra automáticamente las copias del portapapeles y pueden persistir después de cerrar esta pantalla.',
+      'Esta es una exportación solo de metadatos, no un archivo completo de tareas, notas, finanzas u otros datos de la aplicación. Copiar es opcional y puede exponer los metadatos de tu cuenta personal a otras apps, teclados, historial del portapapeles o dispositivos sincronizados. Livora no borra automáticamente las copias del portapapeles y pueden persistir después de cerrar esta pantalla.',
   'accountExportAcknowledge':
       'Entiendo el riesgo de privacidad del portapapeles.',
   'accountExportCopied':
@@ -564,14 +564,14 @@ const Map<String, String> esCatalog = {
   'shieldInboxTitle': 'Bandeja de concentración',
   'shieldInboxEmpty':
       'Sin mensajes. Las notificaciones se conservan solo durante una sesión de escudo activa.',
-  'shieldReplyHint': 'Responder dentro de LifeStyle',
+  'shieldReplyHint': 'Responder dentro de Livora',
   'shieldSendReply': 'Enviar respuesta',
   'shieldStaleNote':
       'Respuesta no disponible u obsoleta. Tu borrador no se ha borrado.',
   'shieldCopyOpen': 'Copiar y abrir la app durante 60 s',
   'shieldEnableTitle': '¿Activar el escudo de concentración?',
   'shieldEnableBody':
-      'Durante la concentración, LifeStyle puede regresarte de tus aplicaciones seleccionadas y guardar notificaciones de mensajería compatibles (nunca SMS) en una bandeja temporal — nunca enviadas a la IA, borradas al terminar la sesión. Los permisos son opcionales y revocables en cualquier momento.',
+      'Durante la concentración, Livora puede regresarte de tus aplicaciones seleccionadas y guardar notificaciones de mensajería compatibles (nunca SMS) en una bandeja temporal — nunca enviadas a la IA, borradas al terminar la sesión. Los permisos son opcionales y revocables en cualquier momento.',
   'shieldEnable': 'Activar',
   'shieldSelectedAppsTitle': 'Aplicaciones seleccionadas',
   'shieldSelectedAppsEmpty':
@@ -579,12 +579,12 @@ const Map<String, String> esCatalog = {
   'shieldSelectedAppsCount':
       '{n} aplicación(es) seleccionada(s). La lista se gestiona en la pestaña Concentración y se comparte con la desintoxicación digital.',
   'shieldSettingsError':
-      'Abre los Ajustes de Android para desactivar la accesibilidad de LifeStyle.',
+      'Abre los Ajustes de Android para desactivar la accesibilidad de Livora.',
   'shieldStaleMessage': 'Notificación eliminada u obsoleta',
   'detoxTitle': 'Desintoxicación digital',
   'detoxHeadline': 'Elige aplicaciones. Concéntrate sin desorden.',
   'detoxIntro':
-      'Elige tú mismo las aplicaciones que distraen. LifeStyle puede alejarte de ellas durante la concentración, pero no bloquea el teléfono: llamadas de emergencia, Ajustes, lanzador, teclados y LifeStyle siguen disponibles.',
+      'Elige tú mismo las aplicaciones que distraen. Livora puede alejarte de ellas durante la concentración, pero no bloquea el teléfono: llamadas de emergencia, Ajustes, lanzador, teclados y Livora siguen disponibles.',
   'detoxSignIn': 'Inicia sesión para crear una sesión privada.',
   'detoxAppsTitle': '1 · Aplicaciones',
   'detoxAppsSubtitle':
@@ -608,7 +608,7 @@ const Map<String, String> esCatalog = {
   'detoxMin': 'min',
   'detoxPermissionTitle': '3 · Permiso y consentimiento',
   'detoxPermissionSubtitle':
-      'La restricción usa el servicio de accesibilidad opcional de LifeStyle y puede revocarse en Ajustes de Android.',
+      'La restricción usa el servicio de accesibilidad opcional de Livora y puede revocarse en Ajustes de Android.',
   'detoxConsent':
       'Entiendo el alcance y doy mi consentimiento para la redirección de accesibilidad existente. Puede desactivarse en cualquier momento.',
   'detoxOpenAccessibility': 'Abrir autorización de accesibilidad de Android',
@@ -677,7 +677,7 @@ const Map<String, String> esCatalog = {
       'Análisis acumulativo y panel de rendimiento personal',
   'weeklySendTitle': '¿Enviar cifras agregadas a Gemini?',
   'weeklySendBody':
-      'Esta solicitud envía solo conteos, tasas, minutos de concentración y claridad promedio. Sin títulos de tareas, notas, mensajes, nombres de remitentes ni de paquetes. El consentimiento se solicita de nuevo para cada solicitud. La solicitud pasa por el servidor de LifeStyle; no se necesita una clave API personal.',
+      'Esta solicitud envía solo conteos, tasas, minutos de concentración y claridad promedio. Sin títulos de tareas, notas, mensajes, nombres de remitentes ni de paquetes. El consentimiento se solicita de nuevo para cada solicitud. La solicitud pasa por el servidor de Livora; no se necesita una clave API personal.',
   'weeklyKeepOffline': 'Mantenerse sin conexión',
   'weeklySendRequest': 'Enviar esta solicitud',
   'weeklyRefresh': 'Actualizar informe',
@@ -713,13 +713,13 @@ const Map<String, String> esCatalog = {
       '{n} tareas hechas · {m} min de concentración — el impulso crece.',
   'weeklyWinsEmpty': 'Semana nueva — una sesión pequeña ya es un logro.',
   'detoxAccessibilityOff':
-      'Bloqueo desactivado: la accesibilidad de LifeStyle no está activada en los ajustes de Android, así que las aplicaciones elegidas se abrirán igual. Actívala y vuelve aquí. En Android 13+, si el interruptor está gris, permite primero los ajustes restringidos de LifeStyle en la información de la aplicación.',
+      'Bloqueo desactivado: la accesibilidad de Livora no está activada en los ajustes de Android, así que las aplicaciones elegidas se abrirán igual. Actívala y vuelve aquí. En Android 13+, si el interruptor está gris, permite primero los ajustes restringidos de Livora en la información de la aplicación.',
   'detoxAccessibilityOn':
-      'Bloqueo listo: la accesibilidad de LifeStyle está activada.',
+      'Bloqueo listo: la accesibilidad de Livora está activada.',
   'detoxEnableBlocking': 'Activar el bloqueo',
   'detoxAccessWhyTitle': 'Un solo interruptor hace que el bloqueo funcione',
   'detoxAccessWhyBody':
-      'Android solo permite que LifeStyle note que se abrió una aplicación elegida si LifeStyle está activado en los ajustes de accesibilidad. Por diseño, LifeStyle no puede leer tu pantalla, tus mensajes ni tus contraseñas: solo sabe qué aplicación está en primer plano, y nada se graba ni se envía a ningún sitio. Puedes desactivarlo cuando quieras en los mismos ajustes.',
+      'Android solo permite que Livora note que se abrió una aplicación elegida si Livora está activado en los ajustes de accesibilidad. Por diseño, Livora no puede leer tu pantalla, tus mensajes ni tus contraseñas: solo sabe qué aplicación está en primer plano, y nada se graba ni se envía a ningún sitio. Puedes desactivarlo cuando quieras en los mismos ajustes.',
   'detoxAccessibilityNotConnected':
       'Android muestra Focus Shield activado, pero su servicio aún no está en marcha, así que las aplicaciones elegidas se abrirán igual. En «Aplicaciones descargadas», desactiva y vuelve a activar Focus Shield (o reinicia el teléfono) y regresa aquí.',
   'detoxStateIdle': 'Sin empezar',
@@ -742,7 +742,7 @@ const Map<String, String> esCatalog = {
   'detoxErrorLost':
       'El bloqueo se perdió durante la sesión. Detén, comprueba que la accesibilidad sigue activada y vuelve a empezar.',
   'detoxErrorRelease':
-      'La restricción no se pudo liberar limpiamente. Toca Detener otra vez, o desactiva la accesibilidad de LifeStyle en los ajustes de Android.',
+      'La restricción no se pudo liberar limpiamente. Toca Detener otra vez, o desactiva la accesibilidad de Livora en los ajustes de Android.',
   'detoxErrorTimeChanged':
       'La hora del dispositivo cambió, así que la sesión se liberó. Detén y empieza una nueva.',
   'detoxErrorInterrupted':
@@ -755,7 +755,7 @@ const Map<String, String> esCatalog = {
       'Esa acción no se pudo confirmar. Revisa el almacenamiento y los permisos de Android; si una restricción puede seguir activa, toca Detener.',
   'detoxBatteryButton': 'Ajustes de batería',
   'detoxBatteryHint':
-      'En Xiaomi y teléfonos similares, pon la batería de LifeStyle en «Sin restricciones» y activa el inicio automático; si no, Android puede pausar el servicio de bloqueo a mitad de sesión.',
+      'En Xiaomi y teléfonos similares, pon la batería de Livora en «Sin restricciones» y activa el inicio automático; si no, Android puede pausar el servicio de bloqueo a mitad de sesión.',
   'onboardingTitle': 'Consigue tu primer logro',
   'onboardingSubtitle':
       'Elige lo que más te importa hoy. Añadiremos tres tareas pequeñas por ti, sin escribir nada.',
@@ -786,14 +786,14 @@ const Map<String, String> esCatalog = {
       'No pudimos guardarlo. Inténtalo de nuevo u omítelo por ahora.',
   'usageStatsTitle': 'Compartir estadísticas de uso',
   'usageStatsSubtitle':
-      'Recuentos sin contenido, como «se completó una tarea», ayudan a mejorar LifeStyle. Nunca se envían títulos de tareas, notas ni mensajes. Al desactivarlo también se borra lo registrado.',
+      'Recuentos sin contenido, como «se completó una tarea», ayudan a mejorar Livora. Nunca se envían títulos de tareas, notas ni mensajes. Al desactivarlo también se borra lo registrado.',
   'settingSaveFailed': 'No se pudo guardar este ajuste. Inténtalo de nuevo.',
   'aiTaskParsingTitle': 'Ayuda de IA para añadir rápido',
   'aiTaskParsingSubtitle':
       'Desactivado: las fechas y horas se entienden en tu teléfono. Activado: lo que escribes al añadir rápido se envía al servicio de IA.',
   'aiTaskParsingConsentTitle': '¿Enviar el texto de añadir rápido a la IA?',
   'aiTaskParsingConsentBody':
-      'Si está activado, el texto que escribes al añadir rápido se envía a través del servidor de LifeStyle a Google Gemini para detectar fechas y horas. Si la IA tarda o no está disponible, tu teléfono lee el texto. Puedes desactivarlo cuando quieras.',
+      'Si está activado, el texto que escribes al añadir rápido se envía a través del servidor de Livora a Google Gemini para detectar fechas y horas. Si la IA tarda o no está disponible, tu teléfono lee el texto. Puedes desactivarlo cuando quieras.',
   'aiTaskParsingAgree': 'Activar',
   'taskReminderTitle': 'Recordatorio de tarea',
   'snoozeReminderTitle': 'Recordatorio pospuesto',
@@ -812,7 +812,7 @@ const Map<String, String> esCatalog = {
   'notificationSettingsSubtitle': 'Horas de silencio y límite diario',
   'notificationsMasterSwitch': 'Recordatorios y alarmas',
   'notificationsMasterSwitchHint':
-      'Si lo desactivas, LifeStyle no muestra recordatorios ni alarmas.',
+      'Si lo desactivas, Livora no muestra recordatorios ni alarmas.',
   'quietHoursTitle': 'Horas de silencio',
   'quietHoursHint':
       'Los recordatorios esperan a que terminen las horas de silencio.',
@@ -838,7 +838,7 @@ const Map<String, String> esCatalog = {
   'reminderScheduled': 'Recordatorio guardado',
   'detectedTime': 'Hora',
   'notificationSummaryTitle': 'Recordatorios',
-  'notificationSummaryBody': 'Recordatorios pendientes en LifeStyle: {n}',
+  'notificationSummaryBody': 'Recordatorios pendientes en Livora: {n}',
   'deletionScheduleTitle': 'Programar la eliminación de la cuenta',
   'deletionScheduleBody':
       'Tu cuenta entrará en un periodo de gracia de 14 días y tus otras sesiones activas se cerrarán antes de la eliminación definitiva. Puedes cancelar la eliminación en cualquier momento durante el periodo de gracia.',
@@ -852,7 +852,7 @@ const Map<String, String> esCatalog = {
       'Tu cuenta está programada para eliminarse. Puedes restaurarla ahora, antes de que termine el periodo de gracia de 14 días.',
   'deletionRestoreAction': 'Cancelar la eliminación y restaurar la cuenta',
   'aiAssistantSubtitle':
-      'Incluido con tu cuenta y funciona a través del servidor de LifeStyle; no necesitas ninguna clave',
+      'Incluido con tu cuenta y funciona a través del servidor de Livora; no necesitas ninguna clave',
   'deleteAccountAction': 'Eliminar la cuenta (periodo de gracia de 14 días)',
   'xpDeviceNote': 'Los XP y las insignias se cuentan en este dispositivo.',
   'badgeEarned': 'Conseguida',

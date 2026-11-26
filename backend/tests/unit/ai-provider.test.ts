@@ -113,7 +113,7 @@ describe('Gemini adapter (provider contract)', () => {
     expect(body.systemInstruction).toEqual({
       parts: [{ text: providerInput.systemInstruction }]
     });
-    expect(providerInput.systemInstruction).toContain('LifeStyle AI Assistant');
+    expect(providerInput.systemInstruction).toContain('Livora AI Assistant');
     expect(body.contents).toEqual([
       { role: 'user', parts: [{ text: 'Plan my day' }] },
       { role: 'model', parts: [{ text: 'Here is a plan' }] },

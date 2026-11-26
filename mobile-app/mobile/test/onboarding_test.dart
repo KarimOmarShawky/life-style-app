@@ -336,5 +336,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AuthScreen), findsOneWidget,
         reason: 'the linked page follows the restored session');
+    expect(find.text('Livora'), findsOneWidget);
+    final logo = tester.widget<Image>(find.byType(Image));
+    expect((logo.image as AssetImage).assetName,
+        'assets/branding/livora_logo.png');
   });
 }

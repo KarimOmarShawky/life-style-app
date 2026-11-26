@@ -93,7 +93,7 @@ test('both sides agree on the proxy wire contract', () => {
   assert.match(mobileTransport, /'language'/);
   assert.match(mobileTransport, /'mode'/);
   assert.match(backendService, /SYSTEM_PROMPT/);
-  assert.match(backendService, /LifeStyle AI Assistant/);
+  assert.match(backendService, /Livora AI Assistant/);
 });
 
 test('smart task parsing goes through the proxy with a local fallback', () => {

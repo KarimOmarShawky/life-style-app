@@ -5,6 +5,7 @@ import 'package:lifestyle_mobile/config/app_config.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/data/token_store.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_transport.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 export 'package:lifestyle_mobile/features/ai/data/ai_transport.dart'
     show ChatMessage;
@@ -134,6 +135,33 @@ class AiService {
     return succeeded ? result : null;
   }
 
+  /// Quick Add's bound path rejects transports unable to enforce dispatch fencing.
+  Future<String> sendMessageForSession({
+    required AuthSessionContext session,
+    required String newMessage,
+    required String languageName,
+    required Duration timeout,
+  }) async {
+    session.requireCurrent();
+    if (isPaused) throw const AiTransportException('unavailable');
+    final transport = _transport;
+    if (transport is! BackendAiTransport) {
+      throw const AiTransportException('unauthenticated');
+    }
+    try {
+      final result = await transport.chatForSession(
+        history: const [], message: newMessage, languageName: languageName,
+        mode: AiReplyMode.chat, sessionIsCurrent: () => session.isCurrent,
+      ).timeout(timeout);
+      session.requireCurrent();
+      resetFailureCount();
+      return result;
+    } on Object {
+      session.requireCurrent();
+      rethrow;
+    }
+  }
+
   Future<String> sendMessage({
     required List<ChatMessage> conversationHistory,
     required String newMessage,
@@ -240,9 +268,27 @@ class AiService {
     String languageName = 'Arabic',
     List<String> contextScopes = const [],
     Duration timeout = const Duration(seconds: 60),
+    bool Function()? sessionIsCurrent,
   }) async* {
+    if (sessionIsCurrent != null && !sessionIsCurrent()) {
+      throw const AiStreamingException('unauthenticated');
+    }
     if (isPaused) throw const AiStreamingException('paused');
-    final source = switch (_transport) {
+    final transport = _transport;
+    if (sessionIsCurrent != null && transport is! BackendAiTransport) {
+      throw const AiStreamingException('unauthenticated');
+    }
+    final source = switch (transport) {
+      final BackendAiTransport turns when sessionIsCurrent != null =>
+        turns.assistantTurnStream(
+          history: conversationHistory,
+          message: newMessage,
+          clientLocale: clientLocale,
+          languageName: languageName,
+          contextScopes: contextScopes,
+          timeout: timeout,
+          sessionIsCurrent: sessionIsCurrent,
+        ),
       final AiAssistantTurnTransport turns => turns.assistantTurnStream(
           history: conversationHistory,
           message: newMessage,
@@ -261,15 +307,27 @@ class AiService {
     var sawText = false;
     try {
       await for (final chunk in source) {
+        if (sessionIsCurrent != null && !sessionIsCurrent()) {
+          throw const AiStreamingException('unauthenticated');
+        }
         sawText = true;
         yield chunk;
       }
     } on AiTransportException catch (error) {
+      if (sessionIsCurrent != null && !sessionIsCurrent()) {
+        throw const AiStreamingException('unauthenticated');
+      }
       if (!_notFailures.contains(error.code)) _recordFailure();
       throw AiStreamingException(error.code);
     } on Object {
+      if (sessionIsCurrent != null && !sessionIsCurrent()) {
+        throw const AiStreamingException('unauthenticated');
+      }
       _recordFailure();
       throw const AiStreamingException('stream_failed');
+    }
+    if (sessionIsCurrent != null && !sessionIsCurrent()) {
+      throw const AiStreamingException('unauthenticated');
     }
     if (!sawText) {
       _recordFailure();

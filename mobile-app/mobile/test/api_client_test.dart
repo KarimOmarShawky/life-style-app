@@ -66,6 +66,76 @@ void main() {
       },
     );
 
+    test('restore fails closed for an unsupported token store', () async {
+      final store = _UnsupportedStore();
+      var sends = 0;
+      final client = ApiClient(baseUri: Uri.parse('https://api.example.test/api/v1/'),
+          tokenStore: store, httpClient: MockClient((_) async {
+            sends++; return http.Response('', 500);
+          }));
+      addTearDown(client.close);
+      await expectLater(client.restoreSession(), throwsA(isA<ApiException>()
+          .having((error) => error.code, 'code', 'SESSION_CHANGED')));
+      expect(store.reads, 0);
+      expect(sends, 0);
+    });
+
+    test('bound refresh stops after session changes during credential read', () async {
+      final store = _BlockedRefreshReadStore(_tokens('account-a', 'refresh-a'));
+      var valid = true;
+      var refreshRequests = 0;
+      final client = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: store,
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/auth/refresh')) refreshRequests++;
+          return http.Response(jsonEncode({
+            'error': {'code': 'TOKEN_EXPIRED', 'message': 'Expired'}
+          }), 401, headers: {'content-type': 'application/json'});
+        }),
+      );
+      addTearDown(client.close);
+      final request = client.request('POST', 'tasks', body: {'title': 'private'},
+          sessionIsCurrent: () => valid);
+      final rejection = expectLater(request, throwsA(isA<ApiException>()
+          .having((e) => e.code, 'code', 'SESSION_CHANGED')));
+      await store.started.future;
+      valid = false;
+      store.release.complete();
+      await rejection;
+      expect(refreshRequests, 0);
+      expect(store.tokens?.accessToken, 'account-a');
+    });
+
+    test('failed refresh cannot clear a newer stored credential pair', () async {
+      final store = MemoryTokenStore(_tokens('account-a', 'refresh-a'));
+      final started = Completer<void>();
+      final release = Completer<void>();
+      final client = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: store,
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/auth/refresh')) {
+            started.complete();
+            await release.future;
+            return http.Response('', 503);
+          }
+          return http.Response(jsonEncode({'error': {'code': 'TOKEN_EXPIRED'}}),
+              401, headers: {'content-type': 'application/json'});
+        }),
+      );
+      addTearDown(client.close);
+      final pending = client.request('POST', 'tasks', body: {'title': 'x'},
+          sessionIsCurrent: () => true);
+      final rejected = expectLater(pending, throwsA(isA<ApiException>()));
+      await started.future;
+      await store.write(_tokens('account-b', 'refresh-b'));
+      release.complete();
+      await rejected;
+      expect((await store.read())?.accessToken, 'account-b');
+      expect((await store.read())?.refreshToken, 'refresh-b');
+    });
+
     test('an expired request is not replayed with a different account token',
         () async {
       final store = MemoryTokenStore(_tokens('account-a', 'refresh-a'));
@@ -545,23 +615,82 @@ class _SseClient extends http.BaseClient {
   }
 }
 
-class MemoryTokenStore implements TokenStore {
+class _UnsupportedStore implements TokenStore {
+  var reads = 0;
+  @override
+  Future<SessionTokens?> read() async { reads++; return null; }
+  @override
+  Future<void> write(SessionTokens value) async {}
+  @override
+  Future<void> clear() async {}
+}
+
+class _BlockedRefreshReadStore extends MemoryTokenStore {
+  _BlockedRefreshReadStore(super.tokens);
+  final started = Completer<void>();
+  final release = Completer<void>();
+  int reads = 0;
+
+  @override
+  Future<SessionTokens?> readRaw() async {
+    reads++;
+    if (reads == 2) {
+      started.complete();
+      await release.future;
+    }
+    return tokens;
+  }
+}
+
+class MemoryTokenStore implements SessionBoundTokenStore {
   MemoryTokenStore(this.tokens);
 
   SessionTokens? tokens;
-
-  @override
-  Future<void> clear() async {
-    tokens = null;
+  Future<void> _tail = Future<void>.value();
+  Future<T> _run<T>(bool Function()? valid, Future<T> Function() action) {
+    final operation = _tail.then((_) async {
+      if (valid != null && !valid()) throw const StaleCredentialOperation();
+      final result = await action();
+      if (valid != null && !valid()) throw const StaleCredentialOperation();
+      return result;
+    });
+    _tail = operation.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return operation;
   }
-
+  Future<SessionTokens?> readRaw() async => tokens;
   @override
-  Future<SessionTokens?> read() async => tokens;
-
+  Future<SessionTokens?> readForSession(bool Function() valid) => _run(valid, readRaw);
   @override
-  Future<void> write(SessionTokens value) async {
-    tokens = value;
-  }
+  Future<void> writeForSession(SessionTokens value, bool Function() valid) =>
+      _run(valid, () async { tokens = value; });
+  @override
+  Future<bool> clearIfMatches(SessionTokens expected, bool Function() valid) =>
+      _run(valid, () async {
+        final current = tokens;
+        if (current == null || current.accessToken != expected.accessToken ||
+            current.refreshToken != expected.refreshToken) return false;
+        tokens = null;
+        return true;
+      });
+  @override
+  Future<bool> replaceIfMatches(SessionTokens expected, SessionTokens replacement,
+          bool Function() valid) =>
+      _run(valid, () async {
+        final current = tokens;
+        if (current == null || current.accessToken != expected.accessToken ||
+            current.refreshToken != expected.refreshToken) return false;
+        tokens = replacement;
+        return true;
+      });
+  @override
+  Future<void> clearForSession(bool Function() valid) =>
+      _run(valid, () async { tokens = null; });
+  @override
+  Future<SessionTokens?> read() => _run(null, readRaw);
+  @override
+  Future<void> write(SessionTokens value) => _run(null, () async { tokens = value; });
+  @override
+  Future<void> clear() => _run(null, () async { tokens = null; });
 }
 
 SessionTokens _tokens(String accessToken, String refreshToken) => SessionTokens(

@@ -111,6 +111,17 @@ class ApiAiSettingsClient implements AiSettingsClient {
         ),
       );
 
+  Future<AiSettingsSnapshot> grantConsentForSession(
+      bool Function() sessionIsCurrent) async =>
+      AiSettingsSnapshot.fromJson(await _api.request(
+        'PATCH',
+        'ai/settings',
+        body: const <String, Object?>{
+          'egressConsentVersion': aiEgressConsentVersion,
+        },
+        sessionIsCurrent: sessionIsCurrent,
+      ));
+
   @override
   Future<AiSettingsSnapshot> withdrawConsent() async =>
       AiSettingsSnapshot.fromJson(

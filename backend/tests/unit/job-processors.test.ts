@@ -122,6 +122,11 @@ describe('processReminderDispatch', () => {
     expect(result).toMatchObject({ claimed: 2, sent: 2, retried: 0, failed: 0 });
     expect(store.sent).toEqual(['rem-1', 'rem-2']);
     expect(emailSender.sendReminderEmail).toHaveBeenCalledTimes(1);
+    expect(emailSender.sendReminderEmail).toHaveBeenCalledWith(
+      'user-1@example.com',
+      'Livora App Reminder',
+      `You have a reminder scheduled for ${NOW.toISOString()}.`
+    );
   });
 
   it('retries push reminders when no push sender is available, then fails at the cap', async () => {

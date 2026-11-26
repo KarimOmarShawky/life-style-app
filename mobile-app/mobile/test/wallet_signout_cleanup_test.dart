@@ -15,34 +15,65 @@ import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 import 'support/fake_secure_storage.dart';
 
-class _EmptyTokens implements TokenStore {
+// Models the store's single-operation queue and validates inside the queue.
+class _TestTokens implements SessionBoundTokenStore {
+  _TestTokens([this.tokens]);
+  SessionTokens? tokens;
+  Future<void> _tail = Future<void>.value();
+  Future<T> _run<T>(bool Function()? valid, Future<T> Function() work) {
+    final result = _tail.then((_) async {
+      if (valid != null && !valid()) throw const StaleCredentialOperation();
+      final value = await work();
+      if (valid != null && !valid()) throw const StaleCredentialOperation();
+      return value;
+    });
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
   @override
-  Future<SessionTokens?> read() async => null;
+  Future<SessionTokens?> read() => _run(null, () async => tokens);
   @override
-  Future<void> write(SessionTokens tokens) async {}
+  Future<SessionTokens?> readForSession(bool Function() valid) =>
+      _run(valid, () async => tokens);
   @override
-  Future<void> clear() async {}
+  Future<void> write(SessionTokens value) => _run(null, () async { tokens = value; });
+  @override
+  Future<void> writeForSession(SessionTokens value, bool Function() valid) =>
+      _run(valid, () async { tokens = value; });
+  @override
+  Future<void> clear() => _run(null, () async { tokens = null; });
+  @override
+  Future<bool> clearIfMatches(SessionTokens expected, bool Function() valid) =>
+      _run(valid, () async {
+        final current = tokens;
+        if (current == null || current.accessToken != expected.accessToken ||
+            current.refreshToken != expected.refreshToken) return false;
+        tokens = null;
+        return true;
+      });
+  @override
+  Future<bool> replaceIfMatches(SessionTokens expected, SessionTokens replacement,
+          bool Function() valid) =>
+      _run(valid, () async {
+        final current = tokens;
+        if (current == null || current.accessToken != expected.accessToken ||
+            current.refreshToken != expected.refreshToken) return false;
+        tokens = replacement;
+        return true;
+      });
+  @override
+  Future<void> clearForSession(bool Function() valid) =>
+      _run(valid, () async { tokens = null; });
 }
 
-class _MemoryTokens implements TokenStore {
-  SessionTokens? tokens = SessionTokens(
-    accessToken: 'old-access',
-    refreshToken: 'old-refresh',
+class _EmptyTokens extends _TestTokens {}
+
+class _MemoryTokens extends _TestTokens {
+  _MemoryTokens() : super(SessionTokens(
+    accessToken: 'old-access', refreshToken: 'old-refresh',
     accessTokenExpiresAt: DateTime.utc(2035),
     refreshTokenExpiresAt: DateTime.utc(2035),
-  );
-
-  @override
-  Future<SessionTokens?> read() async => tokens;
-  @override
-  Future<void> write(SessionTokens value) async {
-    tokens = value;
-  }
-
-  @override
-  Future<void> clear() async {
-    tokens = null;
-  }
+  ));
 }
 
 class _RealTransitionRepository extends AuthRepository {
@@ -469,4 +500,88 @@ void main() {
     expect(tokens.tokens?.accessToken, 'new-access');
     expect(auth.activeAccount, _accountB.id);
   });
+  test('failed login queued behind logout cannot leave old credentials', () async {
+    FakeSecureStorage().install();
+    final tokens = _MemoryTokens();
+    final logoutStarted = Completer<void>();
+    final releaseLogout = Completer<void>();
+    var loginCalls = 0;
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/logout')) {
+        logoutStarted.complete();
+        await releaseLogout.future;
+        return http.Response('', 204);
+      }
+      if (request.url.path.endsWith('/auth/login')) {
+        loginCalls++;
+        return http.Response(jsonEncode({
+          'error': {'code': 'INVALID_CREDENTIALS', 'message': 'Invalid'}
+        }), 401, headers: {'content-type': 'application/json'});
+      }
+      throw StateError('unexpected endpoint');
+    });
+    addTearDown(client.close);
+    final api = ApiClient(baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: tokens, httpClient: client);
+    final cleanup = _SlowCleanup();
+    final container = ProviderContainer(overrides: [
+      authRepositoryProvider.overrideWithValue(_RealTransitionRepository(api: api, tokens: tokens)),
+      retiredDataCleanupProvider.overrideWithValue(cleanup.clear),
+      signOutAiServiceProvider.overrideWithValue(AiService.forTesting()),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(authProvider.future);
+    final auth = container.read(authProvider.notifier);
+    final signOut = auth.signOut();
+    await logoutStarted.future;
+    await cleanup.clearStarted.future;
+    final login = auth.signIn(email: _accountB.email, password: 'wrong');
+    expect(loginCalls, 0);
+    cleanup.finishClear.complete();
+    releaseLogout.complete();
+    await signOut;
+    expect(tokens.tokens, isNull);
+    await login;
+    expect(loginCalls, 1);
+    expect(tokens.tokens, isNull);
+    expect(auth.activeAccount, isNull);
+    expect(container.read(authProvider).hasError, isTrue);
+  });
+
+  test('repeated logout fences older completion and leaves no credentials', () async {
+    FakeSecureStorage().install();
+    final tokens = _MemoryTokens();
+    final started = Completer<void>();
+    final release = Completer<void>();
+    var requests = 0;
+    final client = MockClient((request) async {
+      if (!request.url.path.endsWith('/auth/logout')) throw StateError('unexpected endpoint');
+      requests++;
+      if (requests == 1) { started.complete(); await release.future; }
+      return http.Response('', 204);
+    });
+    addTearDown(client.close);
+    final api = ApiClient(baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: tokens, httpClient: client);
+    final container = ProviderContainer(overrides: [
+      authRepositoryProvider.overrideWithValue(_RealTransitionRepository(api: api, tokens: tokens)),
+      retiredDataCleanupProvider.overrideWithValue(() async {}),
+      signOutAiServiceProvider.overrideWithValue(AiService.forTesting()),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(authProvider.future);
+    final auth = container.read(authProvider.notifier);
+    final first = auth.signOut();
+    final rejected = expectLater(first, throwsA(isA<ApiException>()
+        .having((e) => e.code, 'code', 'SESSION_CHANGED')));
+    await started.future;
+    final second = auth.signOut();
+    release.complete();
+    await rejected;
+    await second;
+    expect(requests, 2);
+    expect(tokens.tokens, isNull);
+    expect(auth.activeAccount, isNull);
+  });
+
 }

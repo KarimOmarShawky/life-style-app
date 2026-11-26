@@ -177,7 +177,7 @@ export async function processReminderDispatch(
         }
         await emailSender.sendReminderEmail(
           to,
-          'LifeStyle App Reminder',
+          'Livora App Reminder',
           `You have a reminder scheduled for ${reminder.remindAt.toISOString()}.`
         );
       } else if (reminder.channel === 'push') {

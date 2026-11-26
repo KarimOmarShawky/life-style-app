@@ -17,23 +17,49 @@ import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 import 'package:lifestyle_mobile/navigation/deep_link_parser.dart';
 import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
-class LifeStyleApp extends ConsumerWidget {
+class LifeStyleApp extends ConsumerStatefulWidget {
   const LifeStyleApp({super.key, this.initialLocation});
 
   final String? initialLocation;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LifeStyleApp> createState() => _LifeStyleAppState();
+}
+
+class _LifeStyleAppState extends ConsumerState<LifeStyleApp> {
+  int _lastTransition = 0;
+  bool _hadAuthenticatedUser = false;
+  bool _initialLinkAllowed = true;
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    // Routes and overlays can contain account-owned state independently of
+    // authProvider. Discard the entire navigation stack as soon as a session
+    // transition begins, rather than allowing Back to reveal an old screen.
+    final transition = ref.watch(authTransitionSignalProvider);
     final settings = ref.watch(settingsProvider);
     if (authState.asData?.value != null) {
       ref.watch(homeWidgetSyncProvider);
       ref.watch(detoxProvider);
     }
-    final rootPath = DeepLinkParser.routeFor(initialLocation);
+    // Preserve a cold launch link across the first sign-in if the app started
+    // signed out, but never replay it after an authenticated session changes.
+    if (transition != _lastTransition) {
+      if (_hadAuthenticatedUser) _initialLinkAllowed = false;
+      _lastTransition = transition;
+    }
+    if (authState.asData?.value != null &&
+        ref.read(authProvider.notifier).activeAccount != null) {
+      _hadAuthenticatedUser = true;
+    }
+    final rootPath = _initialLinkAllowed
+        ? DeepLinkParser.routeFor(widget.initialLocation)
+        : Navigator.defaultRouteName;
 
     return MaterialApp(
-      title: 'LifeStyle',
+      key: ValueKey<int>(transition),
+      title: 'Livora',
       debugShowCheckedModeBanner: false,
       locale: settings.locale,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -84,10 +110,17 @@ class _SessionPage extends ConsumerWidget {
   final bool root;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) =>
-      ref.watch(authProvider).when(
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(authTransitionSignalProvider);
+    return ref.watch(authProvider).when(
             loading: () => const _LoadingPage(),
             data: (user) {
+              // A transition can begin before the previous AsyncData changes.
+              // Never build account content during that interval.
+              if (user != null &&
+                  ref.read(authProvider.notifier).activeAccount == null) {
+                return const _LoadingPage();
+              }
               if (user == null) return const AuthScreen();
               if (root && user.onboardingPending) {
                 return OnboardingScreen(user: user);
@@ -101,6 +134,7 @@ class _SessionPage extends ConsumerWidget {
               return AuthScreen(errorMessage: _safeMessage(error));
             },
           );
+  }
 }
 
 Widget _authenticatedPage(AppUser user, String path) {

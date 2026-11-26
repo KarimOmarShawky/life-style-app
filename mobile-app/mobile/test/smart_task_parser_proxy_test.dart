@@ -1,7 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
+
+class _TestAuth extends AuthController {
+  String? account = 'a';
+  int generation = 0;
+  @override
+  Future<AppUser?> build() async => null;
+  @override
+  String? get activeAccount => account;
+  @override
+  int get sessionGeneration => generation;
+  @override
+  bool sessionIsCurrent(String expected, int expectedGeneration) =>
+      account == expected && generation == expectedGeneration;
+  void transition(String? next) { account = next; generation++; }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -100,4 +118,29 @@ void main() {
     );
     expect(result.title, isNotEmpty);
   });
+  test('AI result and local fallback reject an A to B to A session', () async {
+    final container = ProviderContainer(overrides: [authProvider.overrideWith(_TestAuth.new)]);
+    addTearDown(container.dispose);
+    final auth = container.read(authProvider.notifier) as _TestAuth;
+    final reply = Completer<String>();
+    SmartTaskParser.replyProviderForTesting = (_) => reply.future;
+    final operation = SmartTaskParser.parseAsync('private A task', useAi: true,
+        session: auth.captureSession()!);
+    final rejection = expectLater(operation, throwsStateError);
+    auth.transition('b');
+    auth.transition('a');
+    reply.complete('not json');
+    await rejection;
+  });
+
+  test('local parser rejects a stale originating session', () async {
+    final container = ProviderContainer(overrides: [authProvider.overrideWith(_TestAuth.new)]);
+    addTearDown(container.dispose);
+    final auth = container.read(authProvider.notifier) as _TestAuth;
+    final session = auth.captureSession()!;
+    auth.transition(null);
+    await expectLater(SmartTaskParser.parseAsync('private A task', session: session),
+        throwsStateError);
+  });
+
 }

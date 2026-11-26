@@ -12,10 +12,13 @@ class ChatHistoryStore {
   static const storageKey = 'ai.chat.history.v1';
   static const maxMessages = 100;
 
-  Future<List<ChatMessage>> load() async {
+  static String keyForAccount(String account) =>
+      '$storageKey.account.${Uri.encodeComponent(account)}';
+
+  Future<List<ChatMessage>> load(String account) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(storageKey);
+      final raw = prefs.getString(keyForAccount(account));
       if (raw == null) return const [];
       final decoded = jsonDecode(raw);
       if (decoded is! List) return const [];
@@ -31,14 +34,14 @@ class ChatHistoryStore {
     }
   }
 
-  Future<void> save(List<ChatMessage> messages) async {
+  Future<void> save(String account, List<ChatMessage> messages) async {
     try {
       final trimmed = messages.length <= maxMessages
           ? messages
           : messages.sublist(messages.length - maxMessages);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        storageKey,
+        keyForAccount(account),
         jsonEncode(trimmed.map((message) => message.toJson()).toList()),
       );
     } catch (_) {
@@ -46,10 +49,10 @@ class ChatHistoryStore {
     }
   }
 
-  Future<void> clear() async {
+  Future<void> clear(String account) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(storageKey);
+      await prefs.remove(keyForAccount(account));
     } catch (_) {}
   }
 }

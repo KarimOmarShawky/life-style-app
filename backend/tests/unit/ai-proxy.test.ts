@@ -151,13 +151,13 @@ describe('AiService', () => {
       })
     );
     const call = vi.mocked(gemini.generateText).mock.calls[0]![0] as GeminiGenerateInput;
-    expect(call.systemInstruction).toContain('LifeStyle AI Assistant');
+    expect(call.systemInstruction).toContain('Livora AI Assistant');
     expect(call.systemInstruction).toContain('Use Arabic only if');
     expect(call.contents).toEqual([
       { role: 'model', parts: [{ text: 'Here is a plan' }] },
       { role: 'user', parts: [{ text: 'نظم يومي' }] }
     ]);
-    expect(JSON.stringify(call.contents)).not.toMatch(/System context|User request|LifeStyle AI/);
+    expect(JSON.stringify(call.contents)).not.toMatch(/System context|User request|Livora AI/);
   });
 
   it('maps provider failures to safe errors without provider payloads', () => {

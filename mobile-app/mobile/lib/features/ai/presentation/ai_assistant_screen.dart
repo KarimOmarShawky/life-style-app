@@ -47,35 +47,82 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   final _historyStore = ChatHistoryStore();
   bool _historyLoaded = false;
+  String? _historyAccount;
+  int? _historySession;
+  Future<void> _historyTail = Future<void>.value();
+
+  bool _sessionCurrent(String account, int generation) => mounted &&
+      _historyAccount == account && _historySession == generation &&
+      ref.read(authProvider.notifier).sessionIsCurrent(account, generation);
+
+  void _invalidateHistory() {
+    _streamGeneration++;
+    _streamSub?.cancel();
+    _historyAccount = null;
+    _historySession = null;
+    _historyLoaded = false;
+    _messages.clear();
+    _textController.clear();
+    _isGenerating = false;
+    _consentedToEgress = false;
+    _settings = null;
+    _userId = null;
+    _useAppData = false;
+  }
+
+  void _scheduleAccountSync() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncAccount();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _syncAccount() {
+    final auth = ref.read(authProvider.notifier);
+    final account = auth.activeAccount;
+    final generation = auth.sessionGeneration;
+    if (account == null) return;
+    if (_historyAccount == account && _historySession == generation) return;
+    setState(() {
+      _invalidateHistory();
+      _historyAccount = account;
+      _historySession = generation;
+    });
+    unawaited(_restoreHistory(account, generation));
+    unawaited(_loadAiPreferences(account, generation));
+  }
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadAiPreferences());
+    ref.listenManual<int>(authTransitionSignalProvider, (_, __) {
+      if (!mounted) return;
+      setState(_invalidateHistory);
+      _scheduleAccountSync();
+    });
+    ref.listenManual(authProvider, (_, __) => _scheduleAccountSync());
+    _scheduleAccountSync();
   }
 
-  /// Reads the app-data switch for this account and the AI settings.
-  Future<void> _loadAiPreferences() async {
-    String? userId;
-    try {
-      userId = (await ref.read(authProvider.future))?.id;
-    } on Object {
-      userId = null;
-    }
-    final useAppData =
-        userId != null && await AiContextPreferenceStore.isEnabled(userId);
-    if (!mounted) return;
+  Future<void> _loadAiPreferences(String account, int generation) async {
+    final useAppData = await AiContextPreferenceStore.isEnabled(account);
+    if (!_sessionCurrent(account, generation)) return;
     setState(() {
-      _userId = userId;
+      _userId = account;
       _useAppData = useAppData;
     });
     await _fetchSettings();
   }
 
   Future<AiSettingsSnapshot?> _fetchSettings() async {
+    final account = _historyAccount;
+    final generation = _historySession;
+    if (account == null || generation == null ||
+        !_sessionCurrent(account, generation)) return null;
     try {
       final settings = await ref.read(aiSettingsClientProvider).fetch();
-      if (mounted) setState(() => _settings = settings);
+      if (!_sessionCurrent(account, generation)) return null;
+      setState(() => _settings = settings);
       return settings;
     } on Object {
       return null;
@@ -86,10 +133,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   /// has not agreed to the current consent text, then stored on the server.
   /// When the server cannot store it (older server, no connection, owner
   /// SQL not applied) the answer counts for this screen only, as before.
-  Future<bool> _ensureEgressConsent(AppLocalizations l10n) async {
+  Future<bool> _ensureEgressConsent(AppLocalizations l10n,
+      String account, int generation) async {
+    bool valid() => _sessionCurrent(account, generation);
+    if (!valid()) return false;
     if (_consentedToEgress) return true;
     final settings = _settings ?? await _fetchSettings();
-    if (!mounted) return false;
+    if (!valid()) return false;
     if (settings != null && settings.hasCurrentConsent) {
       _consentedToEgress = true;
       return true;
@@ -113,17 +163,20 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         ],
       ),
     );
-    if (approved != true || !mounted) return false;
+    if (approved != true || !valid()) return false;
     _consentedToEgress = true;
     if (settings != null && settings.canRecordConsent) {
       try {
-        final stored = await ref.read(aiSettingsClientProvider).grantConsent();
-        if (mounted) setState(() => _settings = stored);
+        final client = ref.read(aiSettingsClientProvider);
+        final stored = client is ApiAiSettingsClient
+            ? await client.grantConsentForSession(valid)
+            : throw StateError('Session-bound settings client required');
+        if (valid()) setState(() => _settings = stored);
       } on Object {
         // Kept for this screen only; the next visit asks again.
       }
     }
-    return true;
+    return valid();
   }
 
   /// The stored consent was withdrawn elsewhere (Profile): forget it, so the
@@ -137,16 +190,27 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   /// "Save to memory" on one of the user's own messages (AI-3): the note
   /// editor opens with the message text, and the note is saved on Save.
   Future<void> _saveToMemory(String text) async {
+    final account = _historyAccount;
+    final generation = _historySession;
+    if (account == null || generation == null ||
+        !_sessionCurrent(account, generation)) return;
+    bool valid() => _sessionCurrent(account, generation);
     final draft = await showAiMemoryEditor(context, content: text);
-    if (draft == null || !mounted) return;
+    if (draft == null || !valid()) return;
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref
-          .read(aiMemoryClientProvider)
-          .create(kind: draft.kind, content: draft.content);
+      final client = ref.read(aiMemoryClientProvider);
+      if (client is ApiAiMemoryClient) {
+        await client.createForSession(
+            kind: draft.kind, content: draft.content, sessionIsCurrent: valid);
+      } else {
+        throw StateError('Session-bound memory client required');
+      }
+      if (!valid()) return;
       messenger.showSnackBar(SnackBar(content: Text(l10n.aiMemorySaved)));
     } on Object catch (error) {
+      if (!valid()) return;
       messenger.showSnackBar(
         SnackBar(content: Text(aiMemoryErrorMessage(l10n, error))),
       );
@@ -160,6 +224,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   /// Turning the switch on explains what is sent first (AI-2c); turning it
   /// off needs no confirmation.
   Future<void> _setUseAppData(bool enable) async {
+    final account = _historyAccount;
+    final generation = _historySession;
+    if (account == null || generation == null ||
+        !_sessionCurrent(account, generation)) return;
     if (enable) {
       final l10n = AppLocalizations.of(context);
       final agreed = await showDialog<bool>(
@@ -180,8 +248,9 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           ],
         ),
       );
-      if (agreed != true || !mounted) return;
+      if (agreed != true || !_sessionCurrent(account, generation)) return;
     }
+    if (!_sessionCurrent(account, generation)) return;
     setState(() => _useAppData = enable);
     final userId = _userId;
     if (userId != null) {
@@ -202,38 +271,30 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_historyLoaded) return;
-    _historyLoaded = true;
-    _restoreHistory();
-  }
-
-  /// Restores the on-device conversation; the greeting is only seeded
-  /// when there is nothing saved yet.
-  Future<void> _restoreHistory() async {
-    final saved = await _historyStore.load();
-    if (!mounted) return;
+  Future<void> _restoreHistory(String account, int generation) async {
+    await _historyTail;
+    final saved = await _historyStore.load(account);
+    if (!_sessionCurrent(account, generation)) return;
     setState(() {
+      _messages.clear();
       if (saved.isNotEmpty) {
-        _messages
-          ..clear()
-          ..addAll(saved);
-      } else if (_messages.isEmpty) {
-        _messages.add(
-          ChatMessage(
-            role: 'model',
-            text: AppLocalizations.of(context).aiWelcomeMessage,
-          ),
-        );
+        _messages.addAll(saved);
+      } else {
+        _messages.add(ChatMessage(
+          role: 'model', text: AppLocalizations.of(context).aiWelcomeMessage));
       }
+      _historyLoaded = true;
     });
     _scrollToBottom();
   }
 
   void _persistHistory() {
-    unawaited(_historyStore.save(List<ChatMessage>.of(_messages)));
+    final account = _historyAccount;
+    final generation = _historySession;
+    if (account == null || generation == null ||
+        !_sessionCurrent(account, generation)) return;
+    final snapshot = List<ChatMessage>.of(_messages);
+    _historyTail = _historyTail.then((_) => _historyStore.save(account, snapshot));
   }
 
   @override
@@ -259,16 +320,20 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   Future<void> _handleSend([String? presetText]) async {
     final text = (presetText ?? _textController.text).trim();
-    if (text.isEmpty || _isGenerating) return;
+    final account = _historyAccount;
+    final authGeneration = _historySession;
+    if (text.isEmpty || _isGenerating || !_historyLoaded || account == null ||
+        authGeneration == null || !_sessionCurrent(account, authGeneration)) return;
+    bool valid() => _sessionCurrent(account, authGeneration);
     final l10n = AppLocalizations.of(context);
     final clientLocale = Localizations.localeOf(context).toLanguageTag();
 
     // Gemini API terms: AI features are for people aged 18 or older (D9).
-    if (!await ensureAiAgeConfirmed(context, ref)) return;
-    if (!mounted) return;
+    if (!await ensureAiAgeConfirmed(context, ref, sessionIsCurrent: valid)) return;
+    if (!valid()) return;
 
-    if (!await _ensureEgressConsent(l10n)) return;
-    if (!mounted) return;
+    if (!await _ensureEgressConsent(l10n, account, authGeneration)) return;
+    if (!valid()) return;
     final history = List<ChatMessage>.of(_messages);
 
     _textController.clear();
@@ -303,7 +368,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     _streamSub?.cancel();
 
     void showFailure([Object? error]) {
-      if (!mounted || generation != _streamGeneration) return;
+      if (!valid() || generation != _streamGeneration) return;
       final code = error is AiStreamingException ? error.code : null;
       final consentLost = code == 'consent_required';
       setState(() {
@@ -336,10 +401,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           clientLocale: clientLocale,
           languageName: l10n.promptLanguageName,
           contextScopes: contextScopes,
+          sessionIsCurrent: valid,
         )
         .listen(
           (chunk) {
-            if (!mounted || generation != _streamGeneration) return;
+            if (!valid() || generation != _streamGeneration) return;
             buffer.write(chunk);
             if (placeholderIndex < _messages.length) {
               setState(() {
@@ -354,7 +420,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           },
           onError: (Object error) => showFailure(error),
           onDone: () {
-            if (!mounted || generation != _streamGeneration) return;
+            if (!valid() || generation != _streamGeneration) return;
             if (buffer.isEmpty) {
               showFailure();
               return;
@@ -406,6 +472,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             tooltip: l10n.aiClearChatTooltip,
             icon: const Icon(Icons.refresh_outlined),
             onPressed: () {
+              final account = _historyAccount;
+              final generation = _historySession;
+              if (account == null || generation == null ||
+                  !_sessionCurrent(account, generation) || !_historyLoaded) return;
               _streamGeneration++;
               _streamSub?.cancel();
               setState(() {
@@ -418,7 +488,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                 );
                 _isGenerating = false;
               });
-              unawaited(_historyStore.clear());
+              _historyTail = _historyTail.then((_) => _historyStore.clear(account));
             },
           ),
         ],

@@ -24,6 +24,18 @@ class AiTaskParsingNotifier extends AsyncNotifier<bool> {
     return enabled && await AiAgeConfirmationStore.isConfirmed(userId);
   }
 
+  /// Reads the opt-in for the originating session rather than a cached future.
+  Future<bool> enabledForSession(AuthSessionContext session) async {
+    session.requireCurrent();
+    final prefs = await SharedPreferences.getInstance();
+    session.requireCurrent();
+    final enabled = prefs.getBool('$_prefix${session.account}') ?? false;
+    if (!enabled) return false;
+    final confirmed = await AiAgeConfirmationStore.isConfirmed(session.account);
+    session.requireCurrent();
+    return confirmed;
+  }
+
   Future<void> setEnabled(bool enabled) async {
     final userId = ref.read(authProvider).asData?.value?.id;
     if (userId == null) return;

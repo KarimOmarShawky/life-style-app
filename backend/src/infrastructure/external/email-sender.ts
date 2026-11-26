@@ -34,7 +34,7 @@ export class SmtpEmailSender implements EmailSender {
   public async sendPasswordResetEmail(to: string, code: string): Promise<void> {
     await this.sendRaw(
       to,
-      'Your LifeStyle App Password Reset Code',
+      'Your Livora App Password Reset Code',
       `Your 6-digit password reset code is: ${code}\n\nThis code expires 15 minutes after it was first generated; a resent code does not extend that window.\nIf you did not request this reset, please ignore this email.`
     );
   }

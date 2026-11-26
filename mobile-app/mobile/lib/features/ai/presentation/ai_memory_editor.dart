@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_memory_client.dart';
 import 'package:lifestyle_mobile/features/ai/data/text_limits.dart';
@@ -22,12 +24,19 @@ Future<AiMemoryDraft?> showAiMemoryEditor(
   String content = '',
   bool editing = false,
 }) {
+  final auth = ProviderScope.containerOf(context, listen: false)
+      .read(authProvider.notifier);
+  final account = auth.activeAccount;
+  final generation = auth.sessionGeneration;
+  if (account == null) return Future.value(null);
   return showDialog<AiMemoryDraft>(
     context: context,
     builder: (_) => _AiMemoryEditor(
       kind: kind,
       content: content,
       editing: editing,
+      account: account,
+      generation: generation,
     ),
   );
 }
@@ -47,26 +56,59 @@ String aiMemoryErrorMessage(AppLocalizations l10n, Object error) {
   return l10n.aiMemorySaveFailed;
 }
 
-class _AiMemoryEditor extends StatefulWidget {
+class _AiMemoryEditor extends ConsumerStatefulWidget {
   const _AiMemoryEditor({
     required this.kind,
     required this.content,
     required this.editing,
+    required this.account,
+    required this.generation,
   });
 
   final AiMemoryKind kind;
   final String content;
   final bool editing;
+  final String account;
+  final int generation;
 
   @override
-  State<_AiMemoryEditor> createState() => _AiMemoryEditorState();
+  ConsumerState<_AiMemoryEditor> createState() => _AiMemoryEditorState();
 }
 
-class _AiMemoryEditorState extends State<_AiMemoryEditor> {
+class _AiMemoryEditorState extends ConsumerState<_AiMemoryEditor> {
   late AiMemoryKind _kind = widget.kind;
   late final TextEditingController _text = TextEditingController(
-    text: clampUtf16(widget.content.trim(), aiMemoryMaxChars),
+    text: _validSession()
+        ? clampUtf16(widget.content.trim(), aiMemoryMaxChars)
+        : '',
   );
+  bool _invalid = false;
+
+  bool _validSession() => !_invalid &&
+      ref.read(authProvider.notifier)
+          .sessionIsCurrent(widget.account, widget.generation);
+
+  void _invalidate() {
+    if (!mounted || _invalid || _validSession()) return;
+    _invalid = true;
+    _text.clear();
+    final route = ModalRoute.of(context);
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = route?.navigator;
+      if (route != null && route.isActive && navigator != null && navigator.mounted) {
+        navigator.removeRoute(route);
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual<int>(authTransitionSignalProvider, (_, __) => _invalidate());
+    ref.listenManual(authProvider, (_, __) => _invalidate());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _invalidate());
+  }
 
   @override
   void dispose() {
@@ -76,6 +118,7 @@ class _AiMemoryEditorState extends State<_AiMemoryEditor> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_validSession()) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
     final text = _text.text.trim();
     return AlertDialog(
@@ -128,10 +171,13 @@ class _AiMemoryEditorState extends State<_AiMemoryEditor> {
         FilledButton(
           onPressed: text.isEmpty
               ? null
-              : () => Navigator.pop(
-                    context,
-                    AiMemoryDraft(kind: _kind, content: text),
-                  ),
+              : () {
+                  if (_validSession()) {
+                    Navigator.pop(context, AiMemoryDraft(kind: _kind, content: text));
+                  } else {
+                    _invalidate();
+                  }
+                },
           child: Text(l10n.save),
         ),
       ],

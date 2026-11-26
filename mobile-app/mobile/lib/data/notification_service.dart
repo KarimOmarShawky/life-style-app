@@ -21,18 +21,18 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static const String alarmChannelId = 'lifestyle_real_alarm_channel';
-  static const String alarmChannelName = 'LifeStyle Real Alarms';
+  static const String alarmChannelName = 'Livora Real Alarms';
   static const String alarmChannelDesc =
       'Continuous loud alarm for tasks, appointments, and schedules';
 
   static const String normalChannelId = 'lifestyle_general_channel';
-  static const String normalChannelName = 'LifeStyle Reminders';
+  static const String normalChannelName = 'Livora Reminders';
   static const String normalChannelDesc =
       'General alerts and notification reminders';
 
   static const String calendarChannelId =
       'lifestyle_calendar_reminders_channel';
-  static const String calendarChannelName = 'LifeStyle Calendar Reminders';
+  static const String calendarChannelName = 'Livora Calendar Reminders';
   static const String calendarChannelDesc = 'Reminders before calendar events';
 
   /// Set once the exact-alarm settings page has been opened, so a user who

@@ -123,6 +123,9 @@ describe('R-02 / R-03 / R-09 reset delivery boundary', () => {
     );
     expect(sendMail).toHaveBeenCalledOnce();
     expect(sendMail.mock.calls[0]).toBeDefined();
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: 'Your Livora App Password Reset Code' })
+    );
   });
   it('does not promise a fresh lifetime when a reset email is retried', async () => {
     const sendMail = vi.fn(async (_mail: { text: string }) => ({

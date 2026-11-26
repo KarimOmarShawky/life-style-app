@@ -20,8 +20,10 @@ class AiAgeConfirmationStore {
     return prefs.getBool('$_prefix$userId') ?? false;
   }
 
-  static Future<void> confirm(String userId) async {
+  static Future<void> confirm(String userId,
+      {bool Function()? sessionIsCurrent}) async {
     final prefs = await SharedPreferences.getInstance();
+    if (sessionIsCurrent != null && !sessionIsCurrent()) return;
     await prefs.setBool('$_prefix$userId', true);
   }
 }
@@ -37,12 +39,16 @@ Future<String?> _currentUserId(WidgetRef ref) async {
 /// Returns true when the AI may be used: the account already confirmed, or
 /// the user confirms now. Declining shows a short message and returns false;
 /// the question comes back next time.
-Future<bool> ensureAiAgeConfirmed(BuildContext context, WidgetRef ref) async {
+Future<bool> ensureAiAgeConfirmed(BuildContext context, WidgetRef ref,
+    {bool Function()? sessionIsCurrent}) async {
+  bool valid() => sessionIsCurrent?.call() ?? true;
+  if (!valid()) return false;
   final userId = await _currentUserId(ref);
+  if (!valid()) return false;
   if (userId != null && await AiAgeConfirmationStore.isConfirmed(userId)) {
-    return true;
+    return valid();
   }
-  if (!context.mounted) return false;
+  if (!valid() || !context.mounted) return false;
   final l10n = AppLocalizations.of(context);
   final answer = await showDialog<bool>(
     context: context,
@@ -61,9 +67,13 @@ Future<bool> ensureAiAgeConfirmed(BuildContext context, WidgetRef ref) async {
       ],
     ),
   );
+  if (!valid()) return false;
   if (answer == true) {
-    if (userId != null) await AiAgeConfirmationStore.confirm(userId);
-    return true;
+    // The per-account write cannot be atomically cancelled once submitted.
+    if (userId != null && valid()) {
+      await AiAgeConfirmationStore.confirm(userId, sessionIsCurrent: valid);
+    }
+    return valid();
   }
   if (answer == false) {
     if (!context.mounted) return false;

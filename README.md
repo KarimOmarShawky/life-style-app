@@ -3,6 +3,12 @@
 > **Specification Reference:** LifeStyle App — Final Technical & Product Specification v1.0.1  
 > **Implementation status:** Backend P2–P9 reports are present; P10–P13 mobile/quality/operations foundations are added. P10–P13 are **not signed off** until Flutter, native platform, CI, and production verification gates pass.
 
+### Cancellation investigation status
+
+The cancellation investigation includes diagnostic tests and separately reviewed candidates; the Stage 2 transport candidate was tested in an external copy and is **not applied by that trial to this repository**. In that copy, Transport probes 03–05, transport semantics (3/3), and the ADR-041 shared-refresh race passed. The service cancellation and cancellation-breaker probes timed out and require investigation. These results are limited to that diagnostic environment and are not production verification.
+
+Flutter analysis in that external trial failed with 83 baseline diagnostics. A baseline-matching diagnostic exception permitted tests to continue; it does **not** make analysis pass and is not a release gate or approval. Tests not explicitly reported as run remain **NOT RUN**. Full Flutter, native platform and release verification remain pending.
+
 LifeStyle App is a personal life operating system structured around the core loop:  
 **PLAN → FOCUS → DO → TRACK → REVIEW**
 

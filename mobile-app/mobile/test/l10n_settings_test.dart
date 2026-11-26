@@ -32,7 +32,8 @@ void main() {
       ];
       for (final locale in AppLocalizations.supportedLocales) {
         final l10n = AppLocalizations(locale);
-        expect(l10n.appTitle, isNotEmpty);
+        expect(l10n.appTitle,
+            locale.languageCode == 'ar' ? '\u0644\u064a\u0641\u0648\u0631\u0627' : 'Livora');
         expect(l10n.signIn, isNotEmpty);
         expect(l10n.smsSyncTitle, isNot(equals('smsSyncTitle')));
         expect(l10n.focusCompleteEncouragement,

@@ -60,6 +60,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _handleDomainArchive(BuildContext context, String userId) async {
     if (_busyAction) return;
+    final session = ref.read(authProvider.notifier).captureSession();
+    if (session == null || session.account != userId || !session.isCurrent) return;
     final cancel = ArchiveCancellation();
     _archiveCancel = cancel;
     _archiveUserId = userId;
@@ -71,7 +73,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           builder: (_) => AccountArchiveDialog(
               userId: userId,
               cancel: cancel,
-              download: ref.read(authRepositoryProvider).streamAccountArchive));
+              download: (password, cancellation) => ref
+                  .read(authRepositoryProvider)
+                  .streamAccountArchive(password, cancellation, session: session)));
     } finally {
       cancel.cancel();
       _archiveCancel = null;
@@ -439,6 +443,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final localization = AppLocalizations.of(context);
     final settings = ref.watch(settingsProvider);
+    ref.listen<int>(authTransitionSignalProvider, (_, __) {
+      _archiveCancel?.cancel();
+    });
     ref.listen(authProvider, (_, next) {
       if (_archiveUserId != null && next.valueOrNull?.id != _archiveUserId) {
         _archiveCancel?.cancel();

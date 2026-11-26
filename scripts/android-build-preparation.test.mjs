@@ -142,7 +142,7 @@ test('debug validation identity is separate from existing app data (source contr
   const manifest = readFileSync('mobile-app/mobile/android/app/src/main/AndroidManifest.xml', 'utf8');
   assert.match(gradle, /applicationId = "com.lifestyle.app"/);
   assert.match(gradle, /applicationIdSuffix = ".validation"/);
-  assert.match(gradle, /manifestPlaceholders\["appLabel"\] = "LifeStyle Validation"/);
+  assert.match(gradle, /manifestPlaceholders\["appLabel"\] = "Livora Validation"/);
   assert.match(manifest, /android:label="\$\{appLabel\}"/);
 });
 

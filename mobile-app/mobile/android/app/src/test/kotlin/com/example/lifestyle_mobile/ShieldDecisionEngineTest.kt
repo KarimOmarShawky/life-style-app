@@ -24,6 +24,17 @@ class ShieldDecisionEngineTest {
             assertFalse(pkg, engine.shouldBlock(pkg, 2000, state, null))
         }
     }
+    @Test fun validationAndProductionAppsStayAllowedWhenExplicitlySelected() {
+        // Validation uses a different applicationId than the Kotlin namespace.
+        // The native store supplies its actual package via allowlistedPackages.
+        val guarded = state.copy(
+            blockedPackages = state.blockedPackages + setOf("com.lifestyle.app", "com.lifestyle.app.validation"),
+            allowlistedPackages = state.allowlistedPackages + "com.lifestyle.app.validation",
+        )
+        assertFalse(engine.shouldBlock("com.lifestyle.app", 2000, guarded, null))
+        assertFalse(engine.shouldBlock("com.lifestyle.app.validation", 2000, guarded, null))
+        assertTrue(engine.shouldBlock("social", 2000, guarded, null))
+    }
     @Test fun bypassIsSinglePackageAndExpiresAtBoundary() {
         val bypass = state.copy(tempBypassPackage = "social", tempBypassUntilMs = 62000,
             blockedPackages = state.blockedPackages + "another")

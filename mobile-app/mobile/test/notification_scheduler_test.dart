@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
@@ -50,6 +55,59 @@ class _FakeSink implements NotificationSink {
   @override
   Future<void> cancelNotification(int id) async {
     scheduled.remove(id);
+  }
+}
+
+class _TestAuth extends AuthController {
+  String? account = 'a';
+  int generation = 0;
+
+  @override
+  Future<AppUser?> build() async => null;
+  @override
+  String? get activeAccount => account;
+  @override
+  int get sessionGeneration => generation;
+  @override
+  bool sessionIsCurrent(String expected, int expectedGeneration) =>
+      account == expected && generation == expectedGeneration;
+
+  void transition(String? next) {
+    generation++;
+    account = next;
+  }
+}
+
+class _BlockingSink extends _FakeSink {
+  bool blockCancel = false;
+  bool blockReminder = false;
+  final started = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<void> cancelNotification(int id) async {
+    if (blockCancel) {
+      blockCancel = false;
+      started.complete();
+      await release.future;
+    }
+    await super.cancelNotification(id);
+  }
+
+  @override
+  Future<void> showReminderAt({
+    required int id,
+    required ReminderKind kind,
+    required String title,
+    required String body,
+    required DateTime at,
+  }) async {
+    await super.showReminderAt(id: id, kind: kind, title: title, body: body, at: at);
+    if (blockReminder) {
+      blockReminder = false;
+      started.complete();
+      await release.future;
+    }
   }
 }
 
@@ -219,4 +277,75 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString(NotificationScheduler.storageKey), isNull);
   });
+  test('queued A operation fails closed after A to B to A', () async {
+    final container = ProviderContainer(overrides: [
+      authProvider.overrideWith(_TestAuth.new),
+    ]);
+    addTearDown(container.dispose);
+    final auth = container.read(authProvider.notifier) as _TestAuth;
+    final a = auth.captureSession()!;
+    final blocked = _BlockingSink()..blockCancel = true;
+    final guarded = NotificationScheduler(sink: blocked, clock: () => now);
+    final first = guarded.schedule(id: 10, kind: ReminderKind.task,
+        tier: NotificationTier.normal, title: 'existing', body: 'existing',
+        at: DateTime.utc(2026, 11, 11, 9));
+    await blocked.started.future;
+    final stale = guarded.scheduleForSession(session: a, id: 11,
+        kind: ReminderKind.task, tier: NotificationTier.normal,
+        title: 'A title', body: 'A private', at: DateTime.utc(2026, 11, 11, 10));
+    final rejected = expectLater(stale, throwsStateError);
+    auth.transition('b');
+    auth.transition('a');
+    blocked.release.complete();
+    await first;
+    await rejected;
+    expect(blocked.scheduled.containsKey(11), isFalse);
+    final raw = (await SharedPreferences.getInstance())
+        .getString(NotificationScheduler.storageKey) ?? '';
+    expect(raw, isNot(contains('A private')));
+    final current = auth.captureSession()!;
+    await guarded.scheduleForSession(session: current, id: 12,
+        kind: ReminderKind.task, tier: NotificationTier.normal,
+        title: 'current', body: 'current', at: DateTime.utc(2026, 11, 11, 11));
+    expect(blocked.scheduled[12]?.title, 'current');
+  });
+
+  test('logout during awaited cancellation prevents later scheduling and save', () async {
+    final container = ProviderContainer(overrides: [authProvider.overrideWith(_TestAuth.new)]);
+    addTearDown(container.dispose);
+    final auth = container.read(authProvider.notifier) as _TestAuth;
+    final blocked = _BlockingSink()..blockCancel = true;
+    final guarded = NotificationScheduler(sink: blocked, clock: () => now);
+    final pending = guarded.scheduleForSession(session: auth.captureSession()!, id: 13,
+        kind: ReminderKind.task, tier: NotificationTier.normal,
+        title: 'A title', body: 'A private', at: DateTime.utc(2026, 11, 11, 10));
+    final rejected = expectLater(pending, throwsStateError);
+    await blocked.started.future;
+    auth.transition(null);
+    blocked.release.complete();
+    await rejected;
+    expect(blocked.scheduled.containsKey(13), isFalse);
+    expect((await SharedPreferences.getInstance())
+        .getString(NotificationScheduler.storageKey), isNull);
+  });
+
+  test('already submitted OS request cannot be cancelled but stale plan is not saved', () async {
+    final container = ProviderContainer(overrides: [authProvider.overrideWith(_TestAuth.new)]);
+    addTearDown(container.dispose);
+    final auth = container.read(authProvider.notifier) as _TestAuth;
+    final blocked = _BlockingSink()..blockReminder = true;
+    final guarded = NotificationScheduler(sink: blocked, clock: () => now);
+    final pending = guarded.scheduleForSession(session: auth.captureSession()!, id: 14,
+        kind: ReminderKind.task, tier: NotificationTier.normal,
+        title: 'A title', body: 'A private', at: DateTime.utc(2026, 11, 11, 10));
+    final rejected = expectLater(pending, throwsStateError);
+    await blocked.started.future;
+    expect(blocked.scheduled[14]?.title, 'A title'); // already submitted
+    auth.transition('b');
+    blocked.release.complete();
+    await rejected;
+    expect((await SharedPreferences.getInstance())
+        .getString(NotificationScheduler.storageKey), isNull);
+  });
+
 }

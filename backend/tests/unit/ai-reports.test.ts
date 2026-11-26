@@ -282,6 +282,30 @@ describe('AI report HTTP surface', () => {
     expect(chat.body.error.code).toBe('AI_DISABLED');
   });
 
+  // Characterization only: this forces the hypothetical payload at the HTTP
+  // boundary. It does not prove the mobile UI can produce it or that a real
+  // account's content leaked. The authentication and repository are fakes.
+  it('attributes supplied reply text to the request identity, without origin metadata', async () => {
+    const repo = fakeRepo();
+    const app = buildTestApp(new AiReportsService(repo, new FakeClock()), disabledAi);
+    const replyText = 'synthetic text associated with account A';
+    const res = await request(app)
+      .post('/api/v1/ai/reports')
+      .set('x-test-user', 'synthetic-account-B')
+      .send({ surface: 'assistant', category: 'other', locale: 'en', replyText });
+
+    expect(res.status).toBe(201);
+    expect(repo.create).toHaveBeenCalledOnce();
+    expect(repo.create).toHaveBeenCalledWith({
+      userId: 'synthetic-account-B',
+      surface: 'assistant',
+      category: 'other',
+      locale: 'en',
+      replyText,
+      note: null
+    });
+  });
+
   it('rejects unauthenticated and invalid requests', async () => {
     const repo = fakeRepo();
     const app = buildTestApp(new AiReportsService(repo, new FakeClock()), disabledAi);

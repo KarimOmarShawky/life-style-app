@@ -126,6 +126,14 @@ class ApiClientAiGateway implements AiBackendGateway {
     Duration timeout = const Duration(seconds: 60),
   }) =>
       _client.postEventStream(path, body: body, timeout: timeout);
+  Stream<String> postEventStreamForSession(
+    String path, {
+    Object? body,
+    required Duration timeout,
+    required bool Function() sessionIsCurrent,
+  }) => _client.postEventStream(path,
+      body: body, timeout: timeout, sessionIsCurrent: sessionIsCurrent);
+
 }
 
 /// Denial reasons of an assistant turn (backend AI-2b), passed on as
@@ -144,6 +152,52 @@ class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
   BackendAiTransport(this._gateway);
 
   final AiBackendGateway _gateway;
+
+  Stream<String> _sessionStream(String path,
+      {Object? body, required Duration timeout, bool Function()? sessionIsCurrent}) {
+    if (sessionIsCurrent != null && !sessionIsCurrent()) {
+      throw const ApiException(statusCode: 401, code: 'SESSION_CHANGED',
+          message: 'Your session changed.');
+    }
+    final gateway = _gateway;
+    if (sessionIsCurrent != null) {
+      if (gateway is! ApiClientAiGateway) {
+        throw const ApiException(statusCode: 401, code: 'SESSION_CHANGED',
+            message: 'Your session changed.');
+      }
+      return gateway.postEventStreamForSession(path,
+          body: body, timeout: timeout, sessionIsCurrent: sessionIsCurrent);
+    }
+    return gateway.postEventStream(path, body: body, timeout: timeout);
+  }
+
+  /// Session-bound dispatch fails closed for gateways without guarded requests.
+  Future<String> chatForSession({
+    required List<ChatMessage> history,
+    required String message,
+    required String languageName,
+    required AiReplyMode mode,
+    required bool Function() sessionIsCurrent,
+  }) async {
+    final gateway = _gateway;
+    if (!sessionIsCurrent() || gateway is! ApiClientAiGateway) {
+      throw const AiTransportException('unauthenticated');
+    }
+    try {
+      final decoded = await gateway._client.request('POST', 'ai/chat',
+          body: _requestBody(history: history, message: message,
+              languageName: languageName, mode: mode),
+          sessionIsCurrent: sessionIsCurrent);
+      if (!sessionIsCurrent()) throw const AiTransportException('unauthenticated');
+      if (decoded is Map<String, dynamic> && decoded['reply'] is String &&
+          (decoded['reply'] as String).trim().isNotEmpty) {
+        return (decoded['reply'] as String).trim();
+      }
+      throw const AiTransportException('empty_response');
+    } on ApiException catch (error) {
+      throw AiTransportException(_codeFor(error));
+    }
+  }
 
   @override
   Future<String> chat({
@@ -184,10 +238,11 @@ class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
     required String message,
     required String languageName,
     Duration timeout = const Duration(seconds: 60),
+    bool Function()? sessionIsCurrent,
   }) async* {
     var sawText = false;
     try {
-      await for (final payload in _gateway.postEventStream(
+      await for (final payload in _sessionStream(
         'ai/chat/stream',
         body: _requestBody(
           history: history,
@@ -196,6 +251,7 @@ class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
           mode: AiReplyMode.chat,
         ),
         timeout: timeout,
+        sessionIsCurrent: sessionIsCurrent,
       )) {
         if (payload == '[DONE]') break;
         final Object? decoded;
@@ -240,6 +296,7 @@ class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
     required String languageName,
     List<String> contextScopes = const [],
     Duration timeout = const Duration(seconds: 60),
+    bool Function()? sessionIsCurrent,
   }) async* {
     final conversation = [
       for (final turn in boundedAiHistory(history, message))
@@ -248,7 +305,7 @@ class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
     var sawText = false;
     var useChatProxy = false;
     try {
-      await for (final payload in _gateway.postEventStream(
+      await for (final payload in _sessionStream(
         'ai/assistant/turn/stream',
         body: <String, Object?>{
           'message': message,
@@ -257,6 +314,7 @@ class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
           'clientLocale': clientLocale,
         },
         timeout: timeout,
+        sessionIsCurrent: sessionIsCurrent,
       )) {
         if (payload == '[DONE]') break;
         final Object? decoded;
@@ -297,6 +355,7 @@ class BackendAiTransport implements AiTransport, AiAssistantTurnTransport {
         message: message,
         languageName: languageName,
         timeout: timeout,
+        sessionIsCurrent: sessionIsCurrent,
       );
       return;
     }

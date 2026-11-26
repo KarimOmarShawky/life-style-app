@@ -281,7 +281,7 @@ class DetoxSession {
       return true;
     } catch (_) {
       await _fail(
-        'Release not confirmed. Retry Stop, or disable LifeStyle accessibility in Android Settings.',
+        'Release not confirmed. Retry Stop, or disable Livora accessibility in Android Settings.',
         'detoxErrorRelease',
       );
       return false;

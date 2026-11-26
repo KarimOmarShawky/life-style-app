@@ -45,7 +45,7 @@ android {
 
     defaultConfig {
         applicationId = "com.lifestyle.app"
-        manifestPlaceholders["appLabel"] = "LifeStyle"
+        manifestPlaceholders["appLabel"] = "Livora"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -68,7 +68,7 @@ android {
             // Install beside an existing signed app; never require deleting user data.
             applicationIdSuffix = ".validation"
             versionNameSuffix = "-validation"
-            manifestPlaceholders["appLabel"] = "LifeStyle Validation"
+            manifestPlaceholders["appLabel"] = "Livora Validation"
         }
         release {
             // No debug signing identity and no intentional unsigned release path.

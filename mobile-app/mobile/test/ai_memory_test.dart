@@ -192,7 +192,7 @@ void _smallPhone(WidgetTester tester) {
 Future<void> _pumpMemory(
   WidgetTester tester, {
   required _FakeSettings settings,
-  required _FakeMemories memories,
+  required AiMemoryClient memories,
   String locale = 'en',
   double textScale = 1,
 }) async {
@@ -244,6 +244,52 @@ class _MemoryTokens implements TokenStore {
   @override
   Future<void> clear() async {
     _stored = null;
+  }
+}
+
+// Test-only store for the guarded creation case below.
+class _GuardedMemoryTokens extends _MemoryTokens implements SessionBoundTokenStore {
+  void _check(bool Function() current) {
+    if (!current()) throw const StaleCredentialOperation();
+  }
+
+  @override
+  Future<SessionTokens?> readForSession(bool Function() current) async {
+    _check(current);
+    final result = await read();
+    _check(current);
+    return result;
+  }
+  @override
+  Future<void> writeForSession(SessionTokens value, bool Function() current) async {
+    _check(current);
+    await write(value);
+    _check(current);
+  }
+  @override
+  Future<void> clearForSession(bool Function() current) async {
+    _check(current);
+    await clear();
+    _check(current);
+  }
+  @override
+  Future<bool> clearIfMatches(SessionTokens expected, bool Function() current) async {
+    _check(current);
+    if (!identical(await read(), expected)) return false;
+    _check(current);
+    await clear();
+    _check(current);
+    return true;
+  }
+  @override
+  Future<bool> replaceIfMatches(SessionTokens expected, SessionTokens replacement,
+      bool Function() current) async {
+    _check(current);
+    if (!identical(await read(), expected)) return false;
+    _check(current);
+    await write(replacement);
+    _check(current);
+    return true;
   }
 }
 
@@ -387,7 +433,27 @@ void main() {
     });
 
     testWidgets('adds a note with its kind', (tester) async {
-      final memories = _FakeMemories([]);
+      final created = <String>[];
+      final api = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: _GuardedMemoryTokens(),
+        httpClient: MockClient((request) async {
+          final Object data;
+          if (request.method == 'GET') {
+            data = {'items': [], 'available': true};
+          } else if (request.method == 'POST') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            created.add('${body['kind']}:${body['content']}');
+            data = {'id': 'm1', 'kind': body['kind'], 'content': body['content']};
+          } else {
+            throw StateError('Unexpected request');
+          }
+          return http.Response(jsonEncode({'success': true, 'data': data}), 200,
+              headers: {'content-type': 'application/json'});
+        }),
+      );
+      addTearDown(api.close);
+      final memories = ApiAiMemoryClient(api);
       await _pumpMemory(
         tester,
         settings: _FakeSettings(_settings(memory: true)),
@@ -408,7 +474,7 @@ void main() {
       await tester.tap(save);
       await tester.pumpAndSettle();
 
-      expect(memories.created, ['preference:Keep answers short']);
+      expect(created, ['preference:Keep answers short']);
       expect(find.text('Keep answers short'), findsOneWidget);
       expect(find.text(_en.aiMemoryKindPreference), findsOneWidget);
       expect(find.text(_en.aiMemorySaved), findsOneWidget);
@@ -466,17 +532,32 @@ void main() {
     });
 
     testWidgets('says why a note was not saved', (tester) async {
+      var postCount = 0;
+      final api = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: _GuardedMemoryTokens(),
+        httpClient: MockClient((request) async {
+          if (request.method == 'GET') {
+            return http.Response(
+              jsonEncode({'success': true, 'data': {'items': [], 'available': true}}),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method != 'POST') throw StateError('Unexpected request');
+          postCount++;
+          return http.Response(
+            jsonEncode({'success': false, 'error': {'code': 'AI_MEMORY_LIMIT', 'message': 'limit'}}),
+            409,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      addTearDown(api.close);
       await _pumpMemory(
         tester,
         settings: _FakeSettings(_settings(memory: true)),
-        memories: _FakeMemories(
-          [],
-          createError: const ApiException(
-            statusCode: 409,
-            code: 'AI_MEMORY_LIMIT',
-            message: 'limit',
-          ),
-        ),
+        memories: ApiAiMemoryClient(api),
       );
       await tester.tap(find.byKey(const ValueKey('ai-memory-add')));
       await tester.pumpAndSettle();
@@ -487,12 +568,33 @@ void main() {
       await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, _en.save));
       await tester.pumpAndSettle();
+      expect(postCount, 1);
       expect(find.text(_en.aiMemoryLimitError), findsOneWidget);
     });
 
     testWidgets('G7: Arabic at 200% text', (tester) async {
       final semantics = tester.ensureSemantics();
-      final memories = _FakeMemories([_note]);
+      final created = <String>[];
+      final api = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: _GuardedMemoryTokens(),
+        httpClient: MockClient((request) async {
+          final Object data;
+          if (request.method == 'GET') {
+            data = {'items': [{'id': _note.id, 'kind': _note.kind.name, 'content': _note.content}], 'available': true};
+          } else if (request.method == 'POST') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            created.add('${body['kind']}:${body['content']}');
+            data = {'id': 'm2', 'kind': body['kind'], 'content': body['content']};
+          } else {
+            throw StateError('Unexpected request');
+          }
+          return http.Response(jsonEncode({'success': true, 'data': data}), 200,
+              headers: {'content-type': 'application/json'});
+        }),
+      );
+      addTearDown(api.close);
+      final memories = ApiAiMemoryClient(api);
       await _pumpMemory(
         tester,
         settings: _FakeSettings(_settings(memory: true)),
@@ -521,7 +623,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, _ar.save));
       await tester.pumpAndSettle();
-      expect(memories.created, ['fact:اجعل الإجابات قصيرة']);
+      expect(created, ['fact:اجعل الإجابات قصيرة']);
       expect(tester.takeException(), isNull);
 
       await tester.scrollUntilVisible(
@@ -541,11 +643,12 @@ void main() {
     Future<_FakeMemories> pumpAssistant(
       WidgetTester tester, {
       required bool memory,
+      AiMemoryClient? memoryClient,
     }) async {
       SharedPreferences.setMockInitialValues({
         'app_locale': 'en',
         'ai_age_confirmed.v1.user-1': true,
-        'ai.chat.history.v1': jsonEncode([
+        'ai.chat.history.v1.account.user-1': jsonEncode([
           {
             'role': 'user',
             'text': 'I work night shifts',
@@ -568,7 +671,7 @@ void main() {
           aiSettingsClientProvider.overrideWithValue(
             _FakeSettings(_settings(memory: memory)),
           ),
-          aiMemoryClientProvider.overrideWithValue(memories),
+          aiMemoryClientProvider.overrideWithValue(memoryClient ?? memories),
         ],
         home: Consumer(
           builder: (context, ref, _) {
@@ -582,7 +685,25 @@ void main() {
     }
 
     testWidgets('saves one of your own messages as a note', (tester) async {
-      final memories = await pumpAssistant(tester, memory: true);
+      final created = <String>[];
+      final api = ApiClient(
+        baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        tokenStore: _GuardedMemoryTokens(),
+        httpClient: MockClient((request) async {
+          if (request.method != 'POST' || !request.url.path.endsWith('/ai/memories')) {
+            throw StateError('Unexpected request');
+          }
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          created.add('${body['kind']}:${body['content']}');
+          return http.Response(
+            jsonEncode({'success': true, 'data': {'id': 'm1', 'kind': body['kind'], 'content': body['content']}}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      addTearDown(api.close);
+      await pumpAssistant(tester, memory: true, memoryClient: ApiAiMemoryClient(api));
       final action = find.byTooltip(_en.aiSaveToMemoryTooltip);
       expect(action, findsOneWidget);
 
@@ -591,7 +712,7 @@ void main() {
       expect(find.text(_en.aiMemoryAdd), findsWidgets);
       await tester.tap(find.widgetWithText(FilledButton, _en.save));
       await tester.pumpAndSettle();
-      expect(memories.created, ['fact:I work night shifts']);
+      expect(created, ['fact:I work night shifts']);
       expect(find.text(_en.aiMemorySaved), findsOneWidget);
     });
 

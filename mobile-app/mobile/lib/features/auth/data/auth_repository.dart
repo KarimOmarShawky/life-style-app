@@ -2,6 +2,7 @@ import 'package:lifestyle_mobile/core/archive/archive_cancellation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/auth/data/user_model.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/data/session_tokens.dart';
 import 'package:lifestyle_mobile/data/token_store.dart';
 
@@ -16,17 +17,67 @@ class AuthRepository {
   /// Prevent this API client's old requests from retrying on another session.
   void invalidateSessionRetries() => _api.invalidateSessionRetries();
 
+  static const _stale = ApiException(
+    statusCode: 401, code: 'SESSION_CHANGED',
+    message: 'Your session changed. Please retry after signing in.',
+  );
+
+  void _check(bool Function() valid) {
+    if (!valid()) throw _stale;
+  }
+
+  Future<void> _writeForGeneration(SessionTokens tokens, bool Function() valid) async {
+    _check(valid);
+    final store = _tokens;
+    if (store is! SessionBoundTokenStore) throw _stale;
+    try {
+      await store.writeForSession(tokens, valid);
+    } on StaleCredentialOperation {
+      throw _stale;
+    }
+    _check(valid);
+  }
+
+  Future<void> _clearForGeneration(bool Function() valid) async {
+    _check(valid);
+    final store = _tokens;
+    if (store is! SessionBoundTokenStore) throw _stale;
+    try {
+      await store.clearForSession(valid);
+    } on StaleCredentialOperation {
+      throw _stale;
+    }
+    _check(valid);
+  }
+
+  Future<void> _clearIfMatches(SessionTokens expected, bool Function() valid) async {
+    _check(valid);
+    final store = _tokens;
+    if (store is! SessionBoundTokenStore) throw _stale;
+    try {
+      if (!await store.clearIfMatches(expected, valid)) throw _stale;
+    } on StaleCredentialOperation {
+      throw _stale;
+    }
+    _check(valid);
+  }
+
   Future<AppUser?> restoreSession() async {
+    final valid = _api.captureCredentialGeneration();
     final session = await _api.restoreSession();
+    _check(valid);
     if (session == null) return null;
     try {
-      return await getProfile();
+      final response = await _api.request('GET', 'users/me', sessionIsCurrent: valid);
+      _check(valid);
+      if (response is! Map<String, dynamic> || response['user'] is! Map<String, dynamic>) {
+        throw const ApiException(statusCode: 502, code: 'INVALID_API_RESPONSE',
+            message: 'The server returned an invalid profile response.');
+      }
+      return AppUser.fromJson(response['user'] as Map<String, dynamic>);
     } on ApiException catch (error) {
-      // A response fenced by an account transition must not clear the newer
-      // account's credentials. Other 401 cleanup is still not atomic with an
-      // independent engine or token-store write.
       if (error.statusCode == 401 && error.code != 'SESSION_CHANGED') {
-        await _tokens.clear();
+        await _clearIfMatches(session, valid);
       }
       rethrow;
     }
@@ -37,12 +88,18 @@ class AuthRepository {
     required String password,
   }) async {
     invalidateSessionRetries();
+    final valid = _api.captureCredentialGeneration();
+    // Do not leave the prior identity's credentials restorable when a new
+    // authentication attempt fails. A newer transition fences this clear.
+    await _clearForGeneration(valid);
+    _check(valid);
     final response = await _api.post(
       'auth/login',
       authenticated: false,
       body: {'email': email.trim(), 'password': password, 'device': _device()},
     );
-    return _saveAuthentication(response);
+    _check(valid);
+    return _saveAuthentication(response, valid);
   }
 
   Future<AppUser> register({
@@ -51,6 +108,9 @@ class AuthRepository {
     required String displayName,
   }) async {
     invalidateSessionRetries();
+    final valid = _api.captureCredentialGeneration();
+    await _clearForGeneration(valid);
+    _check(valid);
     final response = await _api.post(
       'auth/register',
       authenticated: false,
@@ -63,7 +123,8 @@ class AuthRepository {
         'device': _device(),
       },
     );
-    return _saveAuthentication(response);
+    _check(valid);
+    return _saveAuthentication(response, valid);
   }
 
   Future<void> requestPasswordReset(String email) async {
@@ -137,16 +198,18 @@ class AuthRepository {
 
   Future<void> logout() async {
     invalidateSessionRetries();
+    final valid = _api.captureCredentialGeneration();
     try {
-      await _api.post('auth/logout', body: {});
+      await _api.request('POST', 'auth/logout', body: {}, sessionIsCurrent: valid);
     } finally {
-      await _tokens.clear();
+      await _clearForGeneration(valid);
     }
   }
 
   Stream<List<int>> streamAccountArchive(
-          String currentPassword, ArchiveCancellation cancel) =>
-      _api.streamAccountArchive(currentPassword, cancel);
+          String currentPassword, ArchiveCancellation cancel,
+          {required AuthSessionContext session}) =>
+      _api.streamAccountArchive(currentPassword, cancel, session: session);
 
   Future<Map<String, dynamic>> exportUserData(String currentPassword) async {
     final response = await _api
@@ -179,7 +242,8 @@ class AuthRepository {
     await _api.delete('users/me/deletion');
   }
 
-  Future<AppUser> _saveAuthentication(dynamic response) async {
+  Future<AppUser> _saveAuthentication(dynamic response, bool Function() valid) async {
+    _check(valid);
     if (response is! Map<String, dynamic> ||
         response['tokens'] is! Map<String, dynamic> ||
         response['user'] is! Map<String, dynamic>) {
@@ -202,7 +266,7 @@ class AuthRepository {
       ),
     );
 
-    await _tokens.write(sessionTokens);
+    await _writeForGeneration(sessionTokens, valid);
     return AppUser.fromJson(response['user'] as Map<String, dynamic>);
   }
 

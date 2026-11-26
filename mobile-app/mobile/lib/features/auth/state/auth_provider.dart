@@ -39,8 +39,31 @@ final authProvider = AsyncNotifierProvider<AuthController, AppUser?>(
 // A content-free UI invalidation signal; this is not an ownership credential.
 final authTransitionSignalProvider = StateProvider<int>((ref) => 0);
 
+/// An identity and generation captured from the authenticated controller.
+/// This is an in-process fence, not a cross-engine credential lock.
+class AuthSessionContext {
+  AuthSessionContext._(this.account, this.generation, this._isCurrent);
+
+  final String account;
+  final int generation;
+  final bool Function() _isCurrent;
+
+  bool get isCurrent {
+    try {
+      return _isCurrent();
+    } on Object {
+      return false;
+    }
+  }
+
+  void requireCurrent() {
+    if (!isCurrent) throw StateError('Authentication session changed');
+  }
+}
+
 class AuthController extends AsyncNotifier<AppUser?> {
   bool _signingOut = false;
+  int _pendingSignOuts = 0;
   int _authGeneration = 0;
   int _sessionGeneration = 0;
   int _pendingAuthTransitions = 0;
@@ -68,7 +91,24 @@ class AuthController extends AsyncNotifier<AppUser?> {
   bool sessionIsCurrent(String account, int generation) =>
       generation == _sessionGeneration && activeAccount == account;
 
+  AuthSessionContext? captureSession() {
+    final account = activeAccount;
+    final generation = sessionGeneration;
+    if (account == null) return null;
+    return AuthSessionContext._(
+      account,
+      generation,
+      () => sessionIsCurrent(account, generation),
+    );
+  }
+
   void _beginSessionTransition() {
+    // A queued login/restore must not invalidate the logout currently
+    // responsible for clearing credentials. Sign-out already fenced old work;
+    // the queued authentication starts only after its cleanup finishes.
+    if (_pendingSignOuts == 0) {
+      ref.read(authRepositoryProvider).invalidateSessionRetries();
+    }
     _sessionGeneration++;
     _pendingAuthTransitions++;
     ref.read(authTransitionSignalProvider.notifier).state++;
@@ -207,6 +247,7 @@ class AuthController extends AsyncNotifier<AppUser?> {
   }
 
   Future<void> signOut() async {
+    _pendingSignOuts++;
     _signingOut = true;
     _authGeneration++;
     _sessionGeneration++;
@@ -221,7 +262,8 @@ class AuthController extends AsyncNotifier<AppUser?> {
       cleanupError = error;
       cleanupStack = stack;
     });
-    await _serializeAuth(() async {
+    try {
+      await _serializeAuth(() async {
       try {
         await ref.read(authRepositoryProvider).logout();
       } finally {
@@ -267,7 +309,10 @@ class AuthController extends AsyncNotifier<AppUser?> {
           }
         }
       }
-    });
+      });
+    } finally {
+      _pendingSignOuts--;
+    }
   }
 
   Future<void> retryRestore() {

@@ -2,7 +2,7 @@
 <!-- Home-screen widget (feature guide G3). The widget uses the app language
      when the user picked one, otherwise the device language. -->
 <resources>
-    <string name="lifestyle_widget_label">LifeStyle · Bugün</string>
+    <string name="lifestyle_widget_label">Livora · Bugün</string>
     <string name="widget_header">Son berraklık puanı</string>
     <string name="widget_no_data">Henüz veri yok</string>
     <string name="widget_level_xp">Seviye %1$d · %2$d XP</string>

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:lifestyle_mobile/core/archive/archive_cancellation.dart';
 import 'package:lifestyle_mobile/core/archive/archive_verifier.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -68,8 +69,58 @@ class ApiClient {
     _rotationSuccessors.clear();
   }
 
+  /// A generation fence shared by authentication and credential storage.
+  bool Function() captureCredentialGeneration() {
+    final generation = _sessionGeneration;
+    return () => generation == _sessionGeneration;
+  }
+
   void _checkSessionGeneration(int generation) {
     if (generation != _sessionGeneration) throw _sessionChanged;
+  }
+
+  void _checkBoundSession(bool Function()? isCurrent) {
+    if (isCurrent != null && !isCurrent()) throw _sessionChanged;
+  }
+
+  bool Function() _credentialGuard(int generation, bool Function()? session) =>
+      () => generation == _sessionGeneration && (session == null || session());
+
+  Future<SessionTokens?> _readCredentials(int generation,
+      [bool Function()? session]) async {
+    final store = _tokenStore;
+    if (store is SessionBoundTokenStore) {
+      try {
+        return await store.readForSession(_credentialGuard(generation, session));
+      } on StaleCredentialOperation {
+        throw _sessionChanged;
+      }
+    }
+    if (session != null) throw _sessionChanged;
+    return store.read();
+  }
+
+  Future<bool> _replaceCredentialsIfCurrent(SessionTokens expected,
+      SessionTokens replacement, int generation, bool Function()? session) async {
+    final store = _tokenStore;
+    if (store is! SessionBoundTokenStore) throw _sessionChanged;
+    try {
+      return await store.replaceIfMatches(expected, replacement,
+          _credentialGuard(generation, session));
+    } on StaleCredentialOperation {
+      throw _sessionChanged;
+    }
+  }
+
+  Future<bool> _clearCredentialsIfCurrent(SessionTokens expected,
+      int generation, bool Function()? session) async {
+    final store = _tokenStore;
+    if (store is! SessionBoundTokenStore) throw _sessionChanged;
+    try {
+      return await store.clearIfMatches(expected, _credentialGuard(generation, session));
+    } on StaleCredentialOperation {
+      throw _sessionChanged;
+    }
   }
 
   bool _sameTokenPair(SessionTokens? a, SessionTokens b) =>
@@ -148,11 +199,17 @@ class ApiClient {
     Map<String, String>? query,
     Map<String, String>? headers,
     bool authenticated = true,
+    bool Function()? sessionIsCurrent,
   }) async {
+    void checkSession() {
+      if (sessionIsCurrent != null && !sessionIsCurrent()) throw _sessionChanged;
+    }
+    checkSession();
     final uri = _uri(path, query);
     final generation = _sessionGeneration;
-    final initialTokens = authenticated ? await _tokenStore.read() : null;
+    final initialTokens = authenticated ? await _readCredentials(generation, sessionIsCurrent) : null;
     if (authenticated) _checkSessionGeneration(generation);
+    checkSession();
     var response = await _send(
       method,
       uri,
@@ -163,6 +220,7 @@ class ApiClient {
     // Do not deliver a response from an earlier identity transition to the UI.
     // The server may already have acted on the request.
     if (authenticated) _checkSessionGeneration(generation);
+    checkSession();
     var exception = _exceptionFor(response);
 
     if (authenticated &&
@@ -170,9 +228,11 @@ class ApiClient {
         exception?.statusCode == 401 &&
         exception?.code == 'TOKEN_EXPIRED') {
       _checkSessionGeneration(generation);
-      await _refreshAfterExpiry(initialTokens, generation);
-      final refreshedTokens = await _tokenStore.read();
+      checkSession();
+      await _refreshAfterExpiry(initialTokens, generation, sessionIsCurrent);
+      final refreshedTokens = await _readCredentials(generation, sessionIsCurrent);
       _checkSessionGeneration(generation);
+      checkSession();
       if (refreshedTokens == null) {
         throw const ApiException(
           statusCode: 401,
@@ -194,6 +254,7 @@ class ApiClient {
         headers: headers,
       );
       _checkSessionGeneration(generation);
+      checkSession();
       exception = _exceptionFor(response);
     }
 
@@ -204,8 +265,13 @@ class ApiClient {
   /// Dedicated streaming connection. Refresh only an explicit pre-body TOKEN_EXPIRED,
   /// once; never replay a partial archive or a lost/uncertain response.
   Stream<List<int>> streamAccountArchive(
-      String password, ArchiveCancellation cancel) async* {
+      String password, ArchiveCancellation cancel,
+      {required AuthSessionContext session}) async* {
+    void checkSession() {
+      if (!session.isCurrent) throw _sessionChanged;
+    }
     cancel.check();
+    checkSession();
     final client = _archiveClientFactory();
     final generation = _sessionGeneration;
     var closed = false;
@@ -219,11 +285,14 @@ class ApiClient {
     unawaited(cancel.whenCancelled.then((_) => close()));
     final deadline = Timer(const Duration(seconds: 90), cancel.cancel);
     try {
-      var tokens = await cancel.bind(_tokenStore.read());
+      var tokens = await cancel.bind(
+          _readCredentials(generation, () => session.isCurrent));
       _checkSessionGeneration(generation);
+      checkSession();
       for (var attempt = 0; attempt < 2; attempt++) {
         cancel.check();
         _checkSessionGeneration(generation);
+        checkSession();
         final currentTokens = tokens;
         if (currentTokens == null) {
           throw const ApiException(
@@ -244,12 +313,14 @@ class ApiClient {
         final response = await cancel
             .bind(client.send(request).timeout(const Duration(seconds: 30)));
         _checkSessionGeneration(generation);
+        checkSession();
         if (response.statusCode != 200) {
           // Error bodies are also bounded; do not use Response.fromStream or log raw bodies.
           final body = BytesBuilder(copy: false);
           await for (final chunk
               in response.stream.timeout(const Duration(seconds: 15))) {
             cancel.check();
+            checkSession();
             if (body.length + chunk.length > 64 * 1024) {
               throw const ArchiveException();
             }
@@ -269,9 +340,13 @@ class ApiClient {
               code == 'TOKEN_EXPIRED' &&
               attempt == 0) {
             _checkSessionGeneration(generation);
-            await cancel.bind(_refreshAfterExpiry(currentTokens, generation));
-            tokens = await cancel.bind(_tokenStore.read());
+            checkSession();
+            await cancel.bind(_refreshAfterExpiry(
+                currentTokens, generation, () => session.isCurrent));
+            tokens = await cancel.bind(
+                _readCredentials(generation, () => session.isCurrent));
             _checkSessionGeneration(generation);
+            checkSession();
             if (tokens == null ||
                 !_isRotationSuccessor(
                     currentTokens.accessToken, tokens.accessToken)) {
@@ -297,9 +372,11 @@ class ApiClient {
             in response.stream.timeout(const Duration(seconds: 15))) {
           cancel.check();
           _checkSessionGeneration(generation);
+          checkSession();
           // Bound codec/verifier input even if a transport yields a larger buffer.
           for (var start = 0; start < chunk.length; start += 32 * 1024) {
             cancel.check();
+            checkSession();
             final end = start + 32 * 1024 < chunk.length
                 ? start + 32 * 1024
                 : chunk.length;
@@ -307,6 +384,7 @@ class ApiClient {
           }
         }
         cancel.check();
+        checkSession();
         return;
       }
       throw const ArchiveException();
@@ -330,14 +408,21 @@ class ApiClient {
     String path, {
     Object? body,
     Duration timeout = const Duration(seconds: 60),
+    bool Function()? sessionIsCurrent,
   }) async* {
+    void checkSession() {
+      if (sessionIsCurrent != null && !sessionIsCurrent()) throw _sessionChanged;
+    }
+    checkSession();
     final client = _eventStreamClientFactory();
     final generation = _sessionGeneration;
     try {
-      var tokens = await _tokenStore.read();
+      var tokens = await _readCredentials(generation, sessionIsCurrent);
       _checkSessionGeneration(generation);
+      checkSession();
       for (var attempt = 0; attempt < 2; attempt++) {
         _checkSessionGeneration(generation);
+        checkSession();
         final currentTokens = tokens;
         if (currentTokens == null) {
           throw const ApiException(
@@ -357,6 +442,7 @@ class ApiClient {
         if (body != null) request.body = jsonEncode(body);
         final streamed = await client.send(request).timeout(timeout);
         _checkSessionGeneration(generation);
+        checkSession();
         if (streamed.statusCode != 200) {
           // Read the error envelope, bounded like the archive path.
           final bytes = BytesBuilder(copy: false);
@@ -379,9 +465,12 @@ class ApiClient {
           if (exception.statusCode == 401 &&
               exception.code == 'TOKEN_EXPIRED' &&
               attempt == 0) {
-            await _refreshAfterExpiry(currentTokens, generation);
-            tokens = await _tokenStore.read();
             _checkSessionGeneration(generation);
+            checkSession();
+            await _refreshAfterExpiry(currentTokens, generation, sessionIsCurrent);
+            tokens = await _readCredentials(generation, sessionIsCurrent);
+            _checkSessionGeneration(generation);
+            checkSession();
             if (tokens == null ||
                 !_isRotationSuccessor(
                     currentTokens.accessToken, tokens.accessToken)) {
@@ -406,6 +495,7 @@ class ApiClient {
             .transform(utf8.decoder)
             .transform(const LineSplitter())) {
           _checkSessionGeneration(generation);
+          checkSession();
           if (line.isEmpty) {
             if (dataLines.isEmpty) continue;
             final payload = dataLines.join('\n');
@@ -418,6 +508,8 @@ class ApiClient {
           }
         }
         if (dataLines.isNotEmpty) {
+          _checkSessionGeneration(generation);
+          checkSession();
           yield dataLines.join('\n');
         }
         return;
@@ -434,7 +526,7 @@ class ApiClient {
         statusCode: 0,
         code: 'NETWORK_ERROR',
         message:
-            'Could not connect to LifeStyle. Check your connection and try again.',
+            'Could not connect to Livora. Check your connection and try again.',
       );
     } finally {
       client.close();
@@ -446,20 +538,24 @@ class ApiClient {
   /// grace window and revokes a session on token reuse.
   Future<SessionTokens?> restoreSession() async {
     final generation = _sessionGeneration;
-    final current = await _tokenStore.read();
+    final valid = _credentialGuard(generation, null);
+    final current = await _readCredentials(generation, valid);
     _checkSessionGeneration(generation);
     if (current == null) return null;
-    await _ensureRefresh(current, generation);
-    final restored = await _tokenStore.read();
+    await _ensureRefresh(current, generation, valid);
+    final restored = await _readCredentials(generation, valid);
     _checkSessionGeneration(generation);
     return restored;
   }
 
   Future<void> _refreshAfterExpiry(
-      SessionTokens tokensUsed, int generation) async {
+      SessionTokens tokensUsed, int generation,
+      [bool Function()? sessionIsCurrent]) async {
+    _checkBoundSession(sessionIsCurrent);
     _checkSessionGeneration(generation);
-    final stored = await _tokenStore.read();
+    final stored = await _readCredentials(generation, sessionIsCurrent);
     _checkSessionGeneration(generation);
+    _checkBoundSession(sessionIsCurrent);
     if (stored == null) {
       throw const ApiException(
         statusCode: 401,
@@ -477,20 +573,27 @@ class ApiClient {
       return;
     }
     if (!_sameTokenPair(stored, tokensUsed)) throw _sessionChanged;
-    await _ensureRefresh(stored, generation);
+    await _ensureRefresh(stored, generation, sessionIsCurrent);
   }
 
-  Future<void> _ensureRefresh(SessionTokens current, int generation) async {
+  Future<void> _ensureRefresh(SessionTokens current, int generation,
+      [bool Function()? sessionIsCurrent]) async {
+    // A refresh must never submit an opaque token unless persistence and
+    // cleanup can be conditionally coordinated by the credential store.
+    if (_tokenStore is! SessionBoundTokenStore) throw _sessionChanged;
+    _checkBoundSession(sessionIsCurrent);
     _checkSessionGeneration(generation);
     final inFlight = _refreshFlight;
     if (inFlight != null) {
       await inFlight;
       _checkSessionGeneration(generation);
+      _checkBoundSession(sessionIsCurrent);
       return;
     }
 
-    final latest = await _tokenStore.read();
+    final latest = await _readCredentials(generation, sessionIsCurrent);
     _checkSessionGeneration(generation);
+    _checkBoundSession(sessionIsCurrent);
     if (latest == null) {
       throw const ApiException(
         statusCode: 401,
@@ -511,10 +614,11 @@ class ApiClient {
     if (existingFlight != null) {
       await existingFlight;
       _checkSessionGeneration(generation);
+      _checkBoundSession(sessionIsCurrent);
       return;
     }
 
-    final flight = _rotate(latest, generation);
+    final flight = _rotate(latest, generation, sessionIsCurrent);
     _refreshFlight = flight;
     try {
       await flight;
@@ -523,8 +627,11 @@ class ApiClient {
     }
   }
 
-  Future<void> _rotate(SessionTokens current, int generation) async {
+  Future<void> _rotate(SessionTokens current, int generation,
+      [bool Function()? sessionIsCurrent]) async {
     try {
+      _checkBoundSession(sessionIsCurrent);
+      _checkSessionGeneration(generation);
       final response = await _send(
           'POST',
           _uri('auth/refresh', null),
@@ -532,6 +639,8 @@ class ApiClient {
             'refreshToken': current.refreshToken,
           },
           null);
+      _checkBoundSession(sessionIsCurrent);
+      _checkSessionGeneration(generation);
       final error = _exceptionFor(response);
       if (error != null) throw error;
       final decoded = _decodeSuccess(response);
@@ -541,13 +650,14 @@ class ApiClient {
           : data;
       final rotated = SessionTokens.fromJson(tokenData);
       _checkSessionGeneration(generation);
-      final latest = await _tokenStore.read();
-      _checkSessionGeneration(generation);
-      if (!_sameTokenPair(latest, current)) throw _sessionChanged;
-      await _tokenStore.write(rotated);
+      _checkBoundSession(sessionIsCurrent);
+      final replaced = await _replaceCredentialsIfCurrent(
+          current, rotated, generation, sessionIsCurrent);
+      if (!replaced) throw _sessionChanged;
       // The write may already have completed when a transition begins. This
       // check avoids publishing a retry lineage, but is not atomic storage CAS.
       _checkSessionGeneration(generation);
+      _checkBoundSession(sessionIsCurrent);
       _rotationSuccessors[current.accessToken] = rotated.accessToken;
       while (_rotationSuccessors.length > _maxRotationHistory) {
         _rotationSuccessors.remove(_rotationSuccessors.keys.first);
@@ -557,12 +667,9 @@ class ApiClient {
       // the old opaque token would trigger strict reuse detection. Discard the
       // uncertain pair and require a fresh login instead.
       if (generation == _sessionGeneration &&
+          (sessionIsCurrent == null || sessionIsCurrent()) &&
           !(error is ApiException && error.code == 'SESSION_CHANGED')) {
-        final latest = await _tokenStore.read();
-        if (generation == _sessionGeneration &&
-            _sameTokenPair(latest, current)) {
-          await _tokenStore.clear();
-        }
+        await _clearCredentialsIfCurrent(current, generation, sessionIsCurrent);
       }
       if (error is ApiException) rethrow;
       throw const ApiException(
@@ -614,7 +721,7 @@ class ApiClient {
         statusCode: 0,
         code: 'NETWORK_ERROR',
         message:
-            'Could not connect to LifeStyle. Check your connection and try again.',
+            'Could not connect to Livora. Check your connection and try again.',
       );
     }
   }

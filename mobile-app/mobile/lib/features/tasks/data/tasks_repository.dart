@@ -1,6 +1,7 @@
 import 'package:lifestyle_mobile/data/paged_list.dart';
 import 'package:lifestyle_mobile/data/api_client.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 class TasksRepository {
   const TasksRepository(this._api);
@@ -60,7 +61,9 @@ class TasksRepository {
     String? dueDate,
     String? dueTime,
     String? priority,
+    AuthSessionContext? session,
   }) async {
+    session?.requireCurrent();
     final body = <String, dynamic>{
       'title': title.trim(),
       if (description != null && description.trim().isNotEmpty)
@@ -69,7 +72,11 @@ class TasksRepository {
       if (dueTime != null && dueTime.isNotEmpty) 'dueTime': dueTime,
       if (priority != null) 'priority': priority,
     };
-    final response = await _api.post('tasks', body: body);
+    final response = session == null
+        ? await _api.post('tasks', body: body)
+        : await _api.request('POST', 'tasks', body: body,
+            sessionIsCurrent: () => session.isCurrent);
+    session?.requireCurrent();
     if (response is! Map<String, dynamic>) {
       throw const ApiException(
         statusCode: 502,

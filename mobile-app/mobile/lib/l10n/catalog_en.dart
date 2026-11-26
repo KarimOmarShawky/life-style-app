@@ -3,12 +3,12 @@
 const Map<String, String> enCatalog = {
   'aiEgressTitle': 'Send conversation to Google Gemini?',
   'aiEgressDescription':
-      "Your message and the recent conversation are sent to Google Gemini through LifeStyle's server. Don't type passwords or sensitive information. Google applies its own data policies.",
+      "Your message and the recent conversation are sent to Google Gemini through Livora's server. Don't type passwords or sensitive information. Google applies its own data policies.",
   'aiEgressAgree': 'Agree and send',
   'aiContextChip': 'Use my app data',
   'aiContextDialogTitle': 'Use your app data?',
   'aiContextDialogBody':
-      "To answer about your day, LifeStyle's server sends Google Gemini a short summary with each message: the titles of today's tasks, habits due today with their streaks, your active goals with their progress and today's events with their times. Notes, task descriptions, event locations and subscriptions are never sent. You can turn this off at any time.",
+      "To answer about your day, Livora's server sends Google Gemini a short summary with each message: the titles of today's tasks, habits due today with their streaks, your active goals with their progress and today's events with their times. Notes, task descriptions, event locations and subscriptions are never sent. You can turn this off at any time.",
   'aiContextDialogConfirm': 'Turn on',
   'aiConsentRequiredMessage':
       'AI consent is needed. Send your message again to review it.',
@@ -57,7 +57,7 @@ const Map<String, String> enCatalog = {
   'aiMemoryLoadFailed': "Couldn't load your notes.",
   'aiMemoryDeleteFailed': "Couldn't delete. Try again.",
   'aiSaveToMemoryTooltip': 'Save to memory',
-  'appTitle': 'LifeStyle',
+  'appTitle': 'Livora',
   'signIn': 'Sign in',
   'createAccount': 'Create account',
   'email': 'Email',
@@ -78,7 +78,7 @@ const Map<String, String> enCatalog = {
   'archiveFailed':
       'Export or save was not completed. No save is confirmed. Check/remove any partial document at a chosen destination. Temporary encrypted cleanup may need checking; download again to retry.',
   'archiveSaved':
-      'The chosen document was written and its readback verified. Provider durability, backups and sync remain outside LifeStyle control.',
+      'The chosen document was written and its readback verified. Provider durability, backups and sync remain outside Livora control.',
   'archiveClose': 'Close / stop export',
   'archiveDownload': 'Download and verify',
   'archiveSave': 'Choose destination and save',
@@ -89,7 +89,7 @@ const Map<String, String> enCatalog = {
       "Couldn't open the privacy policy. Check that a browser is installed.",
   'accountExportReady': 'Account metadata export ready',
   'accountExportPrivacy':
-      'This is a metadata-only export, not a complete archive of tasks, notes, finances or other application data. Copying is optional and may expose your personal account metadata to other apps, keyboards, clipboard history or synced devices. Clipboard copies are not automatically cleared by LifeStyle and may persist after you close this screen.',
+      'This is a metadata-only export, not a complete archive of tasks, notes, finances or other application data. Copying is optional and may expose your personal account metadata to other apps, keyboards, clipboard history or synced devices. Clipboard copies are not automatically cleared by Livora and may persist after you close this screen.',
   'accountExportAcknowledge': 'I understand the clipboard privacy risk.',
   'accountExportCopied':
       'Copied to clipboard. Close this screen when finished.',
@@ -252,7 +252,7 @@ const Map<String, String> enCatalog = {
   'enterValidEmailPrompt': 'Enter a valid email address.',
   'enterPasswordPrompt': 'Enter your password.',
   'alreadyHaveAccount': 'Already have an account?',
-  'newToApp': 'New to LifeStyle?',
+  'newToApp': 'New to Livora?',
   'passwordMinLengthError': 'Password must be at least 8 characters.',
   'currencyUpdated': 'Currency updated to',
   'currencyUpdateFailed': 'Failed to update currency',
@@ -267,7 +267,7 @@ const Map<String, String> enCatalog = {
   'badgeDiscipline': 'Discipline',
   'badgeStreak7': '7-day streak',
   'globalSearchTooltip': 'Global Search',
-  'testAlarmTitleText': 'LifeStyle: Important Reminder!',
+  'testAlarmTitleText': 'Livora: Important Reminder!',
   'testAlarmBodyText': 'Press dismiss to stop alarm, or snooze to delay',
   'briefingMorning': 'Good morning',
   'briefingEvening': 'Good evening',
@@ -293,7 +293,7 @@ const Map<String, String> enCatalog = {
   'generalBudget': 'General Budget',
   'reportCopied':
       'Financial report copied to clipboard successfully! You can paste or share it now.',
-  'reportHeader': 'LifeStyle Monthly Financial Report',
+  'reportHeader': 'Livora Monthly Financial Report',
   'reportDateLabel': 'Report Date:',
   'reportTotalBudgetLabel': '- Total Budget:',
   'reportTotalSpentLabel': '- Total Spent:',
@@ -302,9 +302,9 @@ const Map<String, String> enCatalog = {
   'reportActiveSubsLabel': '- Active Subscriptions:',
   'reportTotalSubsLabel': '- Total Subscriptions:',
   'reportMonthlySuffix': 'monthly',
-  'reportFooter': 'Report generated by LifeStyle App',
+  'reportFooter': 'Report generated by Livora App',
   'aiWelcomeMessage':
-      'Welcome! I am your LifeStyle AI Assistant. How can I help you today? You can ask me to organize your schedule, suggest healthy habits, or provide productivity tips.',
+      'Welcome! I am your Livora AI Assistant. How can I help you today? You can ask me to organize your schedule, suggest healthy habits, or provide productivity tips.',
   'aiSuggestion1': 'Plan my day today',
   'aiSuggestion2': 'How do I balance work and study?',
   'aiSuggestion3': 'Suggest healthy morning habits',
@@ -550,14 +550,14 @@ const Map<String, String> enCatalog = {
   'shieldInboxTitle': 'Focus Inbox',
   'shieldInboxEmpty':
       'No messages. Notifications are kept only during an active shield session.',
-  'shieldReplyHint': 'Reply inside LifeStyle',
+  'shieldReplyHint': 'Reply inside Livora',
   'shieldSendReply': 'Send reply',
   'shieldStaleNote':
       'Reply unavailable or stale. Your draft has not been cleared.',
   'shieldCopyOpen': 'Copy & open app for 60s',
   'shieldEnableTitle': 'Enable Focus Shield?',
   'shieldEnableBody':
-      'During focus, LifeStyle can bring you back from your selected apps and keep supported messaging notifications (never SMS) in a temporary in-app inbox — never sent to AI, cleared when the session ends. Permissions are optional and can be revoked anytime.',
+      'During focus, Livora can bring you back from your selected apps and keep supported messaging notifications (never SMS) in a temporary in-app inbox — never sent to AI, cleared when the session ends. Permissions are optional and can be revoked anytime.',
   'shieldEnable': 'Enable',
   'shieldSelectedAppsTitle': 'Selected applications',
   'shieldSelectedAppsEmpty':
@@ -565,12 +565,12 @@ const Map<String, String> enCatalog = {
   'shieldSelectedAppsCount':
       '{n} application(s) selected. The list is managed in the Focus tab and shared with Digital Detox.',
   'shieldSettingsError':
-      'Open Android Settings to disable LifeStyle accessibility.',
+      'Open Android Settings to disable Livora accessibility.',
   'shieldStaleMessage': 'Notification removed or stale',
   'detoxTitle': 'Digital Detox',
   'detoxHeadline': 'Choose apps. Focus without the clutter.',
   'detoxIntro':
-      'Pick the distracting applications yourself. LifeStyle can redirect you away from them during focus, but it does not lock the phone: emergency calling, Settings, launcher, keyboards and LifeStyle remain available.',
+      'Pick the distracting applications yourself. Livora can redirect you away from them during focus, but it does not lock the phone: emergency calling, Settings, launcher, keyboards and Livora remain available.',
   'detoxSignIn': 'Sign in to create a private session.',
   'detoxAppsTitle': '1 · Applications',
   'detoxAppsSubtitle':
@@ -592,7 +592,7 @@ const Map<String, String> enCatalog = {
   'detoxMin': 'min',
   'detoxPermissionTitle': '3 · Permission & consent',
   'detoxPermissionSubtitle':
-      'Restriction uses the optional LifeStyle Accessibility Service and can be revoked in Android Settings.',
+      'Restriction uses the optional Livora Accessibility Service and can be revoked in Android Settings.',
   'detoxConsent':
       'I understand the scope and consent to the existing accessibility redirect. It can be disabled at any time.',
   'detoxOpenAccessibility': 'Open Android accessibility authorization',
@@ -659,7 +659,7 @@ const Map<String, String> enCatalog = {
   'analyticsDashboardSubtitle': 'Cumulative analysis and performance dashboard',
   'weeklySendTitle': 'Send aggregated numbers to Gemini?',
   'weeklySendBody':
-      'This request sends only counts, rates, focus minutes and average clarity. No task titles, notes, messages, sender names or package names. Consent is requested again for every request. The request runs through the LifeStyle server; no personal API key is needed.',
+      'This request sends only counts, rates, focus minutes and average clarity. No task titles, notes, messages, sender names or package names. Consent is requested again for every request. The request runs through the Livora server; no personal API key is needed.',
   'weeklyKeepOffline': 'Keep offline',
   'weeklySendRequest': 'Send this request',
   'weeklyRefresh': 'Refresh report',
@@ -692,12 +692,12 @@ const Map<String, String> enCatalog = {
   'weeklyWinsLine': '{n} tasks done · {m} min of focus — momentum is building.',
   'weeklyWinsEmpty': 'A fresh week — one small session is already a win.',
   'detoxAccessibilityOff':
-      'Blocking is off: LifeStyle accessibility is not enabled in Android settings, so selected apps will still open. Enable it, then come back. On Android 13+, if the switch is greyed out, first allow restricted settings for LifeStyle under App info.',
-  'detoxAccessibilityOn': 'Blocking is ready — LifeStyle accessibility is on.',
+      'Blocking is off: Livora accessibility is not enabled in Android settings, so selected apps will still open. Enable it, then come back. On Android 13+, if the switch is greyed out, first allow restricted settings for Livora under App info.',
+  'detoxAccessibilityOn': 'Blocking is ready — Livora accessibility is on.',
   'detoxEnableBlocking': 'Turn on blocking',
   'detoxAccessWhyTitle': 'One switch makes blocking work',
   'detoxAccessWhyBody':
-      'Android only lets LifeStyle notice that a picked app opened when LifeStyle is switched on in Accessibility settings. By design, LifeStyle cannot read your screen, messages, or passwords — it only learns which app is in front, and nothing is recorded or sent anywhere. You can switch it off anytime in the same settings.',
+      'Android only lets Livora notice that a picked app opened when Livora is switched on in Accessibility settings. By design, Livora cannot read your screen, messages, or passwords — it only learns which app is in front, and nothing is recorded or sent anywhere. You can switch it off anytime in the same settings.',
   'detoxAccessibilityNotConnected':
       'Android shows Focus Shield as on, but its service is not running yet — so selected apps would still open. In Downloaded apps, turn Focus Shield off and back on (or restart the phone), then return here.',
   'detoxStateIdle': 'Not started',
@@ -720,7 +720,7 @@ const Map<String, String> enCatalog = {
   'detoxErrorLost':
       'Blocking was lost during the session. Stop, make sure accessibility is still on, and start again.',
   'detoxErrorRelease':
-      'The restriction could not be released cleanly. Tap Stop again, or turn off LifeStyle accessibility in Android settings.',
+      'The restriction could not be released cleanly. Tap Stop again, or turn off Livora accessibility in Android settings.',
   'detoxErrorTimeChanged':
       'The device time changed, so the session was released. Stop and start a new one.',
   'detoxErrorInterrupted':
@@ -733,7 +733,7 @@ const Map<String, String> enCatalog = {
       'That action could not be confirmed. Check storage and Android permissions; if a restriction may still be active, tap Stop.',
   'detoxBatteryButton': 'Battery settings',
   'detoxBatteryHint':
-      'On Xiaomi and similar phones, set LifeStyle battery use to “No restrictions” and enable Autostart — otherwise Android may pause the blocking service mid-session.',
+      'On Xiaomi and similar phones, set Livora battery use to “No restrictions” and enable Autostart — otherwise Android may pause the blocking service mid-session.',
   'onboardingTitle': 'Let’s get your first win',
   'onboardingSubtitle':
       'Pick what matters most today. We’ll add three small tasks for you — no typing needed.',
@@ -764,14 +764,14 @@ const Map<String, String> enCatalog = {
       'We couldn’t save that. Try again, or skip for now.',
   'usageStatsTitle': 'Share usage statistics',
   'usageStatsSubtitle':
-      'Content-free counts such as “a task was completed” help improve LifeStyle. Task titles, notes and messages are never sent. Turning this off also deletes what was recorded.',
+      'Content-free counts such as “a task was completed” help improve Livora. Task titles, notes and messages are never sent. Turning this off also deletes what was recorded.',
   'settingSaveFailed': 'Couldn’t save this setting. Try again.',
   'aiTaskParsingTitle': 'AI help for Smart Quick Add',
   'aiTaskParsingSubtitle':
       'Off: dates and times are understood on your phone. On: what you type in Smart Quick Add is sent to the AI service.',
   'aiTaskParsingConsentTitle': 'Send Smart Quick Add text to AI?',
   'aiTaskParsingConsentBody':
-      'When this is on, the text you type in Smart Quick Add is sent through the LifeStyle server to Google Gemini to find dates and times. If the AI is slow or unavailable, your phone reads the text instead. You can turn this off at any time.',
+      'When this is on, the text you type in Smart Quick Add is sent through the Livora server to Google Gemini to find dates and times. If the AI is slow or unavailable, your phone reads the text instead. You can turn this off at any time.',
   'aiTaskParsingAgree': 'Turn on',
   'taskReminderTitle': 'Task reminder',
   'snoozeReminderTitle': 'Snoozed reminder',
@@ -790,7 +790,7 @@ const Map<String, String> enCatalog = {
   'notificationSettingsSubtitle': 'Quiet hours and daily limit',
   'notificationsMasterSwitch': 'Reminders and alarms',
   'notificationsMasterSwitchHint':
-      'When this is off, LifeStyle shows no reminders or alarms.',
+      'When this is off, Livora shows no reminders or alarms.',
   'quietHoursTitle': 'Quiet hours',
   'quietHoursHint': 'Reminders wait until quiet hours end.',
   'quietHoursStart': 'Starts',
@@ -812,7 +812,7 @@ const Map<String, String> enCatalog = {
   'reminderScheduled': 'Reminder set',
   'detectedTime': 'Time',
   'notificationSummaryTitle': 'Reminders',
-  'notificationSummaryBody': 'Reminders waiting in LifeStyle: {n}',
+  'notificationSummaryBody': 'Reminders waiting in Livora: {n}',
   'deletionScheduleTitle': 'Schedule account deletion',
   'deletionScheduleBody':
       'Your account will enter a 14-day grace period, and your other active sessions will be signed out before permanent deletion. You can cancel the deletion at any time during the grace period.',
@@ -825,7 +825,7 @@ const Map<String, String> enCatalog = {
       'Your account is scheduled for deletion. You can restore it now, before the 14-day grace period ends.',
   'deletionRestoreAction': 'Cancel deletion and restore account',
   'aiAssistantSubtitle':
-      'Included with your account and runs via the LifeStyle server — no key needed',
+      'Included with your account and runs via the Livora server — no key needed',
   'deleteAccountAction': 'Delete account (14-day grace period)',
   'xpDeviceNote': 'XP and badges are counted on this device.',
   'badgeEarned': 'Earned',

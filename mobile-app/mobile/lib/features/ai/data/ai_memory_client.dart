@@ -115,6 +115,21 @@ class ApiAiMemoryClient implements AiMemoryClient {
         ),
       );
 
+  Future<AiMemory> createForSession({
+    required AiMemoryKind kind,
+    required String content,
+    required bool Function() sessionIsCurrent,
+  }) async =>
+      AiMemory.fromJson(await _api.request(
+        'POST',
+        'ai/memories',
+        body: <String, Object?>{
+          'kind': kind.name,
+          'content': clampUtf16(content.trim(), aiMemoryMaxChars),
+        },
+        sessionIsCurrent: sessionIsCurrent,
+      ));
+
   @override
   Future<AiMemory> update(
     String id, {

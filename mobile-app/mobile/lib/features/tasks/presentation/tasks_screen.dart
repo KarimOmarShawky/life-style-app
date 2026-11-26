@@ -12,6 +12,7 @@ import 'package:lifestyle_mobile/data/notification_service.dart';
 import 'package:lifestyle_mobile/data/product_events.dart';
 import 'package:lifestyle_mobile/data/smart_task_parser.dart';
 import 'package:lifestyle_mobile/features/home/presentation/widgets/global_search_delegate.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 import 'package:lifestyle_mobile/features/tasks/data/task_model.dart';
 import 'package:lifestyle_mobile/l10n/app_localizations.dart';
 import 'package:lifestyle_mobile/features/tasks/state/tasks_provider.dart';
@@ -700,6 +701,8 @@ Future<void> _showSmartQuickAdd(
   BuildContext context,
   WidgetRef ref,
 ) async {
+  final session = ref.read(authProvider.notifier).captureSession();
+  if (session == null) return;
   final l10n = AppLocalizations.of(context);
   final controller = TextEditingController();
   ParsedTaskResult? parsed;
@@ -711,9 +714,25 @@ Future<void> _showSmartQuickAdd(
     context: context,
     builder: (dialogContext) => OwnedDialog(
       controllers: [controller],
-      child: StatefulBuilder(
+      child: Consumer(
+      builder: (context, dialogRef, _) {
+        dialogRef.watch(authTransitionSignalProvider);
+        if (!session.isCurrent) {
+          final route = ModalRoute.of(dialogContext);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!dialogContext.mounted) return;
+            controller.clear();
+            parsed = null;
+            if (route != null && route.isActive) {
+              Navigator.of(dialogContext).removeRoute(route);
+            }
+          });
+          return const SizedBox.shrink();
+        }
+        return StatefulBuilder(
         builder: (context, setDialogState) {
           Future<void> submit() async {
+            if (!session.isCurrent) return;
             final rawText = controller.text.trim();
             if (rawText.isEmpty) return;
             setDialogState(() {
@@ -725,25 +744,31 @@ Future<void> _showSmartQuickAdd(
               // used only after the account opted in from Profile.
               var p = parsed ?? SmartTaskParser.parse(rawText);
               try {
-                if (await ref.read(aiTaskParsingProvider.future)) {
-                  p = await SmartTaskParser.parseAsync(rawText, useAi: true);
+                if (await ref.read(aiTaskParsingProvider.notifier).enabledForSession(session)) {
+                  session.requireCurrent();
+                  p = await SmartTaskParser.parseAsync(rawText, useAi: true, session: session);
                 }
               } catch (_) {}
+              session.requireCurrent();
 
               final task = await ref.read(tasksRepositoryProvider).createTask(
+                    session: session,
                     title: p.title,
                     dueDate: p.dueDate,
                     dueTime: p.dueTime,
                   );
+              session.requireCurrent();
 
               if (p.scheduledDateTime != null &&
                   p.scheduledDateTime!.isAfter(DateTime.now())) {
                 await NotificationService.instance
                     .requestPermissionsIfNeeded(exactAlarms: true);
+                session.requireCurrent();
                 // Generic title: the task name is never the lock-screen
                 // headline (P0-F1). A normal reminder unless the user chose
                 // an alarm; the shared policy decides when it arrives (G2).
-                await NotificationScheduler.instance.schedule(
+                await NotificationScheduler.instance.scheduleForSession(
+                  session: session,
                   id: task.id.hashCode,
                   kind: ReminderKind.task,
                   tier: _reminderTier(ringAsAlarm),
@@ -753,6 +778,7 @@ Future<void> _showSmartQuickAdd(
                 );
               }
 
+              session.requireCurrent();
               ref.invalidate(tasksProvider);
 
               if (dialogContext.mounted) {
@@ -766,11 +792,12 @@ Future<void> _showSmartQuickAdd(
                 );
               }
             } catch (e) {
+              if (!session.isCurrent) return;
               if (dialogContext.mounted) {
                 setDialogState(() => error = _safeMessage(e));
               }
             } finally {
-              if (dialogContext.mounted) {
+              if (session.isCurrent && dialogContext.mounted) {
                 setDialogState(() => busy = false);
               }
             }
@@ -957,6 +984,8 @@ Future<void> _showSmartQuickAdd(
             ],
           );
         },
+      );
+      },
       ),
     ),
   );

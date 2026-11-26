@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:lifestyle_mobile/features/ai/data/ai_service.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 class ParsedTaskResult {
   const ParsedTaskResult({
@@ -45,7 +46,14 @@ class SmartTaskParser {
     DateTime? now,
     bool useAi = false,
     Duration timeout = aiTimeout,
+    AuthSessionContext? session,
   }) async {
+    // Legacy calls are retained for parser tests, but production AI use must
+    // supply an authenticated context.
+    if (useAi && session == null && replyProviderForTesting == null) {
+      throw StateError('Authenticated session required');
+    }
+    session?.requireCurrent();
     final current = now ?? DateTime.now();
     final trimmed = rawInput.trim();
     if (trimmed.isEmpty) {
@@ -70,18 +78,20 @@ Reply with ONLY a JSON object (no markdown fences, no explanation) with:
       final provider = replyProviderForTesting;
       final reply = provider != null
           ? await provider(prompt).timeout(timeout)
-          : await AiService.instance.sendMessage(
-              conversationHistory: const [],
+          : await AiService.instance.sendMessageForSession(
+              session: session!,
               newMessage: prompt,
               languageName: 'English',
               timeout: timeout,
             );
+      session?.requireCurrent();
       final parsed = _fromAiJson(reply, trimmed, current);
       if (parsed != null) return parsed;
     } catch (_) {
       // Fall through to local offline parser
     }
 
+    session?.requireCurrent();
     return parse(trimmed, current);
   }
 

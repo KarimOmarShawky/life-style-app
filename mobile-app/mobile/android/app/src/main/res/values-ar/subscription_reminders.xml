@@ -2,5 +2,5 @@
 <resources>
     <string name="subscription_reminder_channel">تذكيرات الاشتراكات</string>
     <string name="subscription_reminder_title">تذكير باشتراك</string>
-    <string name="subscription_reminder_body">قد يتجدد اشتراك قريبًا. افتح LifeStyle للمراجعة.</string>
+    <string name="subscription_reminder_body">قد يتجدد اشتراك قريبًا. افتح Livora للمراجعة.</string>
 </resources>

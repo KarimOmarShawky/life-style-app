@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lifestyle_mobile/data/notification_policy.dart';
 import 'package:lifestyle_mobile/data/notification_service.dart';
+import 'package:lifestyle_mobile/features/auth/state/auth_provider.dart';
 
 /// Which reminder a notification is; it decides the Android channel.
 enum ReminderKind { task, calendar }
@@ -74,28 +75,52 @@ class NotificationScheduler {
     required String title,
     required String body,
     required DateTime at,
+  }) => _schedule(id: id, kind: kind, tier: tier, title: title, body: body, at: at);
+
+  /// Quick Add uses the session captured before the user's draft was opened.
+  /// Already-submitted OS requests or storage writes cannot be atomically cancelled.
+  Future<void> scheduleForSession({
+    required AuthSessionContext session,
+    required int id,
+    required ReminderKind kind,
+    required NotificationTier tier,
+    required String title,
+    required String body,
+    required DateTime at,
+  }) => _schedule(session: session, id: id, kind: kind, tier: tier,
+      title: title, body: body, at: at);
+
+  Future<void> _schedule({
+    AuthSessionContext? session,
+    required int id,
+    required ReminderKind kind,
+    required NotificationTier tier,
+    required String title,
+    required String body,
+    required DateTime at,
   }) {
     return _serialized(() async {
-      final state = await _load();
+      session?.requireCurrent();
+      final state = await _load(session: session);
+      session?.requireCurrent();
       final days = <String?>{};
       final previous = state.entries.remove(id);
+      session?.requireCurrent();
       await _sink.cancelNotification(id);
+      session?.requireCurrent();
       if (previous != null) days.add(previous.day);
       if (at.isAfter(_clock())) {
-        final entry = _Entry(
-          id: id,
-          kind: kind,
-          tier: tier,
-          title: title,
-          body: body,
-          at: at.toUtc(),
-        );
+        final entry = _Entry(id: id, kind: kind, tier: tier, title: title,
+            body: body, at: at.toUtc());
         state.entries[id] = entry;
-        await _place(state, entry);
+        await _place(state, entry, session: session);
+        session?.requireCurrent();
         days.add(entry.day);
       }
-      await _syncSummaries(state, days);
-      await _save(state);
+      await _syncSummaries(state, days, session: session);
+      session?.requireCurrent();
+      await _save(state, session: session);
+      session?.requireCurrent();
     });
   }
 
@@ -155,7 +180,9 @@ class NotificationScheduler {
     return run;
   }
 
-  Future<void> _place(_State state, _Entry entry) async {
+  Future<void> _place(_State state, _Entry entry,
+      {AuthSessionContext? session}) async {
+    session?.requireCurrent();
     entry
       ..outcome = _Outcome.pending
       ..deliverAt = null
@@ -169,9 +196,9 @@ class NotificationScheduler {
       deliveredOn: (day) => _deliveredOn(state, day, entry.id),
     );
     if (decision is AllowNotification) {
-      await _deliver(state, entry, _Outcome.allow, decision.at);
+      await _deliver(state, entry, _Outcome.allow, decision.at, session: session);
     } else if (decision is DelayNotification) {
-      await _deliver(state, entry, _Outcome.delay, decision.at);
+      await _deliver(state, entry, _Outcome.delay, decision.at, session: session);
     } else if (decision is DigestNotification) {
       entry
         ..outcome = _Outcome.digest
@@ -185,8 +212,10 @@ class NotificationScheduler {
     _State state,
     _Entry entry,
     _Outcome outcome,
-    DateTime decidedAt,
-  ) async {
+    DateTime decidedAt, {
+    AuthSessionContext? session,
+  }) async {
+    session?.requireCurrent();
     // A reminder whose time passed while it waited (in quiet hours or in a
     // summary) still arrives, right away, when the settings change.
     final now = _clock();
@@ -195,6 +224,7 @@ class NotificationScheduler {
       ..outcome = outcome
       ..deliverAt = at.toUtc()
       ..day = localDateOf(at, state.timeZone);
+    session?.requireCurrent();
     if (entry.tier == NotificationTier.critical) {
       await _sink.showAlarmAt(
         id: entry.id,
@@ -245,7 +275,9 @@ class NotificationScheduler {
   /// Schedules, moves or cancels the summary of each day in [days] (all days
   /// when null). A summary covers that day's reminders over the limit whose
   /// summary has not been shown yet.
-  Future<void> _syncSummaries(_State state, Set<String?>? days) async {
+  Future<void> _syncSummaries(_State state, Set<String?>? days,
+      {AuthSessionContext? session}) async {
+    session?.requireCurrent();
     final now = _clock();
     final open = <String, List<_Entry>>{};
     for (final entry in state.entries.values) {
@@ -261,12 +293,15 @@ class NotificationScheduler {
       if (days != null) ...days.whereType<String>(),
     };
     for (final day in targets) {
+      session?.requireCurrent();
       final items = open[day] ?? const <_Entry>[];
       final id = summaryNotificationId(day);
       if (items.isEmpty) {
         final scheduled = state.summaries.remove(day);
         if (scheduled != null && scheduled.isAfter(now)) {
+          session?.requireCurrent();
           await _sink.cancelNotification(id);
+          session?.requireCurrent();
         }
         continue;
       }
@@ -280,12 +315,16 @@ class NotificationScheduler {
         item.summaryAt = at;
       }
       state.summaries[day] = at;
+      session?.requireCurrent();
       await _sink.showSummaryAt(id: id, count: items.length, at: at);
+      session?.requireCurrent();
     }
   }
 
-  Future<_State> _load() async {
+  Future<_State> _load({AuthSessionContext? session}) async {
+    session?.requireCurrent();
     final prefs = await SharedPreferences.getInstance();
+    session?.requireCurrent();
     final state = _State.decode(prefs.getString(storageKey));
     final now = _clock();
     final today = localDateOf(now, state.timeZone);
@@ -299,8 +338,10 @@ class NotificationScheduler {
     return state;
   }
 
-  Future<void> _save(_State state) async {
+  Future<void> _save(_State state, {AuthSessionContext? session}) async {
+    session?.requireCurrent();
     final prefs = await SharedPreferences.getInstance();
+    session?.requireCurrent();
     await prefs.setString(storageKey, jsonEncode(state.toJson()));
   }
 }

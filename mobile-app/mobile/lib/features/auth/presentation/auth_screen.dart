@@ -93,10 +93,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      Icons.spa_outlined,
-                      size: 52,
-                      color: colorScheme.primary,
+                    Image.asset(
+                      'assets/branding/livora_logo.png',
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.contain,
+                      excludeFromSemantics: true,
                     ),
                     const SizedBox(height: 12),
                     Text(
